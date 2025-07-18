@@ -82,10 +82,10 @@ Das Web-Appliance-Dashboard ist Ihre zentrale Verwaltungsoberfläche für alle H
 ## 🤝 Support
 
 Bei Fragen oder Problemen:
-- GitHub Issues: [Link zum Repository]
-- Community Forum: [Link zum Forum]
+- GitHub Issues: https://github.com/alflewerken/web-appliance-dashboard/issues
+- GitHub Discussions: https://github.com/alflewerken/web-appliance-dashboard/discussions
 - E-Mail Support: support@example.com
 
 ---
 
-**Version 1.0.3** | Stand: Januar 2025
+**Version 1.0.4** | Stand: Januar 2025

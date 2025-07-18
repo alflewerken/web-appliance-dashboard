@@ -6,7 +6,7 @@ const options = {
     openapi: '3.0.0',
     info: {
       title: 'Web Appliance Dashboard API',
-      version: '1.0.2',
+      version: '1.0.4',
       description: `
 # Web Appliance Dashboard API
 

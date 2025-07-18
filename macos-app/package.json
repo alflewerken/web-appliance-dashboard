@@ -1,6 +1,6 @@
 {
   "name": "web-appliance-dashboard",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "Web Appliance Dashboard macOS App",
   "main": "src/main.js",
   "repository": {

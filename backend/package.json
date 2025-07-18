@@ -1,6 +1,6 @@
 {
   "name": "appliance-dashboard-backend",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "Backend API for Web Appliance Dashboard",
   "main": "server.js",
   "author": "alflewerken",

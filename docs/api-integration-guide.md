@@ -63,6 +63,6 @@ Vorgefertigte Client-Libraries für verschiedene Sprachen:
 
 ## Support
 
-- GitHub Issues: [Report a bug](https://github.com/alflewerken/web-appliance-dashboard/issues)
-- API Docs: [Full Documentation](./api-reference.md)
-- Examples: [Code Examples](./api-reference.md#api-client-beispiele)
+- GitHub Issues: [https://github.com/alflewerken/web-appliance-dashboard/issues/new](https://github.com/alflewerken/web-appliance-dashboard/issues)
+- API Docs: [https://github.com/alflewerken/web-appliance-dashboard/blob/main/docs/api-reference.md](./api-reference.md)
+- Examples: [https://github.com/alflewerken/web-appliance-dashboard/blob/main/docs/api-reference.md#api-client-beispiele](./api-reference.md#api-client-beispiele)

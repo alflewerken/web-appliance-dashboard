@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Web Appliance Dashboard API
   description: RESTful API für die Verwaltung von Web-Appliances, Services und SSH-Verbindungen
-  version: 1.0.3
+  version: 1.0.4
   contact:
     name: Alf Lewerken
     email: support@example.com

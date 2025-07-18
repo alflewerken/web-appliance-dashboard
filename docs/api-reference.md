@@ -5,7 +5,7 @@
 Die Web Appliance Dashboard API ist eine RESTful API, die auf Node.js/Express basiert und JWT-Authentifizierung verwendet. Alle Endpoints (außer Auth) erfordern einen gültigen Bearer Token.
 
 **Base URL:** `http://localhost:3001/api`  
-**Version:** 1.0.3  
+**Version:** 1.0.4  
 **Authentifizierung:** JWT Bearer Token
 
 ## 🔐 Authentifizierung

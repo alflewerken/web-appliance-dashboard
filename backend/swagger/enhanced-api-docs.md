@@ -1778,7 +1778,7 @@ DEBUG=* npm start
 
 ## Additional Resources
 
-- [API Source Code](https://github.com/alflewerken/web-appliance-dashboard)
-- [OpenAPI/Swagger Spec](http://localhost:3001/api-docs)
-- [Postman Collection](./postman-collection.json)
+- [API Source Code](https://github.com/alflewerken/web-appliance-dashboard/tree/main/backend)
+- [OpenAPI/Swagger Spec](https://github.com/alflewerken/web-appliance-dashboard/blob/main/docs/openapi.yaml)
+- [Postman Collection](https://github.com/alflewerken/web-appliance-dashboard/blob/main/backend/swagger/postman-collection.json)
 - [Issue Tracker](https://github.com/alflewerken/web-appliance-dashboard/issues)
