@@ -48,7 +48,7 @@ jobs:
         zip -r web-appliance-dashboard-v${{ steps.get_version.outputs.VERSION }}.zip web-appliance-dashboard/
     
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         draft: false
         prerelease: false
