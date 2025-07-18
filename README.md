@@ -97,13 +97,23 @@ cd web-appliance-dashboard
 
 ## 🚀 Installation
 
-### Option 1: Schnellstart mit allem (Empfohlen)
+### Option 1: Schnellstart (Empfohlen)
+
+#### 1. Umgebungsvariablen einrichten
 ```bash
-# Automatisches Setup mit allen Features
-./start-with-guacamole.sh
+# Automatische Konfiguration
+./setup-env.sh
 ```
+
+#### 2. Installation starten
+```bash
+# Komplette Installation mit allen Features
+./scripts/build.sh --nocache
+```
+
 Dieser Befehl:
-- Konfiguriert alle Umgebungsvariablen automatisch
+- Löscht alle Docker-Caches für eine saubere Installation
+- Baut alle Container neu
 - Installiert alle Services inklusive Remote Desktop
 - Startet das komplette System
 

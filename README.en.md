@@ -97,13 +97,23 @@ cd web-appliance-dashboard
 
 ## 🚀 Installation
 
-### Option 1: Quick Start with Everything (Recommended)
+### Option 1: Quick Start (Recommended)
+
+#### 1. Set up environment variables
 ```bash
-# Automatic setup with all features
-./start-with-guacamole.sh
+# Automatic configuration
+./setup-env.sh
 ```
+
+#### 2. Start installation
+```bash
+# Complete installation with all features
+./scripts/build.sh --nocache
+```
+
 This command:
-- Automatically configures all environment variables
+- Clears all Docker caches for a clean installation
+- Rebuilds all containers
 - Installs all services including Remote Desktop
 - Starts the complete system
 
