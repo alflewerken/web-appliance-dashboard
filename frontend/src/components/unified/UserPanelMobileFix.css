@@ -1,0 +1,120 @@
+/* User Panel Mobile Fix */
+
+/* Ensure TabPanel content is visible on mobile */
+@media (max-width: 768px) {
+  /* Fix TabPanel visibility */
+  div[role="tabpanel"] {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Fix the content container */
+  div[role="tabpanel"] > .MuiBox-root {
+    padding: 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* User cards container */
+  .MuiBox-root[style*='display: flex'][style*='flexDirection: column'][style*='gap: 2'] {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Individual user cards */
+  .MuiPaper-root[style*='padding: 2'] {
+    width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Prevent horizontal overflow */
+  .MuiBox-root[style*='overflow: auto'] {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Fix main panel container */
+  .MuiBox-root[style*='width'][style*='height: 100%'][style*='backgroundColor: rgba(0, 0, 0, 0.95)'] {
+    padding: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Tab content area specific fix */
+  .MuiBox-root[style*='flex: 1'][style*='overflow: auto'] {
+    padding: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Ensure buttons are visible */
+  .MuiButton-root {
+    width: auto !important;
+    max-width: 100% !important;
+  }
+
+  /* Fix button container */
+  .MuiBox-root[style*='marginBottom: 2'] {
+    width: 100% !important;
+    padding: 0 16px !important;
+    margin-bottom: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Loading spinner container */
+  .MuiBox-root[style*='display: flex'][style*='justifyContent: center'][style*='padding: 4'] {
+    width: 100% !important;
+    padding: 32px !important;
+  }
+
+  /* User panel specific padding fix */
+  .user-panel-content,
+  [class*="tabpanel"] > div {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    /* Ensure content is visible on iOS */
+    div[role="tabpanel"] {
+      -webkit-overflow-scrolling: touch !important;
+      overflow-y: auto !important;
+      min-height: 0 !important;
+    }
+
+    /* Fix for iOS rendering issues */
+    .MuiBox-root {
+      -webkit-transform: translateZ(0) !important;
+      transform: translateZ(0) !important;
+    }
+  }
+}
+
+/* Debug helper - remove in production */
+@media (max-width: 768px) {
+  /* Temporary borders to see layout issues */
+  /*
+  div[role="tabpanel"] {
+    border: 2px solid red !important;
+  }
+  
+  div[role="tabpanel"] > .MuiBox-root {
+    border: 2px solid yellow !important;
+  }
+  
+  .MuiPaper-root {
+    border: 2px solid green !important;
+  }
+  */
+}

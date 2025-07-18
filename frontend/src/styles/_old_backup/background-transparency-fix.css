@@ -1,0 +1,58 @@
+/* ========================================================================
+   BACKGROUND TRANSPARENCY FIX
+   ========================================================================
+   Verbessert die Transparenz-Kontrolle und Theme-abhängige Überblendung
+   ======================================================================== */
+
+/* Stelle sicher, dass die opacity Variable korrekt gesetzt wird */
+body[data-opacity] {
+  --background-opacity: attr(data-opacity);
+}
+
+/* Dark Mode: Dunkle Überblendung */
+body.theme-dark .background-overlay[data-theme='dark'] {
+  background-color: #000000 !important;
+  mix-blend-mode: multiply !important;
+}
+
+/* Light Mode: Helle Überblendung */
+body.theme-light .background-overlay[data-theme='light'] {
+  background-color: #ffffff !important;
+  mix-blend-mode: screen !important;
+}
+
+/* Auto Theme */
+@media (prefers-color-scheme: light) {
+  body.theme-auto .background-overlay {
+    background-color: #ffffff !important;
+    mix-blend-mode: screen !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body.theme-auto .background-overlay {
+    background-color: #000000 !important;
+    mix-blend-mode: multiply !important;
+  }
+}
+
+/* Smooth transitions */
+.background-overlay {
+  transition:
+    opacity 0.3s ease,
+    background-color 0.3s ease !important;
+}
+
+/* Debug Helper */
+.debug-transparency::after {
+  content: 'Opacity: ' attr(data-opacity);
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 9999;
+}

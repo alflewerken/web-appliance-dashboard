@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: #1e1e1e;
+        }
+        
+        #terminal-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #4ecdc4;
+            font-size: 18px;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error {
+            color: #f44336;
+            margin-bottom: 20px;
+        }
+        
+        .info {
+            color: #888;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: #4ecdc4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #3dbdb5;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div>Terminal wird geladen...</div>
+    </div>
+    <iframe id="terminal-frame" style="display: none;"></iframe>
+    
+    <script>
+        // URL-Parameter auslesen
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Host-Parameter korrigieren für Docker-Container
+        let host = urlParams.get('host') || '';
+        let user = urlParams.get('user') || '';
+        let port = urlParams.get('port') || '22';
+        const hostId = urlParams.get('hostId') || '';
+        
+        // Spezielle Behandlung für lokalen Mac-Zugriff
+        if (host === 'mac' || host === 'localhost' || host === '127.0.0.1') {
+            host = 'host.docker.internal';
+        }
+        
+        // Wenn keine Verbindungsdaten vorhanden sind, zeige Fehler
+        if (!host && !hostId) {
+            document.getElementById('loading').innerHTML = `
+                <div class="error">Keine Verbindungsinformationen</div>
+                <div class="info">
+                    Bitte öffnen Sie das Terminal über einen konfigurierten SSH-Host
+                    oder übergeben Sie die Parameter in der URL:
+                    <br><br>
+                    <code>?host=hostname&user=username&port=22</code>
+                </div>
+                <button onclick="window.close()">Fenster schließen</button>
+            `;
+        } else {
+            // Erstelle ttyd URL mit Parametern
+            const ttydParams = new URLSearchParams();
+            if (host) ttydParams.append('host', host);
+            if (user) ttydParams.append('user', user);
+            if (port) ttydParams.append('port', port);
+            if (hostId) ttydParams.append('hostId', hostId);
+            
+            // ttyd läuft auf Port 7682 mit base-path /terminal
+            const ttydUrl = `http://localhost:7682/terminal/?${ttydParams.toString()}`;
+            
+            console.log('Loading ttyd terminal:', ttydUrl);
+            console.log('Parameters:', {host, user, port, hostId});
+            
+            const iframe = document.getElementById('terminal-frame');
+            const loadingEl = document.getElementById('loading');
+            
+            // Lade ttyd
+            iframe.src = ttydUrl;
+            
+            // Timeout für Ladevorgang
+            const loadTimeout = setTimeout(() => {
+                loadingEl.innerHTML = `
+                    <div class="error">Terminal konnte nicht geladen werden</div>
+                    <div class="info">
+                        Der ttyd-Service antwortet nicht.
+                        Stelle sicher, dass die Docker-Container laufen.
+                    </div>
+                    <button onclick="location.reload()">Erneut versuchen</button>
+                    <button onclick="window.close()">Fenster schließen</button>
+                `;
+            }, 10000);
+            
+            iframe.onload = function() {
+                clearTimeout(loadTimeout);
+                loadingEl.style.display = 'none';
+                iframe.style.display = 'block';
+            };
+        }
+    </script>
+</body>
+</html>

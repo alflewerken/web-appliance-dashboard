@@ -1,0 +1,53 @@
+/* Final background image styles after debugging */
+
+/* Ensure all main containers are transparent when background is active */
+body.has-background-image,
+body.theme-light.has-background-image,
+body.theme-dark.has-background-image,
+body.theme-auto.has-background-image,
+.has-background-image .music-app,
+body.theme-light.has-background-image .music-app,
+body.theme-dark.has-background-image .music-app,
+body.theme-auto.has-background-image .music-app,
+.has-background-image .main-content,
+body.theme-light.has-background-image .main-content,
+body.theme-dark.has-background-image .main-content,
+body.theme-auto.has-background-image .main-content,
+.has-background-image .content-body,
+body.theme-light.has-background-image .content-body,
+body.theme-dark.has-background-image .content-body,
+body.theme-auto.has-background-image .content-body {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Remove forced backgrounds from body with higher specificity */
+body:not(.theme-light):not(.theme-dark):not(.theme-auto) {
+  background-color: #000; /* Default black only when no theme is set */
+}
+
+body.theme-light {
+  background-color: #f2f2f7;
+}
+
+body.has-background-image,
+body.theme-light.has-background-image,
+body.theme-dark.has-background-image,
+body.theme-auto.has-background-image {
+  background-color: transparent !important;
+}
+
+/* Ensure proper z-index stacking */
+.background-image {
+  z-index: -2 !important;
+}
+
+.background-overlay {
+  z-index: -1 !important;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}

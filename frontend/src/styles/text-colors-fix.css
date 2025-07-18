@@ -1,0 +1,248 @@
+/* ========================================================================
+   TEXT AND LABEL COLORS FIX
+   ========================================================================
+   Korrekte Text- und Label-Farben für Dark und Light Mode
+   ======================================================================== */
+
+/* ========================================================================
+   DARK MODE - Helle Texte und Labels
+   ======================================================================== */
+
+/* Allgemeine Texte im Dark Mode */
+body.theme-dark,
+body.theme-dark .music-app,
+body.theme-dark .panel-container {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Labels für Formular-Elemente */
+body.theme-dark label,
+body.theme-dark .MuiFormLabel-root,
+body.theme-dark .MuiInputLabel-root,
+body.theme-dark .MuiFormControlLabel-label {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Input Texte */
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea,
+body.theme-dark .MuiInputBase-root,
+body.theme-dark .MuiInputBase-input,
+body.theme-dark .MuiSelect-select {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Placeholder Texte */
+body.theme-dark input::placeholder,
+body.theme-dark textarea::placeholder,
+body.theme-dark .MuiInputBase-input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Typography Komponenten */
+body.theme-dark .MuiTypography-root,
+body.theme-dark h1,
+body.theme-dark h2,
+body.theme-dark h3,
+body.theme-dark h4,
+body.theme-dark h5,
+body.theme-dark h6,
+body.theme-dark p,
+body.theme-dark span {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Secondary Text */
+body.theme-dark .MuiTypography-colorTextSecondary,
+body.theme-dark .text-secondary,
+body.theme-dark .MuiListItemText-secondary {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Buttons */
+body.theme-dark button,
+body.theme-dark .MuiButton-root:not(.MuiButton-contained) {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* List Items */
+body.theme-dark .MuiListItem-root,
+body.theme-dark .MuiListItemText-primary,
+body.theme-dark .MuiMenuItem-root {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Tabs */
+body.theme-dark .MuiTab-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+body.theme-dark .MuiTab-root.Mui-selected {
+  color: #007aff !important;
+}
+
+/* Icons mit Text */
+body.theme-dark .MuiSvgIcon-root,
+body.theme-dark svg {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ========================================================================
+   LIGHT MODE - Dunkle Texte und Labels
+   ======================================================================== */
+
+/* Allgemeine Texte im Light Mode */
+body.theme-light,
+body.theme-light .music-app,
+body.theme-light .panel-container {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Labels für Formular-Elemente */
+body.theme-light label,
+body.theme-light .MuiFormLabel-root,
+body.theme-light .MuiInputLabel-root,
+body.theme-light .MuiFormControlLabel-label {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Input Texte */
+body.theme-light input,
+body.theme-light select,
+body.theme-light textarea,
+body.theme-light .MuiInputBase-root,
+body.theme-light .MuiInputBase-input,
+body.theme-light .MuiSelect-select {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Placeholder Texte */
+body.theme-light input::placeholder,
+body.theme-light textarea::placeholder,
+body.theme-light .MuiInputBase-input::placeholder {
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Typography Komponenten */
+body.theme-light .MuiTypography-root,
+body.theme-light h1,
+body.theme-light h2,
+body.theme-light h3,
+body.theme-light h4,
+body.theme-light h5,
+body.theme-light h6,
+body.theme-light p,
+body.theme-light span {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Secondary Text */
+body.theme-light .MuiTypography-colorTextSecondary,
+body.theme-light .text-secondary,
+body.theme-light .MuiListItemText-secondary {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Buttons */
+body.theme-light button,
+body.theme-light .MuiButton-root:not(.MuiButton-contained) {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* List Items */
+body.theme-light .MuiListItem-root,
+body.theme-light .MuiListItemText-primary,
+body.theme-light .MuiMenuItem-root {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Tabs */
+body.theme-light .MuiTab-root {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+
+body.theme-light .MuiTab-root.Mui-selected {
+  color: #007aff !important;
+}
+
+/* Icons mit Text */
+body.theme-light .MuiSvgIcon-root:not(.lucide),
+body.theme-light svg:not(.lucide) {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* ========================================================================
+   SPEZIELLE AUSNAHMEN
+   ======================================================================== */
+
+/* Behalte weiße Icons auf farbigen Hintergründen */
+[style*='background-color'] svg,
+[style*='backgroundColor'] svg,
+.icon-container svg,
+.nav-icon-container svg {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Primary Color Buttons behalten ihre Farben */
+.MuiButton-containedPrimary {
+  color: white !important;
+}
+
+/* Error/Warning/Success Messages */
+.MuiAlert-root {
+  /* Behalten ihre Standard-Farben */
+}
+
+/* Disabled Elements */
+body.theme-dark .Mui-disabled,
+body.theme-dark [disabled] {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body.theme-light .Mui-disabled,
+body.theme-light [disabled] {
+  color: rgba(0, 0, 0, 0.26) !important;
+}
+
+/* ========================================================================
+   FORM CONTROL BORDERS
+   ======================================================================== */
+
+/* Dark Mode Borders */
+body.theme-dark .MuiOutlinedInput-notchedOutline,
+body.theme-dark .MuiInput-underline:before {
+  border-color: rgba(255, 255, 255, 0.23) !important;
+}
+
+body.theme-dark .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Light Mode Borders */
+body.theme-light .MuiOutlinedInput-notchedOutline,
+body.theme-light .MuiInput-underline:before {
+  border-color: rgba(0, 0, 0, 0.23) !important;
+}
+
+body.theme-light .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ========================================================================
+   DROPDOWN MENUS
+   ======================================================================== */
+
+/* Dark Mode Dropdown */
+body.theme-dark .MuiMenu-paper,
+body.theme-dark .MuiPopover-paper {
+  background-color: #1c1c1e !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Light Mode Dropdown */
+body.theme-light .MuiMenu-paper,
+body.theme-light .MuiPopover-paper {
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+}

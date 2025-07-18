@@ -1,0 +1,170 @@
+/* ========================================
+   LIGHT MODE ULTRA OVERRIDE
+   Maximum specificity to override ALL other styles
+   ======================================== */
+
+/* Modal overlay should be completely transparent - no blur or darkening */
+html body.theme-light .modal-overlay,
+html body.theme-auto .modal-overlay,
+html body.theme-light .audit-log-overlay,
+html body.theme-auto .audit-log-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+@media (prefers-color-scheme: light) {
+  html body.theme-auto .modal-overlay,
+  html body.theme-auto .audit-log-overlay {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Use multiple selectors for maximum specificity */
+html body.theme-light .modal-overlay + .modal,
+html body.theme-light .modal-overlay + .settings-modal,
+html body.theme-light .modal-overlay + [class*='modal'],
+html body.theme-light .modal,
+html body.theme-light .settings-modal,
+html body.theme-light [class*='modal']:not(.modal-overlay),
+html body.theme-light div.modal,
+html body.theme-light div.settings-modal,
+html body.theme-light div[class*='modal']:not(.modal-overlay) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Target settings modal specifically with multiple selectors */
+html body.theme-light .modal-overlay + .modal.settings-modal,
+html body.theme-light div.modal.settings-modal,
+html body.theme-light .settings-modal {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Override any rgba backgrounds */
+html body.theme-light .modal[style*='background'],
+html body.theme-light .settings-modal[style*='background'],
+html body.theme-light div[class*='modal'][style*='background'] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+/* Modal headers with maximum specificity */
+html body.theme-light .modal .modal-header,
+html body.theme-light .settings-modal .modal-header,
+html body.theme-light div[class*='modal'] .modal-header,
+html body.theme-light .modal-header,
+html body.theme-light div.modal-header {
+  background: #f8f8f8 !important;
+  background-color: #f8f8f8 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #000000 !important;
+}
+
+/* All heading elements in modal headers */
+html body.theme-light .modal-header h1,
+html body.theme-light .modal-header h2,
+html body.theme-light .modal-header h3,
+html body.theme-light .modal-header h4,
+html body.theme-light .modal-header h5,
+html body.theme-light .modal-header h6 {
+  color: #000000 !important;
+}
+
+/* Modal body with maximum specificity */
+html body.theme-light .modal .modal-body,
+html body.theme-light .settings-modal .modal-body,
+html body.theme-light div[class*='modal'] .modal-body,
+html body.theme-light .modal-body,
+html body.theme-light div.modal-body {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* All text elements in modals */
+html body.theme-light .modal *,
+html body.theme-light .settings-modal *,
+html body.theme-light div[class*='modal'] * {
+  color: #000000 !important;
+}
+
+/* Specific overrides for settings modal content */
+html body.theme-light .settings-tabs {
+  background: #f8f8f8 !important;
+  background-color: #f8f8f8 !important;
+}
+
+html body.theme-light .settings-tab-content {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+/* Category items in settings */
+html body.theme-light .category-item {
+  background: #f8f8f8 !important;
+  background-color: #f8f8f8 !important;
+  color: #000000 !important;
+}
+
+/* Override any CSS variables that might be setting dark colors */
+html body.theme-light .modal,
+html body.theme-light .settings-modal {
+  --background-primary: #ffffff !important;
+  --background-secondary: #f8f8f8 !important;
+  --text-primary: #000000 !important;
+  --text-secondary: #666666 !important;
+  --modal-bg: #ffffff !important;
+  --modal-text: #000000 !important;
+}
+
+/* Nuclear option - override EVERYTHING in modals */
+html body.theme-light .modal *:not(svg):not(path),
+html body.theme-light .settings-modal *:not(svg):not(path),
+html body.theme-light div[class*='modal'] *:not(svg):not(path) {
+  background-color: transparent !important;
+  color: #000000 !important;
+}
+
+/* Then re-apply backgrounds where needed */
+html body.theme-light .modal,
+html body.theme-light .settings-modal {
+  background-color: #ffffff !important;
+}
+
+html body.theme-light .modal-header {
+  background-color: #f8f8f8 !important;
+}
+
+html body.theme-light .modal-footer {
+  background-color: #f8f8f8 !important;
+}
+
+/* Buttons should keep their colors */
+html body.theme-light .modal .btn-primary,
+html body.theme-light .modal button.btn-primary {
+  background-color: #007aff !important;
+  color: #ffffff !important;
+}
+
+html body.theme-light .modal .btn-danger,
+html body.theme-light .modal button.btn-danger {
+  background-color: #ff3b30 !important;
+  color: #ffffff !important;
+}
+
+/* Input fields */
+html body.theme-light .modal input,
+html body.theme-light .modal textarea,
+html body.theme-light .modal select {
+  background-color: #f8f8f8 !important;
+  color: #000000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+
+/* END OF ULTRA OVERRIDE */

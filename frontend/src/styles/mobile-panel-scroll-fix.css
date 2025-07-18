@@ -1,0 +1,180 @@
+/* Global Mobile Panel Scroll Fix */
+
+@media (max-width: 768px) {
+  /* Override the body scroll lock for panel containers */
+  body.has-service-panel,
+  body.has-user-panel,
+  body.has-settings-panel,
+  body.has-audit-log-panel {
+    /* Keep body fixed to prevent background scrolling */
+    position: fixed !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* But ensure panel containers themselves can scroll */
+  .panel-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 1300 !important;
+    overflow: hidden !important; /* Container doesn't scroll */
+  }
+
+  /* The actual panel inside must handle scrolling */
+  .panel-container > * {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important; /* Panel structure doesn't scroll */
+  }
+
+  /* Service Panel specific */
+  .service-panel-container .service-panel {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .service-panel-container .service-panel-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+  }
+
+  /* User Panel specific */
+  .user-panel-container .MuiBox-root[style*='flex: 1'][style*='overflow: auto'] {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    /* Force scrolling to work */
+    position: relative !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* Settings Panel specific */
+  .settings-panel-container .settings-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+  }
+
+  /* Audit Log Panel specific */
+  .audit-log-panel-container .audit-log-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+  }
+
+  /* Tab panels must be scrollable */
+  div[role="tabpanel"] {
+    height: 100% !important;
+    overflow: visible !important; /* Let child handle scrolling */
+  }
+
+  /* Content inside tab panels */
+  div[role="tabpanel"] > .MuiBox-root {
+    height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Ensure touch scrolling works */
+  * {
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Allow vertical scrolling */
+  .panel-container *:not(input):not(textarea) {
+    touch-action: pan-y !important;
+  }
+
+  /* Input fields need default touch behavior */
+  input, textarea, select {
+    touch-action: auto !important;
+  }
+}
+
+/* iOS Specific Fixes */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    /* Fix iOS scrolling issues */
+    .panel-container {
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+    }
+
+    /* Scrollable areas */
+    .MuiBox-root[style*='overflow: auto'],
+    .service-panel-content,
+    .settings-content,
+    .audit-log-content,
+    div[role="tabpanel"] > .MuiBox-root {
+      -webkit-overflow-scrolling: touch !important;
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      /* Prevent iOS bounce on wrong axis */
+      overscroll-behavior-x: none !important;
+      overscroll-behavior-y: auto !important;
+    }
+
+    /* Fix for iOS 13+ */
+    @supports (padding: max(0px)) {
+      .panel-container {
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+      }
+    }
+  }
+}
+
+/* Android Specific */
+@media (max-width: 768px) {
+  /* Ensure proper scrolling on Android */
+  .panel-container * {
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent horizontal overscroll */
+  * {
+    overscroll-behavior-x: none;
+  }
+}
+
+/* Debug Mode - Uncomment to visualize scroll containers */
+/*
+@media (max-width: 768px) {
+  body.has-user-panel {
+    border: 5px solid red !important;
+  }
+  
+  .panel-container {
+    border: 5px solid blue !important;
+  }
+  
+  .MuiBox-root[style*='overflow: auto'] {
+    border: 5px solid green !important;
+  }
+  
+  div[role="tabpanel"] {
+    border: 5px solid yellow !important;
+  }
+  
+  div[role="tabpanel"] > .MuiBox-root {
+    border: 5px solid purple !important;
+  }
+}
+*/

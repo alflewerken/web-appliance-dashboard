@@ -1,0 +1,40 @@
+/* ========================================================================
+   SIMPLE ICON FIX
+   ========================================================================
+   Spezielle Fixes für SimpleIcon Komponenten
+   ======================================================================== */
+
+/* Basis SimpleIcon Styles */
+.simple-icon,
+.SimpleIcon,
+[class*='simple-icon'] {
+  color: inherit;
+  fill: currentColor;
+  opacity: 1;
+}
+
+/* Icon Container mit SimpleIcon */
+.icon-container .simple-icon,
+.MuiBox-root .simple-icon,
+[style*='background-color'] .simple-icon {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Kategorie Liste im Settings Panel - Icon Boxen */
+.settings-panel .MuiListItem-root .MuiBox-root[style*='width: 36px'] svg,
+.settings-panel
+  .MuiListItem-root
+  .MuiBox-root[style*='width: 36px']
+  .simple-icon {
+  color: rgba(255, 255, 255, 0.9);
+  width: 20px;
+  height: 20px;
+}
+
+/* Service Preview Icons */
+.preview-container svg,
+.icon-preview svg,
+[class*='preview'] .icon-container svg {
+  color: rgba(255, 255, 255, 0.9);
+  opacity: 1;
+}

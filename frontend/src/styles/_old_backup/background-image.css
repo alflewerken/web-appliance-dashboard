@@ -1,0 +1,104 @@
+/* Background Image Styles - For all browsers */
+
+/* When background image is enabled, make containers transparent - with higher specificity for theme modes */
+.has-background-image .music-app,
+body.theme-light.has-background-image .music-app,
+body.theme-dark.has-background-image .music-app,
+body.theme-auto.has-background-image .music-app {
+  background: transparent !important;
+}
+
+.has-background-image .main-content,
+body.theme-light.has-background-image .main-content,
+body.theme-dark.has-background-image .main-content,
+body.theme-auto.has-background-image .main-content {
+  background: transparent !important;
+}
+
+.has-background-image .content-body,
+body.theme-light.has-background-image .content-body,
+body.theme-dark.has-background-image .content-body,
+body.theme-auto.has-background-image .content-body {
+  background: transparent !important;
+}
+
+/* Content header with subtle backdrop blur when background is enabled */
+.has-background-image .content-header,
+body.theme-light.has-background-image .content-header,
+body.theme-dark.has-background-image .content-header,
+body.theme-auto.has-background-image .content-header {
+  background: rgba(0, 0, 0, 0.3) !important;
+  /* backdrop-filter: blur(20px) saturate(150%) !important; - DEAKTIVIERT wegen Artefakten */
+  /* -webkit-backdrop-filter: blur(20px) saturate(150%) !important; */
+}
+
+/* Light mode specific content header */
+body.theme-light.has-background-image .content-header {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Sidebar with subtle background when background image is active */
+.has-background-image .sidebar,
+body.theme-light.has-background-image .sidebar,
+body.theme-dark.has-background-image .sidebar,
+body.theme-auto.has-background-image .sidebar {
+  background: rgba(0, 0, 0, 0.3) !important;
+  /* backdrop-filter: blur(30px) saturate(150%) !important; - DEAKTIVIERT wegen Artefakten */
+  /* -webkit-backdrop-filter: blur(30px) saturate(150%) !important; */
+}
+
+/* Light mode specific sidebar */
+body.theme-light.has-background-image .sidebar {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Remove gray background from sidebar on desktop */
+@media (min-width: 769px) {
+  .has-background-image .sidebar {
+    background: rgba(0, 0, 0, 0.2) !important;
+  }
+}
+
+/* Ensure modals stay transparent */
+.modal-overlay {
+  background: transparent !important;
+}
+
+/* Modal dark background only for dark mode */
+body:not(.theme-light) .modal {
+  background: #1c1c1e !important;
+}
+
+/* Background image specific styles */
+.background-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  /* Fallback black if image fails to load */
+  background-color: #000000;
+}
+
+/* Background overlay for opacity control */
+.background-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Ensure proper layering */
+#root {
+  position: relative;
+  z-index: 1;
+}

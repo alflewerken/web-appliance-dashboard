@@ -1,0 +1,1871 @@
+openapi: 3.0.0
+info:
+  title: Web Appliance Dashboard API
+  description: RESTful API für die Verwaltung von Web-Appliances, Services und SSH-Verbindungen
+  version: 1.0.3
+  contact:
+    name: Alf Lewerken
+    email: support@example.com
+    url: https://github.com/alflewerken/web-appliance-dashboard
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: Development server
+  - url: https://api.appliance-dashboard.com/api
+    description: Production server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login endpoint
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Fehlerbeschreibung"
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "ERROR_CODE"
+            details:
+              type: object
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        email:
+          type: string
+          format: email
+          example: "admin@example.com"
+        role:
+          type: string
+          enum: [admin, user]
+          example: "admin"
+        created_at:
+          type: string
+          format: date-time
+        last_login:
+          type: string
+          format: date-time
+
+    Appliance:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Production Server"
+        url:
+          type: string
+          format: uri
+          example: "https://prod.example.com"
+        icon:
+          type: string
+          example: "Server"
+        category:
+          type: string
+          example: "infrastructure"
+        status:
+          type: string
+          enum: [online, offline, pending]
+          example: "online"
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        ssh_config:
+          type: object
+          properties:
+            host:
+              type: string
+            port:
+              type: integer
+            username:
+              type: string
+            key_id:
+              type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SSHKey:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [rsa, ed25519, ecdsa]
+        bits:
+          type: integer
+        fingerprint:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used:
+          type: string
+          format: date-time
+
+    Service:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, failed]
+        running:
+          type: boolean
+        enabled:
+          type: boolean
+        uptime:
+          type: string
+        memory:
+          type: string
+        cpu:
+          type: string
+
+    SSHHost:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        hostname:
+          type: string
+          example: "prod-server"
+        host:
+          type: string
+          example: "192.168.1.100"
+        username:
+          type: string
+          example: "root"
+        port:
+          type: integer
+          example: 22
+        key_name:
+          type: string
+          example: "production-key"
+        is_active:
+          type: boolean
+          example: true
+        last_tested:
+          type: string
+          format: date-time
+        test_status:
+          type: string
+          enum: [success, failed, unknown]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1234
+        user_id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        action:
+          type: string
+          example: "ssh_host_updated"
+        resource_type:
+          type: string
+          example: "ssh_host"
+        resource_id:
+          type: integer
+          example: 1
+        details:
+          type: object
+          properties:
+            old_data:
+              type: object
+            new_data:
+              type: object
+        ip_address:
+          type: string
+          example: "192.168.1.100"
+        created_at:
+          type: string
+          format: date-time
+
+  parameters:
+    idParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Resource ID
+
+    pageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+      description: Seitennummer
+
+    limitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+      description: Einträge pro Seite
+
+    searchParam:
+      name: search
+      in: query
+      schema:
+        type: string
+      description: Suchbegriff
+
+  responses:
+    UnauthorizedError:
+      description: Nicht autorisiert
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: "Nicht autorisiert"
+            error:
+              code: "UNAUTHORIZED"
+              details:
+                reason: "Token abgelaufen"
+
+    ForbiddenError:
+      description: Zugriff verweigert
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFoundError:
+      description: Ressource nicht gefunden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ValidationError:
+      description: Validierungsfehler
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Benutzer anmelden
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "admin"
+                password:
+                  type: string
+                  format: password
+                  example: "admin123"
+      responses:
+        '200':
+          description: Erfolgreich angemeldet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Benutzer abmelden
+      responses:
+        '200':
+          description: Erfolgreich abgemeldet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Erfolgreich abgemeldet"
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Token erneuern
+      responses:
+        '200':
+          description: Token erneuert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Aktuellen Benutzer abrufen
+      responses:
+        '200':
+          description: Benutzerinformationen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Alle Benutzer auflisten
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: Benutzerliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      pages:
+                        type: integer
+                      limit:
+                        type: integer
+
+    post:
+      tags:
+        - Users
+      summary: Neuen Benutzer erstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - email
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, user]
+      responses:
+        '201':
+          description: Benutzer erstellt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /users/{id}:
+    put:
+      tags:
+        - Users
+      summary: Benutzer aktualisieren
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                role:
+                  type: string
+                  enum: [admin, user]
+      responses:
+        '200':
+          description: Benutzer aktualisiert
+
+    delete:
+      tags:
+        - Users
+      summary: Benutzer löschen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: Benutzer gelöscht
+
+  /appliances:
+    get:
+      tags:
+        - Appliances
+      summary: Appliances auflisten
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [online, offline]
+        - $ref: '#/components/parameters/searchParam'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name, created, updated]
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: Appliance-Liste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  appliances:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appliance'
+
+    post:
+      tags:
+        - Appliances
+      summary: Neue Appliance erstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - url
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+                icon:
+                  type: string
+                category:
+                  type: string
+                description:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                ssh_config:
+                  type: object
+                  properties:
+                    host:
+                      type: string
+                    port:
+                      type: integer
+                    username:
+                      type: string
+                    key_id:
+                      type: integer
+      responses:
+        '201':
+          description: Appliance erstellt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  appliance:
+                    $ref: '#/components/schemas/Appliance'
+
+  /appliances/{id}:
+    get:
+      tags:
+        - Appliances
+      summary: Einzelne Appliance abrufen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: Appliance Details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  appliance:
+                    $ref: '#/components/schemas/Appliance'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Appliances
+      summary: Appliance aktualisieren
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+                category:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Appliance aktualisiert
+
+    delete:
+      tags:
+        - Appliances
+      summary: Appliance löschen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: Appliance gelöscht
+
+  /appliances/{id}/status:
+    post:
+      tags:
+        - Appliances
+      summary: Appliance-Status prüfen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: Status-Information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: object
+                    properties:
+                      online:
+                        type: boolean
+                      response_time:
+                        type: integer
+                      http_status:
+                        type: integer
+                      ssl_valid:
+                        type: boolean
+                      ssl_expiry:
+                        type: string
+                        format: date-time
+                      checked_at:
+                        type: string
+                        format: date-time
+
+  /ssh/keys:
+    get:
+      tags:
+        - SSH Management
+      summary: SSH-Schlüssel auflisten
+      responses:
+        '200':
+          description: SSH-Schlüsselliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SSHKey'
+
+  /ssh/keys/generate:
+    post:
+      tags:
+        - SSH Management
+      summary: SSH-Schlüssel generieren
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [rsa, ed25519, ecdsa]
+                bits:
+                  type: integer
+                  default: 4096
+                passphrase:
+                  type: string
+      responses:
+        '201':
+          description: SSH-Schlüssel generiert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  key:
+                    allOf:
+                      - $ref: '#/components/schemas/SSHKey'
+                      - type: object
+                        properties:
+                          public_key:
+                            type: string
+
+  /ssh/keys/upload:
+    post:
+      tags:
+        - SSH Management
+      summary: SSH-Schlüssel hochladen
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - name
+                - private_key
+              properties:
+                name:
+                  type: string
+                private_key:
+                  type: string
+                  format: binary
+                public_key:
+                  type: string
+                  format: binary
+                passphrase:
+                  type: string
+      responses:
+        '201':
+          description: SSH-Schlüssel hochgeladen
+
+  /ssh/keys/{id}:
+    delete:
+      tags:
+        - SSH Management
+      summary: SSH-Schlüssel löschen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: SSH-Schlüssel gelöscht
+
+  /ssh/test:
+    post:
+      tags:
+        - SSH Management
+      summary: SSH-Verbindung testen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - host
+                - username
+                - key_id
+              properties:
+                host:
+                  type: string
+                port:
+                  type: integer
+                  default: 22
+                username:
+                  type: string
+                key_id:
+                  type: integer
+      responses:
+        '200':
+          description: Verbindungstest-Ergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    properties:
+                      connected:
+                        type: boolean
+                      server_version:
+                        type: string
+                      auth_methods:
+                        type: array
+                        items:
+                          type: string
+                      response_time:
+                        type: integer
+
+  /ssh/execute:
+    post:
+      tags:
+        - SSH Management
+      summary: SSH-Befehl ausführen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - appliance_id
+                - command
+              properties:
+                appliance_id:
+                  type: integer
+                command:
+                  type: string
+                timeout:
+                  type: integer
+                  default: 30000
+      responses:
+        '200':
+          description: Befehlsausgabe
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  output:
+                    type: object
+                    properties:
+                      stdout:
+                        type: string
+                      stderr:
+                        type: string
+                      exit_code:
+                        type: integer
+                      duration:
+                        type: integer
+
+  /ssh/hosts:
+    get:
+      tags:
+        - SSH Management
+      summary: SSH-Hosts auflisten
+      parameters:
+        - name: includeDeleted
+          in: query
+          schema:
+            type: boolean
+          description: Zeigt auch gelöschte Hosts an
+      responses:
+        '200':
+          description: SSH-Host-Liste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  hosts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SSHHost'
+
+    post:
+      tags:
+        - SSH Management
+      summary: SSH-Host erstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hostname
+                - host
+                - username
+              properties:
+                hostname:
+                  type: string
+                host:
+                  type: string
+                username:
+                  type: string
+                port:
+                  type: integer
+                  default: 22
+                key_name:
+                  type: string
+      responses:
+        '201':
+          description: SSH-Host erstellt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  host:
+                    $ref: '#/components/schemas/SSHHost'
+
+  /ssh/hosts/{id}:
+    put:
+      tags:
+        - SSH Management
+      summary: SSH-Host aktualisieren
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hostname:
+                  type: string
+                host:
+                  type: string
+                username:
+                  type: string
+                port:
+                  type: integer
+                key_name:
+                  type: string
+      responses:
+        '200':
+          description: SSH-Host aktualisiert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+    delete:
+      tags:
+        - SSH Management
+      summary: SSH-Host löschen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: SSH-Host gelöscht
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /ssh/hosts/{id}/test:
+    post:
+      tags:
+        - SSH Management
+      summary: SSH-Host-Verbindung testen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: Verbindungstest-Ergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    properties:
+                      connected:
+                        type: boolean
+                      response_time:
+                        type: integer
+                      server_version:
+                        type: string
+
+  /ssh/hosts/{id}/history:
+    get:
+      tags:
+        - SSH Management
+      summary: SSH-Host-Historie abrufen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: SSH-Host-Historie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        host_id:
+                          type: integer
+                        hostname:
+                          type: string
+                        host:
+                          type: string
+                        username:
+                          type: string
+                        port:
+                          type: integer
+                        key_name:
+                          type: string
+                        changed_at:
+                          type: string
+                          format: date-time
+                        changed_by:
+                          type: integer
+                        changed_by_username:
+                          type: string
+                        change_type:
+                          type: string
+                        change_details:
+                          type: object
+
+  /terminal/sessions:
+    get:
+      tags:
+        - Terminal
+      summary: Terminal-Sitzungen auflisten
+      responses:
+        '200':
+          description: Sitzungsliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        appliance_id:
+                          type: integer
+                        appliance_name:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        last_activity:
+                          type: string
+                          format: date-time
+
+    post:
+      tags:
+        - Terminal
+      summary: Terminal-Sitzung erstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - appliance_id
+              properties:
+                appliance_id:
+                  type: integer
+                cols:
+                  type: integer
+                  default: 80
+                rows:
+                  type: integer
+                  default: 24
+      responses:
+        '201':
+          description: Sitzung erstellt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  session:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      websocket_url:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+
+  /terminal/sessions/{id}:
+    delete:
+      tags:
+        - Terminal
+      summary: Terminal-Sitzung beenden
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sitzung beendet
+
+  /services/{appliance_id}/status:
+    get:
+      tags:
+        - Service Control
+      summary: Service-Status abrufen
+      parameters:
+        - name: appliance_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: service
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Service-Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  services:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+
+  /services/{appliance_id}/start:
+    post:
+      tags:
+        - Service Control
+      summary: Service starten
+      parameters:
+        - name: appliance_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - service
+              properties:
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Service gestartet
+
+  /services/{appliance_id}/stop:
+    post:
+      tags:
+        - Service Control
+      summary: Service stoppen
+      parameters:
+        - name: appliance_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - service
+              properties:
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Service gestoppt
+
+  /services/{appliance_id}/restart:
+    post:
+      tags:
+        - Service Control
+      summary: Service neu starten
+      parameters:
+        - name: appliance_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - service
+              properties:
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Service neu gestartet
+
+  /audit-logs:
+    get:
+      tags:
+        - Audit Logs
+      summary: Audit-Logs abrufen
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: resource_type
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit-Log-Liste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  logs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      pages:
+                        type: integer
+                      limit:
+                        type: integer
+
+    delete:
+      tags:
+        - Audit Logs
+      summary: Audit-Logs löschen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - before
+                - confirm
+              properties:
+                before:
+                  type: string
+                  format: date-time
+                confirm:
+                  type: boolean
+      responses:
+        '200':
+          description: Audit-Logs gelöscht
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  deleted_count:
+                    type: integer
+
+  /audit-restore/{id}:
+    get:
+      tags:
+        - Audit Logs
+      summary: Audit-Log-Details mit Wiederherstellungsoptionen
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+      responses:
+        '200':
+          description: Audit-Log-Details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  action:
+                    type: string
+                  resource_type:
+                    type: string
+                  resource_id:
+                    type: integer
+                  details:
+                    type: object
+                  canRestore:
+                    type: boolean
+                  restoreInfo:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      original_data:
+                        type: object
+                      canRevertToOriginal:
+                        type: boolean
+
+  /audit-restore/restore/{resource_type}/{logId}:
+    post:
+      tags:
+        - Audit Logs
+      summary: Gelöschte Ressource wiederherstellen
+      parameters:
+        - name: resource_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [appliances, users, categories, ssh_hosts]
+        - name: logId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Ressource wiederhergestellt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  resource_id:
+                    type: integer
+
+  /audit-restore/revert/{resource_type}/{logId}:
+    post:
+      tags:
+        - Audit Logs
+      summary: Ressource auf vorherigen Zustand zurücksetzen
+      parameters:
+        - name: resource_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [appliances, users, categories, ssh_hosts]
+        - name: logId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Ressource zurückgesetzt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /backup/create:
+    post:
+      tags:
+        - Backup & Restore
+      summary: Backup erstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                include_ssh_keys:
+                  type: boolean
+                  default: true
+                include_logs:
+                  type: boolean
+                  default: false
+                description:
+                  type: string
+      responses:
+        '202':
+          description: Backup wird erstellt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  backup_id:
+                    type: string
+                  status_url:
+                    type: string
+
+  /backup/list:
+    get:
+      tags:
+        - Backup & Restore
+      summary: Backups auflisten
+      responses:
+        '200':
+          description: Backup-Liste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  backups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        size:
+                          type: string
+                        description:
+                          type: string
+                        includes:
+                          type: object
+                          properties:
+                            database:
+                              type: boolean
+                            ssh_keys:
+                              type: boolean
+                            logs:
+                              type: boolean
+                            uploads:
+                              type: boolean
+
+  /backup/download/{id}:
+    get:
+      tags:
+        - Backup & Restore
+      summary: Backup herunterladen
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Backup-Datei
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+
+  /backup/restore:
+    post:
+      tags:
+        - Backup & Restore
+      summary: Backup wiederherstellen
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - backup
+              properties:
+                backup:
+                  type: string
+                  format: binary
+                restore_database:
+                  type: boolean
+                  default: true
+                restore_ssh_keys:
+                  type: boolean
+                  default: true
+                restore_settings:
+                  type: boolean
+                  default: true
+      responses:
+        '202':
+          description: Wiederherstellung gestartet
+
+  /system/info:
+    get:
+      tags:
+        - System
+      summary: Systeminformationen abrufen
+      responses:
+        '200':
+          description: Systeminformationen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  system:
+                    type: object
+                    properties:
+                      version:
+                        type: string
+                      uptime:
+                        type: string
+                      hostname:
+                        type: string
+                      platform:
+                        type: string
+                      node_version:
+                        type: string
+                      memory:
+                        type: object
+                        properties:
+                          total:
+                            type: string
+                          used:
+                            type: string
+                          free:
+                            type: string
+                      disk:
+                        type: object
+                        properties:
+                          total:
+                            type: string
+                          used:
+                            type: string
+                          free:
+                            type: string
+
+  /settings:
+    get:
+      tags:
+        - System
+      summary: Einstellungen abrufen
+      responses:
+        '200':
+          description: Systemeinstellungen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  settings:
+                    type: object
+
+    put:
+      tags:
+        - System
+      summary: Einstellungen aktualisieren
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Einstellungen aktualisiert
+
+  /audit:
+    get:
+      tags:
+        - System
+      summary: Audit-Logs abrufen
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit-Logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        user_id:
+                          type: integer
+                        username:
+                          type: string
+                        action:
+                          type: string
+                        resource_type:
+                          type: string
+                        resource_id:
+                          type: integer
+                        details:
+                          type: object
+                        ip_address:
+                          type: string
+                        user_agent:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                  pagination:
+                    type: object
+
+tags:
+  - name: Authentication
+    description: Authentifizierungs-Endpoints
+  - name: Users
+    description: Benutzerverwaltung
+  - name: Appliances
+    description: Appliance-Verwaltung
+  - name: SSH Management
+    description: SSH-Schlüssel und Verbindungen
+  - name: Terminal
+    description: Web-Terminal Sitzungen
+  - name: Service Control
+    description: Service-Verwaltung
+  - name: Audit Logs
+    description: Audit-Protokoll und Wiederherstellung
+  - name: Backup & Restore
+    description: Backup und Wiederherstellung
+  - name: System
+    description: System und Einstellungen
+
+x-webhooks:
+  sse-events:
+    post:
+      summary: Server-Sent Events
+      description: |
+        Die API unterstützt Server-Sent Events (SSE) für Echtzeit-Updates.
+        
+        **Endpoint:** `GET /api/sse`
+        
+        **Authentication:** Query-Parameter `?token=<JWT-Token>`
+        
+        **Event-Typen:**
+        - `service_status_changed` - Service-Status wurde geändert
+        - `appliance_created` - Neue Appliance erstellt
+        - `appliance_updated` - Appliance aktualisiert
+        - `appliance_deleted` - Appliance gelöscht
+        - `category_updated` - Kategorien aktualisiert
+        - `ssh_host_created` - SSH-Host erstellt (v1.0.3)
+        - `ssh_host_updated` - SSH-Host aktualisiert (v1.0.3)
+        - `ssh_host_deleted` - SSH-Host gelöscht (v1.0.3)
+        - `ssh_host_reverted` - SSH-Host zurückgesetzt (v1.0.3)
+        - `audit_log_created` - Audit-Log-Eintrag erstellt (v1.0.3)
+        - `notification` - System-Benachrichtigung
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  title: SSH Host Created Event
+                  properties:
+                    event:
+                      type: string
+                      example: "ssh_host_created"
+                    data:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        hostname:
+                          type: string
+                        host:
+                          type: string
+                        timestamp:
+                          type: string
+                          format: date-time
+                - type: object
+                  title: SSH Host Updated Event
+                  properties:
+                    event:
+                      type: string
+                      example: "ssh_host_updated"
+                    data:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        hostname:
+                          type: string
+                        changes:
+                          type: object
+                          properties:
+                            old:
+                              type: object
+                            new:
+                              type: object
+                        timestamp:
+                          type: string
+                          format: date-time
+                - type: object
+                  title: Audit Log Created Event
+                  properties:
+                    event:
+                      type: string
+                      example: "audit_log_created"
+                    data:
+                      type: object
+                      properties:
+                        action:
+                          type: string
+                        resource_type:
+                          type: string
+                        resource_id:
+                          type: integer
+                        timestamp:
+                          type: string
+                          format: date-time

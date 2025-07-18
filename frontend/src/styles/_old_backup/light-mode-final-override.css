@@ -1,0 +1,157 @@
+/* ========================================
+   LIGHT MODE FINAL OVERRIDE
+   This file MUST be loaded LAST to ensure all modals are light in light mode
+   ======================================== */
+
+/* Force all modals to have light background in light mode */
+body.theme-light .modal,
+body.theme-light .settings-modal,
+body.theme-light .custom-commands-modal,
+body.theme-light .command-selection-modal,
+body.theme-light .category-modal,
+body.theme-light .appliance-modal,
+body.theme-light [class*='modal'] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Modal overlays should be completely transparent */
+body.theme-light .modal-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Modal headers */
+body.theme-light .modal-header,
+body.theme-light [class*='modal-header'] {
+  background: #f8f8f8 !important;
+  background-color: #f8f8f8 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #000000 !important;
+}
+
+/* Modal titles */
+body.theme-light .modal-title,
+body.theme-light .modal-header h2,
+body.theme-light .modal-header h3,
+body.theme-light [class*='modal-header'] h2,
+body.theme-light [class*='modal-header'] h3 {
+  color: #000000 !important;
+}
+
+/* Modal body */
+body.theme-light .modal-body,
+body.theme-light [class*='modal-body'] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Modal footer */
+body.theme-light .modal-footer,
+body.theme-light [class*='modal-footer'] {
+  background: #f8f8f8 !important;
+  background-color: #f8f8f8 !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #000000 !important;
+}
+
+/* Close button */
+body.theme-light .modal-close,
+body.theme-light .close-button,
+body.theme-light [class*='close'] {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #000000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+body.theme-light .modal-close:hover,
+body.theme-light .close-button:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Settings modal specific overrides */
+body.theme-light .settings-tabs {
+  background: #f8f8f8 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+body.theme-light .settings-tab {
+  color: #666666 !important;
+  background: transparent !important;
+}
+
+body.theme-light .settings-tab:hover {
+  color: #000000 !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+body.theme-light .settings-tab.active {
+  color: #007aff !important;
+  background: #ffffff !important;
+}
+
+/* Category cards in settings */
+body.theme-light .category-item,
+body.theme-light [class*='category-item'] {
+  background: #f8f8f8 !important;
+  color: #000000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* All text in modals should be dark */
+body.theme-light .modal p,
+body.theme-light .modal span,
+body.theme-light .modal label,
+body.theme-light .modal div {
+  color: #000000 !important;
+}
+
+/* Buttons in modals */
+body.theme-light .modal button:not(.action-btn) {
+  background: #f8f8f8 !important;
+  color: #000000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-light .modal .btn-primary {
+  background: #007aff !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+body.theme-light .modal .btn-secondary {
+  background: #e5e5e7 !important;
+  color: #000000 !important;
+  border: none !important;
+}
+
+body.theme-light .modal .btn-danger {
+  background: #ff3b30 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+/* Form elements in modals */
+body.theme-light .modal input:not([type='checkbox']):not([type='radio']),
+body.theme-light .modal textarea,
+body.theme-light .modal select {
+  background: #f8f8f8 !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  color: #000000 !important;
+}
+
+body.theme-light .modal input::placeholder,
+body.theme-light .modal textarea::placeholder {
+  color: #999999 !important;
+}
+
+/* Icons in modals should be visible */
+body.theme-light .modal svg {
+  opacity: 1 !important;
+  stroke: currentColor !important;
+}
+
+/* END OF LIGHT MODE FINAL OVERRIDE */

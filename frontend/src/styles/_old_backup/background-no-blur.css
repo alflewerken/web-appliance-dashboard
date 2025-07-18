@@ -1,0 +1,11 @@
+/* Disable background blur when certain modals are open */
+body.no-background-blur .background-image {
+  filter: none !important;
+  -webkit-filter: none !important;
+  transform: none !important;
+}
+
+/* Ensure the overlay still works for contrast */
+body.no-background-blur .background-overlay {
+  /* Keep the overlay for readability */
+}

@@ -1,0 +1,3 @@
+-- Placeholder for Guacamole Database Initialization
+-- The actual initialization will be done by the guacamole container
+-- using the /opt/guacamole/bin/initdb.sh script

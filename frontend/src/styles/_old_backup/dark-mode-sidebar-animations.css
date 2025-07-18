@@ -1,0 +1,307 @@
+/* ========================================
+   DARK MODE SIDEBAR ANIMATIONS
+   Same hover effects as light mode
+   ======================================== */
+
+/* ===== SIDEBAR NAV ITEMS WITH ANIMATIONS ===== */
+body:not(.theme-light) .nav-item,
+body.theme-dark .nav-item,
+body.theme-auto .nav-item {
+  transition: all 0.2s ease !important;
+  position: relative !important;
+}
+
+/* Hover effect - slide to the right */
+body:not(.theme-light) .nav-item:hover,
+body.theme-dark .nav-item:hover,
+body.theme-auto .nav-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  padding-left: 20px !important;
+  transform: translateX(4px) !important;
+}
+
+/* Active state with accent bar */
+body:not(.theme-light) .nav-item.active,
+body.theme-dark .nav-item.active,
+body.theme-auto .nav-item.active {
+  background: rgba(0, 122, 255, 0.15) !important;
+  color: #007aff !important;
+  font-weight: 600 !important;
+}
+
+/* Active accent bar on the left */
+body:not(.theme-light) .nav-item.active::before,
+body.theme-dark .nav-item.active::before,
+body.theme-auto .nav-item.active::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 3px !important;
+  background: #007aff !important;
+}
+
+/* ===== CATEGORY SPECIFIC COLORS IN SIDEBAR ===== */
+/* Favoriten - Red/Pink */
+body:not(.theme-light) .nav-item:has(.lucide-heart),
+body.theme-dark .nav-item:has(.lucide-heart) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-heart):hover,
+body.theme-dark .nav-item:has(.lucide-heart):hover {
+  border-left-color: #ff2d55 !important;
+  background: rgba(255, 45, 85, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-heart).active,
+body.theme-dark .nav-item:has(.lucide-heart).active {
+  background: rgba(255, 45, 85, 0.15) !important;
+  color: #ff2d55 !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-heart).active::before,
+body.theme-dark .nav-item:has(.lucide-heart).active::before {
+  background: #ff2d55 !important;
+}
+
+/* Finanzen - Green */
+body:not(.theme-light) .nav-item:has(.lucide-euro),
+body.theme-dark .nav-item:has(.lucide-euro) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-euro):hover,
+body.theme-dark .nav-item:has(.lucide-euro):hover {
+  border-left-color: #34c759 !important;
+  background: rgba(52, 199, 89, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-euro).active,
+body.theme-dark .nav-item:has(.lucide-euro).active {
+  background: rgba(52, 199, 89, 0.15) !important;
+  color: #34c759 !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-euro).active::before,
+body.theme-dark .nav-item:has(.lucide-euro).active::before {
+  background: #34c759 !important;
+}
+
+/* Media - Orange */
+body:not(.theme-light) .nav-item:has(.lucide-tv),
+body.theme-dark .nav-item:has(.lucide-tv) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-tv):hover,
+body.theme-dark .nav-item:has(.lucide-tv):hover {
+  border-left-color: #ff9500 !important;
+  background: rgba(255, 149, 0, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-tv).active,
+body.theme-dark .nav-item:has(.lucide-tv).active {
+  background: rgba(255, 149, 0, 0.15) !important;
+  color: #ff9500 !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-tv).active::before,
+body.theme-dark .nav-item:has(.lucide-tv).active::before {
+  background: #ff9500 !important;
+}
+
+/* Monitoring - Purple */
+body:not(.theme-light) .nav-item:has(.lucide-activity),
+body.theme-dark .nav-item:has(.lucide-activity) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-activity):hover,
+body.theme-dark .nav-item:has(.lucide-activity):hover {
+  border-left-color: #af52de !important;
+  background: rgba(175, 82, 222, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-activity).active,
+body.theme-dark .nav-item:has(.lucide-activity).active {
+  background: rgba(175, 82, 222, 0.15) !important;
+  color: #af52de !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-activity).active::before,
+body.theme-dark .nav-item:has(.lucide-activity).active::before {
+  background: #af52de !important;
+}
+
+/* Productivity - Pink */
+body:not(.theme-light) .nav-item:has(.lucide-briefcase),
+body.theme-dark .nav-item:has(.lucide-briefcase) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-briefcase):hover,
+body.theme-dark .nav-item:has(.lucide-briefcase):hover {
+  border-left-color: #ff2d55 !important;
+  background: rgba(255, 45, 85, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-briefcase).active,
+body.theme-dark .nav-item:has(.lucide-briefcase).active {
+  background: rgba(255, 45, 85, 0.15) !important;
+  color: #ff2d55 !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-briefcase).active::before,
+body.theme-dark .nav-item:has(.lucide-briefcase).active::before {
+  background: #ff2d55 !important;
+}
+
+/* All/Alle - Blue */
+body:not(.theme-light) .nav-item:has(.lucide-home),
+body.theme-dark .nav-item:has(.lucide-home) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-home):hover,
+body.theme-dark .nav-item:has(.lucide-home):hover {
+  border-left-color: #007aff !important;
+  background: rgba(0, 122, 255, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-home).active,
+body.theme-dark .nav-item:has(.lucide-home).active {
+  background: rgba(0, 122, 255, 0.15) !important;
+  color: #007aff !important;
+}
+
+/* KI/AI - Teal */
+body:not(.theme-light) .nav-item:has(.lucide-brain),
+body.theme-dark .nav-item:has(.lucide-brain) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-brain):hover,
+body.theme-dark .nav-item:has(.lucide-brain):hover {
+  border-left-color: #5ac8fa !important;
+  background: rgba(90, 200, 250, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-brain).active,
+body.theme-dark .nav-item:has(.lucide-brain).active {
+  background: rgba(90, 200, 250, 0.15) !important;
+  color: #5ac8fa !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-brain).active::before,
+body.theme-dark .nav-item:has(.lucide-brain).active::before {
+  background: #5ac8fa !important;
+}
+
+/* Dokumentation - Yellow */
+body:not(.theme-light) .nav-item:has(.lucide-book),
+body.theme-dark .nav-item:has(.lucide-book) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-book):hover,
+body.theme-dark .nav-item:has(.lucide-book):hover {
+  border-left-color: #ffcc00 !important;
+  background: rgba(255, 204, 0, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-book).active,
+body.theme-dark .nav-item:has(.lucide-book).active {
+  background: rgba(255, 204, 0, 0.15) !important;
+  color: #ffcc00 !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-book).active::before,
+body.theme-dark .nav-item:has(.lucide-book).active::before {
+  background: #ffcc00 !important;
+}
+
+/* 3D-Generatoren - Purple */
+body:not(.theme-light) .nav-item:has(.lucide-box),
+body.theme-dark .nav-item:has(.lucide-box) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-box):hover,
+body.theme-dark .nav-item:has(.lucide-box):hover {
+  border-left-color: #5856d6 !important;
+  background: rgba(88, 86, 214, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-box).active,
+body.theme-dark .nav-item:has(.lucide-box).active {
+  background: rgba(88, 86, 214, 0.15) !important;
+  color: #5856d6 !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-box).active::before,
+body.theme-dark .nav-item:has(.lucide-box).active::before {
+  background: #5856d6 !important;
+}
+
+/* Motion Platform - Blue */
+body:not(.theme-light) .nav-item:has(.lucide-video),
+body.theme-dark .nav-item:has(.lucide-video) {
+  border-left: 3px solid transparent !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-video):hover,
+body.theme-dark .nav-item:has(.lucide-video):hover {
+  border-left-color: #007aff !important;
+  background: rgba(0, 122, 255, 0.1) !important;
+}
+
+body:not(.theme-light) .nav-item:has(.lucide-video).active,
+body.theme-dark .nav-item:has(.lucide-video).active {
+  background: rgba(0, 122, 255, 0.15) !important;
+  color: #007aff !important;
+}
+
+/* ===== SMOOTH TRANSITIONS ===== */
+body:not(.theme-light) .nav-item svg,
+body.theme-dark .nav-item svg {
+  transition: all 0.2s ease !important;
+}
+
+body:not(.theme-light) .nav-item:hover svg,
+body.theme-dark .nav-item:hover svg {
+  transform: scale(1.1) !important;
+}
+
+/* Auto theme dark mode support */
+@media (prefers-color-scheme: dark) {
+  body.theme-auto .nav-item {
+    transition: all 0.2s ease !important;
+    position: relative !important;
+  }
+
+  body.theme-auto .nav-item:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    padding-left: 20px !important;
+    transform: translateX(4px) !important;
+  }
+
+  body.theme-auto .nav-item.active {
+    background: rgba(0, 122, 255, 0.15) !important;
+    color: #007aff !important;
+    font-weight: 600 !important;
+  }
+
+  body.theme-auto .nav-item.active::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 3px !important;
+    background: #007aff !important;
+  }
+}
+
+/* END OF DARK MODE SIDEBAR ANIMATIONS */

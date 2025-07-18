@@ -1,0 +1,489 @@
+{
+  "info": {
+    "_postman_id": "web-appliance-dashboard-api",
+    "name": "Web Appliance Dashboard API",
+    "description": "Complete API collection for Web Appliance Dashboard with examples",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('token', response.token);",
+                  "    pm.test('Login successful', () => {",
+                  "        pm.expect(response).to.have.property('token');",
+                  "        pm.expect(response).to.have.property('user');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login to get JWT token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appliances",
+      "item": [
+        {
+          "name": "Get All Appliances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appliances",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appliances"]
+            }
+          }
+        },
+        {
+          "name": "Create Appliance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Server\",\n    \"url\": \"http://192.168.1.100:8080\",\n    \"description\": \"Test server for development\",\n    \"icon\": \"Server\",\n    \"color\": \"#007AFF\",\n    \"category\": \"development\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/appliances",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appliances"]
+            }
+          }
+        },
+        {
+          "name": "Update Appliance",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Server Name\",\n    \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/appliances/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appliances", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Appliance",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appliances/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appliances", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "Get All Services",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/services",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "services"]
+            }
+          }
+        },
+        {
+          "name": "Start Service",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/services/nginx/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "services", "nginx", "start"]
+            }
+          }
+        },
+        {
+          "name": "Stop Service",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/services/nginx/stop",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "services", "nginx", "stop"]
+            }
+          }
+        },
+        {
+          "name": "Restart Service",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/services/nginx/restart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "services", "nginx", "restart"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get All Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Update Setting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"value\": \"false\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settings/ssh_enabled",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settings", "ssh_enabled"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SSH",
+      "item": [
+        {
+          "name": "Get SSH Keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ssh/keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ssh", "keys"]
+            }
+          }
+        },
+        {
+          "name": "Generate SSH Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New SSH Key\",\n    \"passphrase\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ssh/keys/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ssh", "keys", "generate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Backup & Restore",
+      "item": [
+        {
+          "name": "Create Backup",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/backup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backup"]
+            },
+            "description": "Creates a backup file (tar.gz) of the system"
+          }
+        },
+        {
+          "name": "Restore from Backup",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "backup",
+                  "type": "file",
+                  "src": "backup.tar.gz"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/restore",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "restore"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit & Monitoring",
+      "item": [
+        {
+          "name": "Get Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/audit-logs?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "audit-logs"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "action",
+                  "value": "appliance_created",
+                  "disabled": true
+                },
+                {
+                  "key": "userId",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Appliance Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"applianceIds\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/status-check",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "status-check"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Examples",
+      "item": [
+        {
+          "name": "Complete Workflow",
+          "item": [
+            {
+              "name": "1. Login",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "2. Create Appliance",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Example App\",\n    \"url\": \"http://example.com\",\n    \"description\": \"Example application\",\n    \"icon\": \"Globe\",\n    \"color\": \"#00FF00\",\n    \"category\": \"productivity\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/appliances",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "appliances"]
+                }
+              }
+            },
+            {
+              "name": "3. Check Status",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"applianceIds\": [1]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/status-check",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "status-check"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

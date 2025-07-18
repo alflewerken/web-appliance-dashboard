@@ -1,0 +1,333 @@
+/**
+ * FullTerminal Styles
+ */
+
+.full-terminal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.full-terminal-container {
+  width: 90%;
+  max-width: 1200px;
+  height: 85%;
+  background: #1a1a1a;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease-out;
+}
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.terminal-header {
+  background: #2a2a2a;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.terminal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.terminal-ssh-badge {
+  background: #4a4a4a;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #8be9fd;
+}
+
+.connection-status {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.connection-status.connected {
+  color: #50fa7b;
+}
+
+.connection-status.connecting {
+  color: #f1fa8c;
+}
+.connection-status.disconnected {
+  color: #ff5555;
+}
+
+.terminal-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.terminal-controls button {
+  background: #3a3a3a;
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  height: 28px;
+  min-width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminal-controls button:hover {
+  background: #444;
+  color: #fff;
+  border-color: #555;
+}
+
+.terminal-controls .close-btn {
+  background: #ff5555;
+  border-color: #ff5555;
+  color: #fff;
+  font-size: 16px;
+}
+
+.terminal-controls .close-btn:hover {
+  background: #ff6666;
+}
+
+.terminal-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 8px;
+  background: #0d0d0d;
+  border-radius: 0 0 8px 8px;
+}
+
+/* xterm.js terminal customization */
+.terminal-body .xterm {
+  height: 100%;
+}
+
+.terminal-body .xterm-viewport {
+  overflow-y: auto;
+}
+
+/* Custom scrollbar */
+.terminal-body .xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.terminal-body .xterm-viewport::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.terminal-body .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 5px;
+}
+
+.terminal-body .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .full-terminal-container {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    border-radius: 0;
+  }
+
+  .terminal-header {
+    border-radius: 0;
+  }
+
+  .terminal-body {
+    border-radius: 0;
+  }
+}
+
+
+/* Light mode adjustments */
+body.theme-light .full-terminal-overlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+body.theme-light .full-terminal-container {
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e1e1;
+}
+
+body.theme-light .terminal-header {
+  background: #f5f5f5;
+  border-bottom: 1px solid #e1e1e1;
+}
+
+body.theme-light .terminal-title {
+  color: #333333;
+}
+
+body.theme-light .terminal-ssh-badge {
+  background: #e8e8e8;
+  color: #1890ff;
+}
+
+body.theme-light .connection-status {
+  color: #666666;
+}
+
+body.theme-light .connection-status.connected {
+  color: #52c41a;
+}
+
+body.theme-light .connection-status.connecting {
+  color: #faad14;
+}
+
+body.theme-light .connection-status.disconnected {
+  color: #ff4d4f;
+}
+
+body.theme-light .terminal-controls button {
+  background: #ffffff;
+  border: 1px solid #d9d9d9;
+  color: #666666;
+}
+
+body.theme-light .terminal-controls button:hover {
+  background: #f5f5f5;
+  color: #333333;
+  border-color: #cccccc;
+}
+
+body.theme-light .terminal-controls .close-btn {
+  background: #ff4d4f;
+  border-color: #ff4d4f;
+  color: #ffffff;
+}
+
+body.theme-light .terminal-controls .close-btn:hover {
+  background: #ff7875;
+}
+
+body.theme-light .terminal-body {
+  background: #fafafa;
+}
+
+/* Light mode scrollbar */
+body.theme-light .terminal-body .xterm-viewport::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+
+body.theme-light .terminal-body .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #cccccc;
+}
+
+body.theme-light .terminal-body .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #999999;
+}
+
+/* Auto theme support */
+@media (prefers-color-scheme: light) {
+  body.theme-auto .full-terminal-overlay {
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  body.theme-auto .full-terminal-container {
+    background: #ffffff;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e1e1e1;
+  }
+
+  body.theme-auto .terminal-header {
+    background: #f5f5f5;
+    border-bottom: 1px solid #e1e1e1;
+  }
+
+  body.theme-auto .terminal-title {
+    color: #333333;
+  }
+
+  body.theme-auto .terminal-ssh-badge {
+    background: #e8e8e8;
+    color: #1890ff;
+  }
+
+  body.theme-auto .connection-status {
+    color: #666666;
+  }
+
+  body.theme-auto .connection-status.connected {
+    color: #52c41a;
+  }
+
+  body.theme-auto .connection-status.connecting {
+    color: #faad14;
+  }
+
+  body.theme-auto .connection-status.disconnected {
+    color: #ff4d4f;
+  }
+
+  body.theme-auto .terminal-controls button {
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    color: #666666;
+  }
+
+  body.theme-auto .terminal-controls button:hover {
+    background: #f5f5f5;
+    color: #333333;
+    border-color: #cccccc;
+  }
+
+  body.theme-auto .terminal-body {
+    background: #fafafa;
+  }
+
+  body.theme-auto .terminal-body .xterm-viewport::-webkit-scrollbar-track {
+    background: #f5f5f5;
+  }
+
+  body.theme-auto .terminal-body .xterm-viewport::-webkit-scrollbar-thumb {
+    background: #cccccc;
+  }
+}

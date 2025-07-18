@@ -1,0 +1,139 @@
+/* ========================================================================
+   PANEL OVERRIDES - Muss NACH app-consolidated.css geladen werden
+   ========================================================================
+   Forciert die korrekten Glassmorphism-Styles für alle Panels
+   ======================================================================== */
+
+/* KRITISCH: Panels müssen genau wie Sidebar aussehen */
+.settings-panel,
+.service-panel,
+.user-panel,
+.audit-log-panel {
+  /* Entferne alle transparenten Hintergründe */
+  background: rgba(28, 28, 30, 0.88) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Zusätzlicher dunkler Layer wie bei Sidebar */
+.settings-panel::after,
+.service-panel::after,
+.user-panel::after,
+.audit-log-panel::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2) !important; /* Stärker als vorher */
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Light Mode */
+body.theme-light .settings-panel,
+body.theme-light .service-panel,
+body.theme-light .user-panel,
+body.theme-light .audit-log-panel {
+  background: rgba(255, 255, 255, 0.88) !important;
+}
+
+body.theme-light .settings-panel::after,
+body.theme-light .service-panel::after,
+body.theme-light .user-panel::after,
+body.theme-light .audit-log-panel::after {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Panel Content muss über dem dunklen Layer sein */
+.settings-panel > *,
+.service-panel > *,
+.user-panel > *,
+.audit-log-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Überschreibe ALLE MUI Styles die transparent machen - ABER NICHT Icon-Farben */
+.settings-panel
+  .MuiBox-root:not(.icon-container):not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.service-panel
+  .MuiBox-root:not(.icon-container):not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.user-panel
+  .MuiBox-root:not(.icon-container):not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.audit-log-panel
+  .MuiBox-root:not(.icon-container):not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.settings-panel
+  .MuiPaper-root:not([style*='background-color']):not(
+    [style*='backgroundColor']
+  ),
+.service-panel
+  .MuiPaper-root:not([style*='background-color']):not(
+    [style*='backgroundColor']
+  ),
+.user-panel
+  .MuiPaper-root:not([style*='background-color']):not(
+    [style*='backgroundColor']
+  ),
+.audit-log-panel
+  .MuiPaper-root:not([style*='background-color']):not(
+    [style*='backgroundColor']
+  ) {
+  background: none !important;
+  background-color: transparent !important;
+}
+
+/* Avatare und farbige Elemente behalten ihre Farben */
+.settings-panel .MuiAvatar-root,
+.service-panel .MuiAvatar-root,
+.user-panel .MuiAvatar-root,
+.audit-log-panel .MuiAvatar-root,
+.settings-panel [class*='avatar'],
+.service-panel [class*='avatar'],
+.user-panel [class*='avatar'],
+.audit-log-panel [class*='avatar'] {
+  /* Diese behalten ihre inline background-color */
+}
+
+/* Spezifische Overrides für bekannte Problembereiche - BEHALTE FARBEN */
+.settings-panel
+  > div[style*='background']:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.service-panel
+  > div[style*='background']:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.user-panel
+  > div[style*='background']:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.audit-log-panel
+  > div[style*='background']:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']) {
+  background: none !important;
+  background-color: transparent !important;
+}
+
+/* SSH Host Cards brauchen eigenen Hintergrund */
+.settings-panel .ssh-host-card,
+.service-panel .ssh-host-card {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+/* Tabs Container */
+.settings-panel .MuiTabs-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+}

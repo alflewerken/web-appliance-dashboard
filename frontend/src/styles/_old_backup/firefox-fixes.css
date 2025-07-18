@@ -1,0 +1,80 @@
+/* ========================================================================
+   FIREFOX-SPECIFIC FIXES
+   ========================================================================
+   Diese Datei behandelt Firefox-spezifische Probleme,
+   insbesondere das Icon-Farben-Problem in der Sidebar
+   ======================================================================== */
+
+@-moz-document url-prefix() {
+  /* Firefox: Sicherstellen, dass inline backgroundColor funktioniert */
+
+  /* 1. Deaktiviere backdrop-filter auf Icon-Containern */
+  .nav-icon-container {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* 2. Erzwinge die Anzeige von inline styles */
+  .nav-icon-container[style*='backgroundColor'],
+  .nav-icon-container[style*='background-color'] {
+    /* Firefox soll inline styles respektieren */
+    background-image: none !important;
+    background-clip: padding-box !important;
+  }
+
+  /* 3. Verhindere Überschreibungen durch andere Regeln */
+  .sidebar .nav-icon-container {
+    /* Keine !important background-color hier */
+    will-change: background-color;
+  }
+
+  /* 4. Service Card Icons in Firefox */
+  .appliance-card .icon-container[style*='backgroundColor'],
+  .appliance-card .icon-container[style*='background-color'] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-image: none !important;
+  }
+
+  /* 5. Explizite Farben für statische Kategorien als Fallback */
+  .nav-icon-container[data-category='all']:not([style*='background']) {
+    background-color: #8e8e93 !important;
+  }
+
+  .nav-icon-container[data-category='recent']:not([style*='background']) {
+    background-color: #ff9500 !important;
+  }
+
+  .nav-icon-container[data-category='favorites']:not([style*='background']) {
+    background-color: #ff3b30 !important;
+  }
+
+  .nav-icon-container[data-category='settings']:not([style*='background']) {
+    background-color: #8e8e93 !important;
+  }
+
+  .nav-icon-container[data-category='users']:not([style*='background']) {
+    background-color: #5ac8fa !important;
+  }
+
+  .nav-icon-container[data-category='audit']:not([style*='background']) {
+    background-color: #4cd964 !important;
+  }
+
+  .nav-icon-container[data-category='logout']:not([style*='background']) {
+    background-color: #ff3b30 !important;
+  }
+}
+
+/* Firefox-spezifische Optimierungen für Performance */
+@-moz-document url-prefix() {
+  /* Reduziere GPU-Belastung bei vielen Elementen */
+  .appliance-card {
+    will-change: auto;
+  }
+
+  /* Optimiere Scrolling */
+  .content-body {
+    scroll-behavior: smooth;
+  }
+}

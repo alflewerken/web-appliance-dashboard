@@ -1,0 +1,355 @@
+/**
+ * XTerminal Styles
+ * Professional terminal emulator styling
+ */
+
+.xterminal-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.xterminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #444;
+  user-select: none;
+}
+
+.xterminal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+}
+
+.terminal-icon {
+  font-size: 16px;
+}
+
+.connection-indicator {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.connection-indicator.connected {
+  color: #0dbc79;
+  background-color: rgba(13, 188, 121, 0.2);
+}
+
+.connection-indicator.connecting {
+  color: #e5e510;
+  background-color: rgba(229, 229, 16, 0.2);
+  animation: pulse 1.5s infinite;
+}
+
+.connection-indicator.disconnected {
+  color: #cd3131;
+  background-color: rgba(205, 49, 49, 0.2);
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.xterminal-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.terminal-button {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.terminal-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.terminal-button.close:hover {
+  background-color: rgba(205, 49, 49, 0.3);
+  color: #ff5555;
+}
+
+.xterminal-body {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Override xterm.js default styles for better integration */
+.xterminal-body .xterm {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0;
+}
+
+.xterminal-body .xterm-viewport {
+  background-color: transparent !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.xterminal-body .xterm-screen {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Custom scrollbar for terminal */
+.xterminal-body .xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.xterminal-body .xterm-viewport::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.xterminal-body .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 5px;
+}
+
+.xterminal-body .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Terminal ref container */
+.xterm-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+/* Ensure terminal fills container */
+.terminal-fit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Override any default xterm sizing */
+.xterm {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.xterm-viewport {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.xterm-screen {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Remove any margins or paddings that might interfere */
+.xterm-helper-textarea {
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .xterminal-header {
+    padding: 8px 12px;
+  }
+
+  .xterminal-title {
+    font-size: 12px;
+  }
+
+  .terminal-button {
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+
+  .xterminal-body {
+    padding: 5px;
+  }
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  .xterminal-container {
+    border: 1px solid #333;
+  }
+}
+
+/* Fullscreen mode */
+.xterminal-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  border-radius: 0;
+}
+
+/* Search highlight */
+.xterm-search-bar {
+  position: absolute;
+  top: 50px;
+  right: 20px;
+  background: #2d2d2d;
+  padding: 10px;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+
+/* Light mode adjustments */
+body.theme-light .xterminal-container {
+  background-color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e1e1e1;
+}
+
+body.theme-light .xterminal-header {
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e1e1e1;
+}
+
+body.theme-light .xterminal-title {
+  color: #333333;
+}
+
+body.theme-light .terminal-icon {
+  color: #333333;
+}
+
+body.theme-light .connection-indicator {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #666666;
+}
+
+body.theme-light .connection-indicator.connected {
+  color: #00a854;
+  background-color: rgba(0, 168, 84, 0.1);
+}
+
+body.theme-light .connection-indicator.connecting {
+  color: #faad14;
+  background-color: rgba(250, 173, 20, 0.1);
+}
+
+body.theme-light .connection-indicator.disconnected {
+  color: #f5222d;
+  background-color: rgba(245, 34, 45, 0.1);
+}
+
+body.theme-light .terminal-button {
+  color: #666666;
+}
+
+body.theme-light .terminal-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #333333;
+}
+
+body.theme-light .terminal-button.close:hover {
+  background-color: rgba(245, 34, 45, 0.1);
+  color: #f5222d;
+}
+
+/* Light mode scrollbar */
+body.theme-light .xterminal-body .xterm-viewport::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+
+body.theme-light .xterminal-body .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #cccccc;
+}
+
+body.theme-light .xterminal-body .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #999999;
+}
+
+/* Search bar for light mode */
+body.theme-light .xterm-search-bar {
+  background: #f5f5f5;
+  border: 1px solid #e1e1e1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Auto theme support */
+@media (prefers-color-scheme: light) {
+  body.theme-auto .xterminal-container {
+    background-color: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e1e1e1;
+  }
+
+  body.theme-auto .xterminal-header {
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #e1e1e1;
+  }
+
+  body.theme-auto .xterminal-title {
+    color: #333333;
+  }
+
+  body.theme-auto .terminal-icon {
+    color: #333333;
+  }
+
+  body.theme-auto .connection-indicator {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #666666;
+  }
+
+  body.theme-auto .terminal-button {
+    color: #666666;
+  }
+
+  body.theme-auto .terminal-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #333333;
+  }
+
+  body.theme-auto .xterminal-body .xterm-viewport::-webkit-scrollbar-track {
+    background: #f5f5f5;
+  }
+
+  body.theme-auto .xterminal-body .xterm-viewport::-webkit-scrollbar-thumb {
+    background: #cccccc;
+  }
+}

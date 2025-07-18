@@ -1,0 +1,101 @@
+/* ========================================================================
+   SETTINGS PANEL ICONS FIX V3
+   ========================================================================
+   Stellt sicher, dass Icons im Settings Panel farbige Hintergründe haben
+   ======================================================================== */
+
+/* Icon Container im Settings Panel - Mit farbigem Hintergrund */
+.settings-panel .MuiListItemIcon-root .MuiBox-root,
+.MuiDialog-root .MuiListItemIcon-root .MuiBox-root,
+[role='tabpanel'] .MuiListItemIcon-root .MuiBox-root {
+  /* Basis-Styles für Icon-Box */
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0 !important;
+
+  /* Sicherstellen, dass die Box sichtbar ist */
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Hover-Effekt */
+.settings-panel .MuiListItem-root:hover .MuiListItemIcon-root .MuiBox-root,
+.MuiDialog-root .MuiListItem-root:hover .MuiListItemIcon-root .MuiBox-root {
+  transform: scale(1.05) !important;
+}
+
+/* Icon innerhalb der farbigen Box */
+.settings-panel .MuiListItemIcon-root .MuiBox-root svg,
+.settings-panel .MuiListItemIcon-root .MuiBox-root .simple-icon,
+.MuiDialog-root .MuiListItemIcon-root .MuiBox-root svg,
+.MuiDialog-root .MuiListItemIcon-root .MuiBox-root .simple-icon {
+  width: 20px !important;
+  height: 20px !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  stroke-width: 2 !important;
+}
+
+/* Sicherstellen, dass inline background-color styles nicht überschrieben werden */
+.settings-panel .MuiBox-root[style*='background-color'],
+.settings-panel .MuiBox-root[style*='backgroundColor'],
+.MuiDialog-root .MuiBox-root[style*='background-color'],
+.MuiDialog-root .MuiBox-root[style*='backgroundColor'] {
+  /* Inline styles müssen respektiert werden - NICHT inherit verwenden */
+}
+
+/* Spezifisch für Kategorie-Icons mit inline styles */
+.settings-panel
+  .MuiListItem-root
+  .MuiListItemIcon-root
+  .MuiBox-root[style*='background'],
+.MuiDialog-root
+  .MuiListItem-root
+  .MuiListItemIcon-root
+  .MuiBox-root[style*='background'] {
+  /* Diese haben die Farbe als inline style - nicht überschreiben! */
+}
+
+/* Grip Handle sollte keine Box haben */
+.settings-panel .MuiListItemIcon-root:has(.lucide-grip-vertical) .MuiBox-root {
+  background: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Debug: Zeige alle Icon-Boxen mit rotem Rand */
+.debug-icons .settings-panel .MuiListItemIcon-root .MuiBox-root {
+  border: 2px solid red !important;
+}
+
+/* Drag Indicator */
+.settings-panel .drop-indicator,
+.settings-panel .MuiBox-root.drop-indicator {
+  height: 3px !important;
+  background-color: var(--primary-color, #007aff) !important;
+  margin: 8px 16px !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 8px var(--primary-color, #007aff) !important;
+  width: auto !important;
+}
+
+/* Animation für Drag Indicator */
+@keyframes dropIndicatorPulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.settings-panel .drop-indicator {
+  animation: dropIndicatorPulse 1s ease-in-out infinite;
+}

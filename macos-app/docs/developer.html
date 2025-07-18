@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Appliance Dashboard macOS App - Entwickler Dokumentation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            display: flex;
+            overflow-x: hidden;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 350px;
+            height: 100vh;
+            background: #242424;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-350px);
+        }
+        
+        .sidebar-header {
+            background: #2d2d2d;
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .sidebar-header h2 {
+            margin: 0;
+            color: #61dafb;
+            font-size: 1.2em;
+        }
+        
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #61dafb;
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .sidebar-toggle:hover {
+            background: #4fa8c5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+        
+        .sidebar-toggle.shifted {
+            left: 370px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 350px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 60px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #61dafb;
+            margin-bottom: 50px;
+            font-size: 2.5em;
+        }
+        
+        h2 {
+            color: #61dafb;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        .mermaid {
+            text-align: center;
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .code-block {
+            background: #1a1a1a;
+            border: 1px solid #4a4a4a;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: #e0e0e0;
+            margin: 15px 0;
+        }
+        
+        .file-tree {
+            background: #1a1a1a;
+            border: 1px solid #4a4a4a;
+            border-radius: 6px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.8;
+            color: #e0e0e0;
+            margin: 15px 0;
+        }
+        
+        .note {
+            background: #4a4a4a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #61dafb;
+            margin: 20px 0;
+        }
+        
+        .warning {
+            background: #5a4a2a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #fbbf24;
+            margin: 20px 0;
+        }
+        
+        .success {
+            background: #2a5a3a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #68d391;
+            margin: 20px 0;
+        }
+        
+        /* Table of Contents */
+        .toc {
+            padding: 20px;
+        }
+        
+        .toc h3 {
+            color: #61dafb;
+            margin: 0 0 20px 0;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .toc ol {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+        
+        .toc ol li {
+            margin-bottom: 15px;
+        }
+        
+        .toc > ol > li > a {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #61dafb;
+            display: block;
+            padding: 5px 0;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+            margin-top: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .toc ul li {
+            margin-bottom: 6px;
+            position: relative;
+        }
+        
+        .toc ul li::before {
+            content: "›";
+            color: #61dafb;
+            position: absolute;
+            left: -15px;
+            font-weight: bold;
+        }
+        
+        .toc a {
+            color: #e0e0e0;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: block;
+            padding: 3px 0;
+        }
+        
+        .toc a:hover {
+            color: #61dafb;
+            padding-left: 5px;
+        }
+        
+        /* Features List */
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .feature-card {
+            background: #3a3a3a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #4a4a4a;
+            transition: transform 0.2s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .feature-card h4 {
+            color: #61dafb;
+            margin-top: 0;
+        }
+        
+        /* API Reference */
+        .api-method {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 10px;
+        }
+        
+        .api-method.ipc { background: #61dafb; color: #000; }
+        .api-method.event { background: #68d391; color: #000; }
+        .api-method.window { background: #fbbf24; color: #000; }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 280px;
+            }
+            
+            .sidebar.collapsed {
+                transform: translateX(-280px);
+            }
+            
+            .main-content {
+                margin-left: 280px;
+            }
+            
+            .sidebar-toggle.shifted {
+                left: 300px;
+            }
+            
+            .feature-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Toggle Button -->
+    <button class="sidebar-toggle shifted" onclick="toggleSidebar()">☰ Navigation</button>
+    
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>Inhaltsverzeichnis</h2>
+        }
+        <div class="toc">
+            <ol>
+                <li><a href="#overview">Übersicht</a>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#architecture">Architektur</a></li>
+                        <li><a href="#requirements">Anforderungen</a></li>
+                    </ul>
+                </li>
+                <li><a href="#installation">Installation & Setup</a>
+                    <ul>
+                        <li><a href="#dev-setup">Entwicklungsumgebung</a></li>
+                        <li><a href="#building">App erstellen</a></li>
+                        <li><a href="#signing">Code Signing</a></li>
+                    </ul>
+                </li>
+                <li><a href="#project-structure">Projektstruktur</a>
+                    <ul>
+                        <li><a href="#main-files">Hauptdateien</a></li>
+                        <li><a href="#directories">Verzeichnisse</a></li>
+                    </ul>
+                </li>
+                <li><a href="#electron-architecture">Electron Architektur</a>
+                    <ul>
+                        <li><a href="#main-process">Main Process</a></li>
+                        <li><a href="#renderer-process">Renderer Process</a></li>
+                        <li><a href="#ipc-communication">IPC Kommunikation</a></li>
+                    </ul>
+                </li>
+                <li><a href="#docker-integration">Docker Integration</a>
+                    <ul>
+                        <li><a href="#docker-manager">Docker Manager</a></li>
+                        <li><a href="#container-lifecycle">Container Lifecycle</a></li>
+                        <li><a href="#auto-setup">Automatisches Setup</a></li>
+                    </ul>
+                </li>
+                <li><a href="#ui-components">UI Komponenten</a>
+                    <ul>
+                        <li><a href="#main-window">Hauptfenster</a></li>
+                        <li><a href="#management-window">Management-Fenster</a></li>
+                        <li><a href="#system-tray">System Tray</a></li>
+                    </ul>
+                </li>
+                <li><a href="#api-reference">API Referenz</a>
+                    <ul>
+                        <li><a href="#ipc-api">IPC API</a></li>
+                        <li><a href="#docker-api">Docker API</a></li>
+                        <li><a href="#window-api">Window API</a></li>
+                    </ul>
+                </li>
+                <li><a href="#debugging">Debugging & Testing</a>
+                    <ul>
+                        <li><a href="#dev-tools">Developer Tools</a></li>
+                        <li><a href="#logging">Logging</a></li>
+                        <li><a href="#troubleshooting">Fehlerbehebung</a></li>
+                    </ul>
+                </li>
+                <li><a href="#deployment">Deployment</a>
+                    <ul>
+                        <li><a href="#build-config">Build-Konfiguration</a></li>
+                        <li><a href="#distribution">Distribution</a></li>
+                        <li><a href="#updates">Auto-Updates</a></li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <div class="container">
+            <h1>Web Appliance Dashboard macOS App - Entwickler Dokumentation</h1>
+            
+            <div class="section" id="overview">
+                <h2>Übersicht</h2>
+                <p>Die Web Appliance Dashboard macOS App ist eine native Electron-Anwendung, die das Web Appliance Dashboard in einer benutzerfreundlichen Desktop-Umgebung bereitstellt. Die App automatisiert die komplette Installation und Verwaltung der Docker-Container.</p>
+                
+                <div id="features">
+                    <h3>Features</h3>
+                    <div class="feature-list">
+                        <div class="feature-card">
+                            <h4>🚀 Automatische Installation</h4>
+                            <p>Kein Terminal erforderlich - die App installiert sich selbst beim ersten Start</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🐳 Docker Management</h4>
+                            <p>Vollständige Kontrolle über alle Container mit Live-Status-Updates</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>📊 Live Logs</h4>
+                            <p>Echtzeit-Logs aller Container direkt in der App</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🎯 System Tray</h4>
+                            <p>Läuft im Hintergrund mit schnellem Zugriff über die Menüleiste</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔒 Isolierte Container</h4>
+                            <p>Eigene Container-Instanzen mit `wad_app_*` Präfix</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔄 Auto-Recovery</h4>
+                            <p>Automatische Wiederherstellung bei Problemen</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="architecture">
+                    <h3>Architektur-Übersicht</h3>
+                    <div class="mermaid">
+                        graph TB
+                            subgraph "macOS App"
+                                Main[Main Process<br/>main.js]
+                                Renderer[Renderer Process<br/>renderer.js]
+                                Docker[Docker Manager<br/>docker-manager.js]
+                                Preload[Preload Script<br/>preload.js]
+                            end
+                            
+                            subgraph "Docker Container"
+                                Frontend[wad_app_webserver<br/>:9081]
+                                Backend[wad_app_backend<br/>:3002]
+                                Database[wad_app_db<br/>:3307]
+                                Terminal[wad_app_ttyd<br/>:7682]
+                            end
+                            
+                            subgraph "System"
+                                Tray[System Tray]
+                                DockerDesktop[Docker Desktop]
+                                FileSystem[File System]
+                            end
+                            
+                            Main --> Renderer
+                            Main --> Docker
+                            Main --> Tray
+                            Renderer --> Preload
+                            Preload --> Main
+                            Docker --> DockerDesktop
+                            Docker --> Frontend
+                            Docker --> Backend
+                            Docker --> Database
+                            Docker --> Terminal
+                            Main --> FileSystem
+                            
+                            style Main fill:#61dafb
+                            style Docker fill:#68d391
+                            style Frontend fill:#fbbf24
+                    </div>
+                </div>
+                
+                <div id="requirements">
+                    <h3>Systemanforderungen</h3>
+                    <ul>
+                        <li><strong>macOS:</strong> 10.15 (Catalina) oder neuer</li>
+                        <li><strong>Prozessor:</strong> Intel oder Apple Silicon (M1/M2/M3)</li>
+                        <li><strong>RAM:</strong> Mindestens 4 GB (8 GB empfohlen)</li>
+                        <li><strong>Speicher:</strong> 2 GB freier Speicherplatz</li>
+                        <li><strong>Docker Desktop:</strong> Muss installiert und laufend sein</li>
+                        <li><strong>Node.js:</strong> Version 16.x oder höher (für Entwicklung)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section" id="installation">
+                <h2>Installation & Setup</h2>
+                
+                <div id="dev-setup">
+                    <h3>Entwicklungsumgebung einrichten</h3>
+                    
+                    <h4>1. Repository klonen</h4>
+                    <pre class="code-block">git clone https://github.com/alflewerken/web-appliance-dashboard.git
+cd web-appliance-dashboard/macos-app</pre>
+                    
+                    <h4>2. Dependencies installieren</h4>
+                    <pre class="code-block">npm install</pre>
+                    
+                    <h4>3. Entwicklungsmodus starten</h4>
+                    <pre class="code-block">npm run dev
+
+# Oder mit separaten Terminals:
+npm run start-dev    # Backend starten
+npm run electron-dev # Electron App starten</pre>
+                    
+                    <div class="note">
+                        <strong>Tipp:</strong> Im Entwicklungsmodus werden die DevTools automatisch geöffnet und Hot-Reload ist aktiviert.
+                    </div>
+                </div>
+                
+                <div id="building">
+                    <h3>App erstellen</h3>
+                    
+                    <h4>Produktion Build</h4>
+                    <pre class="code-block"># Für aktuelle Architektur
+npm run build
+
+# Für spezifische Architektur
+npm run build:mac-x64   # Intel Macs
+npm run build:mac-arm64 # Apple Silicon
+
+# Universal Binary (beide Architekturen)
+npm run build:mac-universal</pre>
+                    
+                    <h4>Build-Ausgabe</h4>
+                    <pre class="file-tree">dist/
+├── mac-arm64/              # Apple Silicon Build
+│   └── Web Appliance Dashboard.app
+├── mac-x64/                # Intel Build
+│   └── Web Appliance Dashboard.app
+└── mac-universal/          # Universal Binary
+    └── Web Appliance Dashboard.app</pre>
+                </div>
+                
+                <div id="signing">
+                    <h3>Code Signing & Notarization</h3>
+                    
+                    <h4>Entwickler-Zertifikat einrichten</h4>
+                    <pre class="code-block"># In package.json konfigurieren
+"build": {
+  "mac": {
+    "identity": "Developer ID Application: Your Name (TEAMID)",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.plist"
+  }
+}</pre>
+                    
+                    <h4>Notarization</h4>
+                    <pre class="code-block"># .env Datei erstellen
+APPLE_ID=your-apple-id@example.com
+APPLE_ID_PASSWORD=your-app-specific-password
+APPLE_TEAM_ID=YOURTEAMID
+
+# Build mit Notarization
+npm run build:mac-notarized</pre>
+                    
+                    <div class="warning">
+                        <strong>Wichtig:</strong> Für die Distribution im App Store oder außerhalb ist Code Signing zwingend erforderlich!
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section" id="project-structure">
+                <h2>Projektstruktur</h2>
+                
+                <div id="main-files">
+                    <h3>Hauptdateien</h3>
+                    
+                    <pre class="file-tree">macos-app/
+├── main.js                 # Electron Hauptprozess
+├── renderer.js             # UI-Logik für Management-Fenster  
+├── preload.js              # Sichere Bridge zwischen Main und Renderer
+├── docker-manager.js       # Docker-Integration und Container-Verwaltung
+├── index.html              # Management-UI (Docker Control)
+├── loading.html            # Ladebildschirm während Setup
+├── styles.css              # Globale Styles
+├── docker-compose.app.yml  # Docker-Konfiguration Template
+└── package.json            # Projekt-Konfiguration und Scripts</pre>
+                    
+                    <h4>main.js - Hauptprozess</h4>
+                    <p>Der Electron-Hauptprozess verwaltet:</p>
+                    <ul>
+                        <li>Fenster-Management (Main & Management Windows)</li>
+                        <li>System Tray Integration</li>
+                        <li>IPC-Kommunikation</li>
+                        <li>App-Lifecycle</li>
+                        <li>Auto-Updater</li>
+                    </ul>
+                    
+                    <h4>docker-manager.js - Docker Integration</h4>
+                    <p>Verantwortlich für:</p>
+                    <ul>
+                        <li>Docker-Compose Operationen</li>
+                        <li>Container-Status-Überwachung</li>
+                        <li>Log-Streaming</li>
+                        <li>Automatisches Setup</li>
+                        <li>Fehlerbehandlung</li>
+                    </ul>
+                </div>
+                
+                <div id="directories">
+                    <h3>Verzeichnisstruktur</h3>
+                    
+                    <pre class="file-tree">macos-app/
+├── assets/             # App-Ressourcen
+│   ├── icon.icns      # App-Icon
+│   └── tray/          # System Tray Icons
+├── scripts/           # Build und Utility Scripts
+│   ├── cleanup.sh     # Container-Bereinigung
+│   └── notarize.js    # Apple Notarization
+├── src/               # Source-Code (falls refactored)
+├── docs/              # Dokumentation
+│   ├── developer.html # Diese Datei
+│   └── user-manual/   # Benutzerhandbuch
+└── dist/              # Build-Ausgabe</pre>
+                    
+                    <h4>Runtime-Verzeichnisse</h4>
+                    <p>Die App erstellt folgende Verzeichnisse zur Laufzeit:</p>
+                    <pre class="code-block">~/Library/Application Support/web-appliance-dashboard/
+├── docker-compose.yml  # Generierte Docker-Config
+├── logs/              # App-Logs
+├── data/              # Persistente Daten
+└── config/            # App-Konfiguration</pre>
+                </div>
+            </div>
+            
+            <div class="section" id="electron-architecture">
+                <h2>Electron Architektur</h2>
+                
+                <div id="main-process">
+                    <h3>Main Process</h3>
+                    
+                    <div class="mermaid">
+                        sequenceDiagram
+                            participant User
+                            participant Main as Main Process
+                            participant Docker as Docker Manager
+                            participant Renderer as Renderer Process
+                            participant System as System
+                            
+                            User->>Main: App starten
+                            Main->>System: Check Docker Desktop
+                            Main->>Docker: Initialize
+                            Docker->>Docker: Find project paths
+                            Docker->>Docker: Generate docker-compose.yml
+                            Docker->>Main: Ready
+                            Main->>Renderer: Create Window
+                            Renderer->>Main: Request container status
+                            Main->>Docker: Get status
+                            Docker->>System: docker compose ps
+                            System-->>Docker: Container info
+                            Docker-->>Main: Status data
+                            Main-->>Renderer: Update UI
+                    </div>
+                    
+                    <h4>Hauptverantwortlichkeiten</h4>
+                    <ul>
+                        <li><strong>Window Management:</strong> Erstellt und verwaltet BrowserWindow-Instanzen</li>
+                        <li><strong>System Integration:</strong> Menu Bar, Dock, System Tray</li>
+                        <li><strong>Security:</strong> Context Isolation, Node Integration Control</li>
+                        <li><strong>IPC Handler:</strong> Registriert und verwaltet IPC-Kommunikation</li>
+                    </ul>
+                </div>
+                
+                <div id="renderer-process">
+                    <h3>Renderer Process</h3>
+                    
+                    <h4>Management UI (renderer.js)</h4>
+                    <pre class="code-block">// Container-Status aktualisieren
+async function updateContainerStatus() {
+    try {
+        const status = await window.electronAPI.getContainerStatus();
+        updateUI(status);
+    } catch (error) {
+        console.error('Failed to get status:', error);
+    }
+}
+
+// Container-Aktionen
+async function handleContainerAction(action) {
+    const button = event.target;
+    button.disabled = true;
+    
+    try {
+        if (action === 'start') {
+            await window.electronAPI.startContainers();
+        } else if (action === 'stop') {
+            await window.electronAPI.stopContainers();
+        }
+    } finally {
+        button.disabled = false;
+        updateContainerStatus();
+    }
+}</pre>
+                </div>
+                
+                <div id="ipc-communication">
+                    <h3>IPC Kommunikation</h3>
+                    
+                    <h4>Sichere Kommunikation über Preload Script</h4>
+                    <pre class="code-block">// preload.js
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+    // Container Management
+    getContainerStatus: () => ipcRenderer.invoke('docker:status'),
+    startContainers: () => ipcRenderer.invoke('docker:start'),
+    stopContainers: () => ipcRenderer.invoke('docker:stop'),
+    restartContainers: () => ipcRenderer.invoke('docker:restart'),
+    
+    // Logs
+    onLogUpdate: (callback) => {
+        ipcRenderer.on('docker:log', (event, data) => callback(data));
+    },
+    
+    // Window Control
+    openManagement: () => ipcRenderer.send('open-management'),
+    minimizeWindow: () => ipcRenderer.send('window:minimize'),
+    closeWindow: () => ipcRenderer.send('window:close')
+});</pre>
+                    
+                    <div class="note">
+                        <strong>Security:</strong> Die Preload-Script-Architektur stellt sicher, dass der Renderer-Prozess keinen direkten Zugriff auf Node.js APIs hat.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section" id="docker-integration">
+                <h2>Docker Integration</h2>
+                
+                <div id="docker-manager">
+                    <h3>Docker Manager</h3>
+                    
+                    <h4>Automatische Pfaderkennung</h4>
+                    <pre class="code-block">findProjectPaths() {
+    // 1. Check if running from main project
+    const mainProjectPath = path.join(__dirname, '..', '..');
+    if (fs.existsSync(path.join(mainProjectPath, 'docker-compose.yml'))) {
+        return { projectPath: mainProjectPath, appPath: __dirname };
+    }
+    
+    // 2. Search common locations
+    const searchPaths = [
+        path.join(os.homedir(), 'Desktop', 'web-appliance-dashboard'),
+        path.join(os.homedir(), 'Documents', 'web-appliance-dashboard'),
+        path.join(os.homedir(), 'Projects', 'web-appliance-dashboard'),
+        '/Applications/web-appliance-dashboard'
+    ];
+    
+    for (const searchPath of searchPaths) {
+        if (fs.existsSync(path.join(searchPath, 'docker-compose.yml'))) {
+            return { projectPath: searchPath, appPath: __dirname };
+        }
+    }
+    
+    throw new Error('Web Appliance Dashboard project not found');
+}</pre>
+                </div>
+                
+                <div id="container-lifecycle">
+                    <h3>Container Lifecycle Management</h3>
+                    
+                    <div class="mermaid">
+                        stateDiagram-v2
+                            [*] --> Checking: App Start
+                            Checking --> NotInstalled: First Run
+                            Checking --> Stopped: Already Installed
+                            NotInstalled --> Installing: Auto Setup
+                            Installing --> Starting: Success
+                            Installing --> Error: Failed
+                            Stopped --> Starting: Start Command
+                            Starting --> Running: Success
+                            Starting --> Error: Failed
+                            Running --> Stopping: Stop Command
+                            Stopping --> Stopped: Success
+                            Error --> Installing: Retry
+                            Running --> [*]: App Quit
+                    </div>
+                    
+                    <h4>Container-Konfiguration</h4>
+                    <p>Die App verwendet isolierte Container mit eigenen Ports:</p>
+                    <ul>
+                        <li><strong>Frontend:</strong> Port 9081 (statt 3000)</li>
+                        <li><strong>Backend:</strong> Port 3002 (statt 3001)</li>
+                        <li><strong>Terminal:</strong> Port 7682 (statt 7681)</li>
+                        <li><strong>Database:</strong> Port 3307 (statt 3306)</li>
+                    </ul>
+                </div>
+                
+                <div id="auto-setup">
+                    <h3>Automatisches Setup</h3>
+                    
+                    <h4>Setup-Prozess</h4>
+                    <ol>
+                        <li><strong>Pfaderkennung:</strong> Findet das Hauptprojekt automatisch</li>
+                        <li><strong>Arbeitsverzeichnis:</strong> Erstellt App Support Verzeichnis</li>
+                        <li><strong>Docker-Config:</strong> Generiert angepasste docker-compose.yml</li>
+                        <li><strong>Container-Start:</strong> Startet alle Services</li>
+                        <li><strong>Health-Check:</strong> Wartet auf Verfügbarkeit</li>
+                    </ol>
+                    
+                    <pre class="code-block">async generateDockerCompose(projectPath, targetPath) {
+    const composeContent = `
+version: '3.8'
+
+services:
+  wad_app_db:
+    image: mysql:8.0
+    container_name: wad_app_db
+    environment:
+      MYSQL_ROOT_PASSWORD: \${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: \${MYSQL_DATABASE:-web_appliance_db}
+    volumes:
+      - wad_app_mysql_data:/var/lib/mysql
+      - ${projectPath}/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3307:3306"
+    networks:
+      - wad_app_network
+
+  wad_app_backend:
+    build: ${projectPath}/backend
+    container_name: wad_app_backend
+    depends_on:
+      - wad_app_db
+    environment:
+      - DB_HOST=wad_app_db
+      - PORT=3001
+    volumes:
+      - ${projectPath}/backend:/app
+    ports:
+      - "3002:3001"
+    networks:
+      - wad_app_network
+
+  wad_app_webserver:
+    build: ${projectPath}/frontend
+    container_name: wad_app_webserver
+    ports:
+      - "9081:80"
+    networks:
+      - wad_app_network
+
+networks:
+  wad_app_network:
+    driver: bridge
+
+volumes:
+  wad_app_mysql_data:
+`;
+    
+    await fs.promises.writeFile(
+        path.join(targetPath, 'docker-compose.yml'),
+        composeContent
+    );
+}</pre>
+                </div>
+            </div>
+            
+            <div class="section" id="ui-components">
+                <h2>UI Komponenten</h2>
+                
+                <div id="main-window">
+                    <h3>Hauptfenster</h3>
+                    
+                    <h4>Window-Konfiguration</h4>
+                    <pre class="code-block">mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1000,
+    minHeight: 600,
+    webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        webviewTag: true
+    },
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 20, y: 20 },
+    backgroundColor: '#1a1a1a',
+    show: false
+});
+
+// Graceful show
+mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+});</pre>
+                    
+                    <h4>WebView Integration</h4>
+                    <p>Das Hauptfenster lädt das Web Appliance Dashboard in einem WebView:</p>
+                    <pre class="code-block">&lt;webview 
+    id="dashboard-view"
+    src="http://localhost:9081"
+    style="width: 100%; height: 100%;"
+    nodeintegration="false"
+    webpreferences="contextIsolation=true"
+&gt;&lt;/webview&gt;</pre>
+                </div>
+                
+                <div id="management-window">
+                    <h3>Management-Fenster</h3>
+                    
+                    <h4>Features</h4>
+                    <ul>
+                        <li>Container-Status in Echtzeit</li>
+                        <li>Start/Stop/Restart Kontrolle</li>
+                        <li>Live Log-Streaming</li>
+                        <li>Ressourcen-Monitoring</li>
+                    </ul>
+                    
+                    <h4>UI-Updates</h4>
+                    <pre class="code-block">function updateContainerUI(container) {
+    const card = document.getElementById(`container-${container.name}`);
+    const statusEl = card.querySelector('.status');
+    const indicator = card.querySelector('.status-indicator');
+    
+    // Update status
+    statusEl.textContent = container.status;
+    statusEl.className = `status ${container.running ? 'running' : 'stopped'}`;
+    
+    // Update indicator
+    indicator.className = `status-indicator ${container.running ? 'active' : ''}`;
+    
+    // Update buttons
+    const startBtn = card.querySelector('.start-btn');
+    const stopBtn = card.querySelector('.stop-btn');
+    
+    startBtn.disabled = container.running;
+    stopBtn.disabled = !container.running;
+}</pre>
+                </div>
+                
+                <div id="system-tray">
+                    <h3>System Tray Integration</h3>
+                    
+                    <h4>Tray Menu</h4>
+                    <pre class="code-block">const contextMenu = Menu.buildFromTemplate([
+    {
+        label: 'Dashboard öffnen',
+        click: () => mainWindow.show()
+    },
+    {
+        label: 'Docker Management',
+        click: () => createManagementWindow(),
+        accelerator: 'CmdOrCtrl+M'
+    },
+    { type: 'separator' },
+    {
+        label: 'Container Status',
+        submenu: [
+            { label: '● Alle laufen', enabled: false },
+            { type: 'separator' },
+            { label: 'Alle starten', click: () => startContainers() },
+            { label: 'Alle stoppen', click: () => stopContainers() }
+        ]
+    },
+    { type: 'separator' },
+    {
+        label: 'Beenden',
+        click: () => app.quit(),
+        accelerator: 'CmdOrCtrl+Q'
+    }
+]);</pre>
+                    
+                    <h4>Status-Updates</h4>
+                    <p>Das Tray-Icon zeigt den Container-Status:</p>
+                    <ul>
+                        <li>🟢 Grün: Alle Container laufen</li>
+                        <li>🟡 Gelb: Einige Container laufen</li>
+                        <li>🔴 Rot: Keine Container laufen</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section" id="api-reference">
+                <h2>API Referenz</h2>
+                
+                <div id="ipc-api">
+                    <h3>IPC API</h3>
+                    
+                    <h4>Container Management</h4>
+                    <div style="margin: 20px 0;">
+                        <div style="margin-bottom: 15px;">
+                            <span class="api-method ipc">IPC</span>
+                            <code>docker:status</code>
+                            <p>Gibt den aktuellen Status aller Container zurück.</p>
+                            <pre class="code-block">// Main Process
+ipcMain.handle('docker:status', async () => {
+    return await dockerManager.getContainerStatus();
+});
+
+// Renderer Process
+const status = await window.electronAPI.getContainerStatus();</pre>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <span class="api-method ipc">IPC</span>
+                            <code>docker:start</code>
+                            <p>Startet alle Container.</p>
+                            <pre class="code-block">// Main Process
+ipcMain.handle('docker:start', async () => {
+    return await dockerManager.startContainers();
+});</pre>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <span class="api-method ipc">IPC</span>
+                            <code>docker:logs</code>
+                            <p>Streamt Container-Logs.</p>
+                            <pre class="code-block">// Main Process
+dockerManager.on('log', (data) => {
+    mainWindow.webContents.send('docker:log', data);
+});</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="docker-api">
+                    <h3>Docker Manager API</h3>
+                    
+                    <h4>Hauptmethoden</h4>
+                    <pre class="code-block">class DockerManager extends EventEmitter {
+    // Setup und Initialisierung
+    async initialize()
+    async ensureSetup()
+    async generateDockerCompose(projectPath, targetPath)
+    
+    // Container-Operationen
+    async startContainers()
+    async stopContainers()
+    async restartContainers()
+    async getContainerStatus()
+    
+    // Logging
+    streamLogs(containerName)
+    
+    // Cleanup
+    async cleanup()
+    async removeContainers()
+}</pre>
+                    
+                    <h4>Events</h4>
+                    <pre class="code-block">dockerManager.on('log', (data) => {
+    // data = { container: 'wad_app_backend', message: '...', type: 'stdout' }
+});
+
+dockerManager.on('status-change', (status) => {
+    // status = { running: true, containers: [...] }
+});
+
+dockerManager.on('error', (error) => {
+    // error = { message: '...', code: 'DOCKER_NOT_RUNNING' }
+});</pre>
+                </div>
+                
+                <div id="window-api">
+                    <h3>Window Management API</h3>
+                    
+                    <h4>Window Control</h4>
+                    <pre class="code-block">// Fenster erstellen
+function createMainWindow() {
+    mainWindow = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        // ... config
+    });
+}
+
+// Management-Fenster Toggle
+function createManagementWindow() {
+    if (managementWindow) {
+        managementWindow.focus();
+        return;
+    }
+    // ... create window
+}
+
+// Window State speichern
+function saveWindowState() {
+    const bounds = mainWindow.getBounds();
+    store.set('windowBounds', bounds);
+}</pre>
+                </div>
+            </div>
+            
+            <div class="section" id="debugging">
+                <h2>Debugging & Testing</h2>
+                
+                <div id="dev-tools">
+                    <h3>Developer Tools</h3>
+                    
+                    <h4>DevTools öffnen</h4>
+                    <pre class="code-block">// Automatisch im Dev-Mode
+if (process.env.NODE_ENV === 'development') {
+    mainWindow.webContents.openDevTools();
+}
+
+// Keyboard Shortcut
+globalShortcut.register('CommandOrControl+Shift+I', () => {
+    BrowserWindow.getFocusedWindow()?.webContents.openDevTools();
+});</pre>
+                    
+                    <h4>Debugging Flags</h4>
+                    <pre class="code-block"># Electron Debug-Modus
+ELECTRON_ENABLE_LOGGING=1 npm run dev
+
+# Verbose Logging
+DEBUG=* npm run dev
+
+# Inspect Main Process
+npm run dev -- --inspect-brk=5858</pre>
+                </div>
+                
+                <div id="logging">
+                    <h3>Logging</h3>
+                    
+                    <h4>Log-Implementierung</h4>
+                    <pre class="code-block">const log = {
+    info: (message, ...args) => {
+        console.log(`[${new Date().toISOString()}] [INFO]`, message, ...args);
+        appendToLogFile('info', message, args);
+    },
+    error: (message, ...args) => {
+        console.error(`[${new Date().toISOString()}] [ERROR]`, message, ...args);
+        appendToLogFile('error', message, args);
+    },
+    debug: (message, ...args) => {
+        if (process.env.DEBUG) {
+            console.debug(`[${new Date().toISOString()}] [DEBUG]`, message, ...args);
+        }
+    }
+};</pre>
+                    
+                    <h4>Log-Dateien</h4>
+                    <p>Logs werden gespeichert unter:</p>
+                    <pre class="code-block">~/Library/Logs/web-appliance-dashboard/
+├── main.log      # Hauptprozess-Logs
+├── renderer.log  # Renderer-Logs
+└── docker.log    # Docker-Operationen</pre>
+                </div>
+                
+                <div id="troubleshooting">
+                    <h3>Fehlerbehebung</h3>
+                    
+                    <h4>Häufige Probleme</h4>
+                    
+                    <div class="warning">
+                        <h5>Docker Desktop nicht gefunden</h5>
+                        <pre class="code-block">// Check Docker installation
+const dockerPath = '/usr/local/bin/docker';
+if (!fs.existsSync(dockerPath)) {
+    // Show error dialog
+    dialog.showErrorBox(
+        'Docker Desktop Required',
+        'Please install Docker Desktop from docker.com'
+    );
+}</pre>
+                    </div>
+                    
+                    <div class="warning">
+                        <h5>Port-Konflikte</h5>
+                        <pre class="code-block"># Ports prüfen
+lsof -i :9081
+lsof -i :3002
+
+# In docker-compose.app.yml anpassen
+ports:
+  - "9082:80"  # Alternative Port</pre>
+                    </div>
+                    
+                    <h4>Reset-Prozedur</h4>
+                    <pre class="code-block"># 1. App beenden
+# 2. App-Daten löschen
+rm -rf ~/Library/Application\ Support/web-appliance-dashboard
+
+# 3. Container bereinigen
+cd /path/to/macos-app
+./scripts/cleanup-app-containers.sh
+
+# 4. App neu starten</pre>
+                </div>
+            </div>
+            
+            <div class="section" id="deployment">
+                <h2>Deployment</h2>
+                
+                <div id="build-config">
+                    <h3>Build-Konfiguration</h3>
+                    
+                    <h4>package.json Build-Config</h4>
+                    <pre class="code-block">"build": {
+    "productName": "Web Appliance Dashboard",
+    "appId": "com.example.web-appliance-dashboard",
+    "directories": {
+        "output": "dist"
+    },
+    "mac": {
+        "category": "public.app-category.developer-tools",
+        "icon": "assets/icon.icns",
+        "hardenedRuntime": true,
+        "gatekeeperAssess": false,
+        "entitlements": "build/entitlements.mac.plist",
+        "entitlementsInherit": "build/entitlements.mac.plist",
+        "target": [
+            {
+                "target": "dmg",
+                "arch": ["x64", "arm64"]
+            },
+            {
+                "target": "zip",
+                "arch": ["x64", "arm64"]
+            }
+        ]
+    },
+    "dmg": {
+        "contents": [
+            {
+                "x": 410,
+                "y": 190,
+                "type": "link",
+                "path": "/Applications"
+            },
+            {
+                "x": 130,
+                "y": 190,
+                "type": "file"
+            }
+        ]
+    }
+}</pre>
+                </div>
+                
+                <div id="distribution">
+                    <h3>Distribution</h3>
+                    
+                    <h4>Release-Prozess</h4>
+                    <ol>
+                        <li><strong>Version erhöhen:</strong> <code>npm version patch/minor/major</code></li>
+                        <li><strong>Build erstellen:</strong> <code>npm run build</code></li>
+                        <li><strong>Tests durchführen:</strong> Manuell auf verschiedenen macOS-Versionen</li>
+                        <li><strong>Code signieren:</strong> Mit Apple Developer ID</li>
+                        <li><strong>Notarisieren:</strong> Bei Apple zur Gatekeeper-Freigabe</li>
+                        <li><strong>Release:</strong> GitHub Releases oder eigener Server</li>
+                    </ol>
+                    
+                    <h4>GitHub Release</h4>
+                    <pre class="code-block"># Tag erstellen
+git tag v1.0.0
+git push origin v1.0.0
+
+# Release mit electron-builder
+GH_TOKEN=your-token npm run release</pre>
+                </div>
+                
+                <div id="updates">
+                    <h3>Auto-Updates</h3>
+                    
+                    <h4>Update-Implementierung</h4>
+                    <pre class="code-block">const { autoUpdater } = require('electron-updater');
+
+// Configure
+autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'alflewerken',
+    repo: 'web-appliance-dashboard'
+});
+
+// Check for updates
+autoUpdater.checkForUpdatesAndNotify();
+
+// Update events
+autoUpdater.on('update-available', () => {
+    dialog.showMessageBox({
+        type: 'info',
+        title: 'Update verfügbar',
+        message: 'Eine neue Version ist verfügbar. Wird im Hintergrund heruntergeladen.',
+        buttons: ['OK']
+    });
+});
+
+autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox({
+        type: 'info',
+        title: 'Update bereit',
+        message: 'Update wurde heruntergeladen. App wird neu gestartet.',
+        buttons: ['Jetzt neu starten', 'Später']
+    }).then((result) => {
+        if (result.response === 0) {
+            autoUpdater.quitAndInstall();
+        }
+    });
+});</pre>
+                    
+                    <div class="success">
+                        <strong>Best Practice:</strong> Verwenden Sie Semantic Versioning und testen Sie Updates gründlich in einer Staging-Umgebung.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="note" style="margin-top: 50px;">
+                <strong>Weitere Ressourcen:</strong>
+                <ul style="margin-top: 10px;">
+                    <li><a href="https://www.electronjs.org/docs" style="color: #61dafb;">Electron Dokumentation</a></li>
+                    <li><a href="https://github.com/electron/electron-api-demos" style="color: #61dafb;">Electron API Demos</a></li>
+                    <li><a href="https://www.electron.build/" style="color: #61dafb;">electron-builder Dokumentation</a></li>
+                    <li><a href="https://docs.docker.com/compose/" style="color: #61dafb;">Docker Compose Referenz</a></li>
+                </ul>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        // Sidebar Toggle Function
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const toggleBtn = document.querySelector('.sidebar-toggle');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            toggleBtn.classList.toggle('shifted');
+            
+            // Save state to localStorage
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        }
+        
+        // Restore sidebar state on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+                document.getElementById('mainContent').classList.add('expanded');
+                document.querySelector('.sidebar-toggle').classList.remove('shifted');
+            }
+        });
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#61dafb',
+                primaryTextColor: '#000',
+                primaryBorderColor: '#4a90e2',
+                lineColor: '#5c5c5c',
+                secondaryColor: '#68d391',
+                tertiaryColor: '#fbbf24',
+                background: '#ffffff',
+                mainBkg: '#61dafb',
+                secondBkg: '#68d391',
+                tertiaryBkg: '#fbbf24',
+                primaryBorderColor: '#4a90e2',
+                secondaryBorderColor: '#4ade80',
+                tertiaryBorderColor: '#f59e0b',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                fontSize: '14px'
+            }
+        });
+    </script>
+</body>
+</html>

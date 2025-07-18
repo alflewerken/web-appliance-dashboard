@@ -1,0 +1,155 @@
+/* Audit Log Light Mode Styles */
+
+/* Action color badges with better contrast for light mode */
+.light-mode .action-success {
+  background-color: #2e7d32 !important; /* Darker green */
+  color: white !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.light-mode .action-error {
+  background-color: #d32f2f !important; /* Darker red */
+  color: white !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.light-mode .action-warning {
+  background-color: #ed6c02 !important; /* Darker orange */
+  color: white !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.light-mode .action-critical {
+  background-color: #9c27b0 !important; /* Darker purple */
+  color: white !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.light-mode .action-default {
+  background-color: #616161 !important; /* Darker gray */
+  color: white !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Mobile log items in light mode */
+.light-mode .mobile-log-item {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+
+.light-mode .mobile-log-action {
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+}
+
+.light-mode .mobile-log-action.action-success {
+  background-color: #2e7d32 !important;
+  color: white !important;
+}
+
+.light-mode .mobile-log-action.action-error {
+  background-color: #d32f2f !important;
+  color: white !important;
+}
+
+.light-mode .mobile-log-action.action-warning {
+  background-color: #ed6c02 !important;
+  color: white !important;
+}
+
+.light-mode .mobile-log-action.action-critical {
+  background-color: #9c27b0 !important;
+  color: white !important;
+}
+
+.light-mode .mobile-log-action.action-default {
+  background-color: #616161 !important;
+  color: white !important;
+}
+
+/* Audit log table rows in light mode */
+.light-mode .audit-logs-table tbody tr {
+  background-color: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .audit-logs-table tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Ensure text is readable in light mode */
+.light-mode .audit-log-container {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.light-mode .audit-logs-table td {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Filter controls in light mode */
+.light-mode .filter-controls input,
+.light-mode .filter-controls select {
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.light-mode .filter-controls input:focus,
+.light-mode .filter-controls select:focus {
+  border-color: #1976d2;
+  outline: none;
+}
+
+/* Buttons in light mode */
+.light-mode .refresh-btn {
+  background-color: #1976d2 !important;
+  color: white !important;
+  border: none !important;
+}
+
+.light-mode .delete-btn {
+  background-color: #d32f2f !important;
+  color: white !important;
+  border: none !important;
+}
+
+/* Panel background in light mode */
+.light-mode .audit-log-panel {
+  background: rgba(255, 255, 255, 0.85) !important; /* Halbtransparent wie andere Panels */
+  backdrop-filter: blur(20px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+
+.light-mode .panel-header {
+  background: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.light-mode .panel-header h2 {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Ensure panel content is transparent in light mode */
+.light-mode .audit-log-panel .panel-content {
+  background: transparent !important;
+}
+
+/* Ensure all containers within panel are transparent */
+.light-mode .audit-log-panel .audit-stats,
+.light-mode .audit-log-panel .audit-filters,
+.light-mode .audit-log-panel .audit-logs-table {
+  background: transparent !important;
+}

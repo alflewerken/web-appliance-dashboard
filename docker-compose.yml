@@ -1,0 +1,276 @@
+services:
+  # MariaDB Database
+  database:
+    image: mariadb:latest
+    container_name: ${DB_CONTAINER_NAME:-appliance_db}
+    restart: always
+    ports:
+      - "${DB_EXTERNAL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-20}
+      start_period: 40s
+
+  # Node.js Backend API with SSH Support
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
+    restart: always
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      # Database Configuration
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
+      NODE_ENV: ${NODE_ENV:-production}
+      # CORS Settings
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      # SSH Configuration
+      SSH_TOOLS_ENABLED: ${SSH_TOOLS_ENABLED:-true}
+      SSH_AUTO_INIT: ${SSH_AUTO_INIT:-true}
+      # Features
+      FEATURE_AUDIT_LOG: ${FEATURE_AUDIT_LOG:-true}
+      FEATURE_BACKUP_RESTORE: ${FEATURE_BACKUP_RESTORE:-true}
+      FEATURE_SSH_TERMINAL: ${FEATURE_SSH_TERMINAL:-true}
+      FEATURE_SERVICE_CONTROL: ${FEATURE_SERVICE_CONTROL:-true}
+      FEATURE_USER_MANAGEMENT: ${FEATURE_USER_MANAGEMENT:-true}
+      FEATURE_REMOTE_DESKTOP: ${FEATURE_REMOTE_DESKTOP:-true}
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-combined}
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ssh_keys:/root/.ssh
+      - uploads:/app/uploads
+      # Optional: Mount lokales SSH-Keys Verzeichnis für Entwicklung
+      # - ./ssh-keys:/root/.ssh
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:3001/api/health && which ssh && which ssh-copy-id && which sshpass"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: 40s
+
+  # Nginx Web Server
+  webserver:
+    image: nginx:alpine
+    container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
+    restart: always
+    ports:
+      - "${NGINX_HTTP_PORT:-9080}:80"
+      - "${NGINX_HTTPS_PORT:-9443}:443"
+    volumes:
+      - ./nginx/nginx-docker-dynamic.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./frontend/build:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+      - ttyd
+      # Guacamole is optional - webserver should start without it
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+
+  # ttyd Web Terminal
+  ttyd:
+    build: ./ttyd
+    container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
+    restart: always
+    ports:
+      - "${TTYD_PORT:-7681}:7681"
+    command: >
+      ttyd
+      --writable
+      --port 7681
+      --base-path /
+      --terminal-type xterm-256color
+      /scripts/ttyd-ssh-wrapper.sh
+    environment:
+      SSH_HOST: ${TTYD_DEFAULT_HOST:-192.168.178.70}
+      SSH_USER: ${TTYD_DEFAULT_USER:-alflewerken}
+      SSH_PORT: ${TTYD_DEFAULT_PORT:-22}
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    volumes:
+      # SSH-Keys für Terminal-Zugriff
+      - ssh_keys:/root/.ssh:ro
+      # Optional: Shared scripts
+      - ./scripts:/scripts:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7681/"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+
+  # ====================================================================
+  # REMOTE DESKTOP SERVICES (GUACAMOLE)
+  # ====================================================================
+  
+  # Guacamole Proxy Daemon
+  guacd:
+    image: guacamole/guacd:1.5.5
+    container_name: ${GUACD_CONTAINER_NAME:-appliance_guacd}
+    restart: always
+    volumes:
+      - guacamole_drive:/drive:rw
+      - guacamole_record:/record:rw
+    environment:
+      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-info}
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "4822"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+
+  # Guacamole PostgreSQL Database
+  guacamole-postgres:
+    image: postgres:15-alpine
+    container_name: ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db}
+    restart: always
+    environment:
+      POSTGRES_DB: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+    volumes:
+      - guacamole_db:/var/lib/postgresql/data
+      - ./guacamole/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GUACAMOLE_DB_USER:-guacamole_user}"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+
+  # Guacamole Web Application
+  guacamole:
+    image: guacamole/guacamole:1.5.5
+    container_name: ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole}
+    restart: always
+    depends_on:
+      guacd:
+        condition: service_healthy
+      guacamole-postgres:
+        condition: service_healthy
+    environment:
+      GUACD_HOSTNAME: guacd
+      POSTGRES_HOSTNAME: guacamole-postgres
+      POSTGRES_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+      # Integration settings
+      HEADER_ENABLED: 'true'
+      # CORS für iFrame
+      EXTENSION_PRIORITY: '*'
+      # Optional: Custom settings
+      GUACAMOLE_HOME: /etc/guacamole
+    ports:
+      - "${GUACAMOLE_PORT:-9070}:8080"
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    volumes:
+      - ./guacamole/extensions:/opt/guacamole/extensions:ro
+      - guacamole_home:/etc/guacamole
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/guacamole/"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: 60s
+
+# ====================================================================
+# VOLUMES
+# ====================================================================
+volumes:
+  # Main application data
+  db_data:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-true}"
+      - "purpose=database"
+      - "project=web-appliance-dashboard"
+      
+  ssh_keys:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-true}"
+      - "purpose=ssh-keys"
+      - "project=web-appliance-dashboard"
+      
+  uploads:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-true}"
+      - "purpose=uploads"
+      - "project=web-appliance-dashboard"
+
+  # Guacamole volumes
+  guacamole_db:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-true}"
+      - "purpose=guacamole-database"
+      - "project=web-appliance-dashboard"
+      
+  guacamole_drive:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-false}"
+      - "purpose=guacamole-file-transfer"
+      - "project=web-appliance-dashboard"
+      
+  guacamole_record:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-false}"
+      - "purpose=guacamole-session-recording"
+      - "project=web-appliance-dashboard"
+      
+  guacamole_home:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-true}"
+      - "purpose=guacamole-configuration"
+      - "project=web-appliance-dashboard"
+
+# ====================================================================
+# NETWORKS
+# ====================================================================
+networks:
+  appliance_network:
+    name: ${NETWORK_NAME:-appliance_network}
+    driver: bridge
+    labels:
+      - "project=web-appliance-dashboard"
+      - "environment=${NODE_ENV:-production}"

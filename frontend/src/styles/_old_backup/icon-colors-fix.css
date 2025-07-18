@@ -1,0 +1,57 @@
+/* ========================================================================
+   ICON COLORS FIX
+   ========================================================================
+   Stellt sicher, dass alle Icon-Farben korrekt angezeigt werden
+   ======================================================================== */
+
+/* Service Card Icons - Farben müssen sichtbar sein */
+.appliance-card .icon-container[style*='background'],
+.appliance-card .icon-container[style*='Background'] {
+  /* Inline styles haben Priorität */
+  opacity: 1 !important;
+}
+
+/* User Avatar Backgrounds */
+.user-avatar[style*='background'],
+.avatar[style*='background'],
+[class*='avatar'][style*='background'] {
+  /* Behalte inline background colors */
+  opacity: 1 !important;
+}
+
+/* Status Icons und Badges */
+.status-icon[style*='background'],
+.badge[style*='background'],
+.chip[style*='background'] {
+  opacity: 1 !important;
+}
+
+/* Verhindere, dass Panel-Overrides Icon-Farben entfernen */
+.settings-panel .icon-container[style*='background'],
+.service-panel .icon-container[style*='background'],
+.user-panel .icon-container[style*='background'],
+.audit-log-panel .icon-container[style*='background'] {
+  /* Diese behalten ihre Farben */
+  background-color: var(--icon-bg-color) !important;
+}
+
+/* User-Liste Avatar Farben */
+.user-item .avatar,
+.user-list-item .avatar {
+  /* Farben werden meist inline gesetzt */
+  opacity: 1 !important;
+}
+
+/* Spezifisch für die User-Avatare mit Initialen */
+.MuiAvatar-root[style*='background'],
+.MuiAvatar-colorDefault {
+  /* MUI Avatar Farben beibehalten */
+  opacity: 1 !important;
+}
+
+/* Farb-Indikatoren in Listen */
+.color-indicator,
+.category-color,
+[class*='color'][style*='background'] {
+  opacity: 1 !important;
+}

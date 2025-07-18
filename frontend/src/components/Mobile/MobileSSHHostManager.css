@@ -1,0 +1,569 @@
+/* Mobile SSH Host Manager Styles - Fixed for embedded mode */
+.mobile-ssh-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f3f4f6;
+}
+
+/* Embedded mode: No fixed height, let parent control scrolling */
+.mobile-ssh-manager.embedded {
+  height: 100%;
+  background: transparent;
+}
+
+/* Header */
+.mobile-ssh-header {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Eingebettete Header Styles */
+.mobile-ssh-header.embedded {
+  position: relative;
+  box-shadow: none;
+  border-bottom: 1px solid #e5e7eb;
+  background: transparent;
+}
+
+.mobile-ssh-header.embedded .mobile-ssh-controls {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobile-ssh-header.embedded h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.mobile-ssh-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.mobile-ssh-header h2 {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.mobile-back-btn,
+.mobile-add-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6b7280;
+}
+
+.mobile-back-btn:active,
+.mobile-add-btn:active {
+  background: #f3f4f6;
+}
+
+.mobile-add-btn {
+  color: #3b82f6;
+}
+
+/* Such- und Filterbereich */
+.mobile-ssh-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.mobile-search-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 0 12px;
+  height: 40px;
+  gap: 8px;
+}
+
+.mobile-search-bar svg {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.mobile-search-bar input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.mobile-search-bar input::placeholder {
+  color: #9ca3af;
+}
+
+.mobile-clear-search {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+}
+
+.mobile-filter-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6b7280;
+}
+
+.mobile-filter-btn.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.mobile-filter-btn:active {
+  transform: scale(0.9);
+}
+
+/* Content Area */
+.mobile-ssh-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  padding-bottom: 32px;
+}
+
+/* Embedded mode: No overflow, let parent handle scrolling */
+.mobile-ssh-manager.embedded .mobile-ssh-content {
+  overflow-y: visible;
+  flex: initial;
+  height: auto;
+}
+
+.mobile-ssh-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Loading State */
+.mobile-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+}
+
+.mobile-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.mobile-loading span {
+  color: #6b7280;
+  font-size: 15px;
+}
+
+/* Empty State */
+.mobile-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.mobile-empty-state p {
+  color: #6b7280;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.mobile-empty-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-empty-add-btn:active {
+  background: #2563eb;
+  transform: scale(0.95);
+}
+
+/* Modal Overlay */
+.mobile-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mobile-modal-content {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.mobile-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.mobile-modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.mobile-modal-close {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.mobile-modal-close:active {
+  background: #e5e7eb;
+}
+
+/* Form Styles */
+.mobile-ssh-form {
+  padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-form-group {
+  margin-bottom: 20px;
+}
+
+.mobile-form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.mobile-form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 16px;
+  color: #1f2937;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.mobile-form-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: white;
+}
+
+.mobile-form-actions {
+  margin-top: 30px;
+}
+
+.mobile-submit-btn {
+  width: 100%;
+  padding: 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-submit-btn:active {
+  background: #2563eb;
+  transform: scale(0.98);
+}
+
+/* History Modal */
+.mobile-history-list {
+  padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 60vh;
+}
+
+.mobile-history-entry {
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border-left: 4px solid #e5e7eb;
+}
+
+.mobile-history-entry.create {
+  border-left-color: #10b981;
+}
+
+.mobile-history-entry.update {
+  border-left-color: #f59e0b;
+}
+
+.mobile-history-entry.delete {
+  border-left-color: #ef4444;
+}
+
+.mobile-history-entry.restore {
+  border-left-color: #3b82f6;
+}
+
+.mobile-history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-history-action {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.mobile-history-time {
+  font-size: 14px;
+  color: #374151;
+}
+
+.mobile-history-user {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* Dark Mode Support for Embedded Mode */
+.dark-mode .mobile-ssh-manager.embedded {
+  background: transparent;
+}
+
+.dark-mode .mobile-ssh-header.embedded {
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode .mobile-ssh-header.embedded h3 {
+  color: var(--text-primary);
+}
+
+.dark-mode .mobile-ssh-manager.embedded .mobile-search-bar {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .mobile-ssh-manager.embedded .mobile-search-bar input {
+  color: var(--text-primary);
+}
+
+.dark-mode .mobile-ssh-manager.embedded .mobile-filter-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+
+.dark-mode .mobile-ssh-manager.embedded .mobile-filter-btn.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Standard Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .mobile-ssh-manager {
+    background: #111827;
+  }
+
+  .mobile-ssh-header {
+    background: #1f2937;
+  }
+
+  .mobile-ssh-header-top {
+    border-bottom-color: #374151;
+  }
+
+  .mobile-ssh-header h2 {
+    color: #f3f4f6;
+  }
+
+  .mobile-back-btn,
+  .mobile-add-btn {
+    color: #9ca3af;
+  }
+
+  .mobile-back-btn:active,
+  .mobile-add-btn:active {
+    background: #374151;
+  }
+
+  .mobile-add-btn {
+    color: #60a5fa;
+  }
+
+  .mobile-search-bar {
+    background: #374151;
+  }
+
+  .mobile-search-bar input {
+    color: #f3f4f6;
+  }
+
+  .mobile-search-bar input::placeholder {
+    color: #6b7280;
+  }
+
+  .mobile-filter-btn {
+    background: #374151;
+    color: #9ca3af;
+  }
+
+  .mobile-filter-btn.active {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .mobile-loading span,
+  .mobile-empty-state p {
+    color: #9ca3af;
+  }
+
+  .mobile-modal-content {
+    background: #1f2937;
+  }
+
+  .mobile-modal-header {
+    border-bottom-color: #374151;
+  }
+
+  .mobile-modal-header h3 {
+    color: #f3f4f6;
+  }
+
+  .mobile-modal-close {
+    background: #374151;
+    color: #9ca3af;
+  }
+
+  .mobile-modal-close:active {
+    background: #4b5563;
+  }
+
+  .mobile-form-group label {
+    color: #e5e7eb;
+  }
+
+  .mobile-form-group input {
+    background: #111827;
+    border-color: #374151;
+    color: #f3f4f6;
+  }
+
+  .mobile-form-group input:focus {
+    border-color: #60a5fa;
+    background: #1f2937;
+  }
+
+  .mobile-history-entry {
+    background: #111827;
+  }
+
+  .mobile-history-time {
+    color: #e5e7eb;
+  }
+}
+
+/* Safe Area Insets für iOS */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-ssh-content {
+    padding-bottom: calc(32px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-modal-content {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

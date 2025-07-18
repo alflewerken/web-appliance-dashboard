@@ -1,0 +1,67 @@
+/* SettingsPanel Category Icons Fix */
+
+/* Kategorie-Icons im Einstellungs-Panel */
+.MuiListItem-root .MuiListItemIcon-root .MuiBox-root {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.MuiListItem-root:hover .MuiListItemIcon-root .MuiBox-root {
+  transform: scale(1.05);
+}
+
+/* Icon innerhalb der Box */
+.MuiListItem-root .MuiListItemIcon-root .simple-icon {
+  width: 20px;
+  height: 20px;
+  color: rgba(255, 255, 255, 0.9);
+  stroke-width: 2;
+}
+
+/* Drag-Indikator Styles */
+.drop-indicator,
+.MuiList-root .MuiBox-root[style*='height: 3px'] {
+  height: 3px;
+  background-color: var(--primary-color);
+  margin: 8px 16px;
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--primary-color);
+  transition: all 0.2s ease;
+}
+
+/* Drag-and-Drop Visual Feedback */
+.MuiListItem-root[draggable='true'] {
+  cursor: move;
+}
+
+.MuiListItem-root[draggable='true']:active {
+  cursor: grabbing;
+}
+
+/* Drag Over Effect */
+.MuiListItem-root.drag-over {
+  transform: scale(0.98);
+  border-color: var(--primary-color);
+}
+
+/* Drop Indicator Animation */
+@keyframes dropIndicatorPulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.drop-indicator {
+  animation: dropIndicatorPulse 1s ease-in-out infinite;
+}

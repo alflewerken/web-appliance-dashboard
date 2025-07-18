@@ -1,0 +1,101 @@
+version: 2
+updates:
+  # Backend dependencies
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "alflewerken"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      development:
+        patterns:
+          - "eslint*"
+          - "jest*"
+          - "nodemon"
+          - "prettier"
+      production:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "eslint*"
+          - "jest*"
+          - "nodemon"
+          - "prettier"
+
+  # Frontend dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "alflewerken"
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      react:
+        patterns:
+          - "react*"
+          - "@mui/*"
+      development:
+        patterns:
+          - "webpack*"
+          - "babel*"
+          - "eslint*"
+          - "jest*"
+          - "prettier"
+
+  # macOS app dependencies
+  - package-ecosystem: "npm"
+    directory: "/macos-app"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "alflewerken"
+    labels:
+      - "dependencies"
+      - "macos-app"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "alflewerken"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "alflewerken"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "alflewerken"
+    labels:
+      - "dependencies"
+      - "github-actions"

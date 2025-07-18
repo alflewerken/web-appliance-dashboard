@@ -1,0 +1,3131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Appliance Dashboard - Entwickler Dokumentation v1.0.3</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            display: flex;
+            overflow-x: hidden;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 350px;
+            height: 100vh;
+            background: #242424;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-350px);
+        }
+        
+        .sidebar-header {
+            background: #2d2d2d;
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .sidebar-header h2 {
+            margin: 0;
+            color: #61dafb;
+            font-size: 1.2em;
+        }
+        
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #61dafb;
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .sidebar-toggle:hover {
+            background: #4fa8c5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+        
+        .sidebar-toggle.shifted {
+            left: 370px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 350px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 60px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #61dafb;
+            margin-bottom: 50px;
+            font-size: 2.5em;
+        }
+        
+        h2 {
+            color: #61dafb;
+            margin-bottom: 30px;
+        }
+        
+        .version-badge {
+            display: inline-block;
+            background: #68d391;
+            color: #000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-left: 20px;
+        }
+        
+        .diagram-section {
+            background: #2d2d2d;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        .mermaid {
+            text-align: center;
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        .description {
+            background: #3a3a3a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .description h3 {
+            color: #61dafb;
+            margin-top: 0;
+        }
+        
+        .description ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        
+        .description li {
+            margin-bottom: 5px;
+        }
+        
+        .note {
+            background: #4a4a4a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #61dafb;
+            margin: 20px 0;
+        }
+        
+        .changelog {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .changelog h3 {
+            color: #68d391;
+            margin-bottom: 15px;
+        }
+        
+        .changelog ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .changelog li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .changelog li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #68d391;
+            font-weight: bold;
+        }
+        
+        /* API Documentation Styles */
+        .api-doc {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .api-section {
+            margin-bottom: 40px;
+        }
+        
+        .api-section h3 {
+            color: #61dafb;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3a3a3a;
+        }
+        
+        .endpoint {
+            background: #3a3a3a;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #4a4a4a;
+        }
+        
+        .method {
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .method.get { background: #61dafb; color: #000; }
+        .method.post { background: #68d391; color: #000; }
+        .method.put { background: #fbbf24; color: #000; }
+        .method.delete { background: #f87171; color: #000; }
+        .method.websocket { background: #a78bfa; color: #fff; }
+        .method.sse { background: #f472b6; color: #fff; }
+        
+        .path {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            color: #e0e0e0;
+            flex: 1;
+        }
+        
+        .auth-badge {
+            font-size: 0.8em;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .auth-badge.public { background: #4ade80; color: #000; }
+        .auth-badge.auth { background: #fbbf24; color: #000; }
+        .auth-badge.admin { background: #f87171; color: #fff; }
+        
+        .endpoint-details {
+            padding: 20px;
+        }
+        
+        .endpoint-details h4 {
+            color: #61dafb;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .endpoint-details h4:first-child {
+            margin-top: 0;
+        }
+        
+        .endpoint-details p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .code-block {
+            background: #1a1a1a;
+            border: 1px solid #4a4a4a;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: #e0e0e0;
+        }
+        
+        /* Table of Contents Styles */
+        .toc {
+            padding: 20px;
+        }
+        
+        .toc h3 {
+            color: #61dafb;
+            margin: 0 0 20px 0;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .toc ol {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+        
+        .toc ol li {
+            margin-bottom: 15px;
+        }
+        
+        .toc > ol > li > a {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #61dafb;
+            display: block;
+            padding: 5px 0;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+            margin-top: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .toc ul li {
+            margin-bottom: 6px;
+            position: relative;
+        }
+        
+        .toc ul li a {
+            font-size: 0.95em;
+            color: #d0d0d0;
+        }
+        
+        .toc ul ul {
+            padding-left: 20px;
+        }
+        
+        .toc ul ul li a {
+            font-size: 0.85em;
+            color: #a0a0a0;
+        }
+        
+        .toc ul ul li::before {
+            content: "›";
+            color: #fbbf24;
+            position: absolute;
+            left: -15px;
+            font-weight: bold;
+        }
+        
+        .toc a {
+            color: #e0e0e0;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: block;
+            padding: 3px 0;
+        }
+        
+        .toc a:hover {
+            color: #61dafb;
+            padding-left: 5px;
+        }
+        
+        .toc .api-endpoint {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #68d391;
+        }
+        
+        .toc .api-endpoint:hover {
+            color: #61dafb;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 280px;
+            }
+            
+            .sidebar.collapsed {
+                transform: translateX(-280px);
+            }
+            
+            .main-content {
+                margin-left: 280px;
+            }
+            
+            .sidebar-toggle.shifted {
+                left: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Toggle Button -->
+    <button class="sidebar-toggle shifted" onclick="toggleSidebar()">☰ Navigation</button>
+    
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>Inhaltsverzeichnis</h2>
+        </div>
+        <div class="toc">
+            <ol>
+                <li><a href="#version-info">Version 1.0.3</a>
+                    <ul>
+                        <li><a href="#changelog">Changelog</a></li>
+                        <li><a href="#new-features">Neue Features</a></li>
+                        <li><a href="#bug-fixes">Behobene Fehler</a></li>
+                    </ul>
+                </li>
+                <li><a href="#installation">Installation</a>
+                    <ul>
+                        <li><a href="#docker-installation">Docker Installation</a></li>
+                        <li><a href="#dashboard-installation">Dashboard Installation</a></li>
+                        <li><a href="#configuration">Konfiguration</a></li>
+                        <li><a href="#troubleshooting">Fehlerbehebung</a></li>
+                    </ul>
+                </li>
+                <li><a href="#architecture-overview">Haupt-Architektur-Übersicht</a>
+                    <ul>
+                        <li><a href="#architecture-overview">Systemarchitektur</a></li>
+                        <li><a href="#architecture-overview">Frontend (React)</a></li>
+                        <li><a href="#architecture-overview">Backend (Express)</a></li>
+                        <li><a href="#architecture-overview">Externe Dienste</a></li>
+                    </ul>
+                </li>
+                <li><a href="#frontend-calls">Frontend Funktionsaufrufe</a>
+                    <ul>
+                        <li><a href="#frontend-calls">Hauptkomponenten-Interaktionen</a></li>
+                        <li><a href="#frontend-calls">Context Providers</a></li>
+                        <li><a href="#frontend-calls">Services und Custom Hooks</a></li>
+                    </ul>
+                </li>
+                <li><a href="#backend-routes">Backend API-Routen</a>
+                    <ul>
+                        <li><a href="#backend-routes">Authentication</a></li>
+                        <li><a href="#backend-routes">Appliances</a></li>
+                        <li><a href="#backend-routes">Categories</a></li>
+                        <li><a href="#backend-routes">Services</a></li>
+                        <li><a href="#backend-routes">SSH</a></li>
+                        <li><a href="#backend-routes">Terminal</a></li>
+                    </ul>
+                </li>
+                <li><a href="#appliance-lifecycle">Appliance Lifecycle</a>
+                    <ul>
+                        <li><a href="#appliance-lifecycle">Erstellung einer Appliance</a></li>
+                        <li><a href="#appliance-lifecycle">Service-Verwaltung</a></li>
+                        <li><a href="#appliance-lifecycle">SSE Status-Updates</a></li>
+                    </ul>
+                </li>
+                <li><a href="#ssh-terminal">SSH Terminal Verbindung</a>
+                    <ul>
+                        <li><a href="#ssh-terminal">WebSocket-Verbindung</a></li>
+                        <li><a href="#ssh-terminal">Interaktive Session</a></li>
+                        <li><a href="#ssh-terminal">Verbindungsabbau</a></li>
+                    </ul>
+                </li>
+                <li><a href="#state-management">State Management Flow</a>
+                    <ul>
+                        <li><a href="#state-management">Global State (Context)</a></li>
+                        <li><a href="#state-management">Local State</a></li>
+                        <li><a href="#state-management">Custom Hooks</a></li>
+                        <li><a href="#state-management">Datenfluss</a></li>
+                    </ul>
+                </li>
+                <li><a href="#api-documentation">Backend API Dokumentation</a>
+                    <ul>
+                        <li><a href="#api-auth">🔐 Authentication API</a>
+                            <ul>
+                                <li><a href="#auth-login" class="api-endpoint">POST /api/auth/login</a></li>
+                                <li><a href="#auth-check" class="api-endpoint">GET /api/auth/check</a></li>
+                                <li><a href="#auth-logout" class="api-endpoint">POST /api/auth/logout</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-appliances">📱 Appliances API</a>
+                            <ul>
+                                <li><a href="#appliances-get-all" class="api-endpoint">GET /api/appliances</a></li>
+                                <li><a href="#appliances-get-one" class="api-endpoint">GET /api/appliances/:id</a></li>
+                                <li><a href="#appliances-create" class="api-endpoint">POST /api/appliances</a></li>
+                                <li><a href="#appliances-update" class="api-endpoint">PUT /api/appliances/:id</a></li>
+                                <li><a href="#appliances-delete" class="api-endpoint">DELETE /api/appliances/:id</a></li>
+                                <li><a href="#appliances-favorite" class="api-endpoint">POST /api/appliances/:id/favorite</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-categories">🏷️ Categories API</a>
+                            <ul>
+                                <li><a href="#categories-get-all" class="api-endpoint">GET /api/categories</a></li>
+                                <li><a href="#categories-create" class="api-endpoint">POST /api/categories</a></li>
+                                <li><a href="#categories-update" class="api-endpoint">PUT /api/categories/:id</a></li>
+                                <li><a href="#categories-delete" class="api-endpoint">DELETE /api/categories/:id</a></li>
+                                <li><a href="#categories-reorder" class="api-endpoint">POST /api/categories/reorder</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-services">⚙️ Services API</a>
+                            <ul>
+                                <li><a href="#services-start" class="api-endpoint">POST /api/services/:id/start</a></li>
+                                <li><a href="#services-stop" class="api-endpoint">POST /api/services/:id/stop</a></li>
+                                <li><a href="#services-status" class="api-endpoint">GET /api/services/:id/status</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-ssh">🔗 SSH API</a>
+                            <ul>
+                                <li><a href="#ssh-connections" class="api-endpoint">GET /api/ssh/connections</a></li>
+                                <li><a href="#ssh-test" class="api-endpoint">POST /api/ssh/test</a></li>
+                                <li><a href="#ssh-execute" class="api-endpoint">POST /api/ssh/execute</a></li>
+                                <li><a href="#ssh-hosts-list" class="api-endpoint">GET /api/ssh/hosts</a></li>
+                                <li><a href="#ssh-hosts-create" class="api-endpoint">POST /api/ssh/hosts</a></li>
+                                <li><a href="#ssh-hosts-update" class="api-endpoint">PUT /api/ssh/hosts/:id</a></li>
+                                <li><a href="#ssh-hosts-delete" class="api-endpoint">DELETE /api/ssh/hosts/:id</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-audit">📋 Audit Log API</a>
+                            <ul>
+                                <li><a href="#audit-logs-list" class="api-endpoint">GET /api/audit-logs</a></li>
+                                <li><a href="#audit-logs-delete" class="api-endpoint">DELETE /api/audit-logs</a></li>
+                                <li><a href="#audit-restore-get" class="api-endpoint">GET /api/audit-restore/:id</a></li>
+                                <li><a href="#audit-restore-restore" class="api-endpoint">POST /api/audit-restore/restore/:type/:logId</a></li>
+                                <li><a href="#audit-restore-revert" class="api-endpoint">POST /api/audit-restore/revert/:type/:logId</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-backup">💾 Backup API</a>
+                            <ul>
+                                <li><a href="#backup-export" class="api-endpoint">GET /api/backup</a></li>
+                                <li><a href="#backup-restore" class="api-endpoint">POST /api/restore</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-terminal">🖥️ Terminal API</a>
+                            <ul>
+                                <li><a href="#terminal-websocket" class="api-endpoint">WS /api/terminal/connect</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-sse">📊 Server-Sent Events (SSE)</a>
+                            <ul>
+                                <li><a href="#sse-stream" class="api-endpoint">SSE /api/sse</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <div class="container">
+            <h1>Web Appliance Dashboard - Entwickler Dokumentation <span class="version-badge">v1.0.3</span></h1>
+            
+            <div class="diagram-section" id="version-info">
+                <h2>Version 1.0.3 Information</h2>
+                
+                <div class="changelog" id="changelog">
+                    <h3>📋 Changelog (09. Januar 2025)</h3>
+                    <ul>
+                        <li><strong>SSH-Host Audit Log Funktionalität</strong> - Vollständige Audit-Log-Integration für SSH-Hosts</li>
+                        <li><strong>Live-Updates für SSH-Hosts</strong> - Echtzeit-Aktualisierungen im Einstellungen-Panel</li>
+                        <li><strong>Audit Log Restore/Revert</strong> - SSH-Hosts können über Audit Log wiederhergestellt werden</li>
+                        <li><strong>Backup-System v2.8.0</strong> - Sessions werden jetzt für Metadaten erfasst</li>
+                        <li><strong>SSE-System erweitert</strong> - Neue Events für SSH-Host-Operationen</li>
+                        <li><strong>Frontend-Performance</strong> - React-Komponenten mit useCallback optimiert</li>
+                        <li><strong>Backend-Sicherheit</strong> - requireAdmin Middleware für Audit-Restore-Routen</li>
+                        <li><strong>Debug-Logging verbessert</strong> - Umfassendes Logging für SSH-Host-Operationen</li>
+                    </ul>
+                </div>
+                
+                <div class="description" id="new-features">
+                    <h3>✨ Neue Features in v1.0.3</h3>
+                    <ul>
+                        <li><strong>SSH-Host Audit Log</strong> - Vollständige Historie aller SSH-Host-Änderungen</li>
+                        <li><strong>SSH-Host Restore</strong> - Gelöschte SSH-Hosts können wiederhergestellt werden</li>
+                        <li><strong>SSH-Host Revert</strong> - Änderungen können rückgängig gemacht werden</li>
+                        <li><strong>Vorher/Nachher-Vergleich</strong> - Detaillierte Anzeige von SSH-Host-Änderungen</li>
+                        <li><strong>Live-Updates überall</strong> - Settings-Panel aktualisiert sich bei Audit-Log-Aktionen</li>
+                        <li><strong>Erweiterte API-Endpoints</strong> - Neue Audit-Restore-Endpoints für alle Ressourcen</li>
+                    </ul>
+                </div>
+                
+                <div class="description" id="bug-fixes">
+                    <h3>🐛 Behobene Fehler</h3>
+                    <ul>
+                        <li>404-Fehler bei SSH-Host Restore/Revert behoben</li>
+                        <li>Settings-Panel Live-Updates funktionieren jetzt korrekt</li>
+                        <li>SSE-Event-Listener-Memory-Leaks behoben</li>
+                        <li>Doppelte API-Calls in SSHAuditDetail entfernt</li>
+                        <li>Race Conditions im Audit Log behoben</li>
+                        <li>Frontend-Routing für SSH-Host-Endpoints korrigiert</li>
+                        <li>SSH-Host-Änderungen werden jetzt korrekt in gelber Box angezeigt</li>
+                    </ul>
+                </div>
+                
+                <div class="note">
+                    <strong>Upgrade-Hinweis:</strong> Beim Update von v1.0.2 auf v1.0.3 sind keine Datenbankmigrationen erforderlich. Die neuen Features sind vollständig abwärtskompatibel.
+                </div>
+            </div>
+            
+            <div class="diagram-section" id="installation">
+                <h2>Installation</h2>
+                <div class="description">
+                    <h3>Systemvoraussetzungen</h3>
+                    <p>Das Web Appliance Dashboard läuft in Docker-Containern und benötigt folgende Voraussetzungen:</p>
+                    <ul>
+                        <li>Docker Desktop (Windows/Mac) oder Docker Engine (Linux)</li>
+                        <li>Docker Compose v2.0 oder höher</li>
+                        <li>Mindestens 2 GB freier RAM</li>
+                        <li>Mindestens 1 GB freier Festplattenspeicher</li>
+                        <li>Internetzugang für das Herunterladen der Docker-Images</li>
+                    </ul>
+                </div>
+                
+                <div class="api-doc" id="docker-installation">
+                    <div class="api-section">
+                        <h3>🐳 Docker Installation</h3>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method get">Windows</span>
+                                <span class="path">Docker Desktop für Windows</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>Installation:</h4>
+                                <ol>
+                                    <li>Laden Sie <a href="https://www.docker.com/products/docker-desktop/" style="color: #61dafb;">Docker Desktop</a> herunter</li>
+                                    <li>Führen Sie den Installer aus und folgen Sie den Anweisungen</li>
+                                    <li>Starten Sie Docker Desktop nach der Installation</li>
+                                    <li>Öffnen Sie PowerShell oder Command Prompt und prüfen Sie die Installation:</li>
+                                </ol>
+                                <pre class="code-block">docker --version
+docker compose version</pre>
+                                
+                                <h4>Systemanforderungen:</h4>
+                                <ul>
+                                    <li>Windows 10 64-bit: Pro, Enterprise, oder Education (Build 19041 oder höher)</li>
+                                    <li>Windows 11 64-bit: Home, Pro, Enterprise, oder Education</li>
+                                    <li>WSL 2 Backend aktiviert (wird automatisch installiert)</li>
+                                    <li>Virtualisierung im BIOS aktiviert</li>
+                                </ul>
+                                
+                                <div class="note">
+                                    <strong>Hinweis:</strong> Bei Windows Home Edition muss WSL 2 verwendet werden. Docker Desktop installiert dies automatisch.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method post">macOS</span>
+                                <span class="path">Docker Desktop für Mac</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>Installation:</h4>
+                                <ol>
+                                    <li>Laden Sie <a href="https://www.docker.com/products/docker-desktop/" style="color: #61dafb;">Docker Desktop für Mac</a> herunter</li>
+                                    <li>Doppelklicken Sie auf Docker.dmg und ziehen Sie Docker in den Applications-Ordner</li>
+                                    <li>Starten Sie Docker aus dem Applications-Ordner</li>
+                                    <li>Öffnen Sie Terminal und prüfen Sie die Installation:</li>
+                                </ol>
+                                <pre class="code-block">docker --version
+docker compose version</pre>
+                                
+                                <h4>Systemanforderungen:</h4>
+                                <ul>
+                                    <li>macOS 10.15 (Catalina) oder neuer</li>
+                                    <li>Apple Silicon (M1/M2/M3) oder Intel-Prozessor</li>
+                                    <li>Mindestens 4 GB RAM (8 GB empfohlen)</li>
+                                </ul>
+                                
+                                <h4>Installation via Homebrew (alternativ):</h4>
+                                <pre class="code-block">brew install --cask docker</pre>
+                            </div>
+                        </div>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method put">Linux</span>
+                                <span class="path">Docker Engine für Linux</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>Installation für Ubuntu/Debian:</h4>
+                                <pre class="code-block"># Alte Versionen entfernen
+sudo apt-get remove docker docker-engine docker.io containerd runc
+
+# Repository-Setup
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg lsb-release
+
+# Docker GPG-Schlüssel hinzufügen
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Repository hinzufügen
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Docker installieren
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Benutzer zur docker-Gruppe hinzufügen
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Installation prüfen
+docker --version
+docker compose version</pre>
+                                
+                                <h4>Installation für Fedora/CentOS/RHEL:</h4>
+                                <pre class="code-block"># Repository-Setup
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+
+# Docker installieren
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Docker starten
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Benutzer zur docker-Gruppe hinzufügen
+sudo usermod -aG docker $USER
+newgrp docker</pre>
+                                
+                                <h4>Installation für Arch Linux:</h4>
+                                <pre class="code-block"># Docker installieren
+sudo pacman -S docker docker-compose
+
+# Docker starten
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Benutzer zur docker-Gruppe hinzufügen
+sudo usermod -aG docker $USER
+newgrp docker</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-doc" id="dashboard-installation">
+                    <div class="api-section">
+                        <h3>📦 Web Appliance Dashboard Installation</h3>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method post">Installation</span>
+                                <span class="path">Docker Compose Setup</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>1. Repository klonen oder Dateien herunterladen:</h4>
+                                <pre class="code-block"># Mit Git
+git clone https://github.com/alflewerken/web-appliance-dashboard.git
+cd web-appliance-dashboard
+
+# Oder ZIP-Download entpacken und in das Verzeichnis wechseln</pre>
+                                
+                                <h4>2. Umgebungsvariablen konfigurieren:</h4>
+                                <pre class="code-block"># .env Datei erstellen
+cp .env.example .env
+
+# .env Datei bearbeiten (mit einem Texteditor Ihrer Wahl)
+# Windows: notepad .env
+# Mac/Linux: nano .env oder vim .env</pre>
+                                
+                                <h4>3. Wichtige Umgebungsvariablen:</h4>
+                                <pre class="code-block"># Datenbank-Konfiguration
+# Environment Configuration for Docker Compose
+# Copy this file to .env and update with your values
+
+# Database Configuration
+MARIADB_ROOT_PASSWORD=rootpassword123
+MARIADB_DATABASE=appliance_dashboard
+MARIADB_USER=dashboard_user
+MARIADB_PASSWORD=dashboard_pass123
+
+
+# Backend Configuration
+DB_HOST=database
+DB_PORT=3306
+DB_USER=dashboard_user
+DB_PASSWORD=dashboard_pass123
+DB_NAME=appliance_dashboard
+# Security Keys - CHANGE THESE IN PRODUCTION!
+JWT_SECRET=V2FUAJ3cOAghJY8B3FprwknN5/ZktN0gX+x/D4GEhQv+dk2dDoYYwWjIhNR7KPkXWNXrX/+Sx2C9U/UCDYiaSw==
+SSH_KEY_ENCRYPTION_SECRET=o2ZGotcuB3cTBhs/7xQoAj3WXCIZEs8CyOLbmgdHx5M=
+
+# Environment
+NODE_ENV=production
+
+# CORS Configuration
+ALLOWED_ORIGINS=http://localhost,https://localhost,http://localhost:9080,https://localhost:9443
+
+# SSH Configuration
+SSH_TOOLS_ENABLED=true
+SSH_AUTO_INIT=true
+
+# Port Configuration
+BACKEND_PORT=3001
+NGINX_HTTP_PORT=9080
+NGINX_HTTPS_PORT=9443
+TTYD_PORT=7681
+DB_EXTERNAL_PORT=3306
+
+# Volume Names (for better organization)
+DB_VOLUME_NAME=appliance_db_data
+SSH_KEYS_VOLUME_NAME=appliance_ssh_keys
+
+# Container Names
+DB_CONTAINER_NAME=appliance_db
+BACKEND_CONTAINER_NAME=appliance_backend
+WEBSERVER_CONTAINER_NAME=appliance_webserver
+TTYD_CONTAINER_NAME=appliance_ttyd
+
+# Network Name
+NETWORK_NAME=appliance_network
+
+# Backup Configuration
+BACKUP_ENABLED=true
+BACKUP_RETENTION_DAYS=30
+
+# Feature Flags
+FEATURE_AUDIT_LOG=true
+FEATURE_BACKUP_RESTORE=true
+FEATURE_SSH_TERMINAL=true
+FEATURE_SERVICE_CONTROL=true
+FEATURE_USER_MANAGEMENT=true
+
+# Logging
+LOG_LEVEL=info
+LOG_FORMAT=combined
+
+# Health Check Configuration
+HEALTH_CHECK_INTERVAL=30s
+HEALTH_CHECK_TIMEOUT=10s
+HEALTH_CHECK_RETRIES=3</pre>
+                                
+                                <h4>4. Dashboard starten:</h4>
+                                <pre class="code-block"># Container bauen und starten
+docker compose up -d
+
+# Logs anzeigen
+docker compose logs -f
+
+# Status prüfen
+docker compose ps</pre>
+                                
+                                <h4>5. Zugriff auf das Dashboard:</h4>
+                                <p>Nach erfolgreichem Start ist das Dashboard unter folgenden URLs erreichbar:</p>
+                                <ul>
+                                    <li>Frontend: <code>http://localhost:9080</code></li>
+                                    <li>Backend API: <code>http://localhost:3001</code></li>
+                                    <li>MariaDB Datenbank: <code>localhost:3306</code></li>
+                                </ul>
+                                
+                                <div class="note">
+                                    <strong>Erster Login:</strong> Benutzer: admin  Passwort: admin123 (Bitte sofort ändern!)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-doc" id="configuration">
+                    <div class="api-section">
+                        <h3>⚙️ Konfiguration</h3>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method get">Ports</span>
+                                <span class="path">Netzwerk-Konfiguration</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>Standard-Ports:</h4>
+                                <pre class="code-block"># docker-compose.yml anpassen
+services:
+  webserver:
+    ports:
+      - "9080:80"    # Frontend auf Port 9080
+  
+  backend:
+    ports:
+      - "3001:3001"  # Backend API auf Port 3001
+  
+  database:
+    ports:
+      - "3306:3306"  # MariaDB (optional, für externe Zugriffe)
+  
+  ttyd:
+    ports:
+      - "7681:7681"  # Web Terminal</pre>
+                                
+                                <h4>Ports ändern:</h4>
+                                <p>Falls die Standard-Ports bereits belegt sind, können Sie diese in der docker-compose.yml ändern:</p>
+                                <pre class="code-block"># Beispiel: Frontend auf Port 8000 ändern
+services:
+  webserver:
+    ports:
+      - "8000:80"    # Geändert von 9080 auf 8000</pre>
+                                
+                                <div class="note">
+                                    <strong>Hinweis:</strong> Nach Port-Änderungen müssen Sie den webserver Container neu starten: <code>docker compose restart webserver</code>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method post">Volumes</span>
+                                <span class="path">Datenpersistenz</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>Docker Volumes:</h4>
+                                <p>Die Anwendung verwendet Docker Volumes für persistente Datenspeicherung:</p>
+                                <pre class="code-block">volumes:
+  db_data:         # MariaDB Datenbank-Dateien
+  ssh_keys:        # SSH-Schlüssel für Terminal-Zugriff</pre>
+                                
+                                <h4>Backup erstellen:</h4>
+                                <pre class="code-block"># MariaDB Datenbank exportieren
+docker compose exec database mysqldump -u root -p appliance_dashboard > backup.sql
+
+# Volumes sichern
+docker run --rm -v web-appliance-dashboard_db_data:/data -v $(pwd):/backup ubuntu tar czf /backup/db_data_backup.tar.gz /data</pre>
+                                
+                                <h4>Backup wiederherstellen:</h4>
+                                <pre class="code-block"># MariaDB Datenbank importieren
+docker compose exec -T database mysql -u root -p appliance_dashboard < backup.sql
+
+# Volumes wiederherstellen
+docker run --rm -v web-appliance-dashboard_db_data:/data -v $(pwd):/backup ubuntu tar xzf /backup/db_data_backup.tar.gz -C /</pre>
+                            </div>
+                        </div>
+                        
+                        <div class="endpoint" id="icon-migration">
+                            <div class="endpoint-header">
+                                <span class="method put">Migration</span>
+                                <span class="path">Icon Migration von v1.0.0 zu v1.0.1</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>Icon Migration durchführen:</h4>
+                                <p>In Version 1.0.1 wurden die Kategorie-Icons von Emojis zu Lucide Icons migriert. Führen Sie folgendes SQL aus:</p>
+                                <pre class="code-block"># Migration im Docker Container ausführen
+docker exec -it web-appliance-dashboard-database-1 mysql -u root -p appliance_dashboard
+
+# SQL Migration
+UPDATE categories SET icon = CASE
+  WHEN icon = '💰' THEN 'DollarSign'
+  WHEN icon = '⚡' THEN 'Zap'
+  WHEN icon = '📦' THEN 'Box'
+  WHEN icon = '📊' THEN 'Activity'
+  WHEN icon = '📺' THEN 'Tv'
+  WHEN icon = '🌐' THEN 'Globe'
+  WHEN icon = '📄' THEN 'FileText'
+  WHEN icon = '🤖' THEN 'Brain'
+  WHEN icon = '🏠' THEN 'Home'
+  WHEN icon = '☁️' THEN 'Cloud'
+  WHEN icon = '🛡️' THEN 'Shield'
+  WHEN icon = '🗃️' THEN 'Database'
+  ELSE icon
+END WHERE icon IN ('💰','⚡','📦','📊','📺','🌐','📄','🤖','🏠','☁️','🛡️','🗃️');</pre>
+                                
+                                <h4>Icon Mapping Tabelle:</h4>
+                                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                                    <tr style="background: #3a3a3a;">
+                                        <th style="padding: 10px; text-align: left; border: 1px solid #4a4a4a;">Emoji</th>
+                                        <th style="padding: 10px; text-align: left; border: 1px solid #4a4a4a;">Lucide Icon</th>
+                                        <th style="padding: 10px; text-align: left; border: 1px solid #4a4a4a;">Kategorie</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">💰</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">DollarSign</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">Finanzen</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">⚡</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">Zap</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">Productivity</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">📦</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">Box</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">Mac Docker</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">📊</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">Activity</td>
+                                        <td style="padding: 10px; border: 1px solid #4a4a4a;">Monitoring</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-doc" id="troubleshooting">
+                    <div class="api-section">
+                        <h3>🔧 Fehlerbehebung</h3>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method delete">Häufige Probleme</span>
+                                <span class="path">Lösungsansätze</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>1. Docker Daemon läuft nicht:</h4>
+                                <pre class="code-block"># Windows/Mac: Docker Desktop starten
+# Linux: Docker Service starten
+sudo systemctl start docker
+
+# Status prüfen
+docker info</pre>
+                                
+                                <h4>2. Port bereits belegt:</h4>
+                                <pre class="code-block"># Belegte Ports finden
+# Windows
+netstat -ano | findstr :9080
+
+# Mac/Linux
+lsof -i :9080
+
+# Lösung: Ports in docker-compose.yml ändern oder belegenden Prozess beenden</pre>
+                                
+                                <h4>3. Container startet nicht:</h4>
+                                <pre class="code-block"># Logs prüfen
+docker compose logs backend
+docker compose logs webserver
+docker compose logs database
+docker compose logs ttyd
+
+# Container neu starten
+docker compose down
+docker compose up -d
+
+# Mit sauberen Volumes neu starten
+docker compose down -v
+docker compose up -d</pre>
+                                
+                                <h4>4. Verbindungsprobleme Frontend zu Backend:</h4>
+                                <pre class="code-block"># Nginx-Konfiguration prüfen
+docker compose exec webserver cat /etc/nginx/conf.d/default.conf
+
+# Container neu bauen nach Konfigurationsänderungen
+docker compose restart webserver</pre>
+                                
+                                <h4>5. MariaDB Verbindungsfehler:</h4>
+                                <pre class="code-block"># MariaDB Container prüfen
+docker compose exec database mysql -u root -p
+
+# Bei Passwort-Problemen: Volume löschen und neu starten
+docker compose down -v
+docker compose up -d</pre>
+                                
+                                <h4>6. Speicherplatz-Probleme:</h4>
+                                <pre class="code-block"># Docker Speicherplatz aufräumen
+docker system prune -a --volumes
+
+# Nur ungenutzte Images löschen
+docker image prune -a
+
+# Container-Logs begrenzen
+docker compose logs --tail=100</pre>
+                                
+                                <div class="note">
+                                    <strong>Debug-Modus:</strong> Für detaillierte Fehleranalyse können Sie den Debug-Modus in der .env-Datei aktivieren:
+                                    <code>NODE_ENV=development</code>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="endpoint">
+                            <div class="endpoint-header">
+                                <span class="method websocket">Support</span>
+                                <span class="path">Weitere Hilfe</span>
+                            </div>
+                            <div class="endpoint-details">
+                                <h4>Log-Dateien:</h4>
+                                <pre class="code-block"># Alle Logs anzeigen
+docker compose logs
+
+# Spezifische Service-Logs
+docker compose logs backend -f
+docker compose logs webserver -f
+docker compose logs database -f
+docker compose logs ttyd -f
+
+# In Container einloggen für Debugging
+docker compose exec backend /bin/sh
+docker compose exec webserver /bin/sh
+docker compose exec database /bin/bash</pre>
+                                
+                                <h4>Nützliche Docker-Befehle:</h4>
+                                <pre class="code-block"># Status aller Container
+docker compose ps
+
+# Ressourcenverbrauch anzeigen
+docker stats
+
+# Container neustarten
+docker compose restart backend
+
+# Alle Container stoppen
+docker compose stop
+
+# Alle Container und Netzwerke entfernen
+docker compose down
+
+# Komplette Neuinstallation (ACHTUNG: Löscht alle Daten!)
+docker compose down -v
+docker compose build --no-cache
+docker compose up -d</pre>
+                                
+                                <h4>Bekannte Probleme:</h4>
+                                <ul>
+                                    <li><strong>Windows + WSL2:</strong> Langsame Performance bei Dateien außerhalb des WSL-Dateisystems</li>
+                                    <li><strong>Mac M1/M2:</strong> Manche Images benötigen Platform-Flag: <code>--platform linux/amd64</code></li>
+                                    <li><strong>Firewall:</strong> Ports müssen in der Firewall freigegeben sein</li>
+                                    <li><strong>Antivirus:</strong> Kann Docker-Operationen blockieren - Ausnahmen hinzufügen</li>
+                                </ul>
+                                
+                                <div class="note">
+                                    <strong>Tipp:</strong> Bei persistenten Problemen hilft oft ein kompletter Neustart:
+                                    <code>docker compose down && docker compose up -d</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="diagram-section" id="architecture-overview">
+                <h2>Haupt-Architektur-Übersicht</h2>
+            <div class="description">
+                <h3>Systemarchitektur</h3>
+                <p>Das Web Appliance Dashboard besteht aus einer React-Frontend-Anwendung und einem Express.js-Backend, die über REST-APIs und Server-Sent Events (SSE) kommunizieren.</p>
+            </div>
+            <div class="mermaid">
+                graph TB
+                    subgraph "Frontend (React)"
+                        App[App.js]
+                        Auth[AuthContext]
+                        Components[Komponenten]
+                        Services[Services]
+                        Hooks[Custom Hooks]
+                        ServicePanel[ServicePanel]
+                    end
+                    
+                    subgraph "Backend (Express)"
+                        Server[server.js]
+                        Routes[Route Handler]
+                        Utils[Utilities]
+                        DB[(MariaDB)]
+                    end
+                    
+                    subgraph "Externe Dienste"
+                        SSH[SSH Hosts]
+                        Docker[Docker]
+                        TTYD[TTYD Terminal]
+                    end
+                    
+                    App --> Auth
+                    App --> Components
+                    App --> ServicePanel
+                    Components --> Services
+                    ServicePanel --> Services
+                    Services --> Server
+                    Server --> Routes
+                    Routes --> Utils
+                    Utils --> DB
+                    Routes --> SSH
+                    Routes --> Docker
+                    Routes --> TTYD
+                    
+                    style App fill:#61dafb
+                    style Server fill:#68d391
+                    style DB fill:#fbbf24
+                    style ServicePanel fill:#f472b6
+            </div>
+        </div>
+        
+        <div class="diagram-section" id="frontend-calls">
+            <h2>Frontend Funktionsaufrufe</h2>
+            <div class="description">
+                <h3>Hauptkomponenten-Interaktionen</h3>
+                <ul>
+                    <li><strong>App.js</strong>: Hauptkomponente, die das gesamte Layout und State-Management koordiniert</li>
+                    <li><strong>AuthContext</strong>: Verwaltet Authentifizierung und Benutzersessions</li>
+                    <li><strong>ApplianceService</strong>: Zentrale API-Schnittstelle für Appliance-Operationen</li>
+                    <li><strong>SSEService</strong>: Behandelt Echtzeit-Updates vom Server</li>
+                    <li><strong>ServicePanel</strong>: Neues Panel-System für Service-Verwaltung (v1.0.1)</li>
+                </ul>
+            </div>
+            <div class="mermaid">
+                graph LR
+                    subgraph "App Component"
+                        App[App.js]
+                        AppState[State Management]
+                    end
+                    
+                    subgraph "Context Providers"
+                        AuthProvider[AuthProvider]
+                        SSEProvider[SSEProvider]
+                    end
+                    
+                    subgraph "Main Components"
+                        AppHeader[AppHeader]
+                        AppSidebar[AppSidebar]
+                        AppContent[AppContent]
+                        ServicePanel[ServicePanel v1.0.1]
+                        SettingsModal[SettingsModal]
+                        TerminalModal[TerminalModal]
+                    end
+                    
+                    subgraph "Services"
+                        ApplianceService[ApplianceService]
+                        SSEService[sseService]
+                        AxiosConfig[axiosConfig]
+                    end
+                    
+                    subgraph "Custom Hooks"
+                        useAppliances[useAppliances]
+                        useCategories[useCategories]
+                        useSettings[useSettings]
+                        useSSE[useSSE]
+                        useDragAndDrop[useDragAndDrop v1.0.1]
+                    end
+                    
+                    App --> AuthProvider
+                    App --> SSEProvider
+                    App --> AppHeader
+                    App --> AppSidebar
+                    App --> AppContent
+                    
+                    AppContent --> ServicePanel
+                    AppContent --> SettingsModal
+                    AppContent --> TerminalModal
+                    
+                    ServicePanel --> ApplianceService
+                    SettingsModal --> AxiosConfig
+                    TerminalModal --> SSEService
+                    
+                    useAppliances --> ApplianceService
+                    useSSE --> SSEService
+                    useDragAndDrop --> ServicePanel
+                    
+                    style App fill:#61dafb
+                    style ApplianceService fill:#fbbf24
+                    style SSEService fill:#f87171
+                    style ServicePanel fill:#f472b6
+            </div>
+        </div>
+        
+        <div class="diagram-section" id="backend-routes">
+            <h2>Backend API-Routen</h2>
+            <div class="description">
+                <h3>API-Endpunkte</h3>
+                <p>Das Backend bietet verschiedene RESTful API-Endpunkte für unterschiedliche Funktionalitäten (erweitert in v1.0.1):</p>
+            </div>
+            <div class="mermaid">
+                graph TD
+                    Server[server.js]
+                    
+                    subgraph Authentication
+                        AuthRouter["/api/auth"]
+                        AuthCheck["GET /check"]
+                        AuthLogin["POST /login"]
+                        AuthLogout["POST /logout"]
+                    end
+                    
+                    subgraph Appliances
+                        AppRouter["/api/appliances"]
+                        AppGet["GET /"]
+                        AppPost["POST /"]
+                        AppPut["PUT /:id"]
+                        AppDelete["DELETE /:id"]
+                        AppFavorite["POST /:id/favorite"]
+                    end
+                    
+                    subgraph Categories
+                        CatRouter["/api/categories"]
+                        CatGet["GET /"]
+                        CatPost["POST /"]
+                        CatPut["PUT /:id"]
+                        CatDelete["DELETE /:id"]
+                        CatReorder["POST /reorder"]
+                    end
+                    
+                    subgraph Services
+                        ServRouter["/api/services"]
+                        ServStatus["GET /status/:id"]
+                        ServStart["POST /start/:id"]
+                        ServStop["POST /stop/:id"]
+                    end
+                    
+                    subgraph SSH
+                        SSHRouter["/api/ssh"]
+                        SSHConn["GET /connections"]
+                        SSHTest["POST /test"]
+                        SSHExec["POST /execute"]
+                    end
+                    
+                    subgraph Terminal
+                        TermRouter["/api/terminal"]
+                        TermCreate["POST /create"]
+                        TermConnect["WS /connect"]
+                    end
+                    
+                    Server --> AuthRouter
+                    Server --> AppRouter
+                    Server --> CatRouter
+                    Server --> ServRouter
+                    Server --> SSHRouter
+                    Server --> TermRouter
+                    
+                    AuthRouter --> AuthCheck
+                    AuthRouter --> AuthLogin
+                    AuthRouter --> AuthLogout
+                    
+                    AppRouter --> AppGet
+                    AppRouter --> AppPost
+                    AppRouter --> AppPut
+                    AppRouter --> AppDelete
+                    AppRouter --> AppFavorite
+                    
+                    CatRouter --> CatGet
+                    CatRouter --> CatPost
+                    CatRouter --> CatPut
+                    CatRouter --> CatDelete
+                    CatRouter --> CatReorder
+                    
+                    ServRouter --> ServStatus
+                    ServRouter --> ServStart
+                    ServRouter --> ServStop
+                    
+                    SSHRouter --> SSHConn
+                    SSHRouter --> SSHTest
+                    SSHRouter --> SSHExec
+                    
+                    TermRouter --> TermCreate
+                    TermRouter --> TermConnect
+                    
+                    style Server fill:#68d391
+                    style AuthRouter fill:#f87171
+                    style AppRouter fill:#61dafb
+                    style CatRouter fill:#a78bfa
+                    style SSHRouter fill:#fbbf24
+            </div>
+        </div>
+_command
+                    Database-->>Backend: Stop Command
+                    Backend->>SSH_Docker: executeSSHCommand(stop_command)
+                    SSH_Docker-->>Backend: Command Output
+                    Backend->>Database: UPDATE service_status = 'stopped'
+                    Backend->>SSE: broadcast('service_status_changed')
+                    SSE-->>Frontend: SSE Event: Status Update
+                    Frontend->>Frontend: Update UI Status (rot)
+                    Backend-->>Frontend: Response: Success
+                    
+                    Note over User,SSE: Service Status Abfrage
+                    User->>Frontend: Klickt auf Status Refresh
+                    Frontend->>Backend: GET /api/services/:id/status
+                    Backend->>Database: SELECT status_command
+                    Database-->>Backend: Status Command
+                    Backend->>SSH_Docker: executeSSHCommand(status_command)
+                    SSH_Docker-->>Backend: Command Output
+                    Backend->>Backend: Parse Status (running/stopped)
+                    Backend->>Database: UPDATE service_status
+                    Backend->>SSE: broadcast('service_status_changed')
+                    SSE-->>Frontend: SSE Event: Status Update
+                    Backend-->>Frontend: Response: Current Status
+                    Frontend->>Frontend: Update UI Status
+                    
+                    Note over User,SSE: Appliance Update via ServicePanel
+                    User->>ServicePanel: Bearbeitet Appliance
+                    ServicePanel->>ApplianceService: updateAppliance(id, data)
+                    ApplianceService->>Backend: PUT /api/appliances/:id
+                    Backend->>Database: UPDATE appliances
+                    Database-->>Backend: Success
+                    Backend-->>ApplianceService: Updated Appliance
+                    ApplianceService-->>ServicePanel: Updated Data
+                    ServicePanel->>Frontend: Update State
+                    
+                    Note over User,SSE: Appliance Löschen (v1.0.1 Fix)
+                    User->>ServicePanel: Klickt auf Löschen
+                    ServicePanel->>ServicePanel: Zeigt Bestätigungsdialog
+                    User->>ServicePanel: Bestätigt Löschung
+                    ServicePanel->>ApplianceService: deleteAppliance(id)
+                    ApplianceService->>Backend: DELETE /api/appliances/:id
+                    Backend->>Database: DELETE FROM appliances
+                    Database-->>Backend: Success
+                    Backend-->>ApplianceService: Success
+                    ApplianceService-->>ServicePanel: Deleted
+                    ServicePanel->>Frontend: Close Panel
+                    Frontend->>Frontend: Remove from State
+                    Frontend->>Frontend: Update UI
+                    
+                    Note over User,SSE: Favoriten Toggle (Neu in v1.0.1)
+                    User->>Frontend: Klickt auf Favoriten-Stern
+                    Frontend->>ApplianceService: toggleFavorite(id)
+                    ApplianceService->>Backend: POST /api/appliances/:id/favorite
+                    Backend->>Database: UPDATE isFavorite
+                    Database-->>Backend: Success
+                    Backend-->>ApplianceService: Updated Status
+                    ApplianceService-->>Frontend: New Favorite Status
+                    Frontend->>Frontend: Update UI (Stern ein/aus)
+                    
+                    Note over User,SSE: Last Used Update
+                    User->>Frontend: Öffnet Appliance URL
+                    Frontend->>ApplianceService: updateLastUsed(id)
+                    ApplianceService->>Backend: POST /api/appliances/:id/open
+                    Backend->>Database: UPDATE lastUsed = NOW()
+                    Database-->>Backend: Success
+                    Backend-->>ApplianceService: Success
+                    ApplianceService-->>Frontend: Updated
+                    Frontend->>Frontend: Open URL in new tab
+            </div>
+        </div>
+        
+        <div class="diagram-section" id="ssh-terminal">
+            <h2>SSH Terminal Verbindung</h2>
+            <div class="description">
+                <h3>Terminal-Integration</h3>
+                <p>Ablauf einer SSH-Terminal-Verbindung über WebSocket:</p>
+            </div>
+            <div class="mermaid">
+                sequenceDiagram
+                    participant User
+                    participant XTerminal
+                    participant WebSocket
+                    participant Backend
+                    participant SSHClient
+                    participant RemoteHost
+                    
+                    User->>XTerminal: Öffnet Terminal
+                    XTerminal->>WebSocket: Verbindungsanfrage
+                    WebSocket->>Backend: WS Upgrade Request
+                    Backend->>Backend: Authentifizierung prüfen
+                    Backend->>SSHClient: Neue SSH Session
+                    SSHClient->>RemoteHost: SSH Verbindung
+                    RemoteHost-->>SSHClient: Verbindung etabliert
+                    SSHClient-->>Backend: Session bereit
+                    Backend-->>WebSocket: Verbindung bestätigt
+                    WebSocket-->>XTerminal: Terminal bereit
+                    
+                    loop Interaktive Session
+                        User->>XTerminal: Eingabe
+                        XTerminal->>WebSocket: Send: Eingabedaten
+                        WebSocket->>Backend: Terminal Input
+                        Backend->>SSHClient: stdin.write()
+                        SSHClient->>RemoteHost: Befehl
+                        RemoteHost-->>SSHClient: Ausgabe
+                        SSHClient-->>Backend: stdout/stderr
+                        Backend-->>WebSocket: Terminal Output
+                        WebSocket-->>XTerminal: Zeige Ausgabe
+                    end
+                    
+                    User->>XTerminal: Schließt Terminal
+                    XTerminal->>WebSocket: Close Connection
+                    WebSocket->>Backend: Disconnect
+                    Backend->>SSHClient: Close Session
+                    SSHClient->>RemoteHost: Disconnect
+            </div>
+        </div>
+        
+        <div class="diagram-section" id="state-management">
+            <h2>State Management Flow</h2>
+            <div class="description">
+                <h3>Datenfluss im Frontend</h3>
+                <p>Wie Daten durch die React-Komponenten fließen (erweitert in v1.0.1):</p>
+            </div>
+            <div class="mermaid">
+                graph TD
+                    subgraph "Global State"
+                        AuthContext[AuthContext<br/>user, token]
+                        SSEContext[SSEContext<br/>real-time updates]
+                    end
+                    
+                    subgraph "Local State in App.js"
+                        Appliances[appliances State]
+                        Categories[categories State]
+                        Settings[settings State]
+                        Modals[modal States]
+                        ServicePanelState[servicePanel State v1.0.1]
+                    end
+                    
+                    subgraph "Custom Hooks"
+                        useAppliances[useAppliances Hook]
+                        useCategories[useCategories Hook]
+                        useSettings[useSettings Hook]
+                        useFavorites[useFavorites Hook v1.0.1]
+                    end
+                    
+                    subgraph "Components"
+                        AppContent[AppContent]
+                        ApplianceCard[ApplianceCard]
+                        CategoryModal[CategoryModal]
+                        ServicePanel[ServicePanel v1.0.1]
+                    end
+                    
+                    AuthContext --> App.js
+                    SSEContext --> App.js
+                    
+                    App.js --> Appliances
+                    App.js --> Categories
+                    App.js --> Settings
+                    App.js --> Modals
+                    App.js --> ServicePanelState
+                    
+                    useAppliances --> Appliances
+                    useCategories --> Categories
+                    useSettings --> Settings
+                    useFavorites --> Appliances
+                    
+                    Appliances --> AppContent
+                    Categories --> AppContent
+                    ServicePanelState --> ServicePanel
+                    AppContent --> ApplianceCard
+                    AppContent --> CategoryModal
+                    AppContent --> ServicePanel
+                    
+                    SSEContext -.->|Updates| Appliances
+                    SSEContext -.->|Status| ApplianceCard
+                    SSEContext -.->|Category Updates| Categories
+                    
+                    style AuthContext fill:#f87171
+                    style SSEContext fill:#fbbf24
+                    style Appliances fill:#61dafb
+                    style ServicePanelState fill:#f472b6
+            </div>
+        </div>
+        
+        <div class="diagram-section" id="api-documentation">
+            <h2>Backend API Dokumentation</h2>
+            <div class="description">
+                <h3>REST API Referenz</h3>
+                <p>Vollständige Dokumentation aller verfügbaren API-Endpunkte mit Request/Response-Beispielen (aktualisiert für v1.0.1).</p>
+            </div>
+            
+            <div class="api-doc">
+                <div class="api-section" id="api-auth">
+                    <h3>🔐 Authentication API</h3>
+                    <div class="endpoint" id="auth-login">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/auth/login</span>
+                            <span class="auth-badge public">Public</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Authentifiziert einen Benutzer und gibt ein JWT-Token zurück.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "username": "admin",
+  "password": "secretpassword"
+}</pre>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@example.com",
+    "role": "admin"
+  }
+}</pre>
+                            
+                            <h4>Error Response (401):</h4>
+                            <pre class="code-block">{
+  "error": "Invalid credentials"
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "secretpassword"
+  }'</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/auth/login"
+data = {
+    "username": "admin",
+    "password": "secretpassword"
+}
+
+response = requests.post(url, json=data)
+if response.status_code == 200:
+    result = response.json()
+    token = result["token"]
+    print(f"Token: {token}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="auth-check">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/auth/check</span>
+                            <span class="auth-badge public">Public</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Prüft, ob Authentifizierung erforderlich ist.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "authRequired": true
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/auth/check</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/auth/check"
+response = requests.get(url)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Auth required: {result['authRequired']}")
+else:
+    print(f"Error: {response.status_code}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="auth-logout">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/auth/logout</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Beendet die aktuelle Benutzersitzung.</p>
+                            
+                            <h4>Headers:</h4>
+                            <pre class="code-block">Authorization: Bearer &lt;token&gt;</pre>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "message": "Logged out successfully"
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/auth/logout \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/auth/logout"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.post(url, headers=headers)
+if response.status_code == 200:
+    print("Logged out successfully")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-appliances">
+                    <h3>📱 Appliances API</h3>
+                    <div class="endpoint" id="appliances-get-all">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/appliances</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt alle Appliances mit erweiterten Service-Informationen zurück (erweitert in v1.0.1).</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">[
+  {
+    "id": 1,
+    "name": "Nextcloud",
+    "url": "https://cloud.example.com",
+    "description": "Private Cloud Storage",
+    "icon": "Cloud",
+    "color": "#007AFF",
+    "category": "productivity",
+    "isFavorite": true,
+    "lastUsed": "2025-07-07T10:30:00Z",
+    "startCommand": "docker start nextcloud",
+    "stopCommand": "docker stop nextcloud",
+    "statusCommand": "docker ps | grep nextcloud",
+    "serviceStatus": "running",
+    "sshConnection": "local",
+    "transparency": 0.7,
+    "blur": 20,
+    "hasServiceCommands": true,
+    "isControllable": true,
+    "start_command": "docker start nextcloud",
+    "stop_command": "docker stop nextcloud",
+    "status_command": "docker ps | grep nextcloud",
+    "ssh_connection": "local"
+  }
+]</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/appliances \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/appliances"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.get(url, headers=headers)
+if response.status_code == 200:
+    appliances = response.json()
+    for app in appliances:
+        print(f"{app['name']} - Status: {app['serviceStatus']} - Favorite: {app['isFavorite']}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="appliances-get-one">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/appliances/:id</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt eine einzelne Appliance anhand ihrer ID zurück.</p>
+                            
+                            <h4>URL Parameter:</h4>
+                            <pre class="code-block">id: number - Die ID der Appliance</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/appliances/1 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+appliance_id = 1
+url = f"http://localhost:3001/api/appliances/{appliance_id}"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.get(url, headers=headers)
+if response.status_code == 200:
+    appliance = response.json()
+    print(f"Name: {appliance['name']}")
+    print(f"URL: {appliance['url']}")
+    print(f"Favorite: {appliance['isFavorite']}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="appliances-create">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/appliances</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Erstellt eine neue Appliance (erweitert in v1.0.1 mit Custom Commands).</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "name": "Neue App",
+  "url": "https://app.example.com",
+  "description": "Beschreibung der App",
+  "icon": "Server",
+  "color": "#FF5733",
+  "category": "productivity",
+  "isFavorite": false,
+  "transparency": 0.8,
+  "blur": 15,
+  "startCommand": "systemctl start app",
+  "stopCommand": "systemctl stop app",
+  "statusCommand": "systemctl status app",
+  "sshConnection": "server-1"
+}</pre>
+                            
+                            <h4>Response (201 Created):</h4>
+                            <pre class="code-block">{
+  "id": 2,
+  "name": "Neue App",
+  ...
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/appliances \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d '{
+    "name": "Neue App",
+    "url": "https://app.example.com",
+    "description": "Beschreibung der App",
+    "icon": "Server",
+    "color": "#FF5733",
+    "category": "productivity",
+    "isFavorite": false,
+    "startCommand": "systemctl start app",
+    "stopCommand": "systemctl stop app",
+    "statusCommand": "systemctl status app"
+  }'</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/appliances"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs...",
+    "Content-Type": "application/json"
+}
+data = {
+    "name": "Neue App",
+    "url": "https://app.example.com",
+    "description": "Beschreibung der App",
+    "icon": "Server",
+    "color": "#FF5733",
+    "category": "productivity",
+    "isFavorite": False,
+    "startCommand": "systemctl start app",
+    "stopCommand": "systemctl stop app",
+    "statusCommand": "systemctl status app",
+    "sshConnection": "server-1"
+}
+
+response = requests.post(url, json=data, headers=headers)
+if response.status_code == 201:
+    created_app = response.json()
+    print(f"Created appliance with ID: {created_app['id']}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="appliances-update">
+                        <div class="endpoint-header">
+                            <span class="method put">PUT</span>
+                            <span class="path">/api/appliances/:id</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Aktualisiert eine bestehende Appliance.</p>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X PUT http://localhost:3001/api/appliances/1 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d '{
+    "name": "Updated Nextcloud",
+    "description": "Updated description",
+    "isFavorite": true
+  }'</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+appliance_id = 1
+url = f"http://localhost:3001/api/appliances/{appliance_id}"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs...",
+    "Content-Type": "application/json"
+}
+data = {
+    "name": "Updated Nextcloud",
+    "description": "Updated description",
+    "isFavorite": True
+}
+
+response = requests.put(url, json=data, headers=headers)
+if response.status_code == 200:
+    print("Appliance updated successfully")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="appliances-delete">
+                        <div class="endpoint-header">
+                            <span class="method delete">DELETE</span>
+                            <span class="path">/api/appliances/:id</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Löscht eine Appliance (Fix in v1.0.1 für Service Panel).</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "message": "Appliance deleted successfully"
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X DELETE http://localhost:3001/api/appliances/1 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+appliance_id = 1
+url = f"http://localhost:3001/api/appliances/{appliance_id}"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.delete(url, headers=headers)
+if response.status_code == 200:
+    print("Appliance deleted successfully")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="appliances-favorite">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/appliances/:id/favorite</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Markiert/Entmarkiert eine Appliance als Favorit (Neu in v1.0.1).</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "isFavorite": true
+}</pre>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "Favorit-Status aktualisiert",
+  "isFavorite": true
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/appliances/1/favorite \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d '{
+    "isFavorite": true
+  }'</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+appliance_id = 1
+url = f"http://localhost:3001/api/appliances/{appliance_id}/favorite"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs...",
+    "Content-Type": "application/json"
+}
+data = {
+    "isFavorite": True
+}
+
+response = requests.post(url, json=data, headers=headers)
+if response.status_code == 200:
+    result = response.json()
+    print(f"Favorite status updated: {result['isFavorite']}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-categories">
+                    <h3>🏷️ Categories API (Neu in v1.0.1)</h3>
+                    <div class="endpoint" id="categories-get-all">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/categories</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Listet alle Kategorien auf (mit Lucide Icons seit v1.0.1).</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">[
+  {
+    "id": 1,
+    "name": "infrastructure",
+    "icon": "Server",
+    "color": "#FF6B6B",
+    "order": 1,
+    "created_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "name": "development",
+    "icon": "Code",
+    "color": "#4ECDC4",
+    "order": 2,
+    "created_at": "2025-01-01T00:00:00.000Z"
+  }
+]</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/categories \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="categories-create">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/categories</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Erstellt eine neue Kategorie.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "name": "monitoring",
+  "icon": "Activity",
+  "color": "#95E1D3",
+  "order": 3
+}</pre>
+                            
+                            <h4>Response (201 Created):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "Kategorie erfolgreich erstellt",
+  "category": {
+    "id": 3,
+    "name": "monitoring",
+    "icon": "Activity",
+    "color": "#95E1D3",
+    "order": 3
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="categories-update">
+                        <div class="endpoint-header">
+                            <span class="method put">PUT</span>
+                            <span class="path">/api/categories/:id</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Aktualisiert eine Kategorie.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "name": "monitoring-updated",
+  "icon": "BarChart",
+  "color": "#A8E6CF",
+  "order": 4
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="categories-delete">
+                        <div class="endpoint-header">
+                            <span class="method delete">DELETE</span>
+                            <span class="path">/api/categories/:id</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Löscht eine Kategorie.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "Kategorie erfolgreich gelöscht"
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="categories-reorder">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/categories/reorder</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Ändert die Reihenfolge der Kategorien.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "categories": [
+    { "id": 2, "order": 1 },
+    { "id": 1, "order": 2 },
+    { "id": 3, "order": 3 }
+  ]
+}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-services">
+                    <h3>⚙️ Services API</h3>
+                    <div class="endpoint" id="services-start">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/services/:id/start</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Startet den Service einer Appliance über den konfigurierten Start-Befehl.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "message": "Service started successfully",
+  "status": "running",
+  "output": "Container nextcloud started"
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/services/1/start \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+appliance_id = 1
+url = f"http://localhost:3001/api/services/{appliance_id}/start"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.post(url, headers=headers)
+if response.status_code == 200:
+    result = response.json()
+    print(f"Service started: {result['status']}")
+    print(f"Output: {result['output']}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="services-stop">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/services/:id/stop</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Stoppt den Service einer Appliance.</p>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/services/1/stop \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+appliance_id = 1
+url = f"http://localhost:3001/api/services/{appliance_id}/stop"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI5NiIs..."
+}
+
+response = requests.post(url, headers=headers)
+if response.status_code == 200:
+    print("Service stopped successfully")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="services-status">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/services/:id/status</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Prüft den Status eines Services.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "status": "running",
+  "lastCheck": "2025-07-07T10:45:00Z",
+  "output": "Active: active (running)"
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/services/1/status \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+appliance_id = 1
+url = f"http://localhost:3001/api/services/{appliance_id}/status"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.get(url, headers=headers)
+if response.status_code == 200:
+    status = response.json()
+    print(f"Service status: {status['status']}")
+    print(f"Last check: {status['lastCheck']}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-ssh">
+                    <h3>🔗 SSH API</h3>
+                    <div class="endpoint" id="ssh-connections">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/ssh/connections</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Listet alle konfigurierten SSH-Verbindungen auf.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">[
+  {
+    "id": 1,
+    "name": "server-1",
+    "host": "192.168.1.100",
+    "port": 22,
+    "username": "admin",
+    "authMethod": "key",
+    "keyPath": "/app/ssh-keys/server-1_key"
+  }
+]</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/ssh/connections \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/ssh/connections"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.get(url, headers=headers)
+if response.status_code == 200:
+    connections = response.json()
+    for conn in connections:
+        print(f"{conn['name']}: {conn['username']}@{conn['host']}:{conn['port']}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="ssh-test">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/ssh/test</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Testet eine SSH-Verbindung.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "host": "192.168.1.100",
+  "port": 22,
+  "username": "admin",
+  "password": "password"
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/ssh/test \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d '{
+    "host": "192.168.1.100",
+    "port": 22,
+    "username": "admin",
+    "password": "password"
+  }'</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/ssh/test"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs...",
+    "Content-Type": "application/json"
+}
+data = {
+    "host": "192.168.1.100",
+    "port": 22,
+    "username": "admin",
+    "password": "password"
+}
+
+response = requests.post(url, json=data, headers=headers)
+if response.status_code == 200:
+    print("SSH connection successful")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="ssh-execute">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/ssh/execute</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Führt einen Befehl über SSH aus.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "connectionId": 1,
+  "command": "ls -la",
+  "timeout": 30000
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/ssh/execute \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d '{
+    "connectionId": 1,
+    "command": "ls -la",
+    "timeout": 30000
+  }'</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+url = "http://localhost:3001/api/ssh/execute"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs...",
+    "Content-Type": "application/json"
+}
+data = {
+    "connectionId": 1,
+    "command": "ls -la",
+    "timeout": 30000
+}
+
+response = requests.post(url, json=data, headers=headers)
+if response.status_code == 200:
+    result = response.json()
+    print("Command output:")
+    print(result['output'])
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="ssh-hosts-list">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/ssh/hosts</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Listet alle SSH-Hosts auf.</p>
+                            
+                            <h4>Query Parameters:</h4>
+                            <ul>
+                                <li><code>includeDeleted</code> - Zeigt auch gelöschte Hosts an (true/false)</li>
+                            </ul>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "hosts": [
+    {
+      "id": 1,
+      "hostname": "prod-server",
+      "host": "192.168.1.100",
+      "username": "root",
+      "port": 22,
+      "key_name": "production-key",
+      "is_active": true,
+      "last_tested": "2025-01-09T10:00:00.000Z",
+      "test_status": "success"
+    }
+  ]
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="ssh-hosts-create">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/ssh/hosts</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Erstellt einen neuen SSH-Host.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "hostname": "dev-server",
+  "host": "192.168.1.101",
+  "username": "developer",
+  "port": 22,
+  "key_name": "development-key"
+}</pre>
+                            
+                            <h4>Response (201 Created):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "SSH-Host erfolgreich erstellt",
+  "host": {
+    "id": 2,
+    "hostname": "dev-server"
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="ssh-hosts-update">
+                        <div class="endpoint-header">
+                            <span class="method put">PUT</span>
+                            <span class="path">/api/ssh/hosts/:id</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Aktualisiert einen SSH-Host. Alle Änderungen werden im Audit Log protokolliert.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "hostname": "dev-server-updated",
+  "port": 2222
+}</pre>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "SSH-Host erfolgreich aktualisiert"
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="ssh-hosts-delete">
+                        <div class="endpoint-header">
+                            <span class="method delete">DELETE</span>
+                            <span class="path">/api/ssh/hosts/:id</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Löscht einen SSH-Host (Soft-Delete). Der Host kann über das Audit Log wiederhergestellt werden.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "SSH-Host erfolgreich gelöscht"
+}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-audit">
+                    <h3>📋 Audit Log API</h3>
+                    <div class="endpoint" id="audit-logs-list">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/audit-logs</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Ruft alle Audit-Log-Einträge ab. Zeigt alle Systemaktivitäten inkl. SSH-Host-Änderungen.</p>
+                            
+                            <h4>Query Parameters:</h4>
+                            <ul>
+                                <li><code>page</code> - Seitennummer (default: 1)</li>
+                                <li><code>limit</code> - Einträge pro Seite (default: 50)</li>
+                                <li><code>resource_type</code> - Filtern nach Ressourcentyp (z.B. ssh_host)</li>
+                                <li><code>action</code> - Filtern nach Aktion</li>
+                            </ul>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "logs": [
+    {
+      "id": 1234,
+      "user_id": 1,
+      "username": "admin",
+      "action": "ssh_host_updated",
+      "resource_type": "ssh_host",
+      "resource_id": 1,
+      "details": {
+        "old_data": { "port": 22 },
+        "new_data": { "port": 2222 }
+      },
+      "created_at": "2025-01-09T10:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "total": 500,
+    "page": 1,
+    "pages": 10
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="audit-restore-get">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/audit-restore/:id</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Ruft Details eines Audit-Log-Eintrags mit Wiederherstellungsoptionen ab.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "id": 1234,
+  "action": "ssh_host_updated",
+  "details": {
+    "old_data": { ... },
+    "new_data": { ... }
+  },
+  "canRestore": true,
+  "restoreInfo": {
+    "type": "ssh_host",
+    "canRevertToOriginal": true
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="audit-restore-restore">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/audit-restore/restore/:type/:logId</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Stellt eine gelöschte Ressource wieder her.</p>
+                            
+                            <h4>Supported Types:</h4>
+                            <ul>
+                                <li><code>appliances</code></li>
+                                <li><code>users</code></li>
+                                <li><code>categories</code></li>
+                                <li><code>ssh_hosts</code></li>
+                            </ul>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "SSH host successfully restored",
+  "resource_id": 1
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="audit-restore-revert">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/audit-restore/revert/:type/:logId</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Macht Änderungen an einer Ressource rückgängig.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "message": "SSH host successfully reverted to previous state"
+}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-backup">
+                    <h3>💾 Backup API</h3>
+                    <div class="endpoint" id="backup-export">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/backup</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Erstellt ein vollständiges Backup aller Daten (Appliances, Kategorien, Einstellungen, SSH-Konfigurationen).</p>
+                            <p><strong>v1.0.1 Fix:</strong> Unterstützt jetzt sowohl snake_case als auch camelCase Feldnamen.</p>
+                            
+                            <h4>Response (200 OK):</h4>
+                            <pre class="code-block">{
+  "version": "2.0",
+  "timestamp": "2025-07-07T10:00:00Z",
+  "appliances": [...],
+  "categories": [...],
+  "settings": [...],
+  "sshHosts": [...],
+  "users": [...]
+}</pre>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/backup \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -o backup.json</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+import json
+from datetime import datetime
+
+url = "http://localhost:3001/api/backup"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+}
+
+response = requests.get(url, headers=headers)
+if response.status_code == 200:
+    backup_data = response.json()
+    filename = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    with open(filename, 'w') as f:
+        json.dump(backup_data, f, indent=2)
+    
+    print(f"Backup saved to {filename}")
+    print(f"Version: {backup_data['version']}")
+    print(f"Appliances: {len(backup_data['appliances'])}")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="backup-restore">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/restore</span>
+                            <span class="auth-badge admin">Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Stellt ein Backup wieder her.</p>
+                            <p><strong>v1.0.1 Fix:</strong> Kompatibel mit beiden Feldnamen-Formaten (snake_case und camelCase).</p>
+                            
+                            <h4>Request Body:</h4>
+                            <p>Das komplette Backup-JSON-Objekt</p>
+                            
+                            <h4>curl Beispiel:</h4>
+                            <pre class="code-block">curl -X POST http://localhost:3001/api/restore \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d @backup.json</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+import json
+
+url = "http://localhost:3001/api/restore"
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs...",
+    "Content-Type": "application/json"
+}
+
+# Load backup file
+with open('backup.json', 'r') as f:
+    backup_data = json.load(f)
+
+response = requests.post(url, json=backup_data, headers=headers)
+if response.status_code == 200:
+    result = response.json()
+    print("Restore completed successfully")
+    print(f"Restored {result['appliances']} appliances")
+    print(f"Restored {result['categories']} categories")
+else:
+    print(f"Error: {response.json()}")</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-terminal">
+                    <h3>🖥️ Terminal API</h3>
+                    <div class="endpoint" id="terminal-websocket">
+                        <div class="endpoint-header">
+                            <span class="method websocket">WS</span>
+                            <span class="path">/api/terminal/connect</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>WebSocket-Verbindung für interaktive Terminal-Sessions.</p>
+                            
+                            <h4>WebSocket Messages:</h4>
+                            <pre class="code-block">// Client → Server
+{
+  "type": "input",
+  "data": "ls -la\\n"
+}
+
+// Server → Client
+{
+  "type": "output",
+  "data": "total 64\\ndrwxr-xr-x..."
+}</pre>
+                            
+                            <h4>JavaScript/WebSocket Beispiel:</h4>
+                            <pre class="code-block">const token = "eyJhbGciOiJIUzI1NiIs...";
+const ws = new WebSocket(`ws://localhost:3001/api/terminal/connect?token=${token}`);
+
+ws.onopen = () => {
+    console.log('Terminal connected');
+    
+    // Send command
+    ws.send(JSON.stringify({
+        type: 'input',
+        data: 'ls -la\n'
+    }));
+};
+
+ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === 'output') {
+        console.log('Terminal output:', message.data);
+    }
+};
+
+ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+};</pre>
+                            
+                            <h4>Python WebSocket Beispiel:</h4>
+                            <pre class="code-block">import websocket
+import json
+
+token = "eyJhbGciOiJIUzI1NiIs..."
+url = f"ws://localhost:3001/api/terminal/connect?token={token}"
+
+def on_message(ws, message):
+    data = json.loads(message)
+    if data['type'] == 'output':
+        print(data['data'], end='')
+
+def on_open(ws):
+    # Send a command
+    ws.send(json.dumps({
+        'type': 'input',
+        'data': 'ls -la\n'
+    }))
+
+ws = websocket.WebSocketApp(url,
+                            on_message=on_message,
+                            on_open=on_open)
+ws.run_forever()</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="api-sse">
+                    <h3>📊 Server-Sent Events (SSE)</h3>
+                    <div class="endpoint" id="sse-stream">
+                        <div class="endpoint-header">
+                            <span class="method sse">SSE</span>
+                            <span class="path">/api/sse</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Server-Sent Events für Echtzeit-Updates (erweitert in v1.0.1).</p>
+                            
+                            <h4>Event Types:</h4>
+                            <pre class="code-block">// Service Status Update
+event: service_status_changed
+data: {
+  "id": 1,
+  "name": "Nextcloud",
+  "status": "running",
+  "previousStatus": "stopped",
+  "timestamp": "2025-07-07T10:30:00Z"
+}
+
+// Appliance Update
+event: appliance_updated
+data: {
+  "id": 1,
+  "changes": {...}
+}
+
+// Appliance Created (v1.0.1)
+event: appliance_created
+data: {
+  "id": 5,
+  "name": "New Service",
+  "category": "development"
+}
+
+// Appliance Deleted (v1.0.1)
+event: appliance_deleted
+data: {
+  "id": 3
+}
+
+// Category Updated (v1.0.1)
+event: category_updated
+data: {
+  "categories": [...]
+}
+
+// System Notification
+event: notification
+data: {
+  "type": "info",
+  "message": "Backup completed successfully"
+}
+
+// SSH Host Created (v1.0.3)
+event: ssh_host_created
+data: {
+  "id": 1,
+  "hostname": "prod-server",
+  "host": "192.168.1.100"
+}
+
+// SSH Host Updated (v1.0.3)
+event: ssh_host_updated
+data: {
+  "id": 1,
+  "hostname": "production-server",
+  "changes": {
+    "old": { "port": 22 },
+    "new": { "port": 2222 }
+  }
+}
+
+// SSH Host Deleted (v1.0.3)
+event: ssh_host_deleted
+data: {
+  "id": 1,
+  "hostname": "prod-server"
+}
+
+// SSH Host Reverted (v1.0.3)
+event: ssh_host_reverted
+data: {
+  "id": 1,
+  "hostname": "prod-server",
+  "reverted_by": "admin"
+}
+
+// Audit Log Created (v1.0.3)
+event: audit_log_created
+data: {
+  "action": "ssh_host_updated",
+  "resource_type": "ssh_host",
+  "resource_id": 1
+}</pre>
+                            
+                            <h4>JavaScript/EventSource Beispiel:</h4>
+                            <pre class="code-block">const token = "eyJhbGciOiJIUzI1NiIs...";
+const eventSource = new EventSource(`http://localhost:3001/api/sse?token=${token}`);
+
+// Listen for service status changes
+eventSource.addEventListener('service_status_changed', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`Service ${data.name} is now ${data.status}`);
+});
+
+// Listen for appliance updates
+eventSource.addEventListener('appliance_updated', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`Appliance ${data.id} updated`);
+});
+
+// Listen for new appliances (v1.0.1)
+eventSource.addEventListener('appliance_created', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`New appliance created: ${data.name}`);
+});
+
+// Listen for category updates (v1.0.1)
+eventSource.addEventListener('category_updated', (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Categories updated');
+});
+
+// Listen for SSH host events (v1.0.3)
+eventSource.addEventListener('ssh_host_created', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`SSH host created: ${data.hostname}`);
+});
+
+eventSource.addEventListener('ssh_host_updated', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`SSH host updated: ${data.hostname}`);
+});
+
+eventSource.addEventListener('ssh_host_deleted', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`SSH host deleted: ${data.hostname}`);
+});
+
+eventSource.addEventListener('ssh_host_reverted', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`SSH host reverted: ${data.hostname} by ${data.reverted_by}`);
+});
+
+eventSource.addEventListener('audit_log_created', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`Audit log created: ${data.action} on ${data.resource_type}`);
+});
+
+// Listen for notifications
+eventSource.addEventListener('notification', (event) => {
+    const data = JSON.parse(event.data);
+    console.log(`${data.type}: ${data.message}`);
+});
+
+// Handle errors
+eventSource.onerror = (error) => {
+    console.error('SSE Error:', error);
+};</pre>
+                            
+                            <h4>Python SSE Beispiel:</h4>
+                            <pre class="code-block">import sseclient
+import requests
+import json
+
+token = "eyJhbGciOiJIUzI1NiIs..."
+url = f"http://localhost:3001/api/sse"
+headers = {
+    "Authorization": f"Bearer {token}"
+}
+
+# Create SSE client
+response = requests.get(url, headers=headers, stream=True)
+client = sseclient.SSEClient(response)
+
+# Listen for events
+for event in client.events():
+    if event.event == 'service_status_changed':
+        data = json.loads(event.data)
+        print(f"Service {data['name']} is now {data['status']}")
+    
+    elif event.event == 'appliance_updated':
+        data = json.loads(event.data)
+        print(f"Appliance {data['id']} updated")
+    
+    elif event.event == 'appliance_created':
+        data = json.loads(event.data)
+        print(f"New appliance: {data['name']}")
+    
+    elif event.event == 'category_updated':
+        data = json.loads(event.data)
+        print('Categories updated')
+    
+    elif event.event == 'notification':
+        data = json.loads(event.data)
+        print(f"{data['type']}: {data['message']}")</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="note">
+                <strong>Hinweis zu Python-Bibliotheken:</strong> Für die Python-Beispiele werden folgende Bibliotheken benötigt:
+                <ul style="margin-top: 10px;">
+                    <li><code>requests</code> - für HTTP-Anfragen: <code>pip install requests</code></li>
+                    <li><code>websocket-client</code> - für WebSocket-Verbindungen: <code>pip install websocket-client</code></li>
+                    <li><code>sseclient-py</code> - für Server-Sent Events: <code>pip install sseclient-py</code></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="note">
+            <strong>v1.0.1 Hinweise:</strong> 
+            <ul style="margin-top: 10px;">
+                <li>ServicePanel ersetzt das bisherige Modal-System für bessere UX</li>
+                <li>Favoriten-Funktionalität für schnellen Zugriff auf wichtige Services</li>
+                <li>Custom Commands ermöglichen individuelle Start/Stop/Status-Befehle</li>
+                <li>Verbesserte Backup/Restore-Kompatibilität mit beiden Feldnamen-Formaten</li>
+                <li>Kategorien verwenden jetzt Lucide Icons statt Emojis</li>
+                <li>Erweiterte SSE-Events für bessere Echtzeit-Updates</li>
+            </ul>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #61dafb;"></div>
+                <span>Frontend/React Komponenten</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #68d391;"></div>
+                <span>Backend/Express Server</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #fbbf24;"></div>
+                <span>Services/APIs</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f87171;"></div>
+                <span>Authentifizierung/Sicherheit</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f472b6;"></div>
+                <span>Neue Features v1.0.1</span>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        // Sidebar Toggle Function
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const toggleBtn = document.querySelector('.sidebar-toggle');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            toggleBtn.classList.toggle('shifted');
+            
+            // Save state to localStorage
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        }
+        
+        // Restore sidebar state on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+                document.getElementById('mainContent').classList.add('expanded');
+                document.querySelector('.sidebar-toggle').classList.remove('shifted');
+            }
+        });
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#61dafb',
+                primaryTextColor: '#000',
+                primaryBorderColor: '#4a90e2',
+                lineColor: '#5c5c5c',
+                secondaryColor: '#68d391',
+                tertiaryColor: '#fbbf24',
+                background: '#ffffff',
+                mainBkg: '#61dafb',
+                secondBkg: '#68d391',
+                tertiaryBkg: '#fbbf24',
+                primaryBorderColor: '#4a90e2',
+                secondaryBorderColor: '#4ade80',
+                tertiaryBorderColor: '#f59e0b',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                fontSize: '14px'
+            }
+        });
+    </script>
+</body>
+</html>

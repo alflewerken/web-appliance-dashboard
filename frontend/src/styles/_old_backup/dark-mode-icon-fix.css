@@ -1,0 +1,97 @@
+/* ========================================
+   DARK MODE ICON FIX
+   Ensure main icons are always white in dark mode
+   ======================================== */
+
+/* Main card icons ALWAYS white in dark mode */
+body:not(.theme-light) .card-icon,
+body.theme-dark .card-icon,
+body.theme-auto .card-icon {
+  color: #ffffff !important;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+}
+
+body:not(.theme-light) .card-icon svg,
+body.theme-dark .card-icon svg,
+body.theme-auto .card-icon svg {
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+/* Ensure icons on all colored backgrounds stay white */
+body:not(.theme-light) .card-cover .card-icon,
+body.theme-dark .card-cover .card-icon,
+body.theme-auto .card-cover .card-icon {
+  color: #ffffff !important;
+}
+
+body:not(.theme-light) .card-cover .card-icon svg,
+body.theme-dark .card-cover .card-icon svg,
+body.theme-auto .card-cover .card-icon svg {
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+/* For auto theme in dark mode */
+@media (prefers-color-scheme: dark) {
+  body.theme-auto .card-icon {
+    color: #ffffff !important;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+  }
+
+  body.theme-auto .card-icon svg {
+    stroke: #ffffff !important;
+    fill: none !important;
+  }
+}
+
+/* Ensure SimpleIcon component respects the color */
+body:not(.theme-light) .card-icon .simple-icon,
+body.theme-dark .card-icon .simple-icon,
+body.theme-auto .card-icon .simple-icon {
+  color: #ffffff !important;
+}
+
+body:not(.theme-light) .card-icon .simple-icon svg,
+body.theme-dark .card-icon .simple-icon svg,
+body.theme-auto .card-icon .simple-icon svg {
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+/* Force white color with higher specificity */
+body:not(.theme-light) .appliance-card .card-cover .card-icon,
+body.theme-dark .appliance-card .card-cover .card-icon {
+  color: #ffffff !important;
+}
+
+body:not(.theme-light) .appliance-card .card-cover .card-icon svg,
+body.theme-dark .appliance-card .card-cover .card-icon svg {
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+/* END OF DARK MODE ICON FIX */ /* Force white color with higher specificity */
+body:not(.theme-light) .appliance-card .card-cover .card-icon,
+body.theme-dark .appliance-card .card-cover .card-icon {
+  color: #ffffff !important;
+}
+
+body:not(.theme-light) .appliance-card .card-cover .card-icon svg,
+body.theme-dark .appliance-card .card-cover .card-icon svg {
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+/* Override the base card-icon color for dark mode */
+body:not(.theme-light) .card-icon {
+  color: #ffffff !important;
+}
+
+/* Ensure full opacity */
+body:not(.theme-light) .card-icon,
+body:not(.theme-light) .card-icon svg {
+  opacity: 1 !important;
+}
+
+/* END OF DARK MODE ICON FIX */

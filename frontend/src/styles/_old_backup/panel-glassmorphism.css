@@ -1,0 +1,383 @@
+/* Shared Panel Styles - Consistent with Sidebar */
+
+/* CRITICAL: Fix z-index layering to ensure background visibility */
+.panel-container {
+  position: relative;
+  z-index: 1300; /* High z-index for panels */
+}
+
+/* Base panel styling with glassmorphism effect */
+.panel-container > div[class$='-panel'],
+.service-panel,
+.settings-panel,
+.user-panel,
+.audit-log-panel {
+  /* Glassmorphism background - same as sidebar */
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+
+  /* Ensure panels are above background but still transparent */
+  position: relative;
+  z-index: 100;
+
+  /* Remove any conflicting backgrounds */
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* DO NOT make colored elements transparent */
+.panel-container .nav-icon-container,
+.panel-container .icon-container,
+.panel-container .color-preset,
+.panel-container [style*='background-color: #'],
+.panel-container [style*='backgroundColor: #'] {
+  /* Preserve colors */
+  opacity: 1 !important;
+}
+
+/* Panel headers with consistent styling */
+.panel-header,
+.service-panel-header,
+.settings-panel-header,
+.user-panel-header,
+.audit-log-panel .panel-header {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Panel content areas */
+.panel-content,
+.panel-body,
+.service-panel-content,
+.settings-panel-content,
+.user-panel-content,
+.audit-log-panel .panel-content {
+  /* Transparent background to show the panel's glassmorphism */
+  background: transparent !important;
+}
+
+/* Specific overrides for audit log panel */
+.audit-log-panel .audit-stats {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.audit-log-panel .audit-filters {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.audit-log-panel .audit-logs-table {
+  background: transparent !important;
+}
+
+/* Stat cards in audit log */
+.audit-log-panel .stat-card {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Form inputs and controls */
+.panel-container input[type='text'],
+.panel-container input[type='email'],
+.panel-container input[type='password'],
+.panel-container input[type='url'],
+.panel-container input[type='number'],
+.panel-container input[type='date'],
+.panel-container select,
+.panel-container textarea {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Settings panel tabs */
+.settings-tabs,
+.MuiTabs-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Tab panels */
+.MuiTabPanel-root,
+.settings-tab-content {
+  background: transparent !important;
+}
+
+/* Cards and sections within panels */
+.panel-container .MuiCard-root,
+.panel-container .card,
+.panel-container .section {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Buttons in panels */
+.panel-container button:not(.panel-close-btn):not(.close-btn) {
+  background: rgba(118, 118, 128, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.panel-container button:not(.panel-close-btn):not(.close-btn):hover {
+  background: rgba(118, 118, 128, 0.24) !important;
+}
+
+/* Primary buttons */
+.panel-container .btn-primary,
+.panel-container .MuiButton-containedPrimary {
+  background: rgba(0, 122, 255, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.panel-container .btn-primary:hover,
+.panel-container .MuiButton-containedPrimary:hover {
+  background: rgba(0, 122, 255, 0.9) !important;
+}
+
+/* Close buttons */
+.panel-close-btn,
+.close-btn {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.panel-close-btn:hover,
+.close-btn:hover {
+  background: rgba(118, 118, 128, 0.24) !important;
+}
+
+/* Resize handles */
+.panel-resize-handle {
+  background: transparent !important;
+}
+
+.panel-resize-handle:hover {
+  background: rgba(0, 122, 255, 0.5) !important;
+}
+
+/* Scrollbars in panels */
+.panel-container ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.panel-container ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.panel-container ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Light mode adjustments */
+body.theme-light .panel-container > div[class$='-panel'],
+body.theme-light .service-panel,
+body.theme-light .settings-panel,
+body.theme-light .user-panel,
+body.theme-light .audit-log-panel {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+body.theme-light .panel-header,
+body.theme-light .service-panel-header,
+body.theme-light .settings-panel-header,
+body.theme-light .user-panel-header,
+body.theme-light .audit-log-panel .panel-header {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+body.theme-light .panel-container input[type='text'],
+body.theme-light .panel-container input[type='email'],
+body.theme-light .panel-container input[type='password'],
+body.theme-light .panel-container input[type='url'],
+body.theme-light .panel-container input[type='number'],
+body.theme-light .panel-container input[type='date'],
+body.theme-light .panel-container select,
+body.theme-light .panel-container textarea {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Ensure high specificity for overrides */
+.music-app .panel-container > * {
+  /* Force glassmorphism on all direct children */
+  background-color: transparent !important;
+}
+
+/* Remove any solid backgrounds from MUI components */
+.panel-container .MuiPaper-root {
+  background-color: transparent !important;
+}
+
+/* MUI specific overrides for better glassmorphism */
+.panel-container .MuiBox-root[style*='background'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Service Panel specific fixes */
+.service-panel,
+.service-panel > .MuiBox-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Settings Panel specific fixes */
+.settings-panel,
+.settings-panel > .MuiBox-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* User Panel specific fixes */
+.user-panel,
+.user-panel > .MuiBox-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* MUI TextField and inputs */
+.panel-container .MuiTextField-root .MuiInputBase-root,
+.panel-container .MuiSelect-root,
+.panel-container .MuiInputBase-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* MUI Buttons */
+.panel-container .MuiButton-root:not(.MuiButton-contained) {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* MUI Alerts */
+.panel-container .MuiAlert-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* MUI Chips */
+.panel-container .MuiChip-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* Fix for service panel specifically */
+.service-panel .MuiBox-root {
+  background-color: transparent !important;
+}
+
+/* Fix for settings panel MUI components */
+.settings-panel .MuiBox-root,
+.settings-panel .MuiPaper-root {
+  background-color: transparent !important;
+}
+
+/* User panel fixes */
+.user-panel .MuiBox-root,
+.user-panel .MuiPaper-root {
+  background-color: transparent !important;
+}
+
+/* Override any inline styles with !important - ONLY for containers, not colored elements */
+[style*='background-color'] {
+  /* Removed - was making everything transparent */
+}
+
+/* Force glassmorphism on panel root elements */
+[class$='-panel'][style*='background'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Override inline styles from MUI Box components */
+.panel-container [style*='rgb(28, 28, 30)'],
+.panel-container [style*='rgb(30, 30, 30)'],
+.panel-container [style*='#1c1c1e'],
+.panel-container [style*='#1e1e1e'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Specific overrides for known background colors */
+.panel-container [style*='background: rgb'],
+.panel-container [style*='background-color: rgb'],
+.panel-container [style*='backgroundColor: rgb'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Ensure panel headers have consistent styling */
+[class*='panel'] > div:first-child[style*='background'],
+[class*='panel'] > .MuiBox-root:first-child[style*='background'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Fix for audit log specific elements */
+.audit-log-container,
+.audit-log-header,
+.audit-stats,
+.audit-filters,
+.audit-logs-table {
+  background: transparent !important;
+}
+
+/* Ensure table backgrounds are transparent */
+.panel-container table,
+.panel-container tbody,
+.panel-container thead,
+.panel-container tr,
+.panel-container td,
+.panel-container th {
+  background: transparent !important;
+}
+
+/* Table rows can have subtle hover effects */
+.panel-container tr:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Fix modal-like panels */
+.panel-container .modal,
+.panel-container .modal-content,
+.panel-container [role='dialog'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}

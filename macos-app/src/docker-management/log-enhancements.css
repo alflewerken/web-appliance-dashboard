@@ -1,0 +1,307 @@
+/* Erweiterte Log-Styles für Docker Management */
+
+/* Log Filter Controls */
+.log-filter-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--docker-bg);
+    border-radius: 8px;
+    border: 1px solid var(--docker-border);
+}
+
+.log-filters {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--docker-card-bg);
+    border: 1px solid var(--docker-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    color: var(--docker-text);
+}
+
+.filter-toggle:hover {
+    background: var(--docker-hover);
+    border-color: var(--docker-accent);
+}
+
+.filter-toggle.active {
+    background: var(--docker-accent);
+    color: white;
+    border-color: var(--docker-accent);
+}
+
+.filter-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.filter-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.filter-toggle.note .filter-indicator {
+    background: #4ecdc4;
+}
+
+.filter-toggle.warning .filter-indicator {
+    background: var(--docker-warning);
+}
+
+.filter-toggle.error .filter-indicator {
+    background: var(--docker-error);
+}
+
+/* Auto-refresh Indicator */
+.auto-refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    color: var(--docker-text-secondary);
+    font-size: 0.875rem;
+}
+
+.refresh-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--docker-border);
+    border-top-color: var(--docker-accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.refresh-countdown {
+    color: var(--docker-accent);
+    font-weight: 500;
+}
+
+/* Enhanced Logs Output */
+.logs-output-wrapper {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--docker-border);
+}
+
+.logs-output {
+    background: #0d0d0d;
+    color: #e0e0e0;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    scroll-behavior: smooth;
+}
+
+/* Log Line Styles */
+.log-line {
+    display: block;
+    padding: 0.25rem 0;
+    border-left: 3px solid transparent;
+    padding-left: 0.5rem;
+    margin-left: -0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.log-line:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.log-line.note {
+    color: #4ecdc4;
+    border-left-color: #4ecdc4;
+}
+
+.log-line.warning {
+    color: var(--docker-warning);
+    border-left-color: var(--docker-warning);
+}
+
+.log-line.error {
+    color: var(--docker-error);
+    border-left-color: var(--docker-error);
+}
+
+.log-line.hidden {
+    display: none;
+}
+
+/* Log Stats Bar */
+.log-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--docker-bg);
+    border-top: 1px solid var(--docker-border);
+    font-size: 0.75rem;
+    color: var(--docker-text-secondary);
+}
+
+.log-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.log-stat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.log-stat.total .log-stat-dot {
+    background: var(--docker-text-secondary);
+}
+
+.log-stat.notes .log-stat-dot {
+    background: #4ecdc4;
+}
+
+.log-stat.warnings .log-stat-dot {
+    background: var(--docker-warning);
+}
+
+.log-stat.errors .log-stat-dot {
+    background: var(--docker-error);
+}
+
+/* Save Log Button */
+.docker-btn.btn-save {
+    background: #4ecdc4;
+    position: relative;
+    overflow: hidden;
+}
+
+.docker-btn.btn-save:hover {
+    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+}
+
+.docker-btn.btn-save.saved {
+    background: var(--docker-success);
+}
+
+.docker-btn.btn-save.saved::after {
+    content: '✓';
+    position: absolute;
+    right: 0.5rem;
+    animation: checkmark 0.3s ease;
+}
+
+@keyframes checkmark {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Clear Logs Button */
+.docker-btn.btn-clear {
+    background: transparent;
+    border: 1px solid var(--docker-border);
+    color: var(--docker-text-secondary);
+}
+
+.docker-btn.btn-clear:hover {
+    background: var(--docker-hover);
+    border-color: var(--docker-error);
+    color: var(--docker-error);
+}
+
+/* Log Search */
+.log-search {
+    position: relative;
+    flex: 1;
+    max-width: 300px;
+}
+
+.log-search input {
+    width: 100%;
+    padding: 0.5rem 2.5rem 0.5rem 1rem;
+    background: var(--docker-bg);
+    color: var(--docker-text);
+    border: 1px solid var(--docker-border);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.log-search input:focus {
+    outline: none;
+    border-color: var(--docker-accent);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.log-search-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    fill: var(--docker-text-secondary);
+}
+
+/* Highlight search results */
+.log-line mark {
+    background: rgba(255, 235, 59, 0.3);
+    color: inherit;
+    padding: 0.1rem 0.2rem;
+    border-radius: 2px;
+}
+
+/* No logs message */
+.no-logs-message {
+    text-align: center;
+    color: var(--docker-text-secondary);
+    padding: 3rem;
+    font-style: italic;
+}
+
+/* Loading overlay for logs */
+.logs-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(13, 13, 13, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.logs-loading-overlay .spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--docker-border);
+    border-top-color: var(--docker-accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}

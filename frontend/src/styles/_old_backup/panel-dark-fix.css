@@ -1,0 +1,83 @@
+/* ========================================================================
+   PANEL DARK BACKGROUND FIX
+   ========================================================================
+   MUSS als LETZTE CSS-Datei geladen werden
+   Stellt sicher, dass Panels genau wie Sidebar/Header aussehen
+   ======================================================================== */
+
+/* FORCIERE dunklen Hintergrund für alle Panels */
+.settings-panel,
+.service-panel,
+.user-panel,
+.audit-log-panel,
+div.settings-panel,
+div.service-panel,
+div.user-panel,
+div.audit-log-panel,
+.panel-container .settings-panel,
+.panel-container .service-panel,
+.panel-container .user-panel,
+.panel-container .audit-log-panel {
+  /* GENAU wie Sidebar */
+  background: rgba(28, 28, 30, 0.88) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+
+  /* Verhindere Überschreibung */
+  min-height: 100%;
+  position: relative;
+}
+
+/* Light Mode - GENAU wie Sidebar */
+body.theme-light .settings-panel,
+body.theme-light .service-panel,
+body.theme-light .user-panel,
+body.theme-light .audit-log-panel,
+body.theme-light div.settings-panel,
+body.theme-light div.service-panel,
+body.theme-light div.user-panel,
+body.theme-light div.audit-log-panel {
+  background: rgba(255, 255, 255, 0.88) !important;
+}
+
+/* KRITISCH: Überschreibe MUI inline styles mit maximaler Spezifität */
+[class*='-panel'][style*='background: rgb('],
+[class*='-panel'][style*='background-color: rgb('],
+[class*='-panel'][style*='backgroundColor: rgb('] {
+  background: rgba(28, 28, 30, 0.88) !important;
+}
+
+body.theme-light [class*='-panel'][style*='background: rgb('],
+body.theme-light [class*='-panel'][style*='background-color: rgb('],
+body.theme-light [class*='-panel'][style*='backgroundColor: rgb('] {
+  background: rgba(255, 255, 255, 0.88) !important;
+}
+
+/* Für alle direkten Kinder die transparent sein sollen - ABER NICHT FARBIGE ELEMENTE */
+.settings-panel
+  > .MuiBox-root:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.service-panel
+  > .MuiBox-root:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.user-panel
+  > .MuiBox-root:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']),
+.audit-log-panel
+  > .MuiBox-root:not([style*='background-color: #']):not(
+    [style*='backgroundColor: #']
+  ):not([style*='background: #']):not([style*='background: rgb']) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Debug: Roter Rahmen um Panels wenn sie nicht dunkel sind */
+.debug-panels .settings-panel,
+.debug-panels .service-panel,
+.debug-panels .user-panel,
+.debug-panels .audit-log-panel {
+  border: 3px solid red !important;
+}

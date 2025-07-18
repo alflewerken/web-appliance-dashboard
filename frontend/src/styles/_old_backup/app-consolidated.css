@@ -1,0 +1,595 @@
+/* ========================================================================
+   CONSOLIDATED APP STYLES
+   ========================================================================
+   Diese Datei ersetzt alle anderen CSS-Fixes und Overrides.
+   Sie löst die folgenden Probleme:
+   1. Firefox Icon-Farben in der Sidebar
+   2. Hintergrundbild-Sichtbarkeit beim Öffnen von Panels
+   3. Glassmorphism-Design für alle UI-Elemente
+   ======================================================================== */
+
+/* ========================================================================
+   1. BASE RESET & TRANSPARENT BACKGROUNDS
+   ======================================================================== */
+
+/* Dark Theme: Überschreibe theme.css schwarze Hintergründe */
+body.theme-dark,
+body.theme-dark .music-app,
+body.theme-dark .main-content,
+body.theme-dark .content-body,
+body.theme-dark #root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Light Theme: Transparente Basis-Container */
+body.theme-light,
+body.theme-light .music-app,
+body.theme-light .main-content,
+body.theme-light .content-body,
+body.theme-light #root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* ========================================================================
+   2. BACKGROUND IMAGE LAYER SYSTEM
+   ======================================================================== */
+
+/* Background Image - Immer sichtbar im Hintergrund */
+.background-image {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: -2 !important;
+  pointer-events: none !important;
+}
+
+/* Background Overlay - Direkt über dem Bild */
+.background-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  background: transparent !important;
+}
+
+/* Hauptcontainer - Über dem Background */
+.music-app {
+  position: relative;
+  z-index: 1;
+}
+
+/* ========================================================================
+   3. FIREFOX-SPEZIFISCHE FIXES
+   ======================================================================== */
+
+/* Firefox: Inline-Styles für Icon-Container sicherstellen */
+@-moz-document url-prefix() {
+  /* Verhindere backdrop-filter auf Icon-Containern in Firefox */
+  .nav-icon-container {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Stelle sicher, dass inline backgroundColor funktioniert */
+  .nav-icon-container[style*='backgroundColor'],
+  .nav-icon-container[style*='background-color'] {
+    /* Firefox respektiert inline styles - nichts überschreiben */
+  }
+}
+
+/* ========================================================================
+   4. SIDEBAR ICON COLORS - IMMER SICHTBAR
+   ======================================================================== */
+
+/* Basis-Styles für Icon-Container */
+.nav-icon-container {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  /* Keine background-color hier - wird via inline style gesetzt */
+}
+
+/* Statische Kategorie-Farben als Fallback */
+.nav-icon-container[data-category='all'] {
+  background-color: #8e8e93 !important;
+}
+
+.nav-icon-container[data-category='recent'] {
+  background-color: #ff9500 !important;
+}
+
+.nav-icon-container[data-category='favorites'] {
+  background-color: #ff3b30 !important;
+}
+
+.nav-icon-container[data-category='settings'] {
+  background-color: #8e8e93 !important;
+}
+
+.nav-icon-container[data-category='users'] {
+  background-color: #5ac8fa !important;
+}
+
+.nav-icon-container[data-category='audit'] {
+  background-color: #4cd964 !important;
+}
+
+.nav-icon-container[data-category='logout'] {
+  background-color: #ff3b30 !important;
+}
+
+/* Icon-Farben innerhalb der Container */
+.nav-icon-container svg {
+  color: rgba(255, 255, 255, 0.9) !important;
+  opacity: 1 !important;
+}
+
+/* Aktive Navigation */
+.nav-item.active .nav-icon-container {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ========================================================================
+   5. GLASSMORPHISM FÜR UI-ELEMENTE
+   ======================================================================== */
+
+/* Sidebar */
+.sidebar {
+  background: rgba(28, 28, 30, 0.88) !important;
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 10;
+  position: relative;
+}
+
+/* Sidebar Overlay - Leichte Verdunkelung */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1); /* 10% schwarze Überlagerung */
+  pointer-events: none;
+  z-index: -1;
+}
+
+body.theme-light .sidebar {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-right-color: rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .sidebar::before {
+  background: rgba(0, 0, 0, 0.05); /* Weniger Verdunkelung im Light Mode */
+}
+
+/* Header - Gleiche Transparenz wie Sidebar */
+.content-header {
+  background: rgba(28, 28, 30, 0.88) !important;
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 50;
+  position: relative;
+}
+
+/* Header Overlay - Leichte Verdunkelung */
+.content-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1); /* 10% schwarze Überlagerung */
+  pointer-events: none;
+  z-index: -1;
+}
+
+body.theme-light .content-header {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .content-header::before {
+  background: rgba(0, 0, 0, 0.05); /* Weniger Verdunkelung im Light Mode */
+}
+
+/* Panels - Gleiche Transparenz wie Sidebar */
+.service-panel,
+.settings-panel,
+.user-panel,
+.audit-log-panel,
+.panel-container > div[class$='-panel'] {
+  background: rgba(28, 28, 30, 0.88) !important; /* Gleich wie Sidebar */
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+/* Panel Overlay - Gleiche Verdunkelung wie Sidebar */
+.service-panel::before,
+.settings-panel::before,
+.user-panel::before,
+.audit-log-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1); /* 10% schwarze Überlagerung */
+  pointer-events: none;
+  z-index: 0; /* Über dem Hintergrund aber unter dem Content */
+}
+
+body.theme-light .service-panel,
+body.theme-light .settings-panel,
+body.theme-light .user-panel,
+body.theme-light .audit-log-panel,
+body.theme-light .panel-container > div[class$='-panel'] {
+  background: rgba(255, 255, 255, 0.88) !important; /* Gleich wie Sidebar */
+  border-left-color: rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .service-panel::before,
+body.theme-light .settings-panel::before,
+body.theme-light .user-panel::before,
+body.theme-light .audit-log-panel::before,
+body.theme-light .panel-container > div[class$='-panel']::before {
+  background: rgba(0, 0, 0, 0.05); /* Weniger Verdunkelung im Light Mode */
+}
+
+/* Panel Container Z-Index */
+.panel-container {
+  position: relative;
+  z-index: 1300;
+}
+
+/* Panel Headers */
+.panel-header,
+.service-panel-header,
+.settings-panel-header,
+.user-panel-header,
+.audit-log-panel .panel-header {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.theme-light .panel-header,
+body.theme-light .service-panel-header,
+body.theme-light .settings-panel-header,
+body.theme-light .user-panel-header,
+body.theme-light .audit-log-panel .panel-header {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Panel Content Areas - Kein transparenter Hintergrund mehr */
+.panel-content,
+.panel-body,
+.service-panel-content,
+.settings-panel-content,
+.user-panel-content,
+.audit-log-panel .panel-content {
+  /* Erbt den Hintergrund vom Parent */
+}
+
+/* MUI Overrides für Panels - WICHTIG: Muss spezifisch sein */
+.panel-container .MuiBox-root {
+  background-color: transparent !important;
+}
+
+.panel-container .MuiPaper-root {
+  background-color: transparent !important;
+}
+
+/* Settings Panel Root Element - Forciere Glassmorphism */
+.settings-panel > .MuiBox-root,
+.service-panel > .MuiBox-root,
+.user-panel > .MuiBox-root,
+.audit-log-panel > .MuiBox-root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Stelle sicher, dass das ::before Element sichtbar ist */
+.service-panel,
+.settings-panel,
+.user-panel,
+.audit-log-panel {
+  overflow: visible !important;
+}
+
+/* Spezifische MUI Tab Panel Overrides */
+.panel-container .MuiTabs-root,
+.panel-container .MuiTab-root,
+.panel-container .MuiTabPanel-root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Tabs in Settings Panel */
+.settings-tabs,
+.MuiTabs-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Close Button */
+.panel-close-btn,
+.close-btn {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.panel-close-btn:hover,
+.close-btn:hover {
+  background: rgba(118, 118, 128, 0.24) !important;
+}
+
+/* Resize Handle */
+.panel-resize-handle {
+  background: transparent !important;
+}
+
+.panel-resize-handle:hover {
+  background: rgba(0, 122, 255, 0.5) !important;
+}
+
+/* ========================================================================
+   6. SERVICE CARDS & IHRE ICON-FARBEN
+   ======================================================================== */
+
+/* Service Card Icon Container */
+.appliance-card .icon-container {
+  /* Background-color wird via inline style gesetzt */
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.appliance-card .icon-container svg {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ========================================================================
+   7. FORM ELEMENTE & INTERAKTIVE KOMPONENTEN
+   ======================================================================== */
+
+/* Inputs, Selects, Textareas */
+input:not([type='color']),
+select,
+textarea {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.theme-light input:not([type='color']),
+body.theme-light select,
+body.theme-light textarea {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Buttons */
+button {
+  background: rgba(118, 118, 128, 0.24);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background: rgba(118, 118, 128, 0.36);
+}
+
+body.theme-light button {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light button:hover {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+/* Color Picker & Color Presets behalten ihre Farben */
+input[type='color'],
+.color-preset,
+.color-swatch {
+  /* Diese behalten ihre Original-Farben */
+}
+
+/* ========================================================================
+   8. STATS & BADGES
+   ======================================================================== */
+
+.stat-card {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stat-card.critical {
+  border-color: #ff3b30 !important;
+  background: rgba(255, 59, 48, 0.1) !important;
+}
+
+.stat-card.critical .stat-icon {
+  background: rgba(255, 59, 48, 0.2) !important;
+  color: #ff3b30 !important;
+}
+
+/* ========================================================================
+   9. MOBILE ANPASSUNGEN
+   ======================================================================== */
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Mobile Header - Gleiche Transparenz wie Desktop */
+  .mobile-header {
+    background: rgba(28, 28, 30, 0.88) !important;
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+  }
+
+  .mobile-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  body.theme-light .mobile-header {
+    background: rgba(255, 255, 255, 0.88) !important;
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+
+  body.theme-light .mobile-header::before {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  /* Mobile Search Header */
+  .mobile-search-header {
+    background: rgba(28, 28, 30, 0.88) !important;
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+  }
+
+  .mobile-search-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  body.theme-light .mobile-search-header {
+    background: rgba(255, 255, 255, 0.88) !important;
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+
+  body.theme-light .mobile-search-header::before {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* ========================================================================
+   10. UTILITY CLASSES
+   ======================================================================== */
+
+/* Verhindere transparente Hintergründe für Elemente mit Inline-Farben */
+[style*='backgroundColor'],
+[style*='background-color'],
+[style*='background: #'] {
+  /* Inline styles haben Priorität - nicht überschreiben */
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ========================================================================
+   11. ANIMATION & TRANSITIONS
+   ======================================================================== */
+
+/* Smooth transitions für Theme-Wechsel */
+* {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+/* Keine Transition für position, z-index, transform */
+.background-image,
+.background-overlay,
+.panel-container {
+  transition: none !important;
+}
+
+/* ========================================================================
+   12. PRINT STYLES
+   ======================================================================== */
+
+@media print {
+  .background-image,
+  .background-overlay {
+    display: none !important;
+  }
+}
+
+/* ========================================================================
+   Ende der konsolidierten Styles
+   ======================================================================== */

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Docker Management - Web Appliance Dashboard</title>
+    <link rel="stylesheet" href="src/styles.css">
+    <link rel="stylesheet" href="src/docker-management/docker-styles.css">
+</head>
+<body class="docker-management">
+    <!-- Setup Overlay -->
+    <div id="setupOverlay" class="setup-overlay">
+        <div class="setup-dialog">
+            <div class="setup-icon">🚀</div>
+            <h2>Willkommen!</h2>
+            <p class="setup-message">
+                Die Web Appliance Dashboard App richtet sich beim ersten Start automatisch ein. 
+                Dies dauert nur einen Moment...
+            </p>
+            <div class="setup-spinner-container">
+                <div class="setup-spinner"></div>
+            </div>
+            <div id="setupStatus" class="setup-status">
+                <p>🔍 Suche Projekt-Verzeichnis...</p>
+            </div>
+            <div class="setup-footer">
+                <p>
+                    Die App erstellt ein Arbeitsverzeichnis unter<br>
+                    <code>~/Library/Application Support/</code>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="docker-container">
+        <!-- Modern Docker Header -->
+        <div class="docker-header">
+            <h1>
+                <svg class="docker-icon" viewBox="0 0 24 24">
+                    <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                </svg>
+                Docker Management
+            </h1>
+            <div class="subtitle">Web Appliance Dashboard Container-Verwaltung</div>
+        </div>
+        
+        <div class="docker-content">
+            <!-- Container Control -->
+            <div class="docker-section">
+                <h2>
+                    <svg class="docker-icon" width="20" height="20" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    Container-Steuerung
+                </h2>
+                <div class="controls" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <button id="startBtn" class="docker-btn btn-success">
+                        <svg viewBox="0 0 16 16">
+                            <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
+                            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm0-1A7 7 0 1 1 8 1a7 7 0 0 1 0 14z"/>
+                        </svg>
+                        Starten
+                    </button>
+                    <button id="stopBtn" class="docker-btn btn-danger">
+                        <svg viewBox="0 0 16 16">
+                            <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/>
+                        </svg>
+                        Stoppen
+                    </button>
+                    <button id="restartBtn" class="docker-btn btn-warning">
+                        <svg viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                        </svg>
+                        Neustarten
+                    </button>
+                </div>
+                
+                <!-- Status -->
+                <div id="statusIndicator" class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Prüfe Status...</span>
+                </div>
+            </div>
+
+            <!-- Container List -->
+            <div class="docker-section">
+                <h2>
+                    <svg class="docker-icon" width="20" height="20" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                    Container Status
+                </h2>
+                <div id="containerList" class="container-list">
+                    <div class="loading">Container werden geladen...</div>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="container-logs">
+                <h2>Container Logs</h2>
+                <div class="log-controls">
+                    <select id="logService">
+                        <option value="">Alle Container</option>
+                        <option value="database">Database</option>
+                        <option value="backend">Backend</option>
+                        <option value="webserver">Webserver</option>
+                        <option value="ttyd">Terminal</option>
+                    </select>
+                    <button id="refreshLogsBtn" class="docker-btn">
+                        <svg viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                        </svg>
+                        Logs aktualisieren
+                    </button>
+                </div>
+                <div id="logsOutput" class="logs-output">
+                    <div class="loading">Logs werden geladen...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/renderer.js"></script>
+</body>
+</html>

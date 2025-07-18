@@ -1,0 +1,178 @@
+/* CRITICAL FIX: Ensure background image is visible while preserving colors */
+
+/* Force background image to be at the correct z-index layer */
+.background-image,
+.has-background-image .background-image {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+}
+
+.background-overlay,
+.has-background-image .background-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Main containers should be transparent but NOT their colored children */
+.has-background-image #root,
+.has-background-image .music-app,
+.has-background-image .main-content,
+.has-background-image .content-body {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+/* Sidebar background only - NOT icons or colors */
+.has-background-image .sidebar {
+  background: rgba(118, 118, 128, 0.12) !important;
+  z-index: 10;
+}
+
+/* Panel backgrounds only - NOT content */
+.has-background-image .panel-container {
+  z-index: 1300;
+}
+
+.has-background-image .service-panel,
+.has-background-image .settings-panel,
+.has-background-image .user-panel,
+.has-background-image .audit-log-panel {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* PRESERVE COLORS - Do NOT make these transparent */
+.has-background-image .nav-icon-container,
+.has-background-image .icon-container,
+.has-background-image .appliance-card .icon-container,
+.has-background-image [data-category] .nav-icon-container,
+.has-background-image .stat-icon {
+  /* Keep original background colors */
+  background-color: var(--icon-bg-color) !important;
+}
+
+/* Preserve service card colors */
+.has-background-image .appliance-card {
+  /* Keep the color property for icons */
+  color: inherit !important;
+}
+
+/* Preserve inline style colors for icons */
+.has-background-image [style*='background-color: #'],
+.has-background-image [style*='backgroundColor: #'] {
+  /* Do not override if it's a color (not rgb) */
+}
+
+/* Only make structural backgrounds transparent */
+.has-background-image .panel-header,
+.has-background-image .panel-content,
+.has-background-image .panel-body,
+.has-background-image .audit-stats,
+.has-background-image .audit-filters,
+.has-background-image .audit-logs-table {
+  background: transparent !important;
+}
+
+/* Form elements with semi-transparent background */
+.has-background-image input:not([type='color']),
+.has-background-image select,
+.has-background-image textarea,
+.has-background-image .stat-card {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* Buttons (not color swatches) */
+.has-background-image
+  button:not(.color-preset):not([style*='background-color: #']) {
+  background: rgba(118, 118, 128, 0.12) !important;
+}
+
+/* Tables should be transparent */
+.has-background-image table,
+.has-background-image tbody,
+.has-background-image thead,
+.has-background-image tr,
+.has-background-image td {
+  background: transparent !important;
+}
+
+/* Table headers can have subtle background */
+.has-background-image th {
+  background: rgba(118, 118, 128, 0.08) !important;
+}
+
+/* Ensure body has no background */
+body.has-background-image {
+  background: transparent !important;
+}
+
+/* DO NOT OVERRIDE THESE COLORS */
+.has-background-image .nav-icon-container[style*='background'],
+.has-background-image .icon-container[style*='background-color'],
+.has-background-image .appliance-card .icon-container[style],
+.has-background-image .color-preset,
+.has-background-image .color-swatch {
+  /* Preserve inline style colors */
+}
+
+/* Fix for MUI components - only containers, not colored elements */
+.has-background-image .MuiBox-root:not([style*='background-color: #']),
+.has-background-image .MuiPaper-root:not([style*='background-color: #']) {
+  background: transparent !important;
+}
+
+/* Light mode adjustments - structural only */
+body.theme-light.has-background-image .sidebar,
+body.theme-light.has-background-image .panel-container > *,
+body.theme-light.has-background-image input:not([type='color']),
+body.theme-light.has-background-image select,
+body.theme-light.has-background-image textarea,
+body.theme-light.has-background-image
+  button:not(.color-preset):not([style*='background-color: #']) {
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+/* Specific elements that should keep their colors */
+.has-background-image .stat-card.critical {
+  border-color: #ff3b30 !important;
+  background: rgba(255, 59, 48, 0.1) !important;
+}
+
+/* Category icons must keep their colors */
+.has-background-image [data-category='all'] .nav-icon-container {
+  background-color: #8e8e93 !important;
+}
+
+.has-background-image [data-category='recent'] .nav-icon-container {
+  background-color: #ff9500 !important;
+}
+
+.has-background-image [data-category='favorites'] .nav-icon-container {
+  background-color: #ff3b30 !important;
+}
+
+/* Remove the overly aggressive transparency rule */
+/* DELETE THIS RULE - it was making everything transparent */
+/* @supports (backdrop-filter: blur(1px)) {
+  .has-background-image * {
+    background-color: transparent !important;
+  }
+} */

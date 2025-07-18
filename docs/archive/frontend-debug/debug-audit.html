@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Audit Logs</title>
+</head>
+<body>
+    <h1>Debug Audit Logs</h1>
+    <div id="result"></div>
+    
+    <script>
+    // Test direct API call
+    async function testAuditLogs() {
+        const resultDiv = document.getElementById('result');
+        
+        try {
+            // Get token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) {
+                resultDiv.innerHTML = '<p style="color: red;">No token found in localStorage</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML += '<p>Token found: ' + token.substring(0, 20) + '...</p>';
+            
+            // Fetch audit logs
+            const response = await fetch('/api/audit-logs', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            resultDiv.innerHTML += '<p>Response status: ' + response.status + '</p>';
+            
+            if (!response.ok) {
+                const error = await response.text();
+                resultDiv.innerHTML += '<p style="color: red;">Error: ' + error + '</p>';
+                return;
+            }
+            
+            const data = await response.json();
+            resultDiv.innerHTML += '<p style="color: green;">Success! Found ' + data.length + ' audit logs</p>';
+            resultDiv.innerHTML += '<pre>' + JSON.stringify(data.slice(0, 3), null, 2) + '</pre>';
+            
+        } catch (error) {
+            resultDiv.innerHTML += '<p style="color: red;">Exception: ' + error.message + '</p>';
+        }
+    }
+    
+    // Run test on page load
+    testAuditLogs();
+    </script>
+</body>
+</html>

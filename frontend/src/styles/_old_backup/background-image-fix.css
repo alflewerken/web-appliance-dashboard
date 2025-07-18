@@ -1,0 +1,150 @@
+/* Background Image Fix - Ensure visibility with panels */
+
+/* Critical: Ensure background is always behind everything but still visible */
+.background-image {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 0 !important; /* Changed from -2 to 0 */
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  pointer-events: none !important;
+}
+
+.background-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 1 !important; /* Changed from -1 to 1 */
+  pointer-events: none !important;
+}
+
+/* Ensure main app container is above background but allows transparency */
+.music-app {
+  position: relative !important;
+  z-index: 2 !important; /* Above background */
+  background: transparent !important;
+}
+
+/* Sidebar must be above background */
+.sidebar {
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Main content area */
+.main-content {
+  position: relative !important;
+  z-index: 5 !important;
+  background: transparent !important;
+}
+
+/* Panels must be above everything else */
+.panel-container {
+  z-index: 1300 !important; /* Already set high in panel-layout.css */
+}
+
+/* Specific panel z-index to ensure proper layering */
+.service-panel,
+.settings-panel,
+.user-panel,
+.audit-log-panel {
+  position: relative !important;
+  z-index: 100 !important;
+}
+
+/* Fix for when panels are open - ensure background stays visible */
+.music-app.has-service-panel,
+.music-app.has-user-panel,
+.music-app.has-settings-panel,
+.music-app.has-audit-log-panel {
+  background: transparent !important;
+}
+
+/* Ensure content body stays transparent */
+.has-background-image .content-body {
+  background: transparent !important;
+}
+
+/* Fix backdrop filter issues that might hide background */
+.has-background-image .panel-container > div[class$='-panel'] {
+  /* Keep glassmorphism but ensure transparency */
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Prevent any solid backgrounds when background image is active */
+/* COMMENTED OUT - This was making all colors disappear
+.has-background-image * {
+  background-color: transparent !important;
+}
+*/
+
+/* Allow specific semi-transparent backgrounds */
+.has-background-image .sidebar,
+.has-background-image .content-header,
+.has-background-image .panel-container > div[class$='-panel'],
+.has-background-image .stat-card,
+.has-background-image .nav-item:hover,
+.has-background-image button:hover,
+.has-background-image input,
+.has-background-image select,
+.has-background-image textarea {
+  background: rgba(118, 118, 128, 0.12) !important;
+}
+
+/* Light mode adjustments */
+body.theme-light.has-background-image .sidebar,
+body.theme-light.has-background-image .content-header,
+body.theme-light.has-background-image .panel-container > div[class$='-panel'],
+body.theme-light.has-background-image .stat-card,
+body.theme-light.has-background-image .nav-item:hover,
+body.theme-light.has-background-image button:hover,
+body.theme-light.has-background-image input,
+body.theme-light.has-background-image select,
+body.theme-light.has-background-image textarea {
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+/* Ensure root element doesn't block background */
+#root {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+}
+
+/* Body must not have any background when image is active */
+body.has-background-image {
+  background: transparent !important;
+}
+
+/* Fix for MUI components that might have inline styles */
+.has-background-image .MuiBox-root[style*='background'],
+.has-background-image .MuiPaper-root[style*='background'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+}
+
+/* Ensure panels don't create opaque backgrounds */
+.has-background-image .panel-header,
+.has-background-image .panel-content,
+.has-background-image .panel-body {
+  background: transparent !important;
+}
+
+/* Mobile specific fixes */
+@media (max-width: 768px) {
+  .has-background-image .mobile-header {
+    background: rgba(0, 0, 0, 0.3) !important;
+  }
+
+  body.theme-light.has-background-image .mobile-header {
+    background: rgba(255, 255, 255, 0.3) !important;
+  }
+}
