@@ -93,23 +93,29 @@ cd web-appliance-dashboard
 
 > **Hinweis**: Dieses Repository ist privat. Sie benötigen Zugriffsrechte und müssen sich authentifizieren.
 
-### 2. Installation mit Remote Desktop Support
+## 🚀 Installation
+
+### Option 1: Schnellstart mit allem (Empfohlen)
 ```bash
-# Automatisches Setup mit Guacamole
+# Automatisches Setup mit allen Features
 ./start-with-guacamole.sh
 ```
+Dieser Befehl:
+- Konfiguriert alle Umgebungsvariablen automatisch
+- Installiert alle Services inklusive Remote Desktop
+- Startet das komplette System
 
-### 3. Oder Standard Installation
+### Option 2: Manuelle Installation
 
-### 2. Umgebungsvariablen konfigurieren
+#### 1. Umgebungsvariablen konfigurieren
 
-#### Automatisches Setup (empfohlen)
+##### Automatisches Setup (empfohlen)
 ```bash
 # Führt Sie durch die Konfiguration und generiert sichere Secrets
 ./setup-env.sh
 ```
 
-#### Manuelles Setup
+##### Manuelles Setup
 ```bash
 # Environment-Datei erstellen
 cp .env.example .env
@@ -125,54 +131,95 @@ cp frontend/.env.example frontend/.env
 
 Siehe [Docker Environment Setup Guide](docs/docker-env-setup.md) für Details.
 
-### 3. Docker Container starten
+#### 2. Docker Container starten
+
+##### Build-Optionen:
 ```bash
-# Automatische Installation mit Remote Desktop (Standard)
+# Standard Installation (mit Remote Desktop)
 ./scripts/build.sh
 
-# Oder ohne Remote Desktop
+# Installation ohne Remote Desktop (kleinerer Footprint)
 ./scripts/build.sh --no-remote-desktop
+
+# Neuaufbau mit Cache-Löschung (bei Problemen)
+./scripts/build.sh --nocache
+
+# Schneller Neustart (für Entwicklung)
+./scripts/build.sh --refresh
 ```
 
-### 4. Dashboard aufrufen
-- Web Interface: http://localhost:9080
-- API: http://localhost:3001
-- Web Terminal: http://localhost:7681/terminal
-- Guacamole (Remote Desktop): http://localhost:8080/guacamole
+### Nach der Installation
 
-### 5. Standard Login
+#### Dashboard aufrufen
+- **Web Interface**: http://localhost:9080
+- **API**: http://localhost:3001
+- **Web Terminal**: http://localhost:7681/terminal
+- **Guacamole** (Remote Desktop): http://localhost:8080/guacamole
+
+#### Standard Login
 - **Benutzer**: admin
 - **Passwort**: admin123 (bitte sofort ändern!)
 
 ![Service anlegen](docs/user-manual/images/Service%20anlegen.png)
 *Neuen Service hinzufügen - einfach und intuitiv*
 
-### Nützliche Kommandos:
+## 🛠️ Management & Wartung
+
+### Build-Kommandos
 ```bash
 # Standard Installation (mit Remote Desktop)
 ./scripts/build.sh
 
-# Installation ohne Remote Desktop
+# Installation ohne Remote Desktop (kleinerer Footprint)
 ./scripts/build.sh --no-remote-desktop
 
-# Update bestehende Installation mit Remote Desktop
-./scripts/update-remote-desktop.sh
+# Neuaufbau mit Cache-Löschung (bei Docker-Problemen)
+./scripts/build.sh --nocache
 
-# Kompletter Neuaufbau (löscht alle Daten!)
-./scripts/clean-build.sh
+# Schneller Neustart für Code-Änderungen (Entwicklung)
+./scripts/build.sh --refresh
 
-# Bestehende Installation manuell starten
+# macOS App mitbauen
+./scripts/build.sh --macos-app
+```
+
+### Container-Management
+```bash
+# Container starten
 docker compose up -d
 
-# Bestehende Installation stoppen
+# Container stoppen
 docker compose down
 
-# Nur Remote Desktop Services starten/stoppen
-docker compose up -d guacamole-postgres guacd guacamole
-docker compose stop guacamole-postgres guacd guacamole
+# Container-Status prüfen
+./status.sh
 
-# Container komplett löschen und neu bauen
+# Logs anzeigen
+docker compose logs -f
+
+# Nur Backend-Logs
+docker compose logs -f backend
+```
+
+### Wartung & Updates
+```bash
+# Update auf Remote Desktop nachträglich
+./scripts/update-remote-desktop.sh
+
+# Kompletter Neuaufbau (LÖSCHT ALLE DATEN!)
+./scripts/clean-build.sh
+
+# Container löschen und neu bauen
 ./scripts/clean.sh && ./scripts/build.sh
+```
+
+### Remote Desktop Services
+```bash
+# Nur Remote Desktop starten
+docker compose up -d guacamole-postgres guacd guacamole
+
+# Nur Remote Desktop stoppen
+docker compose stop guacamole-postgres guacd guacamole
 ```
 
 ## 🏗️ Architektur
