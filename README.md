@@ -77,10 +77,21 @@ Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwach
 ## 🚀 Quick Start
 
 ### 1. Repository klonen
+
+#### Mit SSH (Empfohlen):
 ```bash
-git clone https://github.com/alflewerken/web-appliance-dashboard.git
+git clone git@github.com:alflewerken/web-appliance-dashboard.git
 cd web-appliance-dashboard
 ```
+
+#### Mit Personal Access Token:
+```bash
+# Ersetzen Sie YOUR_TOKEN mit Ihrem GitHub Personal Access Token
+git clone https://YOUR_TOKEN@github.com/alflewerken/web-appliance-dashboard.git
+cd web-appliance-dashboard
+```
+
+> **Hinweis**: Dieses Repository ist privat. Sie benötigen Zugriffsrechte und müssen sich authentifizieren.
 
 ### 2. Installation mit Remote Desktop Support
 ```bash
