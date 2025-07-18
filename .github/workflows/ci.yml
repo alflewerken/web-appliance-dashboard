@@ -59,7 +59,7 @@ jobs:
         npm test -- --forceExit
     
     - name: Upload Backend Coverage
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: backend-coverage
@@ -90,7 +90,7 @@ jobs:
         npm test -- --coverage --watchAll=false --passWithNoTests
     
     - name: Upload Frontend Coverage
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: frontend-coverage
