@@ -278,7 +278,7 @@ fi
 # Build backend dependencies
 print_status "info" "Building backend..."
 cd backend
-if npm install; then
+if npm install --legacy-peer-deps; then
     print_status "success" "Backend dependencies installed"
 else
     print_status "error" "Backend npm install failed"
