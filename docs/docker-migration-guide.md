@@ -29,7 +29,7 @@ docker compose down
 #### 3. Environment Setup
 ```bash
 # Automatisch (empfohlen)
-./setup-env.sh
+./scripts/setup-env.sh
 
 # Oder manuell
 cp .env.example .env

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Set specific loggers to DEBUG -->
+    <logger name="org.apache.guacamole" level="DEBUG"/>
+    <logger name="org.apache.guacamole.extension" level="TRACE"/>
+    <logger name="org.apache.guacamole.extension.ExtensionModule" level="TRACE"/>
+    <logger name="com.dashboard.guacamole" level="DEBUG"/>
+    
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

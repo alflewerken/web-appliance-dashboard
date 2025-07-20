@@ -1544,22 +1544,23 @@ const ServicePanel = ({
                   }}
                 />
 
-                {formData.remoteProtocol === 'rdp' && (
-                  <TextField
-                    fullWidth
-                    label="Benutzername"
-                    value={formData.remoteUsername || ''}
-                    onChange={e => handleFieldChange('remoteUsername', e.target.value)}
-                    margin="normal"
-                    sx={{
-                      '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                      '& .MuiInputBase-root': {
-                        color: 'var(--text-primary)',
-                        backgroundColor: 'var(--container-bg)',
-                      },
-                    }}
-                  />
-                )}
+                <TextField
+                  fullWidth
+                  label="Benutzername"
+                  value={formData.remoteUsername || ''}
+                  onChange={e => handleFieldChange('remoteUsername', e.target.value)}
+                  margin="normal"
+                  placeholder={formData.remoteProtocol === 'rdp' ? 'Administrator' : 'alflewerken'}
+                  helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC (z.B. für macOS)' : 'Erforderlich für RDP'}
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                  }}
+                />
 
                 <TextField
                   fullWidth

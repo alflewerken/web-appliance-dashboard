@@ -47,6 +47,15 @@ services:
       # SSH Configuration
       SSH_TOOLS_ENABLED: ${SSH_TOOLS_ENABLED:-true}
       SSH_AUTO_INIT: ${SSH_AUTO_INIT:-true}
+      # Guacamole Integration
+      GUACAMOLE_URL: ${GUACAMOLE_URL}
+      GUACAMOLE_PROXY_URL: ${GUACAMOLE_PROXY_URL}
+      GUACAMOLE_DB_HOST: ${GUACAMOLE_DB_HOST:-appliance_guacamole_db}
+      GUACAMOLE_DB_NAME: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      GUACAMOLE_DB_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      GUACAMOLE_DB_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+      # External URL for remote access
+      EXTERNAL_URL: ${EXTERNAL_URL}
       # Features
       FEATURE_AUDIT_LOG: ${FEATURE_AUDIT_LOG:-true}
       FEATURE_BACKUP_RESTORE: ${FEATURE_BACKUP_RESTORE:-true}
@@ -175,7 +184,7 @@ services:
 
   # Guacamole Web Application
   guacamole:
-    image: guacamole/guacamole:1.5.5
+    build: ./guacamole
     container_name: ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole}
     restart: always
     depends_on:
@@ -191,23 +200,53 @@ services:
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
       # Integration settings
       HEADER_ENABLED: 'true'
+      HTTP_AUTH_HEADER: 'REMOTE_USER'
       # CORS für iFrame
       EXTENSION_PRIORITY: '*'
       # Optional: Custom settings
       GUACAMOLE_HOME: /etc/guacamole
+      # JWT Settings für Extension
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - guacamole_home:/etc/guacamole
     ports:
       - "${GUACAMOLE_PORT:-9070}:8080"
     networks:
-      - ${NETWORK_NAME:-appliance_network}
-    volumes:
-      - ./guacamole/extensions:/opt/guacamole/extensions:ro
-      - guacamole_home:/etc/guacamole
+      appliance_network:
+        aliases:
+          - guacamole-app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/guacamole/"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 60s
+
+  # Nginx JWT Authentication Proxy for Guacamole
+  guacamole-proxy:
+    build: ./nginx
+    container_name: ${GUACAMOLE_PROXY_CONTAINER_NAME:-appliance_guacamole_proxy}
+    restart: always
+    depends_on:
+      guacamole:
+        condition: service_healthy
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      GUACAMOLE_URL: http://guacamole:8080
+    ports:
+      - "${GUACAMOLE_PROXY_PORT:-8070}:8070"
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8070/health"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
 
 # ====================================================================
 # VOLUMES

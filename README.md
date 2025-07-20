@@ -102,7 +102,7 @@ cd web-appliance-dashboard
 #### 1. Umgebungsvariablen einrichten
 ```bash
 # Automatische Konfiguration
-./setup-env.sh
+./scripts/setup-env.sh
 ```
 
 #### 2. Installation starten
@@ -124,7 +124,7 @@ Dieser Befehl:
 ##### Automatisches Setup (empfohlen)
 ```bash
 # Führt Sie durch die Konfiguration und generiert sichere Secrets
-./setup-env.sh
+./scripts/setup-env.sh
 ```
 
 ##### Manuelles Setup

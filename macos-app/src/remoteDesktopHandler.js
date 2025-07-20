@@ -67,8 +67,8 @@ class RemoteDesktopHandler {
    * Baut die Guacamole URL mit Token
    */
   buildGuacamoleUrl(baseUrl, connectionId, token) {
-    // Wenn baseUrl auf Port 9070 zeigt, ändere es auf 9871 für die Mac App
-    const macAppUrl = baseUrl.replace(':9070', ':9871');
+    // Wenn baseUrl auf Port 9070 zeigt, ändere es auf 9782 für die Mac App
+    const macAppUrl = baseUrl.replace(':9070', ':9782');
     return `${macAppUrl}/#/client/${connectionId}?token=${encodeURIComponent(token)}`;
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import SwipeableViews from 'react-swipeable-views';
+import { SwipeableTabContainer, SwipeableTabPanel } from './SwipeableTabPanel';
 import './UserManagement.light.css';
 import {
   Box,
@@ -512,10 +512,10 @@ const UserManagement = ({ onClose }) => {
           <Tab label="Statistiken" />
         </Tabs>
 
-        <SwipeableViews
-          index={tabValue}
-          onChangeIndex={setTabValue}
-          style={{ height: 'calc(100% - 48px)' }}
+        <SwipeableTabContainer
+          currentTab={tabValue}
+          onTabChange={setTabValue}
+          tabCount={3}
         >
           {/* Users Tab */}
           <Box sx={{ p: 3 }}>
@@ -675,7 +675,7 @@ const UserManagement = ({ onClose }) => {
             </Typography>
           </Box>
         </Box>
-      </SwipeableViews>
+      </SwipeableTabContainer>
     </Paper>
 
       <Dialog

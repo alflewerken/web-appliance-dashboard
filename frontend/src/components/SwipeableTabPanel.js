@@ -3,13 +3,10 @@ import { Box } from '@mui/material';
 import { useSwipeableViews } from '../hooks/useSwipeableViews';
 import '../styles/SwipeableTabs.css';
 
-export const SwipeableTabPanel = ({ children, value, index, ...other }) => {
+export const SwipeableTabPanel = ({ children, ...other }) => {
   return (
     <Box
       role="tabpanel"
-      hidden={value !== index}
-      id={`swipeable-tabpanel-${index}`}
-      aria-labelledby={`swipeable-tab-${index}`}
       sx={{
         height: '100%',
         overflow: 'auto',
@@ -17,7 +14,7 @@ export const SwipeableTabPanel = ({ children, value, index, ...other }) => {
       }}
       {...other}
     >
-      {value === index && children}
+      {children}
     </Box>
   );
 };
@@ -51,7 +48,7 @@ export const SwipeableTabContainer = ({ children, currentTab, onTabChange, tabCo
       >
         {React.Children.map(children, (child, index) => (
           <Box sx={{ width: `${100 / tabCount}%`, height: '100%', overflow: 'auto' }}>
-            {React.cloneElement(child, { value: currentTab, index })}
+            {child}
           </Box>
         ))}
       </Box>

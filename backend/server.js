@@ -23,6 +23,7 @@ const categoriesRouter = require('./routes/categories');
 const settingsRouter = require('./routes/settings');
 const backgroundRouter = require('./routes/background');
 const backupRouter = require('./routes/backup');
+const backupEnhancedRouter = require('./routes/backup-enhanced');
 const servicesRouter = require('./routes/services');
 const sshRouter = require('./routes/ssh');
 const sshDiagnosticRouter = require('./routes/ssh-diagnostic');
@@ -110,6 +111,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Auth routes (no authentication required)
 app.use('/api/auth', authRouter);
 
+// Guacamole auth validation (special case for nginx auth_request)
+const authGuacamoleRouter = require('./routes/auth-guacamole');
+app.use('/api/auth', authGuacamoleRouter);
+
 // All other routes require authentication
 app.use('/api/appliances', verifyToken, appliancesRouter);
 app.use('/api/categories', verifyToken, categoriesRouter);
@@ -133,6 +138,7 @@ app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware becau
 
 // Mount backup routes (both backup and restore) - also require auth
 app.use('/api', verifyToken, backupRouter);
+app.use('/api', verifyToken, backupEnhancedRouter);
 
 // ====================================================================
 // ERROR HANDLING MIDDLEWARE

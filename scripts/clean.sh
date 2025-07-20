@@ -26,7 +26,6 @@ print_status() {
 # Parse command line arguments
 CLEAN_DOCKER=true
 CLEAN_VOLUMES=false
-RESET_DB=false
 CLEAN_APP_DATA=false
 FORCE_CLEAN=false
 
@@ -40,14 +39,8 @@ for arg in "$@"; do
             CLEAN_VOLUMES=true
             print_status "warning" "Will also remove Docker volumes (DATA LOSS WARNING)"
             ;;
-        --reset-db)
-            CLEAN_VOLUMES=true
-            RESET_DB=true
-            print_status "warning" "Will reset database with fresh credentials"
-            ;;
         --all)
             CLEAN_VOLUMES=true
-            RESET_DB=true
             CLEAN_APP_DATA=true
             print_status "warning" "Will remove EVERYTHING including macOS app data"
             ;;
@@ -60,8 +53,7 @@ for arg in "$@"; do
             echo "Options:"
             echo "  --keep-docker  Keep Docker containers and images"
             echo "  --volumes      Also remove Docker volumes (WARNING: Data loss!)"
-            echo "  --reset-db     Reset database with fresh credentials (implies --volumes)"
-            echo "  --all          Remove everything including macOS app data (COMPLETE RESET!)"
+            echo "  --all          Remove everything including macOS app data and .env files (COMPLETE RESET!)"
             echo "  --force        Skip confirmation prompts"
             echo "  --help         Show this help message"
             exit 0
@@ -199,6 +191,14 @@ rm -f **/.DS_Store
 rm -rf coverage
 rm -rf .nyc_output
 
+# Clean environment files if --all is specified
+if [ "$CLEAN_APP_DATA" = true ]; then
+    print_status "info" "Removing all .env files (--all specified)..."
+    rm -f frontend/.env
+    rm -f backend/.env
+    print_status "success" "All .env files removed"
+fi
+
 # 7. Git cleanup (optional - be careful!)
 print_status "info" "Cleaning Git ignored files..."
 # Remove files that should be ignored by git
@@ -226,67 +226,7 @@ find . -type f -name "*.tmp" -delete 2>/dev/null || true
 find . -type f -name "*.swp" -delete 2>/dev/null || true
 find . -type f -name "*.swo" -delete 2>/dev/null || true
 
-# 10. Database reset if requested
-if [ "$RESET_DB" = true ]; then
-    print_status "info" "Resetting database with fresh credentials..."
-    
-    # Check if .env files are in sync
-    if [ -f .env ] && [ -f backend/.env ]; then
-        MAIN_DB_PASS=$(grep "DB_PASSWORD=" .env | cut -d= -f2-)
-        BACKEND_DB_PASS=$(grep "DB_PASSWORD=" backend/.env | cut -d= -f2-)
-        
-        if [ "$MAIN_DB_PASS" != "$BACKEND_DB_PASS" ]; then
-            print_status "warning" "Database passwords are not synchronized!"
-            print_status "info" "Running setup-env.sh to sync configurations..."
-            
-            # Force setup-env.sh to overwrite existing .env
-            mv .env .env.backup.$(date +%Y%m%d_%H%M%S)
-            ./setup-env.sh
-        else
-            print_status "success" "Database passwords are synchronized"
-        fi
-    else
-        print_status "error" ".env files missing!"
-        print_status "info" "Running setup-env.sh..."
-        ./setup-env.sh
-    fi
-    
-    print_status "info" "Starting fresh database..."
-    docker compose up -d database
-    
-    # Wait for database to be healthy
-    print_status "info" "Waiting for database initialization..."
-    max_attempts=30
-    attempt=0
-    while [ $attempt -lt $max_attempts ]; do
-        if docker compose ps database | grep -q "healthy"; then
-            print_status "success" "Database is healthy"
-            break
-        fi
-        sleep 2
-        ((attempt++))
-    done
-    
-    if [ $attempt -eq $max_attempts ]; then
-        print_status "error" "Database failed to become healthy"
-    fi
-    
-    # Rebuild and start backend
-    print_status "info" "Rebuilding backend with fresh configuration..."
-    docker compose build backend --no-cache
-    docker compose up -d backend
-    
-    sleep 5
-    
-    # Check backend status
-    if curl -f -s http://localhost:3001/api/health >/dev/null 2>&1; then
-        print_status "success" "Backend is responding correctly"
-    else
-        print_status "warning" "Backend health check failed - check logs with: docker compose logs backend"
-    fi
-fi
-
-# 11. macOS Application Support cleanup
+# 10. macOS Application Support cleanup
 if [ "$CLEAN_APP_DATA" = true ]; then
     print_status "info" "Cleaning macOS Application Support data..."
     
@@ -366,14 +306,11 @@ if [ "$CLEAN_DOCKER" = true ]; then
         echo "   • All Docker volumes (DATA REMOVED)"
     fi
 fi
-if [ "$RESET_DB" = true ]; then
-    echo "   • Database reset with fresh credentials"
-    echo "   • Backend rebuilt and started"
-fi
 if [ "$CLEAN_APP_DATA" = true ]; then
     echo "   • macOS Application Support data"
     echo "   • macOS app caches and preferences"
     echo "   • macOS app logs"
+    echo "   • All .env files (main, frontend, backend)"
 fi
 echo ""
 print_status "info" "Remaining:"
@@ -383,9 +320,10 @@ echo "   • Documentation"
 echo "   • Scripts"
 echo ""
 print_status "info" "Next steps:"
-if [ "$RESET_DB" = true ]; then
-    echo "   1. Run: docker compose up -d (to start remaining services)"
-    echo "   2. Access dashboard: http://localhost:9080"
+if [ "$CLEAN_APP_DATA" = true ]; then
+    echo "   1. Run: ./scripts/setup-env.sh (to create new .env files)"
+    echo "   2. Run: ./scripts/build.sh"
+    echo "   3. Or for macOS: ./scripts/build-macos-app.sh"
 else
     echo "   1. Run: cp .env.example .env (and configure)"
     echo "   2. Run: ./scripts/build.sh"

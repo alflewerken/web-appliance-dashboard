@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import SwipeableViews from 'react-swipeable-views';
+import { SwipeableTabContainer, SwipeableTabPanel } from './SwipeableTabPanel';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
 import {
   Box,
@@ -72,41 +72,6 @@ import TouchDraggableWrapper from './TouchDraggableWrapper';
 import './SettingsModal.css';
 import './unified/SettingsPanelPatch.css';
 
-// Tab Panel component
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
-  return (
-    <Box
-      role="tabpanel"
-      hidden={value !== index}
-      id={`settings-tabpanel-${index}`}
-      aria-labelledby={`settings-tab-${index}`}
-      sx={{
-        height: '100%',
-        overflow: 'auto',
-        display: value === index ? 'block' : 'none',
-        '&::-webkit-scrollbar': {
-          width: '8px',
-        },
-        '&::-webkit-scrollbar-track': {
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '4px',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          background: 'rgba(255, 255, 255, 0.3)',
-          borderRadius: '4px',
-          '&:hover': {
-            background: 'rgba(255, 255, 255, 0.4)',
-          },
-        },
-      }}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </Box>
-  );
-}
-
 const SettingsPanel = ({
   onClose,
   onCategoriesUpdate,
@@ -130,24 +95,15 @@ const SettingsPanel = ({
   isAdmin,
   onWidthChange,
 }) => {
-  // Build tabs dynamically based on admin status
+  // All tabs - some are admin only
   const tabs = [
-    { icon: Home, label: 'Allgemein', key: 'general' },
-    { icon: Image, label: 'UI-Config', key: 'background' },
+    { icon: Home, label: 'Allgemein', key: 'general', adminOnly: false },
+    { icon: Image, label: 'UI-Config', key: 'background', adminOnly: false },
+    { icon: FolderOpen, label: 'Kategorien', key: 'categories', adminOnly: true },
+    { icon: Monitor, label: 'SSH', key: 'ssh', adminOnly: true },
+    { icon: Archive, label: 'Backup', key: 'backup', adminOnly: true },
+    { icon: RefreshCw, label: 'System', key: 'system', adminOnly: true },
   ];
-
-  if (isAdmin) {
-    tabs.push(
-      {
-        icon: FolderOpen,
-        label: 'Kategorien',
-        key: 'categories',
-      },
-      { icon: Monitor, label: 'SSH', key: 'ssh' },
-      { icon: Archive, label: 'Backup', key: 'backup' },
-      { icon: RefreshCw, label: 'System', key: 'system' }
-    );
-  }
 
   // Resize functionality
   const [panelWidth, setPanelWidth] = useState(() => {
@@ -202,8 +158,16 @@ const SettingsPanel = ({
 
   // Find initial tab index
   const getInitialTabIndex = () => {
+    // If the initial tab is admin-only and user is not admin, default to 0
     const index = tabs.findIndex(tab => tab.key === initialActiveTab);
-    return index !== -1 ? index : 0;
+    if (index !== -1) {
+      const tab = tabs[index];
+      if (tab.adminOnly && !isAdmin) {
+        return 0; // Default to first tab
+      }
+      return index;
+    }
+    return 0;
   };
 
   const [tabValue, setTabValue] = useState(getInitialTabIndex());
@@ -872,12 +836,20 @@ const SettingsPanel = ({
         >
           {tabs.map((tab, index) => {
             const IconComponent = tab.icon;
+            const isDisabled = tab.adminOnly && !isAdmin;
             return (
               <Tab
                 key={tab.key}
                 icon={<IconComponent size={20} />}
                 label={tab.label}
                 iconPosition="start"
+                disabled={isDisabled}
+                sx={{
+                  ...(!isDisabled ? {} : {
+                    opacity: 0.5,
+                    cursor: 'not-allowed',
+                  }),
+                }}
               />
             );
           })}
@@ -888,28 +860,18 @@ const SettingsPanel = ({
       <Box
         sx={{
           flexGrow: 1,
-          overflow: 'hidden',
+          overflow: 'auto',
           position: 'relative',
           backgroundColor: 'transparent',
           display: 'flex',
           flexDirection: 'column',
-          height: 'calc(100vh - 144px)', // Header + Tabs height
         }}
       >
-        {/* Tab Panels Container */}
-        <SwipeableViews
-          index={tabValue}
-          onChangeIndex={setTabValue}
-          containerStyle={{
-            height: '100%',
-            transition: 'transform 0.35s cubic-bezier(0.15, 0.3, 0.25, 1) 0s',
-          }}
-          style={{ height: '100%' }}
-          slideStyle={{ height: '100%' }}
-        >
+        {/* Direct Tab Content without SwipeableTabContainer */}
+        <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
           {/* General Settings Tab */}
-          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
-            {generalLoading ? (
+          {tabValue === 0 && (
+            generalLoading ? (
               <Box display="flex" justifyContent="center" p={4}>
                 <CircularProgress />
               </Box>
@@ -977,27 +939,26 @@ const SettingsPanel = ({
                 Alle Änderungen werden automatisch gespeichert
               </Alert>
             </Box>
-            )}
-          </Box>
+            )
+          )}
 
           {/* Background Settings Tab */}
-          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+          {tabValue === 1 && (
             <BackgroundSettingsMUI
-            backgroundSettings={backgroundSettings}
-            setBackgroundSettings={setBackgroundSettings}
-            backgroundImages={backgroundImages}
-            setBackgroundImages={setBackgroundImages}
-            currentBackground={currentBackground}
-            onActivateBackground={onActivateBackground}
-            onDeleteBackground={onDeleteBackground}
-            SettingsService={SettingsService}
-            backgroundSyncManager={backgroundSyncManager}
-          />
-          </Box>
+              backgroundSettings={backgroundSettings}
+              setBackgroundSettings={setBackgroundSettings}
+              backgroundImages={backgroundImages}
+              setBackgroundImages={setBackgroundImages}
+              currentBackground={currentBackground}
+              onActivateBackground={onActivateBackground}
+              onDeleteBackground={onDeleteBackground}
+              SettingsService={SettingsService}
+              backgroundSyncManager={backgroundSyncManager}
+            />
+          )}
 
           {/* Categories Tab */}
-          {isAdmin && (
-            <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+          {tabValue === 2 && (
             <Box
               sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
             >
@@ -1321,33 +1282,23 @@ const SettingsPanel = ({
                 </List>
               </Box>
             </Box>
-              </Box>
-            )}
+          )}
 
-            {/* SSH Tab */}
-            {isAdmin && (
-              <Box sx={{ 
-                height: '100%', 
-                overflow: 'auto',
-                p: 0,
-              }}>
-                <SSHTab
-                  onTerminalOpen={onTerminalOpen}
-                />
-              </Box>
-            )}
+          {/* SSH Tab */}
+          {tabValue === 3 && (
+            <SSHTab
+              onTerminalOpen={onTerminalOpen}
+            />
+          )}
 
-            {/* Backup Tab */}
-            {isAdmin && (
-              <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+          {/* Backup Tab */}
+          {tabValue === 4 && (
             <BackupTab />
-              </Box>
-            )}
+          )}
 
-            {/* System Tab */}
-            {isAdmin && (
-              <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
-            {systemLoading ? (
+          {/* System Tab */}
+          {tabValue === 5 && (
+            systemLoading ? (
               <Box display="flex" justifyContent="center" p={4}>
                 <CircularProgress />
               </Box>
@@ -1385,11 +1336,10 @@ const SettingsPanel = ({
                   Definiert, wie oft der Status der Services abgefragt wird
                 </Alert>
               </Box>
-            )}
-          </Box>
-        )}
-      </SwipeableViews>
-    </Box>
+            )
+          )}
+        </Box>
+      </Box>
 
       {/* Category Modal */}
       {showCategoryModal && (

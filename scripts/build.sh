@@ -275,26 +275,50 @@ else
     print_status "warning" "NVM not found, using system Node.js"
 fi
 
+# Skip root npm install to avoid workspace issues
+print_status "info" "Skipping root npm install (will install in subdirectories)..."
+
+# Clean npm cache
+print_status "info" "Cleaning npm cache..."
+npm cache clean --force 2>/dev/null || true
+
 # Build backend dependencies
 print_status "info" "Building backend..."
 cd backend
-if npm install --legacy-peer-deps; then
+# Clear any existing lock files
+rm -f package-lock.json
+# Disable workspaces for this install
+export npm_config_workspaces=false
+export npm_config_workspace_root=false
+if npm install --legacy-peer-deps --no-package-lock; then
     print_status "success" "Backend dependencies installed"
 else
     print_status "error" "Backend npm install failed"
     exit 1
 fi
+unset npm_config_workspaces
+unset npm_config_workspace_root
 cd ..
 
 # Build frontend
 print_status "info" "Building frontend..."
 cd frontend
-if npm install --legacy-peer-deps; then
+# Clear any existing lock files
+rm -f package-lock.json
+# Disable workspaces for this install
+export npm_config_workspaces=false
+export npm_config_workspace_root=false
+if npm install --legacy-peer-deps --no-package-lock; then
     print_status "success" "Frontend dependencies installed"
 else
     print_status "error" "Frontend npm install failed"
     exit 1
 fi
+unset npm_config_workspaces
+unset npm_config_workspace_root
+
+# Skip macOS app and terminal app installations
+print_status "info" "Skipping macOS app and terminal app installations..."
 
 # Try to build frontend
 if npm run build; then

@@ -819,6 +819,12 @@ router.post('/restore', async (req, res) => {
             'open_mode_mini',
             'open_mode_mobile',
             'open_mode_desktop',
+            'remote_desktop_enabled',
+            'remote_protocol',
+            'remote_host',
+            'remote_port',
+            'remote_username',
+            'remote_password_encrypted',
           ];
 
           const values = [
@@ -865,6 +871,17 @@ router.post('/restore', async (req, res) => {
             appliance.open_mode_desktop ||
               appliance.openModeDesktop ||
               'browser_tab',
+            // Remote desktop fields - check both snake_case and camelCase
+            Boolean(
+              appliance.remote_desktop_enabled !== undefined
+                ? appliance.remote_desktop_enabled
+                : appliance.remoteDesktopEnabled
+            ),
+            appliance.remote_protocol || appliance.remoteProtocol || 'vnc',
+            appliance.remote_host || appliance.remoteHost || null,
+            appliance.remote_port || appliance.remotePort || null,
+            appliance.remote_username || appliance.remoteUsername || null,
+            appliance.remote_password_encrypted || appliance.remotePasswordEncrypted || null,
           ];
 
           const placeholders = fields.map(() => '?').join(', ');

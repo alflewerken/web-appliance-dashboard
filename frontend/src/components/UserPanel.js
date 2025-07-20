@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import SwipeableViews from 'react-swipeable-views';
+import { SwipeableTabContainer, SwipeableTabPanel } from './SwipeableTabPanel';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
 import {
   Box,
@@ -684,15 +684,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         </Tabs>
       </Box>
       {/* Content */}
-      <SwipeableViews
-        index={tabValue}
-        onChangeIndex={setTabValue}
-        containerStyle={{
-          height: 'calc(100% - 48px)', // Subtract tabs height
-          width: '100%',
-        }}
-        style={{ height: '100%' }}
-        slideStyle={{ height: '100%', overflow: 'auto' }}
+      <SwipeableTabContainer
+        currentTab={tabValue}
+        onTabChange={(e, newValue) => setTabValue(newValue)}
+        tabCount={3}
       >
         {/* Users Tab */}
         <Box sx={{ p: { xs: 1, sm: 2 }, height: '100%' }}>
@@ -1525,7 +1520,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             </Grid>
           </Grid>
         </Box>
-      </SwipeableViews>
+      </SwipeableTabContainer>
       {/* Create User Dialog */}
       <Dialog
         open={openDialog}

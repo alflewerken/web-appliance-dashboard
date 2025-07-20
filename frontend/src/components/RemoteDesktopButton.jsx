@@ -1,14 +1,17 @@
 import React from 'react';
 import { Monitor, MonitorDot } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API_BASE_URL, GUACAMOLE_URL } from '../config';
+import { API_BASE_URL } from '../config';
 
 const RemoteDesktopButton = ({ appliance }) => {
   const { token } = useAuth();
+  const [loading, setLoading] = React.useState(false);
   
   const handleOpenRemoteDesktop = async (protocol) => {
     try {
-      // Hole temporären Token vom Backend
+      setLoading(true);
+      
+      // Hole Verbindungsinfo vom Backend
       const response = await fetch(`${API_BASE_URL}/api/remote/guacamole/token/${appliance.id}`, {
         method: 'POST',
         headers: {
@@ -18,53 +21,26 @@ const RemoteDesktopButton = ({ appliance }) => {
       });
       
       if (!response.ok) {
-        throw new Error('Fehler beim Abrufen des Remote Desktop Tokens');
+        throw new Error('Fehler beim Abrufen der Verbindungsinformationen');
       }
       
-      const { token: guacToken, connectionId } = await response.json();
+      const connectionInfo = await response.json();
       
-      // Prüfe ob wir in der Electron App sind
-      if (window.electronAPI && window.electronAPI.remoteDesktop) {
-        // Electron App - nutze native Fenster
-        const result = await window.electronAPI.remoteDesktop.open({
-          applianceId: appliance.id,
-          applianceName: appliance.name,
-          protocol: protocol,
-          guacamoleUrl: GUACAMOLE_URL,
-          token: guacToken
-        });
-        
-        if (!result.success) {
-          console.error('Fehler beim Öffnen des Remote Desktop:', result.error);
-        }
-      } else {
-        // Web Browser - nutze den normalen Window Manager
-        const remoteDesktopWindow = await import('../utils/remoteDesktopWindow');
-        await remoteDesktopWindow.default.openRemoteDesktop({
-          applianceId: appliance.id,
-          applianceName: appliance.name,
-          protocol: protocol,
-          guacamoleUrl: GUACAMOLE_URL,
-          token: guacToken
-        });
+      // Öffne Guacamole in neuem Fenster
+      const windowFeatures = 'width=1280,height=800,left=100,top=100,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes';
+      const windowName = `remote-desktop-${appliance.id}-${Date.now()}`;
+      
+      const remoteWindow = window.open(connectionInfo.url, windowName, windowFeatures);
+      
+      if (!remoteWindow) {
+        throw new Error('Popup-Blocker verhindert das Öffnen. Bitte erlauben Sie Popups für diese Seite.');
       }
       
-      // Optional: Log Activity
-      await fetch(`${API_BASE_URL}/api/audit`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: 'remote_desktop_opened',
-          appliance_id: appliance.id,
-          details: { protocol }
-        })
-      });
     } catch (error) {
       console.error('Fehler beim Öffnen des Remote Desktop:', error);
-      // Hier könnte eine Fehlermeldung angezeigt werden
+      alert(error.message || 'Fehler beim Öffnen des Remote Desktop. Bitte versuchen Sie es erneut.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,6 +61,8 @@ const RemoteDesktopButton = ({ appliance }) => {
             handleOpenRemoteDesktop('vnc');
           }}
           title="VNC Remote Desktop öffnen"
+          disabled={loading}
+          style={{ opacity: loading ? 0.5 : 1 }}
         >
           <Monitor size={16} />
         </button>
@@ -100,6 +78,8 @@ const RemoteDesktopButton = ({ appliance }) => {
             handleOpenRemoteDesktop('rdp');
           }}
           title="RDP Remote Desktop öffnen"
+          disabled={loading}
+          style={{ opacity: loading ? 0.5 : 1 }}
         >
           <MonitorDot size={16} />
         </button>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Appliance Dashboard - Entwickler Dokumentation v1.0.3</title>
+    <title>Web Appliance Dashboard - Entwickler Dokumentation v1.1.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
     <style>
         body {
@@ -433,11 +433,11 @@
         </div>
         <div class="toc">
             <ol>
-                <li><a href="#version-info">Version 1.0.3</a>
+                <li><a href="#version-info">Version 1.1.0</a>
                     <ul>
                         <li><a href="#changelog">Changelog</a></li>
                         <li><a href="#new-features">Neue Features</a></li>
-                        <li><a href="#bug-fixes">Behobene Fehler</a></li>
+                        <li><a href="#security-improvements">Sicherheitsverbesserungen</a></li>
                     </ul>
                 </li>
                 <li><a href="#installation">Installation</a>
@@ -493,6 +493,15 @@
                         <li><a href="#state-management">Local State</a></li>
                         <li><a href="#state-management">Custom Hooks</a></li>
                         <li><a href="#state-management">Datenfluss</a></li>
+                    </ul>
+                </li>
+                <li><a href="#middleware-documentation">Middleware-Dokumentation</a>
+                    <ul>
+                        <li><a href="#middleware-overview">Übersicht</a></li>
+                        <li><a href="#auth-middleware">Authentifizierungs-Middleware</a></li>
+                        <li><a href="#security-middleware">Sicherheits-Middleware</a></li>
+                        <li><a href="#restore-middleware">Restore-Berechtigungen</a></li>
+                        <li><a href="#custom-middleware">Custom Middleware</a></li>
                     </ul>
                 </li>
                 <li><a href="#api-documentation">Backend API Dokumentation</a>
@@ -575,52 +584,86 @@
     <!-- Main Content -->
     <main class="main-content" id="mainContent">
         <div class="container">
-            <h1>Web Appliance Dashboard - Entwickler Dokumentation <span class="version-badge">v1.0.3</span></h1>
+            <h1>Web Appliance Dashboard - Entwickler Dokumentation <span class="version-badge">v1.1.0</span></h1>
             
             <div class="diagram-section" id="version-info">
-                <h2>Version 1.0.3 Information</h2>
+                <h2>Version 1.1.0 Information</h2>
                 
                 <div class="changelog" id="changelog">
-                    <h3>📋 Changelog (09. Januar 2025)</h3>
+                    <h3>📋 Changelog (15. Januar 2025)</h3>
                     <ul>
-                        <li><strong>SSH-Host Audit Log Funktionalität</strong> - Vollständige Audit-Log-Integration für SSH-Hosts</li>
-                        <li><strong>Live-Updates für SSH-Hosts</strong> - Echtzeit-Aktualisierungen im Einstellungen-Panel</li>
-                        <li><strong>Audit Log Restore/Revert</strong> - SSH-Hosts können über Audit Log wiederhergestellt werden</li>
-                        <li><strong>Backup-System v2.8.0</strong> - Sessions werden jetzt für Metadaten erfasst</li>
-                        <li><strong>SSE-System erweitert</strong> - Neue Events für SSH-Host-Operationen</li>
-                        <li><strong>Frontend-Performance</strong> - React-Komponenten mit useCallback optimiert</li>
-                        <li><strong>Backend-Sicherheit</strong> - requireAdmin Middleware für Audit-Restore-Routen</li>
-                        <li><strong>Debug-Logging verbessert</strong> - Umfassendes Logging für SSH-Host-Operationen</li>
+                        <li><strong>Remote Desktop Support</strong> - Vollständige VNC und RDP Integration via Apache Guacamole</li>
+                        <li><strong>VNC-Unterstützung</strong> - Für Linux/Unix-Systeme</li>
+                        <li><strong>RDP-Unterstützung</strong> - Für Windows-Systeme</li>
+                        <li><strong>Verschlüsselte Credentials</strong> - AES-256 Verschlüsselung für Passwörter</li>
+                        <li><strong>PWA Separate Windows</strong> - Remote-Verbindungen in eigenen Fenstern</li>
+                        <li><strong>Token-basierte Authentifizierung</strong> - 5-Minuten Gültigkeit für sichere Verbindungen</li>
+                        <li><strong>Erweiterte UI-Komponenten</strong> - Remote Desktop Buttons und Einstellungen</li>
+                        <li><strong>Neue Infrastruktur</strong> - Guacamole Services in Docker Compose</li>
+                        <li><strong>Middleware-Dokumentation</strong> - Vollständige Dokumentation aller Middleware-Komponenten</li>
                     </ul>
                 </div>
                 
                 <div class="description" id="new-features">
-                    <h3>✨ Neue Features in v1.0.3</h3>
+                    <h3>✨ Neue Features in v1.1.0</h3>
                     <ul>
-                        <li><strong>SSH-Host Audit Log</strong> - Vollständige Historie aller SSH-Host-Änderungen</li>
-                        <li><strong>SSH-Host Restore</strong> - Gelöschte SSH-Hosts können wiederhergestellt werden</li>
-                        <li><strong>SSH-Host Revert</strong> - Änderungen können rückgängig gemacht werden</li>
-                        <li><strong>Vorher/Nachher-Vergleich</strong> - Detaillierte Anzeige von SSH-Host-Änderungen</li>
-                        <li><strong>Live-Updates überall</strong> - Settings-Panel aktualisiert sich bei Audit-Log-Aktionen</li>
-                        <li><strong>Erweiterte API-Endpoints</strong> - Neue Audit-Restore-Endpoints für alle Ressourcen</li>
+                        <li><strong>Remote Desktop Integration</strong>
+                            <ul>
+                                <li>VNC und RDP Protokoll-Unterstützung</li>
+                                <li>Per-Appliance Remote Desktop Konfiguration</li>
+                                <li>Automatische Guacamole-Integration</li>
+                                <li>Sichere temporäre Token für Verbindungen</li>
+                            </ul>
+                        </li>
+                        <li><strong>Neue UI-Komponenten</strong>
+                            <ul>
+                                <li>Remote Desktop Buttons in Appliance Cards</li>
+                                <li>Remote Desktop Einstellungen im Service Panel</li>
+                                <li>Protokoll-Auswahl (VNC/RDP)</li>
+                                <li>Port und Credential-Konfiguration</li>
+                            </ul>
+                        </li>
+                        <li><strong>Infrastruktur-Erweiterungen</strong>
+                            <ul>
+                                <li>Guacamole Services in Docker Compose</li>
+                                <li>Datenbank-Migration für Remote Desktop Felder</li>
+                                <li>CORS-Konfiguration für iFrame-Support</li>
+                                <li>Automatische Initialisierung im Build-Script</li>
+                            </ul>
+                        </li>
+                        <li><strong>Neue Scripts</strong>
+                            <ul>
+                                <li><code>start-with-guacamole.sh</code> - Schnellstart mit Remote Desktop</li>
+                                <li><code>update-remote-desktop.sh</code> - Update bestehender Installationen</li>
+                                <li><code>verify-database.sh</code> - Datenbank-Schema-Verifizierung</li>
+                                <li><code>troubleshoot-remote-desktop.sh</code> - Diagnose-Helper</li>
+                            </ul>
+                        </li>
+                        <li><strong>Middleware-Dokumentation</strong>
+                            <ul>
+                                <li>Vollständige Dokumentation aller Middleware-Komponenten</li>
+                                <li>Authentifizierungs-Middleware (verifyToken, requireAdmin, etc.)</li>
+                                <li>Sicherheits-Middleware (CORS, Security Headers)</li>
+                                <li>Restore-Berechtigungen für Audit Logs</li>
+                                <li>Custom Middleware und Helper-Funktionen</li>
+                            </ul>
+                        </li>
                     </ul>
                 </div>
                 
-                <div class="description" id="bug-fixes">
-                    <h3>🐛 Behobene Fehler</h3>
+                <div class="description" id="security-improvements">
+                    <h3>🔒 Sicherheitsverbesserungen</h3>
                     <ul>
-                        <li>404-Fehler bei SSH-Host Restore/Revert behoben</li>
-                        <li>Settings-Panel Live-Updates funktionieren jetzt korrekt</li>
-                        <li>SSE-Event-Listener-Memory-Leaks behoben</li>
-                        <li>Doppelte API-Calls in SSHAuditDetail entfernt</li>
-                        <li>Race Conditions im Audit Log behoben</li>
-                        <li>Frontend-Routing für SSH-Host-Endpoints korrigiert</li>
-                        <li>SSH-Host-Änderungen werden jetzt korrekt in gelber Box angezeigt</li>
+                        <li>Remote Desktop Passwörter werden mit AES-256 verschlüsselt</li>
+                        <li>Temporäre Single-Use Tokens für Guacamole-Zugriff</li>
+                        <li>Tokens verfallen nach 5 Minuten</li>
+                        <li>Keine permanenten Guacamole-Credentials gespeichert</li>
+                        <li>Erweiterte CORS-Konfiguration für sichere iFrame-Integration</li>
                     </ul>
                 </div>
                 
                 <div class="note">
-                    <strong>Upgrade-Hinweis:</strong> Beim Update von v1.0.2 auf v1.0.3 sind keine Datenbankmigrationen erforderlich. Die neuen Features sind vollständig abwärtskompatibel.
+                    <strong>Upgrade-Hinweis:</strong> Beim Update auf v1.1.0 wird eine Datenbankmigration für Remote Desktop Features durchgeführt. Das Build-Script installiert Remote Desktop standardmäßig. Verwenden Sie <code>--no-remote-desktop</code> um dies zu deaktivieren.
                 </div>
             </div>
             
@@ -1172,6 +1215,7 @@ docker compose up -d</pre>
                         Services[Services]
                         Hooks[Custom Hooks]
                         ServicePanel[ServicePanel]
+                        SSEContext[SSE Context]
                     end
                     
                     subgraph "Backend (Express)"
@@ -1179,31 +1223,42 @@ docker compose up -d</pre>
                         Routes[Route Handler]
                         Utils[Utilities]
                         DB[(MariaDB)]
+                        Middleware[Middleware]
+                        AuditLog[Audit Log System]
                     end
                     
                     subgraph "Externe Dienste"
                         SSH[SSH Hosts]
                         Docker[Docker]
                         TTYD[TTYD Terminal]
+                        Guacamole[Apache Guacamole]
                     end
                     
                     App --> Auth
                     App --> Components
                     App --> ServicePanel
+                    App --> SSEContext
                     Components --> Services
                     ServicePanel --> Services
+                    SSEContext --> Services
                     Services --> Server
                     Server --> Routes
+                    Server --> Middleware
                     Routes --> Utils
+                    Routes --> AuditLog
                     Utils --> DB
+                    AuditLog --> DB
                     Routes --> SSH
                     Routes --> Docker
                     Routes --> TTYD
+                    Routes --> Guacamole
                     
                     style App fill:#61dafb
                     style Server fill:#68d391
                     style DB fill:#fbbf24
                     style ServicePanel fill:#f472b6
+                    style AuditLog fill:#a78bfa
+                    style SSEContext fill:#f87171
             </div>
         </div>
         
@@ -1235,15 +1290,19 @@ docker compose up -d</pre>
                         AppHeader[AppHeader]
                         AppSidebar[AppSidebar]
                         AppContent[AppContent]
-                        ServicePanel[ServicePanel v1.0.1]
+                        ServicePanel[ServicePanel v1.0.4]
                         SettingsModal[SettingsModal]
                         TerminalModal[TerminalModal]
+                        AuditLogModal[AuditLogModal v1.0.4]
+                        BackupModal[BackupModal]
                     end
                     
                     subgraph "Services"
                         ApplianceService[ApplianceService]
                         SSEService[sseService]
                         AxiosConfig[axiosConfig]
+                        AuditService[AuditService v1.0.4]
+                        BackupService[BackupService]
                     end
                     
                     subgraph "Custom Hooks"
@@ -1251,7 +1310,8 @@ docker compose up -d</pre>
                         useCategories[useCategories]
                         useSettings[useSettings]
                         useSSE[useSSE]
-                        useDragAndDrop[useDragAndDrop v1.0.1]
+                        useDragAndDrop[useDragAndDrop]
+                        useAuditLog[useAuditLog v1.0.4]
                     end
                     
                     App --> AuthProvider
@@ -1263,19 +1323,25 @@ docker compose up -d</pre>
                     AppContent --> ServicePanel
                     AppContent --> SettingsModal
                     AppContent --> TerminalModal
+                    AppContent --> AuditLogModal
+                    AppContent --> BackupModal
                     
                     ServicePanel --> ApplianceService
                     SettingsModal --> AxiosConfig
                     TerminalModal --> SSEService
+                    AuditLogModal --> AuditService
+                    BackupModal --> BackupService
                     
                     useAppliances --> ApplianceService
                     useSSE --> SSEService
                     useDragAndDrop --> ServicePanel
+                    useAuditLog --> AuditService
                     
                     style App fill:#61dafb
                     style ApplianceService fill:#fbbf24
                     style SSEService fill:#f87171
                     style ServicePanel fill:#f472b6
+                    style AuditService fill:#a78bfa
             </div>
         </div>
         
@@ -1326,6 +1392,10 @@ docker compose up -d</pre>
                         SSHConn["GET /connections"]
                         SSHTest["POST /test"]
                         SSHExec["POST /execute"]
+                        SSHHosts["GET /hosts"]
+                        SSHHostsCreate["POST /hosts"]
+                        SSHHostsUpdate["PUT /hosts/:id"]
+                        SSHHostsDelete["DELETE /hosts/:id"]
                     end
                     
                     subgraph Terminal
@@ -1334,12 +1404,33 @@ docker compose up -d</pre>
                         TermConnect["WS /connect"]
                     end
                     
+                    subgraph "Audit Log v1.0.4"
+                        AuditRouter["/api/audit-logs"]
+                        AuditGet["GET /"]
+                        AuditDelete["DELETE /"]
+                        AuditRestoreRouter["/api/audit-restore"]
+                        AuditGetDetail["GET /:id"]
+                        AuditRestore["POST /restore/:type/:logId"]
+                        AuditRevert["POST /revert/:type/:logId"]
+                    end
+                    
+                    subgraph Backup
+                        BackupRouter["/api/backup"]
+                        BackupExport["GET /"]
+                        RestoreRouter["/api/restore"]
+                        RestoreImport["POST /"]
+                    end
+                    
                     Server --> AuthRouter
                     Server --> AppRouter
                     Server --> CatRouter
                     Server --> ServRouter
                     Server --> SSHRouter
                     Server --> TermRouter
+                    Server --> AuditRouter
+                    Server --> BackupRouter
+                    Server --> RestoreRouter
+                    Server --> AuditRestoreRouter
                     
                     AuthRouter --> AuthCheck
                     AuthRouter --> AuthLogin
@@ -1364,22 +1455,88 @@ docker compose up -d</pre>
                     SSHRouter --> SSHConn
                     SSHRouter --> SSHTest
                     SSHRouter --> SSHExec
+                    SSHRouter --> SSHHosts
+                    SSHRouter --> SSHHostsCreate
+                    SSHRouter --> SSHHostsUpdate
+                    SSHRouter --> SSHHostsDelete
                     
                     TermRouter --> TermCreate
                     TermRouter --> TermConnect
+                    
+                    AuditRouter --> AuditGet
+                    AuditRouter --> AuditDelete
+                    AuditRestoreRouter --> AuditGetDetail
+                    AuditRestoreRouter --> AuditRestore
+                    AuditRestoreRouter --> AuditRevert
+                    
+                    BackupRouter --> BackupExport
+                    RestoreRouter --> RestoreImport
                     
                     style Server fill:#68d391
                     style AuthRouter fill:#f87171
                     style AppRouter fill:#61dafb
                     style CatRouter fill:#a78bfa
                     style SSHRouter fill:#fbbf24
+                    style AuditRouter fill:#f472b6
+                    style BackupRouter fill:#94a3b8
             </div>
         </div>
-_command
+        
+        <div class="diagram-section" id="appliance-lifecycle">
+            <h2>Appliance Lifecycle</h2>
+            <div class="description">
+                <h3>Interaktionsabläufe</h3>
+                <p>Die verschiedenen Workflows für Appliance-Management (erweitert in v1.0.4 mit Audit Log):</p>
+            </div>
+            <div class="mermaid">
+                sequenceDiagram
+                    participant User
+                    participant Frontend
+                    participant ServicePanel
+                    participant ApplianceService
+                    participant Backend
+                    participant Database
+                    participant AuditLog
+                    participant SSH_Docker
+                    participant SSE
+                    
+                    Note over User,SSE: Appliance erstellen (mit Audit Log v1.0.4)
+                    User->>Frontend: Klickt auf "Neue Appliance"
+                    Frontend->>ApplianceService: createAppliance(data)
+                    ApplianceService->>Backend: POST /api/appliances
+                    Backend->>Database: INSERT INTO appliances
+                    Database-->>Backend: New Appliance ID
+                    Backend->>AuditLog: Log CREATE event
+                    AuditLog-->>Backend: Logged
+                    Backend->>SSE: broadcast('appliance_created')
+                    SSE-->>Frontend: SSE Event: New Appliance
+                    Backend-->>ApplianceService: New Appliance Data
+                    ApplianceService-->>Frontend: Success
+                    Frontend->>Frontend: Update UI
+                    
+                    Note over User,SSE: Service Start
+                    User->>Frontend: Klickt auf Start Button
+                    Frontend->>Backend: POST /api/services/:id/start
+                    Backend->>Database: SELECT start_command
+                    Database-->>Backend: Start Command
+                    Backend->>SSH_Docker: executeSSHCommand(start_command)
+                    SSH_Docker-->>Backend: Command Output
+                    Backend->>Database: UPDATE service_status = 'running'
+                    Backend->>AuditLog: Log SERVICE_START event
+                    Backend->>SSE: broadcast('service_status_changed')
+                    SSE-->>Frontend: SSE Event: Status Update
+                    Frontend->>Frontend: Update UI Status (grün)
+                    Backend-->>Frontend: Response: Success
+                    
+                    Note over User,SSE: Service Stop
+                    User->>Frontend: Klickt auf Stop Button
+                    Frontend->>Backend: POST /api/services/:id/stop
+                    Backend->>Database: SELECT stop_command
                     Database-->>Backend: Stop Command
                     Backend->>SSH_Docker: executeSSHCommand(stop_command)
                     SSH_Docker-->>Backend: Command Output
                     Backend->>Database: UPDATE service_status = 'stopped'
+                    Backend->>AuditLog: Log SERVICE_STOP event
                     Backend->>SSE: broadcast('service_status_changed')
                     SSE-->>Frontend: SSE Event: Status Update
                     Frontend->>Frontend: Update UI Status (rot)
@@ -1405,16 +1562,20 @@ _command
                     ApplianceService->>Backend: PUT /api/appliances/:id
                     Backend->>Database: UPDATE appliances
                     Database-->>Backend: Success
+                    Backend->>AuditLog: Log UPDATE event mit old/new data
                     Backend-->>ApplianceService: Updated Appliance
                     ApplianceService-->>ServicePanel: Updated Data
                     ServicePanel->>Frontend: Update State
                     
-                    Note over User,SSE: Appliance Löschen (v1.0.1 Fix)
+                    Note over User,SSE: Appliance Löschen (v1.0.4 mit Audit)
                     User->>ServicePanel: Klickt auf Löschen
                     ServicePanel->>ServicePanel: Zeigt Bestätigungsdialog
                     User->>ServicePanel: Bestätigt Löschung
                     ServicePanel->>ApplianceService: deleteAppliance(id)
                     ApplianceService->>Backend: DELETE /api/appliances/:id
+                    Backend->>Database: SELECT * FROM appliances WHERE id = :id
+                    Database-->>Backend: Appliance Data
+                    Backend->>AuditLog: Log DELETE event mit full data
                     Backend->>Database: DELETE FROM appliances
                     Database-->>Backend: Success
                     Backend-->>ApplianceService: Success
@@ -1423,25 +1584,33 @@ _command
                     Frontend->>Frontend: Remove from State
                     Frontend->>Frontend: Update UI
                     
-                    Note over User,SSE: Favoriten Toggle (Neu in v1.0.1)
+                    Note over User,SSE: Favoriten Toggle
                     User->>Frontend: Klickt auf Favoriten-Stern
                     Frontend->>ApplianceService: toggleFavorite(id)
                     ApplianceService->>Backend: POST /api/appliances/:id/favorite
                     Backend->>Database: UPDATE isFavorite
                     Database-->>Backend: Success
+                    Backend->>AuditLog: Log FAVORITE_TOGGLE event
                     Backend-->>ApplianceService: Updated Status
                     ApplianceService-->>Frontend: New Favorite Status
                     Frontend->>Frontend: Update UI (Stern ein/aus)
                     
-                    Note over User,SSE: Last Used Update
-                    User->>Frontend: Öffnet Appliance URL
-                    Frontend->>ApplianceService: updateLastUsed(id)
-                    ApplianceService->>Backend: POST /api/appliances/:id/open
-                    Backend->>Database: UPDATE lastUsed = NOW()
+                    Note over User,SSE: Audit Log Restore (Neu in v1.0.4)
+                    User->>Frontend: Öffnet Audit Log
+                    Frontend->>Backend: GET /api/audit-logs
+                    Backend->>Database: SELECT * FROM audit_logs
+                    Database-->>Backend: Audit Entries
+                    Backend-->>Frontend: Audit Log Data
+                    User->>Frontend: Klickt auf "Wiederherstellen"
+                    Frontend->>Backend: POST /api/audit-restore/restore/appliance/:logId
+                    Backend->>AuditLog: Get deleted data from log
+                    AuditLog-->>Backend: Original appliance data
+                    Backend->>Database: INSERT INTO appliances (restored data)
                     Database-->>Backend: Success
-                    Backend-->>ApplianceService: Success
-                    ApplianceService-->>Frontend: Updated
-                    Frontend->>Frontend: Open URL in new tab
+                    Backend->>AuditLog: Log RESTORE event
+                    Backend->>SSE: broadcast('appliance_restored')
+                    Backend-->>Frontend: Restored appliance
+                    Frontend->>Frontend: Update UI with restored item
             </div>
         </div>
         
@@ -1509,21 +1678,27 @@ _command
                         Categories[categories State]
                         Settings[settings State]
                         Modals[modal States]
-                        ServicePanelState[servicePanel State v1.0.1]
+                        ServicePanelState[servicePanel State]
+                        AuditLogs[auditLogs State v1.0.4]
+                        SSHHosts[sshHosts State v1.0.4]
                     end
                     
                     subgraph "Custom Hooks"
                         useAppliances[useAppliances Hook]
                         useCategories[useCategories Hook]
                         useSettings[useSettings Hook]
-                        useFavorites[useFavorites Hook v1.0.1]
+                        useFavorites[useFavorites Hook]
+                        useAuditLog[useAuditLog Hook v1.0.4]
+                        useSSHHosts[useSSHHosts Hook v1.0.4]
                     end
                     
                     subgraph "Components"
                         AppContent[AppContent]
                         ApplianceCard[ApplianceCard]
                         CategoryModal[CategoryModal]
-                        ServicePanel[ServicePanel v1.0.1]
+                        ServicePanel[ServicePanel]
+                        AuditLogModal[AuditLogModal v1.0.4]
+                        SettingsModal[SettingsModal]
                     end
                     
                     AuthContext --> App.js
@@ -1534,15 +1709,21 @@ _command
                     App.js --> Settings
                     App.js --> Modals
                     App.js --> ServicePanelState
+                    App.js --> AuditLogs
+                    App.js --> SSHHosts
                     
                     useAppliances --> Appliances
                     useCategories --> Categories
                     useSettings --> Settings
                     useFavorites --> Appliances
+                    useAuditLog --> AuditLogs
+                    useSSHHosts --> SSHHosts
                     
                     Appliances --> AppContent
                     Categories --> AppContent
                     ServicePanelState --> ServicePanel
+                    AuditLogs --> AuditLogModal
+                    SSHHosts --> SettingsModal
                     AppContent --> ApplianceCard
                     AppContent --> CategoryModal
                     AppContent --> ServicePanel
@@ -1550,11 +1731,509 @@ _command
                     SSEContext -.->|Updates| Appliances
                     SSEContext -.->|Status| ApplianceCard
                     SSEContext -.->|Category Updates| Categories
+                    SSEContext -.->|SSH Host Updates| SSHHosts
+                    SSEContext -.->|Audit Events| AuditLogs
                     
                     style AuthContext fill:#f87171
                     style SSEContext fill:#fbbf24
                     style Appliances fill:#61dafb
                     style ServicePanelState fill:#f472b6
+                    style AuditLogs fill:#a78bfa
+                    style SSHHosts fill:#94a3b8
+            </div>
+        </div>
+        
+        <div class="diagram-section" id="middleware-documentation">
+            <h2>Middleware-Dokumentation</h2>
+            <div class="description" id="middleware-overview">
+                <h3>Übersicht</h3>
+                <p>Das Web Appliance Dashboard verwendet verschiedene Middleware-Komponenten, um Cross-Cutting Concerns wie Authentifizierung, Sicherheit und Berechtigungen zu handhaben. Die Middleware wird in Express.js vor den Route-Handlern ausgeführt und kann Requests modifizieren, validieren oder blockieren.</p>
+            </div>
+            
+            <div class="api-doc">
+                <div class="api-section" id="auth-middleware">
+                    <h3>🔐 Authentifizierungs-Middleware</h3>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">verifyToken</span>
+                            <span class="auth-badge auth">JWT Token Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Die zentrale Authentifizierungs-Middleware, die JWT-Tokens validiert und Benutzersessions überprüft.</p>
+                            
+                            <h4>Funktionsweise:</h4>
+                            <ol>
+                                <li>Extrahiert den JWT-Token aus dem Authorization-Header</li>
+                                <li>Verifiziert die Token-Signatur mit dem JWT_SECRET</li>
+                                <li>Prüft, ob eine aktive Session in der Datenbank existiert</li>
+                                <li>Aktualisiert die letzte Aktivität der Session</li>
+                                <li>Fügt Benutzerinformationen zum Request-Objekt hinzu</li>
+                            </ol>
+                            
+                            <h4>Verwendung:</h4>
+                            <pre class="code-block">// In server.js
+app.use('/api/appliances', verifyToken, appliancesRouter);
+app.use('/api/categories', verifyToken, categoriesRouter);
+app.use('/api/settings', verifyToken, settingsRouter);
+
+// Request-Objekt nach erfolgreicher Authentifizierung:
+req.user = {
+  id: 1,
+  username: 'admin',
+  email: 'admin@example.com',
+  role: 'Administrator'
+}</pre>
+                            
+                            <h4>Error Responses:</h4>
+                            <pre class="code-block">// Kein Token vorhanden
+{ "error": "No token provided" } // 401
+
+// Ungültiger Token
+{ "error": "Invalid token" } // 401
+
+// Token abgelaufen
+{ "error": "Token expired" } // 401
+
+// Session nicht gefunden oder abgelaufen
+{ "error": "Invalid or expired session" } // 401</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">requireAdmin</span>
+                            <span class="auth-badge admin">Admin Role Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Middleware, die sicherstellt, dass nur Administratoren auf bestimmte Endpunkte zugreifen können.</p>
+                            
+                            <h4>Verwendung:</h4>
+                            <pre class="code-block">// Für Admin-only Routen
+router.post('/categories', requireAdmin, async (req, res) => {
+  // Nur Admins können Kategorien erstellen
+});
+
+router.delete('/audit-logs', requireAdmin, async (req, res) => {
+  // Nur Admins können Audit Logs löschen
+});</pre>
+                            
+                            <h4>Error Response (403):</h4>
+                            <pre class="code-block">{ "error": "Admin access required" }</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">requirePowerUser</span>
+                            <span class="auth-badge auth">Power User or Admin Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Middleware für Funktionen, die mindestens Power User-Rechte erfordern.</p>
+                            
+                            <h4>Erlaubte Rollen:</h4>
+                            <ul>
+                                <li>Administrator</li>
+                                <li>Power User</li>
+                            </ul>
+                            
+                            <h4>Verwendung:</h4>
+                            <pre class="code-block">// Für erweiterte Funktionen
+router.post('/ssh/execute', requirePowerUser, async (req, res) => {
+  // Power User können SSH-Befehle ausführen
+});</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">requirePermission</span>
+                            <span class="auth-badge auth">Specific Permission Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Flexible Middleware für granulare Berechtigungsprüfungen basierend auf Ressource und Aktion.</p>
+                            
+                            <h4>Verwendung:</h4>
+                            <pre class="code-block">// Spezifische Berechtigungen prüfen
+router.post(
+  '/appliances', 
+  requirePermission('appliances', 'create'), 
+  async (req, res) => {
+    // Benutzer muss 'appliances:create' Berechtigung haben
+  }
+);
+
+router.delete(
+  '/appliances/:id',
+  requirePermission('appliances', 'delete'),
+  async (req, res) => {
+    // Benutzer muss 'appliances:delete' Berechtigung haben
+  }
+);</pre>
+                            
+                            <h4>Error Response (403):</h4>
+                            <pre class="code-block">{
+  "error": "Insufficient permissions",
+  "required": "appliances:create"
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">optionalAuth</span>
+                            <span class="auth-badge public">Optional Authentication</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Middleware für Endpunkte, die sowohl mit als auch ohne Authentifizierung funktionieren.</p>
+                            
+                            <h4>Funktionsweise:</h4>
+                            <ol>
+                                <li>Prüft, ob Authentifizierung in den Einstellungen aktiviert ist</li>
+                                <li>Falls ja und ein Token vorhanden ist, wird es validiert</li>
+                                <li>Bei gültigem Token wird <code>req.user</code> gesetzt</li>
+                                <li>Ohne Token oder bei Fehler wird die Request trotzdem durchgelassen</li>
+                            </ol>
+                            
+                            <h4>Verwendung:</h4>
+                            <pre class="code-block">// Für öffentliche Endpunkte mit optionaler Auth
+router.get('/public-stats', optionalAuth, async (req, res) => {
+  if (req.user) {
+    // Zeige personalisierte Statistiken
+  } else {
+    // Zeige öffentliche Statistiken
+  }
+});</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="security-middleware">
+                    <h3>🛡️ Sicherheits-Middleware</h3>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">configureCORS</span>
+                            <span class="auth-badge public">CORS Configuration</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Konfiguriert Cross-Origin Resource Sharing (CORS) basierend auf der Umgebung.</p>
+                            
+                            <h4>Features:</h4>
+                            <ul>
+                                <li>Entwicklungsmodus: Permissive CORS-Einstellungen</li>
+                                <li>Produktionsmodus: Whitelist-basierte Origin-Prüfung</li>
+                                <li>Unterstützt lokale Netzwerk-IPs für mobile Geräte</li>
+                                <li>Konfigurierbare erlaubte Origins über Umgebungsvariablen</li>
+                            </ul>
+                            
+                            <h4>Erlaubte Origins:</h4>
+                            <pre class="code-block">// Standard Origins
+http://localhost:3000  // React Dev Server
+http://localhost:3001  // Backend Server
+http://localhost       // Production ohne Port
+https://localhost      // HTTPS Production
+
+// Lokale Netzwerk-Patterns
+192.168.x.x           // Private IP-Ranges
+10.x.x.x              // Private IP-Ranges
+172.16-31.x.x         // Private IP-Ranges
+*.local               // mDNS Hostnamen
+
+// Custom Origins (via .env)
+ALLOWED_ORIGINS=https://app.example.com,https://dashboard.local</pre>
+                            
+                            <h4>CORS-Optionen:</h4>
+                            <pre class="code-block">{
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['X-Total-Count'],
+  maxAge: 86400 // 24 Stunden
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">securityHeaders</span>
+                            <span class="auth-badge public">Security Headers</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Setzt wichtige Sicherheits-Header für alle Responses.</p>
+                            
+                            <h4>Gesetzte Header:</h4>
+                            <pre class="code-block">// Clickjacking-Schutz
+X-Frame-Options: SAMEORIGIN
+
+// MIME-Type Sniffing verhindern
+X-Content-Type-Options: nosniff
+
+// XSS-Filter aktivieren
+X-XSS-Protection: 1; mode=block
+
+// Referrer-Informationen kontrollieren
+Referrer-Policy: strict-origin-when-cross-origin
+
+// Content Security Policy (nur Production)
+Content-Security-Policy: 
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' 'unsafe-eval';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: https:;
+  font-src 'self' data:;
+  connect-src 'self' ws: wss:;
+  frame-src 'self' http://localhost:* https://localhost:*;
+  frame-ancestors 'self' http://localhost:* https://localhost:*;</pre>
+                            
+                            <div class="note">
+                                <strong>Hinweis:</strong> Die CSP erlaubt 'unsafe-inline' und 'unsafe-eval' für Kompatibilität mit React und bestimmten Libraries. In einer hochsicheren Umgebung sollten diese durch Nonces ersetzt werden.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">getClientIp</span>
+                            <span class="auth-badge public">IP Address Extraction</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Extrahiert die Client-IP-Adresse unter Berücksichtigung von Proxy-Headern.</p>
+                            
+                            <h4>Verwendung:</h4>
+                            <pre class="code-block">// Wird automatisch zu allen Requests hinzugefügt
+app.use((req, res, next) => {
+  req.clientIp = getClientIp(req);
+  next();
+});
+
+// In Route-Handlern verfügbar
+router.post('/login', async (req, res) => {
+  const ipAddress = req.clientIp;
+  // Für Audit Logs verwenden
+});</pre>
+                            
+                            <h4>Proxy-Header-Priorität:</h4>
+                            <ol>
+                                <li>X-Forwarded-For</li>
+                                <li>X-Real-IP</li>
+                                <li>req.connection.remoteAddress</li>
+                                <li>req.socket.remoteAddress</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="restore-middleware">
+                    <h3>🔄 Restore-Berechtigungen Middleware</h3>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">canRestore</span>
+                            <span class="auth-badge auth">Restore Permission Check</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Spezielle Middleware für Audit Log Restore-Funktionalität. Prüft, ob ein Benutzer berechtigt ist, eine bestimmte Änderung wiederherzustellen.</p>
+                            
+                            <h4>Berechtigungslogik:</h4>
+                            <ul>
+                                <li><strong>Administratoren:</strong> Können alle Änderungen wiederherstellen</li>
+                                <li><strong>Normale Benutzer:</strong> Können nur ihre eigenen Änderungen wiederherstellen</li>
+                            </ul>
+                            
+                            <h4>Implementierung:</h4>
+                            <pre class="code-block">const { canRestore } = require('../middleware/restorePermissions');
+
+// In Audit Restore Routes
+router.post('/restore/:type/:logId', verifyToken, canRestore, async (req, res) => {
+  // Benutzer ist berechtigt, diese Änderung wiederherzustellen
+  const { logId } = req.params;
+  // Restore-Logik...
+});
+
+router.post('/revert/:type/:logId', verifyToken, canRestore, async (req, res) => {
+  // Benutzer ist berechtigt, diese Änderung rückgängig zu machen
+  const { logId } = req.params;
+  // Revert-Logik...
+});</pre>
+                            
+                            <h4>Error Responses:</h4>
+                            <pre class="code-block">// Audit Log nicht gefunden
+{ "error": "Audit log not found" } // 404
+
+// Keine Berechtigung
+{ "error": "You can only restore changes you made yourself" } // 403
+
+// Interner Fehler
+{ "error": "Internal server error" } // 500</pre>
+                            
+                            <h4>Verwendungsbeispiel:</h4>
+                            <pre class="code-block">// Beispiel: User "john" (ID: 2) versucht eine Änderung wiederherzustellen
+
+// Audit Log Entry:
+{
+  "id": 45,
+  "user_id": 2,  // Johns Änderung
+  "action": "DELETE",
+  "resource_type": "appliance",
+  ...
+}
+
+// John kann diese Änderung wiederherstellen ✓
+
+// Audit Log Entry:
+{
+  "id": 46,
+  "user_id": 1,  // Admin's Änderung
+  "action": "DELETE",
+  "resource_type": "appliance",
+  ...
+}
+
+// John kann diese Änderung NICHT wiederherstellen ✗
+// (nur wenn er Admin-Rolle hat)</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-section" id="custom-middleware">
+                    <h3>🔧 Custom Middleware</h3>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Middleware</span>
+                            <span class="path">createRequiredDirectories</span>
+                            <span class="auth-badge public">Startup Middleware</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Middleware, die beim Serverstart ausgeführt wird und erforderliche Verzeichnisse erstellt.</p>
+                            
+                            <h4>Erstellte Verzeichnisse:</h4>
+                            <pre class="code-block">uploads/              # Basis-Upload-Verzeichnis
+uploads/backgrounds/  # Hintergrundbilder für Appliances</pre>
+                            
+                            <h4>Verwendung:</h4>
+                            <pre class="code-block">// In server.js vor dem Server-Start
+createRequiredDirectories();
+
+// Implementierung
+const createRequiredDirectories = async () => {
+  try {
+    const uploadsDir = path.join(__dirname, '..', 'uploads');
+    const backgroundsDir = path.join(__dirname, '..', 'uploads', 'backgrounds');
+
+    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.mkdir(backgroundsDir, { recursive: true });
+
+    console.log('✅ Required directories created/verified');
+  } catch (error) {
+    console.error('❌ Error creating directories:', error);
+  }
+};</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method websocket">Helper</span>
+                            <span class="path">createAuditLog</span>
+                            <span class="auth-badge auth">Audit Logging Helper</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Helper-Funktion zum Erstellen von Audit Log-Einträgen mit automatischer SSE-Benachrichtigung.</p>
+                            
+                            <h4>Parameter:</h4>
+                            <pre class="code-block">createAuditLog(
+  userId,           // ID des Benutzers
+  action,           // Aktion (CREATE, UPDATE, DELETE, etc.)
+  resourceType,     // Ressourcentyp (appliance, category, ssh_host, etc.)
+  resourceId,       // ID der betroffenen Ressource
+  details,          // Zusätzliche Details als JSON
+  ipAddress,        // IP-Adresse (optional)
+  req               // Request-Objekt (optional, für IP-Extraktion)
+)</pre>
+                            
+                            <h4>Verwendungsbeispiele:</h4>
+                            <pre class="code-block">// Appliance erstellt
+await createAuditLog(
+  req.user.id,
+  'CREATE',
+  'appliance',
+  newAppliance.id,
+  { name: newAppliance.name, url: newAppliance.url },
+  null,
+  req
+);
+
+// SSH-Host gelöscht
+await createAuditLog(
+  req.user.id,
+  'DELETE',
+  'ssh_host',
+  hostId,
+  { old_data: deletedHost },
+  req.clientIp
+);
+
+// Service gestartet
+await createAuditLog(
+  req.user.id,
+  'SERVICE_START',
+  'appliance',
+  applianceId,
+  { service: applianceName, command: startCommand }
+);</pre>
+                            
+                            <h4>SSE-Event:</h4>
+                            <pre class="code-block">// Automatisch gesendet bei jedem Audit Log
+{
+  "type": "audit_log_created",
+  "data": {
+    "id": 123,
+    "user_id": 1,
+    "username": "admin",
+    "action": "CREATE",
+    "resource_type": "appliance",
+    "resource_id": 45,
+    "details": {...},
+    "ip_address": "192.168.1.100",
+    "created_at": "2025-01-09T10:30:00Z"
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="note">
+                    <strong>Best Practices für Middleware:</strong>
+                    <ul>
+                        <li>Middleware sollte immer <code>next()</code> aufrufen oder eine Response senden</li>
+                        <li>Fehlerbehandlung mit try-catch implementieren</li>
+                        <li>Middleware-Reihenfolge ist wichtig: Authentifizierung vor Autorisierung</li>
+                        <li>Verwenden Sie <code>return</code> nach dem Senden einer Response, um doppelte Responses zu vermeiden</li>
+                        <li>Loggen Sie wichtige Sicherheitsereignisse (fehlgeschlagene Authentifizierung, etc.)</li>
+                    </ul>
+                </div>
             </div>
         </div>
         
@@ -2870,7 +3549,7 @@ data: {
   "message": "Backup completed successfully"
 }
 
-// SSH Host Created (v1.0.3)
+// SSH Host Created (v1.0.4)
 event: ssh_host_created
 data: {
   "id": 1,
@@ -2878,7 +3557,7 @@ data: {
   "host": "192.168.1.100"
 }
 
-// SSH Host Updated (v1.0.3)
+// SSH Host Updated (v1.0.4)
 event: ssh_host_updated
 data: {
   "id": 1,
@@ -2889,14 +3568,14 @@ data: {
   }
 }
 
-// SSH Host Deleted (v1.0.3)
+// SSH Host Deleted (v1.0.4)
 event: ssh_host_deleted
 data: {
   "id": 1,
   "hostname": "prod-server"
 }
 
-// SSH Host Reverted (v1.0.3)
+// SSH Host Reverted (v1.0.4)
 event: ssh_host_reverted
 data: {
   "id": 1,
@@ -2904,7 +3583,7 @@ data: {
   "reverted_by": "admin"
 }
 
-// Audit Log Created (v1.0.3)
+// Audit Log Created (v1.0.4)
 event: audit_log_created
 data: {
   "action": "ssh_host_updated",
@@ -2940,7 +3619,7 @@ eventSource.addEventListener('category_updated', (event) => {
     console.log('Categories updated');
 });
 
-// Listen for SSH host events (v1.0.3)
+// Listen for SSH host events (v1.0.4)
 eventSource.addEventListener('ssh_host_created', (event) => {
     const data = JSON.parse(event.data);
     console.log(`SSH host created: ${data.hostname}`);

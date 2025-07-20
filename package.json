@@ -49,12 +49,6 @@
     "format:backend": "cd backend && npm run format",
     "format:frontend": "cd frontend && npm run format"
   },
-  "workspaces": [
-    "backend",
-    "frontend",
-    "macos-app",
-    "terminal-app"
-  ],
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"

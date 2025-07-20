@@ -1,6 +1,24 @@
 // src/setupTests.js
 import '@testing-library/jest-dom';
 
+// Suppress React Router future warnings in tests
+const originalWarn = console.warn;
+beforeAll(() => {
+  console.warn = (...args) => {
+    if (
+      args[0]?.includes?.('React Router Future Flag Warning') ||
+      args[0]?.includes?.('React Router will begin wrapping state updates')
+    ) {
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+});
+
+afterAll(() => {
+  console.warn = originalWarn;
+});
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

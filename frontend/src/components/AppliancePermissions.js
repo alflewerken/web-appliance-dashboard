@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import SwipeableViews from 'react-swipeable-views';
+import { SwipeableTabContainer, SwipeableTabPanel } from './SwipeableTabPanel';
 import {
   Dialog,
   DialogTitle,
@@ -284,10 +284,10 @@ const AppliancePermissions = ({
           <Tab label="Benutzerspezifische Berechtigungen" />
         </Tabs>
 
-        <SwipeableViews
-          index={tabValue}
-          onChangeIndex={setTabValue}
-          style={{ marginTop: '16px' }}
+        <SwipeableTabContainer
+          currentTab={tabValue}
+          onTabChange={setTabValue}
+          tabCount={2}
         >
           {/* General Visibility Tab */}
           <Box>
@@ -459,7 +459,7 @@ const AppliancePermissions = ({
             </TableContainer>
           )}
         </Box>
-      </SwipeableViews>
+      </SwipeableTabContainer>
     </DialogContent>
     <DialogActions>
       <Button onClick={onClose}>Schließen</Button>

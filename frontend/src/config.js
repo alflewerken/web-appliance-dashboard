@@ -25,8 +25,8 @@ const getGuacamoleUrl = () => {
     return window.location.protocol + '//' + window.location.hostname + ':9871/guacamole';
   }
   
-  // Default to local Guacamole instance
-  return window.location.protocol + '//' + window.location.hostname + ':9070/guacamole';
+  // Default to Guacamole proxy with JWT authentication
+  return window.location.protocol + '//' + window.location.hostname + ':8070/guacamole';
 };
 
 const GUACAMOLE_URL = getGuacamoleUrl();

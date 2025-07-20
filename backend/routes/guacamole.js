@@ -1,26 +1,66 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const axios = require('axios');
 const pool = require('../utils/database');
-const { logAuditEvent } = require('../utils/auditLogger');
+const { createAuditLog } = require('../utils/auditLogger');
 const { decrypt } = require('../utils/crypto');
+const { getClientIp } = require('../utils/getClientIp');
+const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
 
-// Temporärer Store für Guacamole Tokens
-const guacamoleTokens = new Map();
+// Cache für Guacamole Auth Tokens
+const authTokenCache = new Map();
 
 /**
- * Erstellt einen temporären Token für Guacamole Zugriff
+ * Holt oder erstellt einen Guacamole Auth Token
+ */
+async function getGuacamoleAuthToken() {
+  // Check cache first
+  const cached = authTokenCache.get('admin');
+  if (cached && cached.expires > Date.now()) {
+    return cached.token;
+  }
+  
+  // Use internal Docker network URL
+  const guacamoleInternalUrl = 'http://guacamole:8080/guacamole';
+  
+  try {
+    const response = await axios.post(`${guacamoleInternalUrl}/api/tokens`, 
+      'username=guacadmin&password=guacadmin', 
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        timeout: 10000
+      }
+    );
+    
+    const token = response.data.authToken;
+    
+    // Cache for 30 minutes
+    authTokenCache.set('admin', {
+      token: token,
+      expires: Date.now() + 30 * 60 * 1000
+    });
+    
+    return token;
+  } catch (error) {
+    console.error('Failed to get Guacamole auth token:', error.message);
+    throw new Error('Guacamole authentication failed');
+  }
+}
+
+/**
+ * Erstellt einen direkten Link zu einer Guacamole-Verbindung
  */
 router.post('/guacamole/token/:applianceId', async (req, res) => {
   try {
     const { applianceId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
-    // Prüfe ob User Zugriff auf diese Appliance hat
+    // Prüfe ob Appliance existiert
     const [appliances] = await pool.execute(
-      'SELECT * FROM appliances WHERE id = ? AND user_id = ?',
-      [applianceId, userId]
+      'SELECT * FROM appliances WHERE id = ?',
+      [applianceId]
     );
     
     if (appliances.length === 0) {
@@ -29,90 +69,137 @@ router.post('/guacamole/token/:applianceId', async (req, res) => {
     
     const appliance = appliances[0];
     
-    // Prüfe ob Remote Desktop aktiviert ist
     if (!appliance.remote_desktop_enabled) {
       return res.status(400).json({ error: 'Remote Desktop ist für diese Appliance nicht aktiviert' });
-    }    
-    // Generiere temporären Token für Guacamole
-    const guacToken = crypto.randomBytes(32).toString('hex');
-    const connectionId = `${userId}-${applianceId}`;
+    }
     
-    // Speichere Token mit Ablaufzeit (5 Minuten)
-    guacamoleTokens.set(guacToken, {
-      userId,
-      applianceId,
-      connectionId,
-      appliance: appliance,
-      expires: Date.now() + 300000 // 5 Minuten
-    });
-    
-    // Cleanup alte Tokens
-    cleanupExpiredTokens();
-    
-    // Audit Log
-    await logAuditEvent(userId, 'remote_desktop_token_created', 'appliances', applianceId, {
-      protocol: appliance.remote_protocol
-    });
-    
-    res.json({
-      token: guacToken,
-      connectionId,
-      expiresIn: 300
-    });
+    try {
+      // Entschlüssele Passwort
+      let decryptedPassword = null;
+      if (appliance.remote_password_encrypted) {
+        try {
+          decryptedPassword = decrypt(appliance.remote_password_encrypted);
+        } catch (error) {
+          console.error('Fehler beim Entschlüsseln des Passworts:', error);
+        }
+      }
+      
+      // Erstelle oder aktualisiere die Verbindung
+      const dbManager = new GuacamoleDBManager();
+      const connectionInfo = await dbManager.createOrUpdateConnection(applianceId, {
+        protocol: appliance.remote_protocol,
+        hostname: appliance.remote_host,
+        port: appliance.remote_port || (appliance.remote_protocol === 'vnc' ? 5900 : 3389),
+        username: appliance.remote_username || '',
+        password: decryptedPassword || ''
+      });
+      await dbManager.close();
+      
+      // Hole Guacamole Auth Token
+      const authToken = await getGuacamoleAuthToken();
+      
+      // Erstelle den korrekten Guacamole identifier
+      // Format: <connection-id>\0c\0<data-source>
+      const connectionId = connectionInfo.connectionId;
+      const dataSource = 'postgresql'; // oder 'mysql' je nach DB
+      const identifier = Buffer.from(`${connectionId}\0c\0${dataSource}`).toString('base64');
+      
+      // Audit Log
+      await createAuditLog(
+        userId,
+        'remote_desktop_access',
+        'appliance',
+        applianceId,
+        { 
+          protocol: appliance.remote_protocol,
+          host: appliance.remote_host,
+          connectionName: connectionInfo.connectionName,
+          connectionId: connectionId
+        },
+        getClientIp(req)
+      );
+      
+      // Generiere direkte URL mit Auth Token und kodiertem Identifier
+      // Verwende die direkte Guacamole URL (Port 9070) für zuverlässigen Zugriff
+      let guacamoleUrl;
+      
+      // Wenn EXTERNAL_URL gesetzt ist, nutze diese als Basis
+      if (process.env.EXTERNAL_URL) {
+        const baseUrl = process.env.EXTERNAL_URL.replace(/\/$/, '');
+        // Ersetze den Port mit dem Guacamole Port
+        const urlParts = baseUrl.split(':');
+        if (urlParts.length === 3) {
+          // Format: http://domain:port -> http://domain:9070
+          guacamoleUrl = `${urlParts[0]}:${urlParts[1]}:9070/guacamole`;
+        } else {
+          // Format ohne Port: http://domain -> http://domain:9070
+          guacamoleUrl = `${baseUrl}:9070/guacamole`;
+        }
+      } else {
+        // Fallback auf localhost
+        guacamoleUrl = `http://localhost:9070/guacamole`;
+      }
+      
+      const directUrl = `${guacamoleUrl}/#/client/${identifier}?token=${authToken}`;
+      
+      res.json({
+        url: directUrl,
+        needsLogin: false
+      });
+      
+    } catch (error) {
+      console.error('Fehler bei der Guacamole-Integration:', error);
+      res.status(500).json({ error: 'Fehler bei der Remote Desktop Verbindung' });
+    }
   } catch (error) {
     console.error('Fehler beim Erstellen des Guacamole Tokens:', error);
     res.status(500).json({ error: 'Interner Serverfehler' });
   }
 });
-/**
- * Validiert Guacamole Token (wird von Guacamole Auth Extension aufgerufen)
- */
-router.get('/guacamole/validate/:token', async (req, res) => {
-  const { token } = req.params;
-  
-  const tokenData = guacamoleTokens.get(token);
-  if (!tokenData || tokenData.expires < Date.now()) {
-    return res.status(401).json({ valid: false });
-  }
-  
-  // Token ist nur einmal verwendbar
-  guacamoleTokens.delete(token);
-  
-  // Entschlüssele Passwort wenn vorhanden
-  let decryptedPassword = null;
-  if (tokenData.appliance.remote_password_encrypted) {
-    try {
-      decryptedPassword = decrypt(tokenData.appliance.remote_password_encrypted);
-    } catch (error) {
-      console.error('Fehler beim Entschlüsseln des Passworts:', error);
-    }
-  }
-  
-  res.json({
-    valid: true,
-    connectionId: tokenData.connectionId,
-    config: {
-      protocol: tokenData.appliance.remote_protocol,
-      hostname: tokenData.appliance.remote_host || tokenData.appliance.ip || tokenData.appliance.host,
-      port: tokenData.appliance.remote_port?.toString() || (tokenData.appliance.remote_protocol === 'vnc' ? '5900' : '3389'),
-      username: tokenData.appliance.remote_username || '',
-      password: decryptedPassword || ''
-    }
-  });
-});
-/**
- * Cleanup abgelaufene Tokens
- */
-function cleanupExpiredTokens() {
-  const now = Date.now();
-  for (const [token, data] of guacamoleTokens.entries()) {
-    if (data.expires < now) {
-      guacamoleTokens.delete(token);
-    }
-  }
-}
 
-// Cleanup alle 5 Minuten
-setInterval(cleanupExpiredTokens, 300000);
+/**
+ * Proxy endpoint für Guacamole - leitet Anfragen weiter mit automatischer Authentifizierung
+ */
+router.all('/guacamole/proxy/*', async (req, res) => {
+  try {
+    const authToken = await getGuacamoleAuthToken();
+    const guacamoleUrl = process.env.GUACAMOLE_URL || 'http://guacamole:8080/guacamole';
+    const path = req.params[0];
+    
+    const config = {
+      method: req.method,
+      url: `${guacamoleUrl}/${path}`,
+      headers: {
+        ...req.headers,
+        'Guacamole-Token': authToken,
+        'host': undefined,
+        'content-length': undefined
+      },
+      params: { ...req.query, token: authToken }
+    };
+    
+    if (req.body && Object.keys(req.body).length > 0) {
+      config.data = req.body;
+    }
+    
+    const response = await axios(config);
+    
+    // Forward response
+    Object.keys(response.headers).forEach(key => {
+      if (key !== 'content-encoding' && key !== 'content-length') {
+        res.setHeader(key, response.headers[key]);
+      }
+    });
+    
+    res.status(response.status).send(response.data);
+    
+  } catch (error) {
+    console.error('Proxy error:', error);
+    res.status(error.response?.status || 500).json({ 
+      error: 'Proxy error',
+      details: error.message 
+    });
+  }
+});
 
 module.exports = router;
