@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "child_process": "^1.0.2",
-    "electron-store": "^8.1.0",
+    "electron-store": "^10.1.0",
     "express": "^5.1.0",
     "http-proxy-middleware": "^3.0.5"
   },
