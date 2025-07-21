@@ -63,6 +63,7 @@ import './styles/mobile-panels.css'; // Mobile panel safe area support
 import './styles/mobile-panel-overflow-fix.css'; // Mobile panel overflow fix
 import './styles/mobile-panel-scroll-fix.css'; // Mobile panel scroll fix
 import './styles/mobile-swipeable-panels.css'; // Mobile swipeable panels
+import './styles/enhanced-mobile-swipe.css'; // Enhanced swipe support
 import './styles/transparent-panels-mode.css'; // Transparent Panels Toggle
 import './styles/header-unification.css'; // Header height unification
 import './styles/macos-input-fix.css'; // macOS input alignment fix
