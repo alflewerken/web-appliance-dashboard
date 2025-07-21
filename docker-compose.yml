@@ -96,7 +96,7 @@ services:
       - "${NGINX_HTTP_PORT:-9080}:80"
       - "${NGINX_HTTPS_PORT:-9443}:443"
     volumes:
-      - ./nginx/nginx-docker-dynamic.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx-docker-with-optional-guacamole.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./frontend/build:/usr/share/nginx/html:ro
     depends_on:

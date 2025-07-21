@@ -414,7 +414,7 @@ docker compose up -d ttyd
 
 # 4. Start webserver (nginx)
 print_status "info" "Starting webserver..."
-print_status "info" "Using nginx config: nginx/nginx-main-docker-http.conf"
+print_status "info" "Using nginx config: nginx-docker-with-optional-guacamole.conf"
 docker compose up -d webserver
 
 # 5. Start Guacamole if enabled
@@ -616,7 +616,7 @@ if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
 fi
 echo ""
 print_status "info" "Container Configuration:"
-echo "   🐳 Nginx Config: nginx/nginx-main-docker-http.conf"
+echo "   🐳 Nginx Config: nginx/nginx-docker-with-optional-guacamole.conf"
 echo "   🐳 Container: appliance_webserver"
 echo "   🐳 Port: 9080 (HTTP), 9443 (HTTPS)"
 echo ""
