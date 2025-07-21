@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SwipeableTabContainer, SwipeableTabPanel } from './SwipeableTabPanel';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
+import MobileTabSwipeHelper from './MobileTabSwipeHelper';
 import {
   Box,
   Typography,
@@ -1354,6 +1355,14 @@ const SettingsPanel = ({
           loading={loading}
         />
       )}
+
+      {/* Mobile Tab Swipe Helper */}
+      <MobileTabSwipeHelper
+        currentTab={tabValue}
+        tabCount={visibleTabs.length}
+        onTabChange={handleTabChange}
+        isMobile={true}
+      />
 
       {/* Success/Error Snackbars */}
       <Snackbar

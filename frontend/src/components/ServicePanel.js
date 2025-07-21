@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
+import MobileTabSwipeHelper from './MobileTabSwipeHelper';
 import {
   Box,
   Typography,
@@ -2767,6 +2768,17 @@ const ServicePanel = ({
           </Box>
         </Box>
       )}
+
+      {/* Mobile Tab Swipe Helper */}
+      <MobileTabSwipeHelper
+        currentTab={['service', 'visual', 'commands'].indexOf(activeTab)}
+        tabCount={3}
+        onTabChange={(e, newIndex) => {
+          const tabs = ['service', 'visual', 'commands'];
+          setActiveTab(tabs[newIndex]);
+        }}
+        isMobile={true}
+      />
 
       {/* Success/Error Snackbars */}
       <Snackbar
