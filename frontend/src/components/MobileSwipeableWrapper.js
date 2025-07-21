@@ -27,18 +27,20 @@ const MobileSwipeableWrapper = ({
     }
   }, [activePanels.length, currentIndex]);
 
+  // Add class to body
+  useEffect(() => {
+    if (isMobile && activePanels.length > 0) {
+      document.body.classList.add('has-swipeable-panels');
+      return () => {
+        document.body.classList.remove('has-swipeable-panels');
+      };
+    }
+  }, [isMobile, activePanels.length]);
+
   // Only render on mobile with active panels
   if (!isMobile || activePanels.length === 0) {
     return children;
   }
-
-  // Add class to body
-  useEffect(() => {
-    document.body.classList.add('has-swipeable-panels');
-    return () => {
-      document.body.classList.remove('has-swipeable-panels');
-    };
-  }, []);
 
   const onTouchStart = (e) => {
     setTouchEnd(null);
