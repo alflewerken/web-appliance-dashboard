@@ -26,6 +26,7 @@ import UserPanel from './components/UserPanel';
 import { openTerminalInNewWindow } from './utils/terminalWindow';
 import { AuditLogPanel } from './components/AuditLog';
 import SSEDebugPanel from './components/SSEDebugPanel';
+import MobileSwipeableWrapper from './components/MobileSwipeableWrapper';
 
 // Import Contexts
 import { SSEProvider } from './contexts/SSEContext';
@@ -61,6 +62,7 @@ import './styles/panel-layout.css'; // Multi-panel layout system
 import './styles/mobile-panels.css'; // Mobile panel safe area support
 import './styles/mobile-panel-overflow-fix.css'; // Mobile panel overflow fix
 import './styles/mobile-panel-scroll-fix.css'; // Mobile panel scroll fix
+import './styles/mobile-swipeable-panels.css'; // Mobile swipeable panels
 import './styles/transparent-panels-mode.css'; // Transparent Panels Toggle
 import './styles/header-unification.css'; // Header height unification
 import './styles/macos-input-fix.css'; // macOS input alignment fix
@@ -657,6 +659,15 @@ function Dashboard() {
     setShowServicePanel(true);
   };
 
+  // Close all panels (for mobile swipeable wrapper)
+  const closeAllPanels = () => {
+    setShowServicePanel(false);
+    setShowSettingsModal(false);
+    setShowUserManagement(false);
+    setShowAuditLog(false);
+    setSelectedServiceForPanel(null);
+  };
+
   const startEdit = (appliance, initialTab = 'service') => {
     console.log(
       'startEdit called for appliance:',
@@ -1071,6 +1082,105 @@ function Dashboard() {
         </div>
       </main>
 
+      {/* MobileSwipeableWrapper for panels */}
+      <MobileSwipeableWrapper
+        isMobile={isMobile}
+        onClose={closeAllPanels}
+        panels={[
+          {
+            key: 'settings',
+            title: 'Einstellungen',
+            isOpen: showSettingsModal,
+            component: showSettingsModal && (
+              <SettingsPanel
+                onClose={() => setShowSettingsModal(false)}
+                onCategoriesUpdate={handleCategoriesUpdate}
+                onReorderCategories={handleReorderCategories}
+                onApplyTheme={handleApplyTheme}
+                onBackgroundSettingsUpdate={handleBackgroundSettingsUpdate}
+                apiCategories={apiCategories}
+                categoriesLastUpdated={categoriesLastUpdated}
+                currentBackground={currentBackground}
+                backgroundImages={backgroundImages}
+                backgroundSettings={backgroundSettings}
+                setBackgroundSettings={setBackgroundSettings}
+                activeTab={activeSettingsTab}
+                setActiveTab={setActiveSettingsTab}
+                onActivateBackground={activateBackground}
+                onDeleteBackground={deleteBackgroundImage}
+                onDisableBackground={disableBackground}
+                setBackgroundImages={setBackgroundImages}
+                onOpenSSHManager={() => setShowSSHManager(true)}
+                onTerminalOpen={handleTerminalOpen}
+                isAdmin={isAdmin}
+                onWidthChange={setSettingsPanelWidth}
+              />
+            )
+          },
+          {
+            key: 'service',
+            title: selectedServiceForPanel?.name || 'Service',
+            isOpen: showServicePanel && selectedServiceForPanel,
+            component: showServicePanel && selectedServiceForPanel && (
+              <ServicePanel
+                appliance={selectedServiceForPanel}
+                initialTab={selectedServiceForPanel.initialTab}
+                onClose={() => {
+                  setShowServicePanel(false);
+                  setSelectedServiceForPanel(null);
+                }}
+                onSave={async (applianceId, data) => {
+                  if (selectedServiceForPanel.isNew) {
+                    const newAppliance = await createAppliance(data);
+                    if (newAppliance && newAppliance.id) {
+                      setSelectedServiceForPanel(newAppliance);
+                    }
+                  } else {
+                    await ApplianceService.patchAppliance(applianceId, data);
+                  }
+                  await fetchAppliances();
+                }}
+                onDelete={async appliance => {
+                  await deleteAppliance(appliance.id);
+                  setShowServicePanel(false);
+                  setSelectedServiceForPanel(null);
+                }}
+                onUpdateSettings={handleUpdateCardSettings}
+                categories={allCategories.slice(3)}
+                allServices={appliances}
+                sshHosts={sshHosts}
+                isLoadingSSHHosts={isLoadingSSHHosts}
+                adminMode={isAdmin}
+                onWidthChange={width => setServicePanelWidth(width)}
+              />
+            )
+          },
+          {
+            key: 'user',
+            title: 'Benutzer',
+            isOpen: showUserManagement,
+            component: showUserManagement && (
+              <UserPanel
+                onClose={() => setShowUserManagement(false)}
+                onWidthChange={setUserPanelWidth}
+              />
+            )
+          },
+          {
+            key: 'audit',
+            title: 'Audit-Log',
+            isOpen: showAuditLog,
+            component: showAuditLog && (
+              <AuditLogPanel
+                onClose={() => setShowAuditLog(false)}
+                onWidthChange={setAuditLogPanelWidth}
+              />
+            )
+          }
+        ]}
+      >
+        {/* Desktop Panels - rendered normally on desktop */}
+
       {showServicePanel && selectedServiceForPanel && (
         <div className="panel-container service-panel-container">
           <ServicePanel
@@ -1163,6 +1273,14 @@ function Dashboard() {
             onWidthChange={setAuditLogPanelWidth}
           />
         </div>
+      )}
+      </MobileSwipeableWrapper>
+
+      {showSSHManager && (
+        <SSHKeyManager
+          isOpen={showSSHManager}
+          onClose={() => setShowSSHManager(false)}
+        />
       )}
 
       {activeTerminals.map(terminal => (
