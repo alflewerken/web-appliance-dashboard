@@ -332,3 +332,28 @@
     box-sizing: border-box !important;
   }
 }
+
+/* Fix for service panel tabs scrolling */
+.service-panel-tabs {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background: inherit !important;
+}
+
+/* Ensure swipeable views container has proper height */
+.react-swipeable-view-container {
+  height: 100% !important;
+}
+
+/* Fix for tab content scrolling */
+.react-swipeable-view-container > div {
+  height: 100% !important;
+}
+
+/* Ensure each tab content can scroll */
+.react-swipeable-view-container > div > div {
+  height: 100% !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}

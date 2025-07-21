@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { SwipeableTabContainer, SwipeableTabPanel } from './SwipeableTabPanel';
+import SwipeableViews from 'react-swipeable-views';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
-import MobileTabSwipeHelper from './MobileTabSwipeHelper';
 import {
   Box,
   Typography,
@@ -37,6 +36,8 @@ import {
   FormGroup,
   Tooltip,
   ListItemIcon,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   X,
@@ -69,7 +70,6 @@ import SSHManagerIntegrated from './SSHManagerIntegrated';
 import SSHTab from './SSHTab';
 import BackgroundSettingsMUI from './BackgroundSettingsMUI';
 import BackupTab from './BackupTab';
-import TouchDraggableWrapper from './TouchDraggableWrapper';
 import './SettingsModal.css';
 import './unified/SettingsPanelPatch.css';
 
@@ -96,6 +96,9 @@ const SettingsPanel = ({
   isAdmin,
   onWidthChange,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
   // All tabs - some are admin only
   const tabs = [
     { icon: Home, label: 'Allgemein', key: 'general', adminOnly: false },
@@ -105,6 +108,9 @@ const SettingsPanel = ({
     { icon: Archive, label: 'Backup', key: 'backup', adminOnly: true },
     { icon: RefreshCw, label: 'System', key: 'system', adminOnly: true },
   ];
+
+  // Filter tabs based on admin status
+  const visibleTabs = tabs.filter(tab => !tab.adminOnly || isAdmin);
 
   // Resize functionality
   const [panelWidth, setPanelWidth] = useState(() => {
@@ -159,16 +165,8 @@ const SettingsPanel = ({
 
   // Find initial tab index
   const getInitialTabIndex = () => {
-    // If the initial tab is admin-only and user is not admin, default to 0
-    const index = tabs.findIndex(tab => tab.key === initialActiveTab);
-    if (index !== -1) {
-      const tab = tabs[index];
-      if (tab.adminOnly && !isAdmin) {
-        return 0; // Default to first tab
-      }
-      return index;
-    }
-    return 0;
+    const index = visibleTabs.findIndex(tab => tab.key === initialActiveTab);
+    return index !== -1 ? index : 0;
   };
 
   const [tabValue, setTabValue] = useState(getInitialTabIndex());
@@ -221,20 +219,30 @@ const SettingsPanel = ({
     system: false,
   });
 
-  // Handle tab change - completely internal
+  // Handle tab change
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
 
     // Notify parent if needed
-    if (parentSetActiveTab && tabs[newValue]) {
-      parentSetActiveTab(tabs[newValue].key);
+    if (parentSetActiveTab && visibleTabs[newValue]) {
+      parentSetActiveTab(visibleTabs[newValue].key);
+    }
+  };
+
+  // Handle swipe change
+  const handleSwipeChange = (index) => {
+    setTabValue(index);
+    
+    // Notify parent if needed
+    if (parentSetActiveTab && visibleTabs[index]) {
+      parentSetActiveTab(visibleTabs[index].key);
     }
   };
 
   // Load data when tab changes
   useEffect(() => {
-    if (tabs[tabValue]) {
-      const currentTab = tabs[tabValue].key;
+    if (visibleTabs[tabValue]) {
+      const currentTab = visibleTabs[tabValue].key;
 
       if (currentTab === 'general' && !dataLoaded.current.general) {
         fetchGeneralSettings();
@@ -251,7 +259,7 @@ const SettingsPanel = ({
 
   // SSE event listeners for SSH hosts
   useEffect(() => {
-    if (addEventListener && tabs[tabValue]?.key === 'ssh') {
+    if (addEventListener && visibleTabs[tabValue]?.key === 'ssh') {
       const unsubscribers = [
         addEventListener('ssh_host_created', () => {
           fetchSSHHosts();
@@ -276,11 +284,11 @@ const SettingsPanel = ({
         });
       };
     }
-  }, [addEventListener, tabs, tabValue, fetchSSHHosts]);
+  }, [addEventListener, visibleTabs, tabValue, fetchSSHHosts]);
 
   // SSE event listeners for categories
   useEffect(() => {
-    if (addEventListener && tabs[tabValue]?.key === 'categories') {
+    if (addEventListener && visibleTabs[tabValue]?.key === 'categories') {
       const unsubscribers = [
         addEventListener('category_created', (data) => {
           console.log('Category created event received:', data);
@@ -320,7 +328,7 @@ const SettingsPanel = ({
         });
       };
     }
-  }, [addEventListener, tabs, tabValue, onCategoriesUpdate]);
+  }, [addEventListener, visibleTabs, tabValue, onCategoriesUpdate]);
 
   // SSE event listeners for settings updates
   useEffect(() => {
@@ -752,6 +760,486 @@ const SettingsPanel = ({
     document.body.classList.remove('touch-dragging');
   };
 
+  // Map visible tab indices to their content
+  const getTabContent = (tab) => {
+    switch (tab.key) {
+      case 'general':
+        return (
+          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+            {generalLoading ? (
+              <Box display="flex" justifyContent="center" p={4}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                    Standard-Startseite
+                  </InputLabel>
+                  <Select
+                    value={generalSettings.default_category}
+                    onChange={e =>
+                      handleGeneralSettingChange(
+                        'default_category',
+                        e.target.value
+                      )
+                    }
+                    label="Standard-Startseite"
+                    sx={{
+                      color: 'var(--text-primary)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                      },
+                    }}
+                  >
+                    <MenuItem value="all">Alle Services</MenuItem>
+                    <MenuItem value="recent">Zuletzt verwendet</MenuItem>
+                    <MenuItem value="favorites">Favoriten</MenuItem>
+                    {apiCategories.map(category => (
+                      <MenuItem key={category.name} value={category.name}>
+                        {category.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth margin="normal">
+                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                    Design-Modus
+                  </InputLabel>
+                  <Select
+                    value={generalSettings.theme_mode}
+                    onChange={e =>
+                      handleGeneralSettingChange('theme_mode', e.target.value)
+                    }
+                    label="Design-Modus"
+                    sx={{
+                      color: 'var(--text-primary)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                      },
+                    }}
+                  >
+                    <MenuItem value="dark">Dunkler Modus</MenuItem>
+                    <MenuItem value="light">Heller Modus</MenuItem>
+                    <MenuItem value="auto">Automatisch (System)</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <Alert severity="success" sx={{ mt: 3 }}>
+                  <Check
+                    size={16}
+                    style={{ marginRight: 8, verticalAlign: 'middle' }}
+                  />
+                  Alle Änderungen werden automatisch gespeichert
+                </Alert>
+              </Box>
+            )}
+          </Box>
+        );
+
+      case 'background':
+        return (
+          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+            <BackgroundSettingsMUI
+              backgroundSettings={backgroundSettings}
+              setBackgroundSettings={setBackgroundSettings}
+              backgroundImages={backgroundImages}
+              setBackgroundImages={setBackgroundImages}
+              currentBackground={currentBackground}
+              onActivateBackground={onActivateBackground}
+              onDeleteBackground={onDeleteBackground}
+              SettingsService={SettingsService}
+              backgroundSyncManager={backgroundSyncManager}
+            />
+          </Box>
+        );
+
+      case 'categories':
+        return (
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 3 }}>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexShrink: 0 }}>
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<Plus size={20} />}
+                onClick={() => {
+                  setEditingCategory(null);
+                  setShowCategoryModal(true);
+                }}
+              >
+                Neue Kategorie
+              </Button>
+              
+              {/* Mobile Reorder Button - only show on small screens */}
+              <Button
+                variant={reorderMode ? "contained" : "outlined"}
+                onClick={() => setReorderMode(!reorderMode)}
+                startIcon={reorderMode ? <Check size={20} /> : <GripVertical size={20} />}
+                sx={{ 
+                  minWidth: 120,
+                  display: { xs: 'flex', md: 'none' }, // Only show on mobile
+                  backgroundColor: reorderMode ? 'success.main' : undefined,
+                  '&:hover': {
+                    backgroundColor: reorderMode ? 'success.dark' : undefined,
+                  }
+                }}
+              >
+                {reorderMode ? 'Fertig' : 'Sortieren'}
+              </Button>
+            </Box>
+
+            <Box sx={{ flex: 1, overflow: 'auto', position: 'relative' }}>
+              <List ref={listRef} sx={{ pb: 2 }}>
+                {apiCategories && apiCategories.length > 0 ? (
+                  <>
+                    {apiCategories.map((category, index) => {
+                      const isDropTarget =
+                        dragOverIndex === index && draggedIndex !== index;
+                      const showTopIndicator =
+                        isDropTarget &&
+                        draggedIndex !== null &&
+                        draggedIndex > index;
+                      const showBottomIndicator =
+                        isDropTarget &&
+                        draggedIndex !== null &&
+                        draggedIndex < index;
+
+                      return (
+                        <React.Fragment key={category.id}>
+                          {/* Top drop indicator */}
+                          {showTopIndicator && (
+                            <Box
+                              sx={{
+                                height: '3px',
+                                backgroundColor: 'var(--primary-color)',
+                                margin: '8px 16px',
+                                borderRadius: '2px',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 0 8px var(--primary-color)',
+                              }}
+                            />
+                          )}
+                          <ListItem
+                            draggable
+                            data-index={index}
+                            onDragStart={e => handleDragStart(e, index)}
+                            onDragEnd={handleDragEnd}
+                            onDragEnter={e => handleDragEnter(e, index)}
+                            onDragLeave={handleDragLeave}
+                            onDragOver={handleDragOver}
+                            onDrop={e => handleDrop(e, index)}
+                            onPointerDown={e => {
+                              // Use pointer events for better mobile support
+                              if (e.pointerType === 'touch') {
+                                // Check if we're touching the drag handle area
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const relativeX = e.clientX - rect.left;
+                                if (relativeX < 80) { // First 80px is the drag handle area
+                                  e.preventDefault();
+                                  handleTouchStart(e, index);
+                                }
+                              }
+                            }}
+                            onPointerMove={e => {
+                              if (e.pointerType === 'touch' && draggedIndex !== null) {
+                                e.preventDefault();
+                                handleTouchMove(e);
+                              }
+                            }}
+                            onPointerUp={e => {
+                              if (e.pointerType === 'touch' && draggedIndex !== null) {
+                                e.preventDefault();
+                                handleTouchEnd(e);
+                              }
+                            }}
+                            sx={{
+                              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                              mb: 1,
+                              borderRadius: 1,
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              cursor: 'move',
+                              transition: 'all 0.2s ease',
+                              opacity: draggedIndex === index ? 0.5 : 1,
+                              transform: isDropTarget
+                                ? 'scale(0.98)'
+                                : 'scale(1)',
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                                borderColor: 'rgba(255, 255, 255, 0.2)',
+                              },
+                              // Touch feedback
+                              WebkitTouchCallout: 'none',
+                              WebkitUserSelect: 'none',
+                              userSelect: 'none',
+                            }}
+                          >
+                            <ListItemIcon 
+                              sx={{ 
+                                minWidth: 56,
+                                display: reorderMode ? 'none' : 'flex', // Hide in reorder mode
+                              }}
+                            >
+                              <GripVertical
+                                size={20}
+                                style={{
+                                  color: 'var(--text-secondary)',
+                                  cursor: 'grab',
+                                }}
+                                className="drag-handle"
+                              />
+                            </ListItemIcon>
+                            <ListItemIcon sx={{ minWidth: 48, mr: 1.5 }}>
+                              <Box
+                                className="category-icon-box"
+                                sx={{
+                                  width: 36,
+                                  height: 36,
+                                  bgcolor: category.color || '#8E8E93',
+                                  borderRadius: '10px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'rgba(255, 255, 255, 0.9)',
+                                  transition: 'all 0.2s ease',
+                                  '&:hover': {
+                                    transform: 'scale(1.05)',
+                                  },
+                                }}
+                              >
+                                <SimpleIcon
+                                  name={category.icon || 'folder'}
+                                  size={20}
+                                  strokeWidth={2}
+                                />
+                              </Box>
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={category.name}
+                              secondary={`${category.appliances_count || 0} Services`}
+                              primaryTypographyProps={{
+                                sx: {
+                                  color: 'var(--text-primary)',
+                                  fontWeight: 500,
+                                },
+                              }}
+                              secondaryTypographyProps={{
+                                sx: { color: 'var(--text-secondary)' },
+                              }}
+                            />
+                            <ListItemSecondaryAction>
+                              {/* Show reorder buttons in reorder mode (mobile) */}
+                              {reorderMode ? (
+                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                  <IconButton
+                                    edge="end"
+                                    disabled={index === 0}
+                                    onClick={() => moveCategory(index, 'up')}
+                                    sx={{
+                                      width: 36,
+                                      height: 36,
+                                      backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                                      color: 'var(--primary-color)',
+                                      borderRadius: '8px',
+                                      '&:hover': {
+                                        backgroundColor: 'rgba(0, 122, 255, 0.2)',
+                                      },
+                                      '&:disabled': {
+                                        opacity: 0.3,
+                                      },
+                                    }}
+                                  >
+                                    <ChevronUp size={18} />
+                                  </IconButton>
+                                  <IconButton
+                                    edge="end"
+                                    disabled={index === apiCategories.length - 1}
+                                    onClick={() => moveCategory(index, 'down')}
+                                    sx={{
+                                      width: 36,
+                                      height: 36,
+                                      backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                                      color: 'var(--primary-color)',
+                                      borderRadius: '8px',
+                                      '&:hover': {
+                                        backgroundColor: 'rgba(0, 122, 255, 0.2)',
+                                      },
+                                      '&:disabled': {
+                                        opacity: 0.3,
+                                      },
+                                    }}
+                                  >
+                                    <ChevronDown size={18} />
+                                  </IconButton>
+                                </Box>
+                              ) : (
+                                <>
+                                  {/* Normal edit/delete buttons */}
+                                  <IconButton
+                                    edge="end"
+                                    onClick={() => {
+                                      setEditingCategory(category);
+                                      setShowCategoryModal(true);
+                                    }}
+                                    sx={{
+                                      mr: 1,
+                                      width: 36,
+                                      height: 36,
+                                      backgroundColor: 'rgba(52, 199, 89, 0.15)',
+                                      color: '#34C759',
+                                      borderRadius: '8px',
+                                      '&:hover': {
+                                        backgroundColor:
+                                          'rgba(52, 199, 89, 0.25)',
+                                        color: '#34C759',
+                                      },
+                                    }}
+                                  >
+                                    <Edit size={18} />
+                                  </IconButton>
+                                  <IconButton
+                                    edge="end"
+                                    onClick={() => deleteCategory(category)}
+                                    sx={{
+                                      width: 36,
+                                      height: 36,
+                                      backgroundColor: 'rgba(255, 59, 48, 0.15)',
+                                      color: '#FF3B30',
+                                      borderRadius: '8px',
+                                      '&:hover': {
+                                        backgroundColor:
+                                          'rgba(255, 59, 48, 0.25)',
+                                        color: '#FF3B30',
+                                      },
+                                    }}
+                                  >
+                                    <Trash2 size={18} />
+                                  </IconButton>
+                                </>
+                              )}
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                          {/* Bottom drop indicator */}
+                          {showBottomIndicator && (
+                            <Box
+                              sx={{
+                                height: '3px',
+                                backgroundColor: 'var(--primary-color)',
+                                margin: '8px 16px',
+                                borderRadius: '2px',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 0 8px var(--primary-color)',
+                              }}
+                            />
+                          )}
+                          {/* Last item drop indicator */}
+                          {!showBottomIndicator &&
+                            index === apiCategories.length - 1 &&
+                            dragOverIndex === apiCategories.length && (
+                              <Box
+                                sx={{
+                                  height: '3px',
+                                  backgroundColor: 'var(--primary-color)',
+                                  margin: '8px 16px',
+                                  borderRadius: '2px',
+                                  transition: 'all 0.2s ease',
+                                  boxShadow: '0 0 8px var(--primary-color)',
+                                }}
+                              />
+                            )}
+                        </React.Fragment>
+                      );
+                    })}
+                    {/* Drop zone at the end */}
+                    {dragOverIndex === apiCategories.length && (
+                      <Box
+                        sx={{
+                          height: '3px',
+                          backgroundColor: 'var(--primary-color)',
+                          margin: '8px 16px',
+                          borderRadius: '2px',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 0 8px var(--primary-color)',
+                        }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography color="text.secondary">
+                      Keine Kategorien vorhanden
+                    </Typography>
+                  </Box>
+                )}
+              </List>
+            </Box>
+          </Box>
+        );
+
+      case 'ssh':
+        return (
+          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+            <SSHTab onTerminalOpen={onTerminalOpen} />
+          </Box>
+        );
+
+      case 'backup':
+        return (
+          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+            <BackupTab />
+          </Box>
+        );
+
+      case 'system':
+        return (
+          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+            {systemLoading ? (
+              <Box display="flex" justifyContent="center" p={4}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box>
+                <FormControl fullWidth margin="normal">
+                  <TextField
+                    label="Service Abfrage Intervall (Sekunden)"
+                    type="number"
+                    value={systemSettings.service_poll_interval}
+                    onChange={e =>
+                      handleSystemSettingChange(
+                        'service_poll_interval',
+                        e.target.value
+                      )
+                    }
+                    InputProps={{
+                      inputProps: { min: 10, max: 3600 },
+                    }}
+                    sx={{
+                      '& .MuiInputLabel-root': {
+                        color: 'var(--text-secondary)',
+                      },
+                      '& .MuiInputBase-root': { color: 'var(--text-primary)' },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: 'rgba(255, 255, 255, 0.2)',
+                        },
+                      },
+                    }}
+                  />
+                </FormControl>
+
+                <Alert severity="info" sx={{ mt: 3 }}>
+                  Definiert, wie oft der Status der Services abgefragt wird
+                </Alert>
+              </Box>
+            )}
+          </Box>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Box
       ref={panelRef}
@@ -759,7 +1247,7 @@ const SettingsPanel = ({
         position: 'relative',
         width: `${panelWidth}px`,
         height: '100%',
-        backgroundColor: 'rgba(118, 118, 128, 0.12)',  // Subtile Transparenz
+        backgroundColor: 'rgba(118, 118, 128, 0.12)',
         backdropFilter: 'blur(30px) saturate(150%)',
         WebkitBackdropFilter: 'blur(30px) saturate(150%)',
         borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
@@ -787,10 +1275,11 @@ const SettingsPanel = ({
           zIndex: 1,
         }}
       />
+
       {/* Header */}
       <UnifiedPanelHeader 
-        title={tabs[tabValue]?.label || 'Einstellungen'} 
-        icon={tabs[tabValue]?.icon || Settings} 
+        title={visibleTabs[tabValue]?.label || 'Einstellungen'} 
+        icon={visibleTabs[tabValue]?.icon || Settings} 
         onClose={onClose} 
       />
 
@@ -835,511 +1324,37 @@ const SettingsPanel = ({
             },
           }}
         >
-          {tabs.map((tab, index) => {
+          {visibleTabs.map((tab, index) => {
             const IconComponent = tab.icon;
-            const isDisabled = tab.adminOnly && !isAdmin;
             return (
               <Tab
                 key={tab.key}
                 icon={<IconComponent size={20} />}
                 label={tab.label}
                 iconPosition="start"
-                disabled={isDisabled}
-                sx={{
-                  ...(!isDisabled ? {} : {
-                    opacity: 0.5,
-                    cursor: 'not-allowed',
-                  }),
-                }}
               />
             );
           })}
         </Tabs>
       </Box>
 
-      {/* Content */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          overflow: 'auto',
-          position: 'relative',
-          backgroundColor: 'transparent',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* Direct Tab Content without SwipeableTabContainer */}
-        <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
-          {/* General Settings Tab */}
-          {tabValue === 0 && (
-            generalLoading ? (
-              <Box display="flex" justifyContent="center" p={4}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <Box>
-              <FormControl fullWidth margin="normal">
-                <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                  Standard-Startseite
-                </InputLabel>
-                <Select
-                  value={generalSettings.default_category}
-                  onChange={e =>
-                    handleGeneralSettingChange(
-                      'default_category',
-                      e.target.value
-                    )
-                  }
-                  label="Standard-Startseite"
-                  sx={{
-                    color: 'var(--text-primary)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                    },
-                  }}
-                >
-                  <MenuItem value="all">Alle Services</MenuItem>
-                  <MenuItem value="recent">Zuletzt verwendet</MenuItem>
-                  <MenuItem value="favorites">Favoriten</MenuItem>
-                  {apiCategories.map(category => (
-                    <MenuItem key={category.name} value={category.name}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth margin="normal">
-                <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                  Design-Modus
-                </InputLabel>
-                <Select
-                  value={generalSettings.theme_mode}
-                  onChange={e =>
-                    handleGeneralSettingChange('theme_mode', e.target.value)
-                  }
-                  label="Design-Modus"
-                  sx={{
-                    color: 'var(--text-primary)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                    },
-                  }}
-                >
-                  <MenuItem value="dark">Dunkler Modus</MenuItem>
-                  <MenuItem value="light">Heller Modus</MenuItem>
-                  <MenuItem value="auto">Automatisch (System)</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Alert severity="success" sx={{ mt: 3 }}>
-                <Check
-                  size={16}
-                  style={{ marginRight: 8, verticalAlign: 'middle' }}
-                />
-                Alle Änderungen werden automatisch gespeichert
-              </Alert>
+      {/* Swipeable Content */}
+      <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+        <SwipeableViews
+          index={tabValue}
+          onChangeIndex={handleSwipeChange}
+          enableMouseEvents
+          resistance
+          style={{ height: '100%' }}
+          containerStyle={{ height: '100%' }}
+          slideStyle={{ height: '100%' }}
+        >
+          {visibleTabs.map((tab) => (
+            <Box key={tab.key} sx={{ height: '100%' }}>
+              {getTabContent(tab)}
             </Box>
-            )
-          )}
-
-          {/* Background Settings Tab */}
-          {tabValue === 1 && (
-            <BackgroundSettingsMUI
-              backgroundSettings={backgroundSettings}
-              setBackgroundSettings={setBackgroundSettings}
-              backgroundImages={backgroundImages}
-              setBackgroundImages={setBackgroundImages}
-              currentBackground={currentBackground}
-              onActivateBackground={onActivateBackground}
-              onDeleteBackground={onDeleteBackground}
-              SettingsService={SettingsService}
-              backgroundSyncManager={backgroundSyncManager}
-            />
-          )}
-
-          {/* Categories Tab */}
-          {tabValue === 2 && (
-            <Box
-              sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-            >
-              <Box sx={{ display: 'flex', gap: 2, mb: 3, flexShrink: 0 }}>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  startIcon={<Plus size={20} />}
-                  onClick={() => {
-                    setEditingCategory(null);
-                    setShowCategoryModal(true);
-                  }}
-                >
-                  Neue Kategorie
-                </Button>
-                
-                {/* Mobile Reorder Button - only show on small screens */}
-                <Button
-                  variant={reorderMode ? "contained" : "outlined"}
-                  onClick={() => setReorderMode(!reorderMode)}
-                  startIcon={reorderMode ? <Check size={20} /> : <GripVertical size={20} />}
-                  sx={{ 
-                    minWidth: 120,
-                    display: { xs: 'flex', md: 'none' }, // Only show on mobile
-                    backgroundColor: reorderMode ? 'success.main' : undefined,
-                    '&:hover': {
-                      backgroundColor: reorderMode ? 'success.dark' : undefined,
-                    }
-                  }}
-                >
-                  {reorderMode ? 'Fertig' : 'Sortieren'}
-                </Button>
-              </Box>
-
-              <Box sx={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-                <List ref={listRef} sx={{ pb: 2 }}>
-                  {apiCategories && apiCategories.length > 0 ? (
-                    <>
-                      {apiCategories.map((category, index) => {
-                        // Debug logging
-                        if (index === 0) {
-                          }
-
-                        const isDropTarget =
-                          dragOverIndex === index && draggedIndex !== index;
-                        const showTopIndicator =
-                          isDropTarget &&
-                          draggedIndex !== null &&
-                          draggedIndex > index;
-                        const showBottomIndicator =
-                          isDropTarget &&
-                          draggedIndex !== null &&
-                          draggedIndex < index;
-
-                        return (
-                          <React.Fragment key={category.id}>
-                            {/* Top drop indicator */}
-                            {showTopIndicator && (
-                              <Box
-                                sx={{
-                                  height: '3px',
-                                  backgroundColor: 'var(--primary-color)',
-                                  margin: '8px 16px',
-                                  borderRadius: '2px',
-                                  transition: 'all 0.2s ease',
-                                  boxShadow: '0 0 8px var(--primary-color)',
-                                }}
-                              />
-                            )}
-                            <ListItem
-                              draggable
-                              data-index={index}
-                              onDragStart={e => handleDragStart(e, index)}
-                              onDragEnd={handleDragEnd}
-                              onDragEnter={e => handleDragEnter(e, index)}
-                              onDragLeave={handleDragLeave}
-                              onDragOver={handleDragOver}
-                              onDrop={e => handleDrop(e, index)}
-                              onPointerDown={e => {
-                                // Use pointer events for better mobile support
-                                if (e.pointerType === 'touch') {
-                                  // Check if we're touching the drag handle area
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  const relativeX = e.clientX - rect.left;
-                                  if (relativeX < 80) { // First 80px is the drag handle area
-                                    e.preventDefault();
-                                    handleTouchStart(e, index);
-                                  }
-                                }
-                              }}
-                              onPointerMove={e => {
-                                if (e.pointerType === 'touch' && draggedIndex !== null) {
-                                  e.preventDefault();
-                                  handleTouchMove(e);
-                                }
-                              }}
-                              onPointerUp={e => {
-                                if (e.pointerType === 'touch' && draggedIndex !== null) {
-                                  e.preventDefault();
-                                  handleTouchEnd(e);
-                                }
-                              }}
-                              sx={{
-                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                mb: 1,
-                                borderRadius: 1,
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                cursor: 'move',
-                                transition: 'all 0.2s ease',
-                                opacity: draggedIndex === index ? 0.5 : 1,
-                                transform: isDropTarget
-                                  ? 'scale(0.98)'
-                                  : 'scale(1)',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                                  borderColor: 'rgba(255, 255, 255, 0.2)',
-                                },
-                                // Touch feedback
-                                WebkitTouchCallout: 'none',
-                                WebkitUserSelect: 'none',
-                                userSelect: 'none',
-                              }}
-                            >
-                              <ListItemIcon 
-                                sx={{ 
-                                  minWidth: 56,
-                                  display: reorderMode ? 'none' : 'flex', // Hide in reorder mode
-                                }}
-                              >
-                                <GripVertical
-                                  size={20}
-                                  style={{
-                                    color: 'var(--text-secondary)',
-                                    cursor: 'grab',
-                                  }}
-                                  className="drag-handle"
-                                />
-                              </ListItemIcon>
-                              <ListItemIcon sx={{ minWidth: 48, mr: 1.5 }}>
-                                <Box
-                                  className="category-icon-box"
-                                  sx={{
-                                    width: 36,
-                                    height: 36,
-                                    bgcolor: category.color || '#8E8E93', // Verwende bgcolor statt backgroundColor
-                                    borderRadius: '10px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'rgba(255, 255, 255, 0.9)',
-                                    transition: 'all 0.2s ease',
-                                    '&:hover': {
-                                      transform: 'scale(1.05)',
-                                    },
-                                  }}
-                                >
-                                  <SimpleIcon
-                                    name={category.icon || 'folder'}
-                                    size={20}
-                                    strokeWidth={2}
-                                  />
-                                </Box>
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={category.name}
-                                secondary={`${category.appliances_count || 0} Services`}
-                                primaryTypographyProps={{
-                                  sx: {
-                                    color: 'var(--text-primary)',
-                                    fontWeight: 500,
-                                  },
-                                }}
-                                secondaryTypographyProps={{
-                                  sx: { color: 'var(--text-secondary)' },
-                                }}
-                              />
-                              <ListItemSecondaryAction>
-                                {/* Show reorder buttons in reorder mode (mobile) */}
-                                {reorderMode ? (
-                                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                    <IconButton
-                                      edge="end"
-                                      disabled={index === 0}
-                                      onClick={() => moveCategory(index, 'up')}
-                                      sx={{
-                                        width: 36,
-                                        height: 36,
-                                        backgroundColor: 'rgba(0, 122, 255, 0.1)',
-                                        color: 'var(--primary-color)',
-                                        borderRadius: '8px',
-                                        '&:hover': {
-                                          backgroundColor: 'rgba(0, 122, 255, 0.2)',
-                                        },
-                                        '&:disabled': {
-                                          opacity: 0.3,
-                                        },
-                                      }}
-                                    >
-                                      <ChevronUp size={18} />
-                                    </IconButton>
-                                    <IconButton
-                                      edge="end"
-                                      disabled={index === apiCategories.length - 1}
-                                      onClick={() => moveCategory(index, 'down')}
-                                      sx={{
-                                        width: 36,
-                                        height: 36,
-                                        backgroundColor: 'rgba(0, 122, 255, 0.1)',
-                                        color: 'var(--primary-color)',
-                                        borderRadius: '8px',
-                                        '&:hover': {
-                                          backgroundColor: 'rgba(0, 122, 255, 0.2)',
-                                        },
-                                        '&:disabled': {
-                                          opacity: 0.3,
-                                        },
-                                      }}
-                                    >
-                                      <ChevronDown size={18} />
-                                    </IconButton>
-                                  </Box>
-                                ) : (
-                                  <>
-                                    {/* Normal edit/delete buttons */}
-                                    <IconButton
-                                      edge="end"
-                                      onClick={() => {
-                                        setEditingCategory(category);
-                                        setShowCategoryModal(true);
-                                      }}
-                                      sx={{
-                                        mr: 1,
-                                        width: 36,
-                                        height: 36,
-                                        backgroundColor: 'rgba(52, 199, 89, 0.15)',
-                                    color: '#34C759',
-                                    borderRadius: '8px',
-                                    '&:hover': {
-                                      backgroundColor:
-                                        'rgba(52, 199, 89, 0.25)',
-                                      color: '#34C759',
-                                    },
-                                  }}
-                                >
-                                  <Edit size={18} />
-                                </IconButton>
-                                <IconButton
-                                  edge="end"
-                                  onClick={() => deleteCategory(category)}
-                                  sx={{
-                                    width: 36,
-                                    height: 36,
-                                    backgroundColor: 'rgba(255, 59, 48, 0.15)',
-                                    color: '#FF3B30',
-                                    borderRadius: '8px',
-                                    '&:hover': {
-                                      backgroundColor:
-                                        'rgba(255, 59, 48, 0.25)',
-                                      color: '#FF3B30',
-                                    },
-                                  }}
-                                >
-                                  <Trash2 size={18} />
-                                </IconButton>
-                                </>
-                              )}
-                              </ListItemSecondaryAction>
-                            </ListItem>
-                            {/* Bottom drop indicator */}
-                            {showBottomIndicator && (
-                              <Box
-                                sx={{
-                                  height: '3px',
-                                  backgroundColor: 'var(--primary-color)',
-                                  margin: '8px 16px',
-                                  borderRadius: '2px',
-                                  transition: 'all 0.2s ease',
-                                  boxShadow: '0 0 8px var(--primary-color)',
-                                }}
-                              />
-                            )}
-                            {/* Last item drop indicator */}
-                            {!showBottomIndicator &&
-                              index === apiCategories.length - 1 &&
-                              dragOverIndex === apiCategories.length && (
-                                <Box
-                                  sx={{
-                                    height: '3px',
-                                    backgroundColor: 'var(--primary-color)',
-                                    margin: '8px 16px',
-                                    borderRadius: '2px',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 0 8px var(--primary-color)',
-                                  }}
-                                />
-                              )}
-                          </React.Fragment>
-                        );
-                      })}
-                      {/* Drop zone at the end */}
-                      {dragOverIndex === apiCategories.length && (
-                        <Box
-                          sx={{
-                            height: '3px',
-                            backgroundColor: 'var(--primary-color)',
-                            margin: '8px 16px',
-                            borderRadius: '2px',
-                            transition: 'all 0.2s ease',
-                            boxShadow: '0 0 8px var(--primary-color)',
-                          }}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                      <Typography color="text.secondary">
-                        Keine Kategorien vorhanden
-                      </Typography>
-                    </Box>
-                  )}
-                </List>
-              </Box>
-            </Box>
-          )}
-
-          {/* SSH Tab */}
-          {tabValue === 3 && (
-            <SSHTab
-              onTerminalOpen={onTerminalOpen}
-            />
-          )}
-
-          {/* Backup Tab */}
-          {tabValue === 4 && (
-            <BackupTab />
-          )}
-
-          {/* System Tab */}
-          {tabValue === 5 && (
-            systemLoading ? (
-              <Box display="flex" justifyContent="center" p={4}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <Box>
-                <FormControl fullWidth margin="normal">
-                  <TextField
-                    label="Service Abfrage Intervall (Sekunden)"
-                    type="number"
-                    value={systemSettings.service_poll_interval}
-                    onChange={e =>
-                      handleSystemSettingChange(
-                        'service_poll_interval',
-                        e.target.value
-                      )
-                    }
-                    InputProps={{
-                      inputProps: { min: 10, max: 3600 },
-                    }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        color: 'var(--text-secondary)',
-                      },
-                      '& .MuiInputBase-root': { color: 'var(--text-primary)' },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: 'rgba(255, 255, 255, 0.2)',
-                        },
-                      },
-                    }}
-                  />
-                </FormControl>
-
-                <Alert severity="info" sx={{ mt: 3 }}>
-                  Definiert, wie oft der Status der Services abgefragt wird
-                </Alert>
-              </Box>
-            )
-          )}
-        </Box>
+          ))}
+        </SwipeableViews>
       </Box>
 
       {/* Category Modal */}
@@ -1355,14 +1370,6 @@ const SettingsPanel = ({
           loading={loading}
         />
       )}
-
-      {/* Mobile Tab Swipe Helper */}
-      <MobileTabSwipeHelper
-        currentTab={tabValue}
-        tabCount={visibleTabs.length}
-        onTabChange={handleTabChange}
-        isMobile={true}
-      />
 
       {/* Success/Error Snackbars */}
       <Snackbar

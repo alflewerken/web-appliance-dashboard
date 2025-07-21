@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import SwipeableViews from 'react-swipeable-views';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
-import MobileTabSwipeHelper from './MobileTabSwipeHelper';
 import {
   Box,
   Typography,
@@ -44,6 +44,7 @@ import { getAvailableIcons } from '../utils/iconMap';
 import AnsiToHtml from 'ansi-to-html';
 import TTYDTerminal from './TTYDTerminal';
 import './unified/ServicePanelPatch.css';
+import '../styles/ServicePanelSwipeable.css';
 
 // ANSI to HTML converter for colored output
 const ansiConverter = new AnsiToHtml({
@@ -117,14 +118,18 @@ const ServicePanel = ({
   });
 
   // UI state
-  const [activeTab, setActiveTab] = useState(() => {
+  const [activeTabIndex, setActiveTabIndex] = useState(() => {
+    // Map tab names to indices
+    const tabMap = { 'commands': 0, 'visual': 1, 'service': 2 };
+    
     // Use initialTab if provided, otherwise default to 'commands' for existing services
-    if (initialTab && ['service', 'visual', 'commands'].includes(initialTab)) {
-      return initialTab;
+    if (initialTab && tabMap.hasOwnProperty(initialTab)) {
+      return tabMap[initialTab];
     }
-    // For new services, start with 'service' tab
-    return appliance?.isNew ? 'service' : 'commands';
+    // For new services, start with 'service' tab (index 2)
+    return appliance?.isNew ? 2 : 0;
   });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -166,6 +171,12 @@ const ServicePanel = ({
   const panelRef = useRef(null);
   const startX = useRef(0);
   const startWidth = useRef(0);
+
+  // Get current tab name from index
+  const getTabFromIndex = (index) => {
+    const tabs = ['commands', 'visual', 'service'];
+    return tabs[index] || 'commands';
+  };
 
   // Extract host from URL
   const extractHostFromUrl = (url) => {
@@ -238,7 +249,8 @@ const ServicePanel = ({
         ['service', 'visual', 'commands'].includes(initialTab) &&
         !appliance.isNew
       ) {
-        setActiveTab(initialTab);
+        const tabMap = { 'commands': 0, 'visual': 1, 'service': 2 };
+        setActiveTabIndex(tabMap[initialTab]);
       }
     }
   }, [appliance, sshHosts, initialTab]);
@@ -254,11 +266,12 @@ const ServicePanel = ({
 
   // Load commands when switching to commands tab
   useEffect(() => {
-    if (activeTab === 'commands' && appliance?.id && !appliance?.isNew) {
+    const currentTab = getTabFromIndex(activeTabIndex);
+    if (currentTab === 'commands' && appliance?.id && !appliance?.isNew) {
       fetchCommands();
       fetchAvailableCommands();
     }
-  }, [activeTab, appliance?.id]);
+  }, [activeTabIndex, appliance?.id]);
 
   // Notify parent of initial width
   useEffect(() => {
@@ -685,6 +698,20 @@ const ServicePanel = ({
     {}
   );
 
+  // Tab components
+  const tabs = ['commands', 'visual', 'service'];
+  const tabLabels = {
+    commands: { icon: Command, label: 'Kommandos' },
+    visual: { icon: Settings, label: 'Grafische Einstellungen' },
+    service: { icon: Edit, label: 'Service-Einstellungen' },
+  };
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Active Tab Index:', activeTabIndex);
+    console.log('Active Tab Name:', getTabFromIndex(activeTabIndex));
+  }, [activeTabIndex]);
+
   return (
     <Box
       ref={panelRef}
@@ -764,1010 +791,58 @@ const ServicePanel = ({
           height: '48px',
         }}
       >
-        <Button
-          className={activeTab === 'commands' ? 'active-tab' : ''}
-          onClick={() => setActiveTab('commands')}
-          disabled={appliance?.isNew}
-          sx={{
-            flex: 1,
-            py: 1.5,
-            borderRadius: 0,
-            color:
-              activeTab === 'commands'
-                ? 'var(--primary-color)'
-                : 'var(--text-secondary)',
-            borderBottom:
-              activeTab === 'commands'
-                ? '2px solid var(--primary-color)'
-                : 'none',
-            '&:hover': {
-              backgroundColor: appliance?.isNew
-                ? 'transparent'
-                : 'var(--container-bg)',
-            },
-            '&.Mui-disabled': {
-              color: 'rgba(255, 255, 255, 0.3)',
-            },
-          }}
-        >
-          <Command size={18} style={{ marginRight: 8 }} />
-          Kommandos
-        </Button>
-        <Button
-          className={activeTab === 'visual' ? 'active-tab' : ''}
-          onClick={() => setActiveTab('visual')}
-          disabled={appliance?.isNew}
-          sx={{
-            flex: 1,
-            py: 1.5,
-            borderRadius: 0,
-            color:
-              activeTab === 'visual'
-                ? 'var(--primary-color)'
-                : 'var(--text-secondary)',
-            borderBottom:
-              activeTab === 'visual'
-                ? '2px solid var(--primary-color)'
-                : 'none',
-            '&:hover': {
-              backgroundColor: appliance?.isNew
-                ? 'transparent'
-                : 'var(--container-bg)',
-            },
-            '&.Mui-disabled': {
-              color: 'rgba(255, 255, 255, 0.3)',
-            },
-          }}
-        >
-          <Settings size={18} style={{ marginRight: 8 }} />
-          Grafische Einstellungen
-        </Button>
-        <Button
-          className={activeTab === 'service' ? 'active-tab' : ''}
-          onClick={() => setActiveTab('service')}
-          sx={{
-            flex: 1,
-            py: 1.5,
-            borderRadius: 0,
-            color:
-              activeTab === 'service'
-                ? 'var(--primary-color)'
-                : 'var(--text-secondary)',
-            borderBottom:
-              activeTab === 'service'
-                ? '2px solid var(--primary-color)'
-                : 'none',
-            '&:hover': {
-              backgroundColor: 'var(--container-bg)',
-            },
-          }}
-        >
-          <Edit size={18} style={{ marginRight: 8 }} />
-          Service-Einstellungen
-        </Button>
+        {tabs.map((tab, index) => {
+          const TabIcon = tabLabels[tab].icon;
+          const isActive = activeTabIndex === index;
+          const isDisabled = appliance?.isNew && tab !== 'service';
+          
+          return (
+            <Button
+              key={tab}
+              className={isActive ? 'active-tab' : ''}
+              onClick={() => setActiveTabIndex(index)}
+              disabled={isDisabled}
+              sx={{
+                flex: 1,
+                py: 1.5,
+                borderRadius: 0,
+                color: isActive
+                  ? 'var(--primary-color)'
+                  : 'var(--text-secondary)',
+                borderBottom: isActive
+                  ? '2px solid var(--primary-color)'
+                  : 'none',
+                '&:hover': {
+                  backgroundColor: isDisabled
+                    ? 'transparent'
+                    : 'var(--container-bg)',
+                },
+                '&.Mui-disabled': {
+                  color: 'rgba(255, 255, 255, 0.3)',
+                },
+              }}
+            >
+              <TabIcon size={18} style={{ marginRight: 8 }} />
+              {tabLabels[tab].label}
+            </Button>
+          );
+        })}
       </Box>
 
-      {/* Content */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          overflow: 'auto',
-          p: 3,
-          '&::-webkit-scrollbar': {
-            width: '8px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: '4px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(255, 255, 255, 0.3)',
-            borderRadius: '4px',
-            '&:hover': {
-              background: 'rgba(255, 255, 255, 0.4)',
-            },
-          },
-        }}
-      >
-        {activeTab === 'service' ? (
-          /* Service Settings Tab */
-          <Box>
-            {/* Basic Information */}
-            <Typography
-              variant="h6"
-              sx={{ mb: 2, color: 'var(--text-primary)' }}
-            >
-              Grundinformationen
-            </Typography>
-
-            <TextField
-              fullWidth
-              label="Name"
-              value={formData.name}
-              onChange={e => handleFieldChange('name', e.target.value)}
-              margin="normal"
-              required
-              sx={{
-                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                '& .MuiInputBase-root': {
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                },
-              }}
-            />
-
-            <TextField
-              fullWidth
-              label="URL"
-              value={formData.url}
-              onChange={e => handleFieldChange('url', e.target.value)}
-              margin="normal"
-              required
-              placeholder="https://example.com"
-              sx={{
-                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                '& .MuiInputBase-root': {
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                },
-              }}
-            />
-
-            <TextField
-              fullWidth
-              label="Beschreibung"
-              value={formData.description}
-              onChange={e => handleFieldChange('description', e.target.value)}
-              margin="normal"
-              multiline
-              rows={3}
-              sx={{
-                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                '& .MuiInputBase-root': {
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                },
-              }}
-            />
-
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Kategorie
-              </InputLabel>
-              <Select
-                value={formData.category}
-                onChange={e => handleFieldChange('category', e.target.value)}
-                label="Kategorie"
-                sx={{
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: 'var(--text-secondary)',
-                  },
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      bgcolor: 'var(--bg-primary)',
-                      border: '1px solid var(--container-border)',
-                      '& .MuiMenuItem-root': {
-                        color: 'var(--text-primary)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.1)',
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: 'rgba(255, 255, 255, 0.15)',
-                          '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.2)',
-                          },
-                        },
-                      },
-                    },
-                  },
-                }}
-              >
-                <MenuItem value="">Keine Kategorie</MenuItem>
-                {categories?.map(category => (
-                  <MenuItem key={category.name} value={category.name}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {/* Icon and Color */}
-            <Box sx={{ mt: 3, mb: 2 }}>
-              <Typography
-                variant="h6"
-                sx={{ mb: 2, color: 'var(--text-primary)' }}
-              >
-                Symbol und Farbe
-              </Typography>
-
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Box
-                  onClick={() => setShowIconSelector(true)}
-                  sx={{
-                    width: 60,
-                    height: 60,
-                    backgroundColor: formData.color,
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                    },
-                  }}
-                >
-                  <SimpleIcon name={formData.icon} size={32} color="#FFFFFF" />
-                </Box>
-
-                <Box sx={{ flex: 1 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: 'var(--text-secondary)', mb: 1 }}
-                  >
-                    Klicken Sie auf das Symbol, um es zu ändern
-                  </Typography>
-
-                  {/* Color Presets */}
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {COLOR_PRESETS.map(color => (
-                      <Box
-                        key={color}
-                        onClick={() => handleFieldChange('color', color)}
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          backgroundColor: color,
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          border:
-                            formData.color === color
-                              ? '2px solid white'
-                              : 'none',
-                          '&:hover': {
-                            transform: 'scale(1.1)',
-                          },
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-
-            {/* Open Mode Settings */}
-            <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-
-            <Typography
-              variant="h6"
-              sx={{ mb: 2, color: 'var(--text-primary)' }}
-            >
-              Öffnungsmodus
-            </Typography>
-
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Mini-Widget Modus
-              </InputLabel>
-              <Select
-                value={formData.openModeMini || 'browser_tab'}
-                onChange={e =>
-                  handleFieldChange('openModeMini', e.target.value)
-                }
-                label="Mini-Widget Modus"
-                sx={{
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: 'var(--text-secondary)',
-                  },
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      bgcolor: 'var(--bg-primary)',
-                      border: '1px solid var(--container-border)',
-                      '& .MuiMenuItem-root': {
-                        color: 'var(--text-primary)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.1)',
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: 'rgba(255, 255, 255, 0.15)',
-                          '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.2)',
-                          },
-                        },
-                      },
-                    },
-                  },
-                }}
-              >
-                bgcolor: 'rgba(255, 255, 255, 0.2)' } } } } } }} >
-                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
-                <MenuItem value="browser_window">
-                  Browser neues Fenster
-                </MenuItem>
-                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
-              </Select>
-            </FormControl>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'var(--text-secondary)',
-                display: 'block',
-                mt: 1,
-                mb: 2,
-              }}
-            >
-              Wie soll die URL im Mini-Widget Modus geöffnet werden?
-            </Typography>
-
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Mobile/iPad Modus
-              </InputLabel>
-              <Select
-                value={formData.openModeMobile || 'browser_tab'}
-                onChange={e =>
-                  handleFieldChange('openModeMobile', e.target.value)
-                }
-                label="Mobile/iPad Modus"
-                sx={{
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: 'var(--text-secondary)',
-                  },
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      bgcolor: 'var(--bg-primary)',
-                      border: '1px solid var(--container-border)',
-                      '& .MuiMenuItem-root': {
-                        color: 'var(--text-primary)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.1)',
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: 'rgba(255, 255, 255, 0.15)',
-                          '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.2)',
-                          },
-                        },
-                      },
-                    },
-                  },
-                }}
-              >
-                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
-                <MenuItem value="browser_window">
-                  Browser neues Fenster
-                </MenuItem>
-                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
-              </Select>
-            </FormControl>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'var(--text-secondary)',
-                display: 'block',
-                mt: 1,
-                mb: 2,
-              }}
-            >
-              Wie soll die URL im Mobile/iPad Modus geöffnet werden?
-            </Typography>
-
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Desktop Modus
-              </InputLabel>
-              <Select
-                value={formData.openModeDesktop || 'browser_tab'}
-                onChange={e =>
-                  handleFieldChange('openModeDesktop', e.target.value)
-                }
-                label="Desktop Modus"
-                sx={{
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: 'var(--text-secondary)',
-                  },
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      bgcolor: 'var(--bg-primary)',
-                      border: '1px solid var(--container-border)',
-                      '& .MuiMenuItem-root': {
-                        color: 'var(--text-primary)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.1)',
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: 'rgba(255, 255, 255, 0.15)',
-                          '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.2)',
-                          },
-                        },
-                      },
-                    },
-                  },
-                }}
-              >
-                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
-                <MenuItem value="browser_window">
-                  Browser neues Fenster
-                </MenuItem>
-                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
-              </Select>
-            </FormControl>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'var(--text-secondary)',
-                display: 'block',
-                mt: 1,
-                mb: 2,
-              }}
-            >
-              Wie soll die URL im Desktop Modus geöffnet werden?
-            </Typography>
-
-            {/* SSH Settings */}
-            {adminMode && (
-              <>
-                <Divider
-                  sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }}
-                />
-
-                <Typography
-                  variant="h6"
-                  sx={{ mb: 2, color: 'var(--text-primary)' }}
-                >
-                  SSH-Einstellungen
-                </Typography>
-
-                <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                    SSH-Verbindung
-                  </InputLabel>
-                  <Select
-                    value={formData.sshConnection || ''}
-                    onChange={e =>
-                      handleFieldChange('sshConnection', e.target.value)
-                    }
-                    label="SSH-Verbindung"
-                    disabled={isLoadingSSHHosts}
-                    sx={{
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.3)',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'var(--accent-color)',
-                      },
-                      '& .MuiSvgIcon-root': {
-                        color: 'var(--text-secondary)',
-                      },
-                    }}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          bgcolor: 'var(--bg-primary)',
-                          border: '1px solid var(--container-border)',
-                          '& .MuiMenuItem-root': {
-                            color: 'var(--text-primary)',
-                            '&:hover': {
-                              bgcolor: 'rgba(255, 255, 255, 0.1)',
-                            },
-                            '&.Mui-selected': {
-                              bgcolor: 'rgba(255, 255, 255, 0.15)',
-                              '&:hover': {
-                                bgcolor: 'rgba(255, 255, 255, 0.2)',
-                              },
-                            },
-                          },
-                        },
-                      },
-                    }}
-                  >
-                    <MenuItem value="">Keine SSH-Verbindung</MenuItem>
-                    {sshHosts.map((host, index) => {
-                      const hostValue = `${host.username || 'root'}@${host.host}:${host.port || 22}`;
-                      return (
-                        <MenuItem
-                          key={`${host.host}-${index}`}
-                          value={hostValue}
-                        >
-                          {host.hostname || host.name || hostValue}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                </FormControl>
-                {sshHosts.length === 0 && !isLoadingSSHHosts && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'var(--text-secondary)',
-                      display: 'block',
-                      mt: 1,
-                    }}
-                  >
-                    SSH-Verbindungen können in den Einstellungen konfiguriert
-                    werden.
-                  </Typography>
-                )}
-
-                <TextField
-                  fullWidth
-                  label="Status-Prüfbefehl"
-                  value={formData.statusCommand}
-                  onChange={e =>
-                    handleFieldChange('statusCommand', e.target.value)
-                  }
-                  margin="normal"
-                  placeholder="systemctl is-active servicename"
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                      '&:hover fieldset': {
-                        borderColor: 'rgba(255, 255, 255, 0.3)',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: 'var(--accent-color)',
-                      },
-                    },
-                  }}
-                  helperText="Das Kommando sollte 'status: running' oder 'status: stopped' ausgeben"
-                  FormHelperTextProps={{
-                    sx: { color: 'var(--text-secondary)' },
-                  }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Start-Befehl"
-                  value={formData.startCommand}
-                  onChange={e =>
-                    handleFieldChange('startCommand', e.target.value)
-                  }
-                  margin="normal"
-                  placeholder="systemctl start servicename"
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                      '&:hover fieldset': {
-                        borderColor: 'rgba(255, 255, 255, 0.3)',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: 'var(--accent-color)',
-                      },
-                    },
-                  }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Stopp-Befehl"
-                  value={formData.stopCommand}
-                  onChange={e =>
-                    handleFieldChange('stopCommand', e.target.value)
-                  }
-                  margin="normal"
-                  placeholder="systemctl stop servicename"
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                      '&:hover fieldset': {
-                        borderColor: 'rgba(255, 255, 255, 0.3)',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: 'var(--accent-color)',
-                      },
-                    },
-                  }}
-                />
-              </>
-            )}
-
-            {/* Remote Desktop Section */}
-            <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-            <Typography
-              variant="subtitle1"
-              sx={{ mb: 2, color: 'var(--text-primary)', fontWeight: 500 }}
-            >
-              Remote Desktop
-            </Typography>
-            
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.remoteDesktopEnabled || false}
-                  onChange={e => handleFieldChange('remoteDesktopEnabled', e.target.checked)}
-                  sx={{
-                    '& .MuiSwitch-track': {
-                      backgroundColor: formData.remoteDesktopEnabled ? 'var(--success-color)' : 'var(--text-tertiary)',
-                    },
-                  }}
-                />
-              }
-              label="Remote Desktop aktivieren"
-              sx={{ mb: 2, color: 'var(--text-primary)' }}
-            />
-
-            {formData.remoteDesktopEnabled && (
-              <>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                    Protokoll
-                  </InputLabel>
-                  <Select
-                    value={formData.remoteProtocol || 'vnc'}
-                    onChange={e => handleFieldChange('remoteProtocol', e.target.value)}
-                    label="Protokoll"
-                    sx={{
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                      },
-                    }}
-                  >
-                    <MenuItem value="vnc">VNC</MenuItem>
-                    <MenuItem value="rdp">RDP (Windows)</MenuItem>
-                  </Select>
-                </FormControl>
-
-                <TextField
-                  fullWidth
-                  label="Host-Adresse"
-                  value={formData.remoteHost || ''}
-                  onChange={e => handleFieldChange('remoteHost', e.target.value)}
-                  margin="normal"
-                  placeholder={extractHostFromUrl(formData.url) || '192.168.1.100'}
-                  helperText="IP-Adresse oder Hostname des Remote Desktop Servers"
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
-                  }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Port"
-                  type="number"
-                  value={formData.remotePort || (formData.remoteProtocol === 'rdp' ? 3389 : 5900)}
-                  onChange={e => handleFieldChange('remotePort', parseInt(e.target.value) || '')}
-                  margin="normal"
-                  placeholder={formData.remoteProtocol === 'rdp' ? '3389' : '5900'}
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                  }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Benutzername"
-                  value={formData.remoteUsername || ''}
-                  onChange={e => handleFieldChange('remoteUsername', e.target.value)}
-                  margin="normal"
-                  placeholder={formData.remoteProtocol === 'rdp' ? 'Administrator' : 'alflewerken'}
-                  helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC (z.B. für macOS)' : 'Erforderlich für RDP'}
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
-                  }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Passwort"
-                  type="password"
-                  value={formData.remotePassword || ''}
-                  onChange={e => handleFieldChange('remotePassword', e.target.value)}
-                  margin="normal"
-                  helperText="Wird verschlüsselt gespeichert"
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
-                  }}
-                />
-              </>
-            )}
-
-            {/* Save Button */}
-            <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={handleSaveService}
-                disabled={loading || !formData.name || !formData.url}
-                startIcon={loading ? <CircularProgress size={20} /> : <Save />}
-                sx={{
-                  backgroundColor: 'var(--primary-color)',
-                  '&:hover': {
-                    backgroundColor: 'var(--primary-color-dark)',
-                  },
-                }}
-              >
-                Änderungen speichern
-              </Button>
-
-              {adminMode && !appliance?.isNew && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={loading}
-                  startIcon={<Trash2 />}
-                  sx={{
-                    borderColor: '#FF3B30',
-                    color: '#FF3B30',
-                    '&:hover': {
-                      borderColor: '#FF3B30',
-                      backgroundColor: 'rgba(255, 59, 48, 0.1)',
-                    },
-                  }}
-                >
-                  Löschen
-                </Button>
-              )}
-            </Box>
-          </Box>
-        ) : activeTab === 'visual' ? (
-          /* Visual Settings Tab */
-          <Box>
-            <Typography
-              variant="h6"
-              sx={{ mb: 3, color: 'var(--text-primary)' }}
-            >
-              Grafische Einstellungen
-            </Typography>
-
-            {/* Live Preview */}
-            <Box
-              sx={{
-                mb: 4,
-                p: 3,
-                backgroundColor: 'var(--container-bg)',
-                borderRadius: 2,
-                border: '1px solid var(--container-border)',
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{ mb: 2, color: 'var(--text-secondary)' }}
-              >
-                Vorschau
-              </Typography>
-
-              <Box
-                sx={{
-                  width: '100%',
-                  height: 150,
-                  backgroundColor: formData.color,
-                  opacity: visualSettings.transparency / 100,
-                  backdropFilter: `blur(${visualSettings.blur}px)`,
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.1s ease',
-                }}
-              >
-                <SimpleIcon name={formData.icon} size={60} color="#FFFFFF" />
-              </Box>
-            </Box>
-
-            {/* Transparency Slider */}
-            <Box sx={{ mb: 4 }}>
-              <Typography
-                variant="body1"
-                sx={{ mb: 2, color: 'var(--text-primary)' }}
-              >
-                Transparenz: {visualSettings.transparency}%
-              </Typography>
-              <Slider
-                value={visualSettings.transparency}
-                onChange={(e, value) => {
-                  handleVisualChange('transparency', value);
-                  // Update live on the actual card with debounce
-                  debouncedUpdate({
-                    transparency: value / 100,
-                    blur: visualSettings.blur,
-                  });
-                }}
-                onChangeCommitted={async (e, value) => {
-                  // Save when slider is released
-                  try {
-                    // Clear any pending debounced updates
-                    if (updateTimeoutRef.current) {
-                      clearTimeout(updateTimeoutRef.current);
-                    }
-
-                    await onUpdateSettings(appliance.id, {
-                      transparency: value / 100,
-                      blur: visualSettings.blur,
-                    });
-                  } catch (err) {
-                    console.error('Error saving transparency:', err);
-                  }
-                }}
-                min={0}
-                max={100}
-                valueLabelDisplay="auto"
-                sx={{
-                  color: 'var(--primary-color)',
-                  '& .MuiSlider-thumb': {
-                    backgroundColor: 'var(--primary-color)',
-                  },
-                }}
-              />
-            </Box>
-
-            {/* Blur Slider */}
-            <Box sx={{ mb: 4 }}>
-              <Typography
-                variant="body1"
-                sx={{ mb: 2, color: 'var(--text-primary)' }}
-              >
-                Unschärfe: {visualSettings.blur}px
-              </Typography>
-              <Slider
-                value={visualSettings.blur}
-                onChange={(e, value) => {
-                  handleVisualChange('blur', value);
-                  // Update live on the actual card with debounce
-                  debouncedUpdate({
-                    transparency: visualSettings.transparency / 100,
-                    blur: value,
-                  });
-                }}
-                onChangeCommitted={async (e, value) => {
-                  // Save when slider is released
-                  try {
-                    // Clear any pending debounced updates
-                    if (updateTimeoutRef.current) {
-                      clearTimeout(updateTimeoutRef.current);
-                    }
-
-                    await onUpdateSettings(appliance.id, {
-                      transparency: visualSettings.transparency / 100,
-                      blur: value,
-                    });
-                  } catch (err) {
-                    console.error('Error saving blur:', err);
-                  }
-                }}
-                min={0}
-                max={20}
-                valueLabelDisplay="auto"
-                sx={{
-                  color: 'var(--primary-color)',
-                  '& .MuiSlider-thumb': {
-                    backgroundColor: 'var(--primary-color)',
-                  },
-                }}
-              />
-            </Box>
-
-            <Alert severity="info" sx={{ mb: 3 }}>
-              Die Einstellungen werden automatisch gespeichert, wenn Sie den
-              Slider loslassen
-            </Alert>
-          </Box>
-        ) : activeTab === 'commands' ? (
-          /* Custom Commands Tab */
-          <Box>
-            {/* Show template selection if button was clicked */}
+      {/* Content with react-swipeable-views */}
+      <Box sx={{ flex: 1, overflow: 'hidden' }}>
+        <SwipeableViews
+          index={activeTabIndex}
+          onChangeIndex={setActiveTabIndex}
+          disabled={appliance?.isNew}
+          enableMouseEvents
+          resistance
+          style={{ height: '100%' }}
+          containerStyle={{ height: '100%' }}
+          slideStyle={{ height: '100%' }}
+        >
+          {/* Commands Tab - Index 0 */}
+          <Box key="commands-tab" sx={{ height: '100%', overflow: 'auto', p: 3 }}>
             {showCommandSelection ? (
               <Box>
                 {/* Back button and title */}
@@ -1898,7 +973,7 @@ const ServicePanel = ({
                                   background:
                                     selectedTemplate?.id === command.id
                                       ? 'rgba(0, 122, 255, 0.2)'
-                                      : 'var(--container-bg)',  // Gleiche Tönung wie Settings-Panel
+                                      : 'var(--container-bg)',  
                                   backdropFilter: 'blur(10px)',
                                   border:
                                     selectedTemplate?.id === command.id
@@ -1975,7 +1050,7 @@ const ServicePanel = ({
                 {/* New Command Form */}
                 <Box
                   sx={{
-                    background: 'var(--container-bg)',  // Gleiche Tönung wie Settings-Panel
+                    background: 'var(--container-bg)',  
                     backdropFilter: 'blur(10px)',
                     borderRadius: '12px',
                     p: 4,
@@ -2291,12 +1366,12 @@ const ServicePanel = ({
                       {commands
                         .sort((a, b) =>
                           a.description.localeCompare(b.description)
-                        ) // Alphabetische Sortierung
+                        )
                         .map((command, index) => (
                           <Box
                             key={command.id}
                             sx={{
-                              background: 'var(--container-bg)',  // Gleiche Tönung wie Settings-Panel
+                              background: 'var(--container-bg)',  
                               backdropFilter: 'blur(10px)',
                               border: '1px solid var(--container-border)',
                               borderRadius: '12px',
@@ -2681,7 +1756,868 @@ const ServicePanel = ({
               </>
             )}
           </Box>
-        ) : null}
+
+          {/* Visual Tab - Index 1 */}
+          <Box key="visual-tab" sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+            <Typography
+              variant="h6"
+              sx={{ mb: 3, color: 'var(--text-primary)' }}
+            >
+              Grafische Einstellungen
+            </Typography>
+
+            {/* Live Preview */}
+            <Box
+              sx={{
+                mb: 4,
+                p: 3,
+                backgroundColor: 'var(--container-bg)',
+                borderRadius: 2,
+                border: '1px solid var(--container-border)',
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ mb: 2, color: 'var(--text-secondary)' }}
+              >
+                Vorschau
+              </Typography>
+
+              <Box
+                sx={{
+                  width: '100%',
+                  height: 150,
+                  backgroundColor: formData.color,
+                  opacity: visualSettings.transparency / 100,
+                  backdropFilter: `blur(${visualSettings.blur}px)`,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.1s ease',
+                }}
+              >
+                <SimpleIcon name={formData.icon} size={60} color="#FFFFFF" />
+              </Box>
+            </Box>
+
+            {/* Transparency Slider */}
+            <Box sx={{ mb: 4 }}>
+              <Typography
+                variant="body1"
+                sx={{ mb: 2, color: 'var(--text-primary)' }}
+              >
+                Transparenz: {visualSettings.transparency}%
+              </Typography>
+              <Slider
+                value={visualSettings.transparency}
+                onChange={(e, value) => {
+                  handleVisualChange('transparency', value);
+                  // Update live on the actual card with debounce
+                  debouncedUpdate({
+                    transparency: value / 100,
+                    blur: visualSettings.blur,
+                  });
+                }}
+                onChangeCommitted={async (e, value) => {
+                  // Save when slider is released
+                  try {
+                    // Clear any pending debounced updates
+                    if (updateTimeoutRef.current) {
+                      clearTimeout(updateTimeoutRef.current);
+                    }
+
+                    await onUpdateSettings(appliance.id, {
+                      transparency: value / 100,
+                      blur: visualSettings.blur,
+                    });
+                  } catch (err) {
+                    console.error('Error saving transparency:', err);
+                  }
+                }}
+                min={0}
+                max={100}
+                valueLabelDisplay="auto"
+                sx={{
+                  color: 'var(--primary-color)',
+                  '& .MuiSlider-thumb': {
+                    backgroundColor: 'var(--primary-color)',
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Blur Slider */}
+            <Box sx={{ mb: 4 }}>
+              <Typography
+                variant="body1"
+                sx={{ mb: 2, color: 'var(--text-primary)' }}
+              >
+                Unschärfe: {visualSettings.blur}px
+              </Typography>
+              <Slider
+                value={visualSettings.blur}
+                onChange={(e, value) => {
+                  handleVisualChange('blur', value);
+                  // Update live on the actual card with debounce
+                  debouncedUpdate({
+                    transparency: visualSettings.transparency / 100,
+                    blur: value,
+                  });
+                }}
+                onChangeCommitted={async (e, value) => {
+                  // Save when slider is released
+                  try {
+                    // Clear any pending debounced updates
+                    if (updateTimeoutRef.current) {
+                      clearTimeout(updateTimeoutRef.current);
+                    }
+
+                    await onUpdateSettings(appliance.id, {
+                      transparency: visualSettings.transparency / 100,
+                      blur: value,
+                    });
+                  } catch (err) {
+                    console.error('Error saving blur:', err);
+                  }
+                }}
+                min={0}
+                max={20}
+                valueLabelDisplay="auto"
+                sx={{
+                  color: 'var(--primary-color)',
+                  '& .MuiSlider-thumb': {
+                    backgroundColor: 'var(--primary-color)',
+                  },
+                }}
+              />
+            </Box>
+
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Die Einstellungen werden automatisch gespeichert, wenn Sie den
+              Slider loslassen
+            </Alert>
+          </Box>
+
+          {/* Service Tab - Index 2 */}
+          <Box key="service-tab" sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+            {/* Basic Information */}
+            <Typography
+              variant="h6"
+              sx={{ mb: 2, color: 'var(--text-primary)' }}
+            >
+              Grundinformationen
+            </Typography>
+
+            <TextField
+              fullWidth
+              label="Name"
+              value={formData.name}
+              onChange={e => handleFieldChange('name', e.target.value)}
+              margin="normal"
+              required
+              sx={{
+                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                '& .MuiInputBase-root': {
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                  '&:hover fieldset': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'var(--accent-color)',
+                  },
+                },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="URL"
+              value={formData.url}
+              onChange={e => handleFieldChange('url', e.target.value)}
+              margin="normal"
+              required
+              placeholder="https://example.com"
+              sx={{
+                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                '& .MuiInputBase-root': {
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                  '&:hover fieldset': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'var(--accent-color)',
+                  },
+                },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="Beschreibung"
+              value={formData.description}
+              onChange={e => handleFieldChange('description', e.target.value)}
+              margin="normal"
+              multiline
+              rows={3}
+              sx={{
+                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                '& .MuiInputBase-root': {
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                  '&:hover fieldset': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'var(--accent-color)',
+                  },
+                },
+              }}
+            />
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                Kategorie
+              </InputLabel>
+              <Select
+                value={formData.category}
+                onChange={e => handleFieldChange('category', e.target.value)}
+                label="Kategorie"
+                sx={{
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'var(--accent-color)',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: 'var(--text-secondary)',
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      bgcolor: 'var(--bg-primary)',
+                      border: '1px solid var(--container-border)',
+                      '& .MuiMenuItem-root': {
+                        color: 'var(--text-primary)',
+                        '&:hover': {
+                          bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        },
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(255, 255, 255, 0.15)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.2)',
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="">Keine Kategorie</MenuItem>
+                {categories?.map(category => (
+                  <MenuItem key={category.name} value={category.name}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Icon and Color */}
+            <Box sx={{ mt: 3, mb: 2 }}>
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: 'var(--text-primary)' }}
+              >
+                Symbol und Farbe
+              </Typography>
+
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box
+                  onClick={() => setShowIconSelector(true)}
+                  sx={{
+                    width: 60,
+                    height: 60,
+                    backgroundColor: formData.color,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                    },
+                  }}
+                >
+                  <SimpleIcon name={formData.icon} size={32} color="#FFFFFF" />
+                </Box>
+
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'var(--text-secondary)', mb: 1 }}
+                  >
+                    Klicken Sie auf das Symbol, um es zu ändern
+                  </Typography>
+
+                  {/* Color Presets */}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {COLOR_PRESETS.map(color => (
+                      <Box
+                        key={color}
+                        onClick={() => handleFieldChange('color', color)}
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          backgroundColor: color,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          border:
+                            formData.color === color
+                              ? '2px solid white'
+                              : 'none',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Open Mode Settings */}
+            <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+
+            <Typography
+              variant="h6"
+              sx={{ mb: 2, color: 'var(--text-primary)' }}
+            >
+              Öffnungsmodus
+            </Typography>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                Mini-Widget Modus
+              </InputLabel>
+              <Select
+                value={formData.openModeMini || 'browser_tab'}
+                onChange={e =>
+                  handleFieldChange('openModeMini', e.target.value)
+                }
+                label="Mini-Widget Modus"
+                sx={{
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'var(--accent-color)',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: 'var(--text-secondary)',
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      bgcolor: 'var(--bg-primary)',
+                      border: '1px solid var(--container-border)',
+                      '& .MuiMenuItem-root': {
+                        color: 'var(--text-primary)',
+                        '&:hover': {
+                          bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        },
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(255, 255, 255, 0.15)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.2)',
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
+                <MenuItem value="browser_window">
+                  Browser neues Fenster
+                </MenuItem>
+                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                Mobile/iPad Modus
+              </InputLabel>
+              <Select
+                value={formData.openModeMobile || 'browser_tab'}
+                onChange={e =>
+                  handleFieldChange('openModeMobile', e.target.value)
+                }
+                label="Mobile/iPad Modus"
+                sx={{
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'var(--accent-color)',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: 'var(--text-secondary)',
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      bgcolor: 'var(--bg-primary)',
+                      border: '1px solid var(--container-border)',
+                      '& .MuiMenuItem-root': {
+                        color: 'var(--text-primary)',
+                        '&:hover': {
+                          bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        },
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(255, 255, 255, 0.15)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.2)',
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
+                <MenuItem value="browser_window">
+                  Browser neues Fenster
+                </MenuItem>
+                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                Desktop Modus
+              </InputLabel>
+              <Select
+                value={formData.openModeDesktop || 'browser_tab'}
+                onChange={e =>
+                  handleFieldChange('openModeDesktop', e.target.value)
+                }
+                label="Desktop Modus"
+                sx={{
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'var(--accent-color)',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: 'var(--text-secondary)',
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      bgcolor: 'var(--bg-primary)',
+                      border: '1px solid var(--container-border)',
+                      '& .MuiMenuItem-root': {
+                        color: 'var(--text-primary)',
+                        '&:hover': {
+                          bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        },
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(255, 255, 255, 0.15)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.2)',
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
+                <MenuItem value="browser_window">
+                  Browser neues Fenster
+                </MenuItem>
+                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* SSH Settings */}
+            {adminMode && (
+              <>
+                <Divider
+                  sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }}
+                />
+
+                <Typography
+                  variant="h6"
+                  sx={{ mb: 2, color: 'var(--text-primary)' }}
+                >
+                  SSH-Einstellungen
+                </Typography>
+
+                <FormControl fullWidth margin="normal">
+                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                    SSH-Verbindung
+                  </InputLabel>
+                  <Select
+                    value={formData.sshConnection || ''}
+                    onChange={e =>
+                      handleFieldChange('sshConnection', e.target.value)
+                    }
+                    label="SSH-Verbindung"
+                    disabled={isLoadingSSHHosts}
+                    sx={{
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'var(--accent-color)',
+                      },
+                      '& .MuiSvgIcon-root': {
+                        color: 'var(--text-secondary)',
+                      },
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          bgcolor: 'var(--bg-primary)',
+                          border: '1px solid var(--container-border)',
+                          '& .MuiMenuItem-root': {
+                            color: 'var(--text-primary)',
+                            '&:hover': {
+                              bgcolor: 'rgba(255, 255, 255, 0.1)',
+                            },
+                            '&.Mui-selected': {
+                              bgcolor: 'rgba(255, 255, 255, 0.15)',
+                              '&:hover': {
+                                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                              },
+                            },
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    <MenuItem value="">Keine SSH-Verbindung</MenuItem>
+                    {sshHosts.map((host, index) => {
+                      const hostValue = `${host.username || 'root'}@${host.host}:${host.port || 22}`;
+                      return (
+                        <MenuItem
+                          key={`${host.host}-${index}`}
+                          value={hostValue}
+                        >
+                          {host.hostname || host.name || hostValue}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
+                {sshHosts.length === 0 && !isLoadingSSHHosts && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      mt: 1,
+                    }}
+                  >
+                    SSH-Verbindungen können in den Einstellungen konfiguriert
+                    werden.
+                  </Typography>
+                )}
+
+                <TextField
+                  fullWidth
+                  label="Status-Prüfbefehl"
+                  value={formData.statusCommand}
+                  onChange={e =>
+                    handleFieldChange('statusCommand', e.target.value)
+                  }
+                  margin="normal"
+                  placeholder="systemctl is-active servicename"
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: 'var(--accent-color)',
+                      },
+                    },
+                  }}
+                  helperText="Das Kommando sollte 'status: running' oder 'status: stopped' ausgeben"
+                  FormHelperTextProps={{
+                    sx: { color: 'var(--text-secondary)' },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Start-Befehl"
+                  value={formData.startCommand}
+                  onChange={e =>
+                    handleFieldChange('startCommand', e.target.value)
+                  }
+                  margin="normal"
+                  placeholder="systemctl start servicename"
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: 'var(--accent-color)',
+                      },
+                    },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Stopp-Befehl"
+                  value={formData.stopCommand}
+                  onChange={e =>
+                    handleFieldChange('stopCommand', e.target.value)
+                  }
+                  margin="normal"
+                  placeholder="systemctl stop servicename"
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: 'var(--accent-color)',
+                      },
+                    },
+                  }}
+                />
+              </>
+            )}
+
+            {/* Remote Desktop Section */}
+            <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+            <Typography
+              variant="subtitle1"
+              sx={{ mb: 2, color: 'var(--text-primary)', fontWeight: 500 }}
+            >
+              Remote Desktop
+            </Typography>
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.remoteDesktopEnabled || false}
+                  onChange={e => handleFieldChange('remoteDesktopEnabled', e.target.checked)}
+                  sx={{
+                    '& .MuiSwitch-track': {
+                      backgroundColor: formData.remoteDesktopEnabled ? 'var(--success-color)' : 'var(--text-tertiary)',
+                    },
+                  }}
+                />
+              }
+              label="Remote Desktop aktivieren"
+              sx={{ mb: 2, color: 'var(--text-primary)' }}
+            />
+
+            {formData.remoteDesktopEnabled && (
+              <>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                    Protokoll
+                  </InputLabel>
+                  <Select
+                    value={formData.remoteProtocol || 'vnc'}
+                    onChange={e => handleFieldChange('remoteProtocol', e.target.value)}
+                    label="Protokoll"
+                    sx={{
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                      },
+                    }}
+                  >
+                    <MenuItem value="vnc">VNC</MenuItem>
+                    <MenuItem value="rdp">RDP (Windows)</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <TextField
+                  fullWidth
+                  label="Host-Adresse"
+                  value={formData.remoteHost || ''}
+                  onChange={e => handleFieldChange('remoteHost', e.target.value)}
+                  margin="normal"
+                  placeholder={extractHostFromUrl(formData.url) || '192.168.1.100'}
+                  helperText="IP-Adresse oder Hostname des Remote Desktop Servers"
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Port"
+                  type="number"
+                  value={formData.remotePort || (formData.remoteProtocol === 'rdp' ? 3389 : 5900)}
+                  onChange={e => handleFieldChange('remotePort', parseInt(e.target.value) || '')}
+                  margin="normal"
+                  placeholder={formData.remoteProtocol === 'rdp' ? '3389' : '5900'}
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Benutzername"
+                  value={formData.remoteUsername || ''}
+                  onChange={e => handleFieldChange('remoteUsername', e.target.value)}
+                  margin="normal"
+                  placeholder={formData.remoteProtocol === 'rdp' ? 'Administrator' : 'alflewerken'}
+                  helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC (z.B. für macOS)' : 'Erforderlich für RDP'}
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Passwort"
+                  type="password"
+                  value={formData.remotePassword || ''}
+                  onChange={e => handleFieldChange('remotePassword', e.target.value)}
+                  margin="normal"
+                  helperText="Wird verschlüsselt gespeichert"
+                  sx={{
+                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                    '& .MuiInputBase-root': {
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'var(--container-bg)',
+                    },
+                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                  }}
+                />
+              </>
+            )}
+
+            {/* Save Button */}
+            <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={handleSaveService}
+                disabled={loading || !formData.name || !formData.url}
+                startIcon={loading ? <CircularProgress size={20} /> : <Save />}
+                sx={{
+                  backgroundColor: 'var(--primary-color)',
+                  '&:hover': {
+                    backgroundColor: 'var(--primary-color-dark)',
+                  },
+                }}
+              >
+                Änderungen speichern
+              </Button>
+
+              {adminMode && !appliance?.isNew && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={loading}
+                  startIcon={<Trash2 />}
+                  sx={{
+                    borderColor: '#FF3B30',
+                    color: '#FF3B30',
+                    '&:hover': {
+                      borderColor: '#FF3B30',
+                      backgroundColor: 'rgba(255, 59, 48, 0.1)',
+                    },
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </SwipeableViews>
       </Box>
 
       {/* Icon Selector Modal */}
@@ -2697,117 +2633,64 @@ const ServicePanel = ({
       )}
 
       {/* Terminal Modal */}
-      <TTYDTerminal
-        show={showTerminal}
-        onHide={() => setShowTerminal(false)}
-        hostId={appliance?.sshConnection}
-        title={`Terminal - ${appliance?.name || 'Web Terminal'}`}
-      />
+      {showTerminal && (
+        <TTYDTerminal
+          appliance={appliance}
+          open={showTerminal}
+          onClose={() => setShowTerminal(false)}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
-      {showDeleteConfirm && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1400,
-          }}
-        >
-          <Box
-            sx={{
-              backgroundColor: 'rgba(0, 0, 0, 0.95)',
-              border: '1px solid var(--container-border)',
-              borderRadius: 2,
-              p: 3,
-              maxWidth: 400,
-              width: '90%',
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{ mb: 2, color: 'var(--text-primary)' }}
-            >
-              Service löschen?
-            </Typography>
-            <Typography sx={{ mb: 3, color: 'var(--text-secondary)' }}>
-              Möchten Sie den Service "{appliance?.name}" wirklich löschen?
-              Diese Aktion kann nicht rückgängig gemacht werden.
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+      <Snackbar
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        autoHideDuration={6000}
+      >
+        <Alert
+          severity="warning"
+          action={
+            <>
               <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => setShowDeleteConfirm(false)}
-                sx={{
-                  borderColor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                Abbrechen
-              </Button>
-              <Button
-                variant="contained"
-                fullWidth
-                color="error"
+                color="inherit"
+                size="small"
                 onClick={handleDelete}
                 disabled={loading}
-                startIcon={
-                  loading ? <CircularProgress size={20} /> : <Trash2 />
-                }
               >
                 Löschen
               </Button>
-            </Box>
-          </Box>
-        </Box>
-      )}
-
-      {/* Mobile Tab Swipe Helper */}
-      <MobileTabSwipeHelper
-        currentTab={['service', 'visual', 'commands'].indexOf(activeTab)}
-        tabCount={3}
-        onTabChange={(e, newIndex) => {
-          const tabs = ['service', 'visual', 'commands'];
-          setActiveTab(tabs[newIndex]);
-        }}
-        isMobile={true}
-      />
-
-      {/* Success/Error Snackbars */}
-      <Snackbar
-        open={!!success}
-        autoHideDuration={6000}
-        onClose={() => setSuccess('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setSuccess('')}
-          severity="success"
-          sx={{ width: '100%' }}
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Abbrechen
+              </Button>
+            </>
+          }
         >
-          {success}
+          Möchten Sie diesen Service wirklich löschen?
         </Alert>
       </Snackbar>
 
+      {/* Success/Error Snackbar */}
       <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        open={!!success || !!error}
+        autoHideDuration={5000}
+        onClose={() => {
+          setSuccess('');
+          setError('');
+        }}
       >
         <Alert
-          onClose={() => setError('')}
-          severity="error"
-          sx={{ width: '100%' }}
+          severity={success ? 'success' : 'error'}
+          onClose={() => {
+            setSuccess('');
+            setError('');
+          }}
         >
-          {error}
+          {success || error}
         </Alert>
       </Snackbar>
     </Box>
