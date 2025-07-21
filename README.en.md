@@ -164,9 +164,9 @@ See [Docker Environment Setup Guide](docs/docker-env-setup.md) for details.
 
 #### Access Dashboard
 - **Web Interface**: http://localhost:9080
-- **API**: http://localhost:3001
-- **Web Terminal**: http://localhost:7681/terminal
-- **Guacamole** (Remote Desktop): http://localhost:8080/guacamole
+- **API**: http://localhost:9080/api
+- **Web Terminal**: http://localhost:9080/terminal/
+- **Guacamole** (Remote Desktop): http://localhost:9080/guacamole/
 
 #### Default Login
 - **Username**: admin
