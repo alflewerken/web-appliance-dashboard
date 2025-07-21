@@ -23,6 +23,9 @@ export const useBackground = () => {
   }, [backgroundSettings]);
 
   const updateBackgroundStyles = settings => {
+    // Save to localStorage for early initialization
+    localStorage.setItem('backgroundSettings', JSON.stringify(settings));
+    
     // Update body attributes
     if (settings.enabled) {
       document.body.classList.add('has-background-image');
@@ -91,6 +94,9 @@ export const useBackground = () => {
     try {
       const settings = await BackgroundService.loadBackgroundSettings();
       setBackgroundSettings(settings);
+
+      // Save to localStorage for early initialization
+      localStorage.setItem('backgroundSettings', JSON.stringify(settings));
 
       // Force re-apply styles when settings change
       // Always update styles, not just when enabled

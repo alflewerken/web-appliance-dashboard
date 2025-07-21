@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 
+// Initialize background state early
+import './utils/backgroundInitializer';
+
 // Import Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
