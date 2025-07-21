@@ -133,7 +133,7 @@ app.use('/api/audit-logs', verifyToken, auditLogsRouter);
 app.use('/api/audit-restore', verifyToken, auditRestoreRouter);
 app.use('/api/restore', verifyToken, restoreRouter);
 app.use('/api/roles', verifyToken, rolesRouter); // Neue Rollen-Routen
-app.use('/api/remote', verifyToken, guacamoleRouter); // Guacamole Integration
+app.use('/api/guacamole', verifyToken, guacamoleRouter); // Guacamole Integration
 app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware because it uses query param
 
 // Mount backup routes (both backup and restore) - also require auth

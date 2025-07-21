@@ -126,11 +126,11 @@ function mapDbToJs(row) {
     openModeDesktop: row.open_mode_desktop || 'browser_tab',
 
     // Remote Desktop Settings
-    remote_desktop_enabled: Boolean(row.remote_desktop_enabled),
-    remote_protocol: row.remote_protocol || 'vnc',
-    remote_host: row.remote_host || null,
-    remote_port: row.remote_port || null,
-    remote_username: row.remote_username || null,
+    remoteDesktopEnabled: Boolean(row.remote_desktop_enabled),
+    remoteProtocol: row.remote_protocol || 'vnc',
+    remoteHost: row.remote_host || null,
+    remotePort: row.remote_port || null,
+    remoteUsername: row.remote_username || null,
     // Password is not returned for security
 
     // Timestamps

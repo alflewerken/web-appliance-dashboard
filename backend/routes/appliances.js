@@ -11,6 +11,7 @@ const { broadcast } = require('./sse');
 const { getClientIp } = require('../utils/getClientIp');
 const { saveBackgroundImageToAuditLog } = require('../utils/backgroundImageHelper');
 const { encrypt, decrypt } = require('../utils/crypto');
+const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
 
 /**
  * @swagger
@@ -313,6 +314,23 @@ router.post('/', verifyToken, async (req, res) => {
       );
     }
 
+    // Sync Guacamole connection if remote desktop is enabled
+    if (req.body.remoteDesktopEnabled) {
+      // Convert JS format back to DB format for Guacamole sync
+      const dbAppliance = {
+        id: result.insertId,
+        remote_desktop_enabled: 1,
+        remote_protocol: req.body.remoteProtocol,
+        remote_host: req.body.remoteHost,
+        remote_port: req.body.remotePort,
+        remote_username: req.body.remoteUsername,
+        remote_password_encrypted: encryptedPassword
+      };
+      syncGuacamoleConnection(dbAppliance).catch(err => 
+        console.error('Failed to sync Guacamole connection:', err)
+      );
+    }
+
     // Broadcast SSE events
     broadcast('appliance_created', mappedAppliance);
     broadcast('audit_log_created', {
@@ -424,6 +442,47 @@ router.put('/:id', verifyToken, async (req, res) => {
           updated_by: req.user.username,
         },
         req.clientIp || req.ip
+      );
+    }
+
+    // Sync Guacamole connection if remote desktop settings changed
+    const remoteDesktopFieldsChanged = 
+      originalData.remoteDesktopEnabled !== mappedAppliance.remoteDesktopEnabled ||
+      originalData.remoteProtocol !== mappedAppliance.remoteProtocol ||
+      originalData.remoteHost !== mappedAppliance.remoteHost ||
+      originalData.remotePort !== mappedAppliance.remotePort ||
+      originalData.remoteUsername !== mappedAppliance.remoteUsername ||
+      req.body.remotePassword; // Password was changed
+
+    if (remoteDesktopFieldsChanged) {
+      // Convert to DB format for Guacamole sync
+      const dbAppliance = {
+        id: parseInt(id),
+        remote_desktop_enabled: req.body.remoteDesktopEnabled ? 1 : 0,
+        remote_protocol: req.body.remoteProtocol,
+        remote_host: req.body.remoteHost,
+        remote_port: req.body.remotePort,
+        remote_username: req.body.remoteUsername,
+        remote_password_encrypted: encryptedPassword
+      };
+      syncGuacamoleConnection(dbAppliance).catch(err => 
+        console.error('Failed to sync Guacamole connection:', err)
+      );
+    }
+
+    // Check if remote desktop fields were updated
+    const remoteDesktopUpdated = 
+      'remoteDesktopEnabled' in updates ||
+      'remoteProtocol' in updates ||
+      'remoteHost' in updates ||
+      'remotePort' in updates ||
+      'remoteUsername' in updates ||
+      'remotePassword' in updates;
+
+    if (remoteDesktopUpdated) {
+      // Sync Guacamole connection
+      syncGuacamoleConnection(updatedRows[0]).catch(err => 
+        console.error('Failed to sync Guacamole connection:', err)
       );
     }
 
@@ -742,6 +801,11 @@ router.delete('/:id', verifyToken, async (req, res) => {
         req.clientIp || req.ip
       );
     }
+
+    // Delete Guacamole connection if it exists
+    deleteGuacamoleConnection(parseInt(id)).catch(err => 
+      console.error('Failed to delete Guacamole connection:', err)
+    );
 
     // Broadcast the deletion
     broadcast('appliance_deleted', { id: parseInt(id) });

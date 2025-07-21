@@ -4,8 +4,9 @@ services:
     image: mariadb:latest
     container_name: ${DB_CONTAINER_NAME:-appliance_db}
     restart: always
-    ports:
-      - "${DB_EXTERNAL_PORT:-3306}:3306"
+    # Datenbank sollte niemals von außen erreichbar sein
+    # ports:
+    #   - "${DB_EXTERNAL_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -29,8 +30,9 @@ services:
       dockerfile: Dockerfile
     container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
     restart: always
-    ports:
-      - "${BACKEND_PORT:-3001}:3001"
+    # Backend sollte nur intern erreichbar sein
+    # ports:
+    #   - "${BACKEND_PORT:-3001}:3001"
     environment:
       # Database Configuration
       DB_HOST: ${DB_HOST}
@@ -114,8 +116,9 @@ services:
     build: ./ttyd
     container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
     restart: always
-    ports:
-      - "${TTYD_PORT:-7681}:7681"
+    # ttyd läuft über nginx proxy auf /terminal/
+    # ports:
+    #   - "${TTYD_PORT:-7681}:7681"
     command: >
       ttyd
       --writable
@@ -214,8 +217,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
     volumes:
       - guacamole_home:/etc/guacamole
-    ports:
-      - "${GUACAMOLE_PORT:-9070}:8080"
+    # Port wird nicht nach außen geöffnet - nur über nginx erreichbar
+    # ports:
+    #   - "${GUACAMOLE_PORT:-9070}:8080"
     networks:
       appliance_network:
         aliases:
@@ -227,26 +231,27 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 60s
 
-  # Nginx JWT Authentication Proxy for Guacamole
-  guacamole-proxy:
-    build: ./nginx
-    container_name: ${GUACAMOLE_PROXY_CONTAINER_NAME:-appliance_guacamole_proxy}
-    restart: always
-    depends_on:
-      guacamole:
-        condition: service_healthy
-    environment:
-      JWT_SECRET: ${JWT_SECRET}
-      GUACAMOLE_URL: http://guacamole:8080
-    ports:
-      - "${GUACAMOLE_PROXY_PORT:-8070}:8070"
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8070/health"]
-      interval: ${HEALTH_CHECK_INTERVAL:-30s}
-      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-      retries: ${HEALTH_CHECK_RETRIES:-3}
+  # # Nginx JWT Authentication Proxy for Guacamole - DEAKTIVIERT
+  # # Alles läuft über den Haupt-nginx auf Port 9080
+  # guacamole-proxy:
+  #   build: ./nginx
+  #   container_name: ${GUACAMOLE_PROXY_CONTAINER_NAME:-appliance_guacamole_proxy}
+  #   restart: always
+  #   depends_on:
+  #     guacamole:
+  #       condition: service_healthy
+  #   environment:
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     GUACAMOLE_URL: http://guacamole:8080
+  #   ports:
+  #     - "${GUACAMOLE_PROXY_PORT:-8070}:8070"
+  #   networks:
+  #     - ${NETWORK_NAME:-appliance_network}
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8070/health"]
+  #     interval: ${HEALTH_CHECK_INTERVAL:-30s}
+  #     timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+  #     retries: ${HEALTH_CHECK_RETRIES:-3}
 
 # ====================================================================
 # VOLUMES

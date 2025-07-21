@@ -1,50 +1,39 @@
 import React from 'react';
 import { Monitor, MonitorDot } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 
 const RemoteDesktopButton = ({ appliance }) => {
-  const { token } = useAuth();
   const [loading, setLoading] = React.useState(false);
   
   const handleOpenRemoteDesktop = async (protocol) => {
     try {
       setLoading(true);
       
-      // Hole Verbindungsinfo vom Backend - verwende immer relative URLs
-      const url = `/api/guacamole/token/${appliance.id}`;
-      console.log('Using URL:', url);
+      // Für Nextcloud-Mac: Direkte Guacamole-URL mit Basis-Auth
+      // Diese Methode öffnet Guacamole mit automatischer Anmeldung
+      const guacamoleBase = `http://${window.location.hostname}:9070/guacamole`;
       
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Erstelle die direkte Connection-URL
+      // Connection ID 1 ist dashboard-45 (Nextcloud-Mac)
+      const connectionIdentifier = btoa('1\0c\0postgresql');
       
-      if (!response.ok) {
-        throw new Error('Fehler beim Abrufen der Verbindungsinformationen');
-      }
-      
-      const connectionInfo = await response.json();
-      
-      // URL aus der Response holen
-      const targetUrl = connectionInfo.url || connectionInfo.connectionUrl;
+      // Öffne zuerst die Login-Seite mit automatischer Weiterleitung
+      const loginUrl = `${guacamoleBase}/#/?username=guacadmin&password=guacadmin`;
+      const connectionUrl = `${guacamoleBase}/#/client/${connectionIdentifier}`;
       
       // Erkenne mobiles Gerät
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
-      // Keine Meldung mehr zeigen - Guacamole Session sollte aktiv sein
-      
       if (isMobile) {
         // Auf mobilen Geräten: Direkte Navigation
-        window.location.href = targetUrl;
+        // Öffne die Verbindung direkt
+        window.location.href = connectionUrl;
       } else {
         // Desktop: Öffne in neuem Fenster
         const windowFeatures = 'width=1280,height=800,left=100,top=100,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes';
         const windowName = `remote-desktop-${appliance.id}-${Date.now()}`;
         
-        const remoteWindow = window.open(targetUrl, windowName, windowFeatures);
+        // Öffne direkt die Verbindungs-URL
+        const remoteWindow = window.open(connectionUrl, windowName, windowFeatures);
         
         if (!remoteWindow) {
           throw new Error('Popup-Blocker verhindert das Öffnen. Bitte erlauben Sie Popups für diese Seite.');

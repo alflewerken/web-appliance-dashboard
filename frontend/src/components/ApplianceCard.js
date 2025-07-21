@@ -516,52 +516,56 @@ const ApplianceCard = ({
                 </div>
               )}
 
-              {/* Bottom Button Row - Only for Admin */}
-              {(isTouchDevice && !isIPad ? hasBeenTouched : true) &&
-                adminMode &&
-                appliance.sshConnection && (
-                  <div className="card-buttons-bottom">
-                    <button
-                      type="button"
-                      className="action-btn stop-btn"
-                      onClick={e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleServiceAction('stop');
-                      }}
-                      disabled={isProcessing || !appliance.stopCommand}
-                      title="Service stoppen"
-                    >
-                      <XCircle size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="action-btn terminal-btn"
-                      onClick={e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onOpenTerminal(appliance);
-                      }}
-                      title="Terminal öffnen"
-                    >
-                      <Terminal size={16} />
-                    </button>
-                    <RemoteDesktopButton appliance={appliance} />
-                    <button
-                      type="button"
-                      className="action-btn start-btn"
-                      onClick={e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleServiceAction('start');
-                      }}
-                      disabled={isProcessing || !appliance.startCommand}
-                      title="Service starten"
-                    >
-                      <Play size={16} />
-                    </button>
-                  </div>
-                )}
+              {/* Bottom Button Row - Service Controls and Remote Desktop */}
+              {(isTouchDevice && !isIPad ? hasBeenTouched : true) && (
+                <div className="card-buttons-bottom">
+                  {/* Service Controls - nur wenn Admin und SSH vorhanden */}
+                  {adminMode && appliance.sshConnection && (
+                    <>
+                      <button
+                        type="button"
+                        className="action-btn stop-btn"
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleServiceAction('stop');
+                        }}
+                        disabled={isProcessing || !appliance.stopCommand}
+                        title="Service stoppen"
+                      >
+                        <XCircle size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="action-btn terminal-btn"
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onOpenTerminal(appliance);
+                        }}
+                        title="Terminal öffnen"
+                      >
+                        <Terminal size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="action-btn start-btn"
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleServiceAction('start');
+                        }}
+                        disabled={isProcessing || !appliance.startCommand}
+                        title="Service starten"
+                      >
+                        <Play size={16} />
+                      </button>
+                    </>
+                  )}
+                  {/* Remote Desktop Button - immer wenn aktiviert */}
+                  <RemoteDesktopButton appliance={appliance} />
+                </div>
+              )}
             </div>
 
             {/* Card Info */}
