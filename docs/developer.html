@@ -511,6 +511,9 @@
                                 <li><a href="#auth-login" class="api-endpoint">POST /api/auth/login</a></li>
                                 <li><a href="#auth-check" class="api-endpoint">GET /api/auth/check</a></li>
                                 <li><a href="#auth-logout" class="api-endpoint">POST /api/auth/logout</a></li>
+                                <li><a href="#auth-check" class="api-endpoint">GET /api/auth/check</a></li>
+                                <li><a href="#auth-me" class="api-endpoint">GET /api/auth/me</a></li>
+                                <li><a href="#auth-change-password" class="api-endpoint">POST /api/auth/change-password</a></li>
                             </ul>
                         </li>
                         <li><a href="#api-appliances">📱 Appliances API</a>
@@ -520,16 +523,19 @@
                                 <li><a href="#appliances-create" class="api-endpoint">POST /api/appliances</a></li>
                                 <li><a href="#appliances-update" class="api-endpoint">PUT /api/appliances/:id</a></li>
                                 <li><a href="#appliances-delete" class="api-endpoint">DELETE /api/appliances/:id</a></li>
-                                <li><a href="#appliances-favorite" class="api-endpoint">POST /api/appliances/:id/favorite</a></li>
+                                <li><a href="#appliances-patch" class="api-endpoint">PATCH /api/appliances/:id</a></li>
+                                <li><a href="#appliances-last-used" class="api-endpoint">PATCH /api/appliances/:id/last-used</a></li>
+                                <li><a href="#appliances-favorite" class="api-endpoint">PATCH /api/appliances/:id/favorite</a></li>
                             </ul>
                         </li>
                         <li><a href="#api-categories">🏷️ Categories API</a>
                             <ul>
                                 <li><a href="#categories-get-all" class="api-endpoint">GET /api/categories</a></li>
+                                <li><a href="#categories-get-one" class="api-endpoint">GET /api/categories/:id</a></li>
                                 <li><a href="#categories-create" class="api-endpoint">POST /api/categories</a></li>
                                 <li><a href="#categories-update" class="api-endpoint">PUT /api/categories/:id</a></li>
                                 <li><a href="#categories-delete" class="api-endpoint">DELETE /api/categories/:id</a></li>
-                                <li><a href="#categories-reorder" class="api-endpoint">POST /api/categories/reorder</a></li>
+                                <li><a href="#categories-reorder" class="api-endpoint">PUT /api/categories/reorder</a></li>
                             </ul>
                         </li>
                         <li><a href="#api-services">⚙️ Services API</a>
@@ -537,6 +543,8 @@
                                 <li><a href="#services-start" class="api-endpoint">POST /api/services/:id/start</a></li>
                                 <li><a href="#services-stop" class="api-endpoint">POST /api/services/:id/stop</a></li>
                                 <li><a href="#services-status" class="api-endpoint">GET /api/services/:id/status</a></li>
+                                <li><a href="#services-log" class="api-endpoint">POST /api/services/:id/log</a></li>
+                                <li><a href="#services-check-all" class="api-endpoint">POST /api/services/check</a></li>
                             </ul>
                         </li>
                         <li><a href="#api-ssh">🔗 SSH API</a>
@@ -547,7 +555,19 @@
                                 <li><a href="#ssh-hosts-list" class="api-endpoint">GET /api/ssh/hosts</a></li>
                                 <li><a href="#ssh-hosts-create" class="api-endpoint">POST /api/ssh/hosts</a></li>
                                 <li><a href="#ssh-hosts-update" class="api-endpoint">PUT /api/ssh/hosts/:id</a></li>
+                                <li><a href="#ssh-connections" class="api-endpoint">GET /api/ssh/connections</a></li>
+                                <li><a href="#ssh-test" class="api-endpoint">POST /api/ssh/test</a></li>
+                                <li><a href="#ssh-execute" class="api-endpoint">POST /api/ssh/execute</a></li>
+                                <li><a href="#ssh-hosts-list" class="api-endpoint">GET /api/ssh/hosts</a></li>
+                                <li><a href="#ssh-hosts-create" class="api-endpoint">POST /api/ssh/hosts</a></li>
+                                <li><a href="#ssh-hosts-update" class="api-endpoint">PUT /api/ssh/hosts/:id</a></li>
                                 <li><a href="#ssh-hosts-delete" class="api-endpoint">DELETE /api/ssh/hosts/:id</a></li>
+                                <li><a href="#ssh-keys-list" class="api-endpoint">GET /api/ssh/keys</a></li>
+                                <li><a href="#ssh-keys-generate" class="api-endpoint">POST /api/ssh/keys/generate</a></li>
+                                <li><a href="#ssh-keys-delete" class="api-endpoint">DELETE /api/ssh/keys/:id</a></li>
+                                <li><a href="#ssh-setup-key" class="api-endpoint">POST /api/ssh/setup-key</a></li>
+                                <li><a href="#ssh-init" class="api-endpoint">POST /api/ssh/init</a></li>
+                                <li><a href="#ssh-status" class="api-endpoint">GET /api/ssh/status</a></li>
                             </ul>
                         </li>
                         <li><a href="#api-audit">📋 Audit Log API</a>
@@ -562,12 +582,97 @@
                         <li><a href="#api-backup">💾 Backup API</a>
                             <ul>
                                 <li><a href="#backup-export" class="api-endpoint">GET /api/backup</a></li>
+                                <li><a href="#backup-stats" class="api-endpoint">GET /api/backup/stats</a></li>
                                 <li><a href="#backup-restore" class="api-endpoint">POST /api/restore</a></li>
+                                <li><a href="#backup-enhanced-create" class="api-endpoint">POST /api/backup/enhanced/create</a></li>
+                                <li><a href="#backup-enhanced-list" class="api-endpoint">GET /api/backup/enhanced/list</a></li>
+                                <li><a href="#backup-enhanced-download" class="api-endpoint">GET /api/backup/enhanced/download/:filename</a></li>
+                                <li><a href="#backup-enhanced-validate" class="api-endpoint">POST /api/backup/enhanced/validate</a></li>
+                                <li><a href="#backup-enhanced-restore" class="api-endpoint">POST /api/backup/enhanced/restore</a></li>
+                                <li><a href="#backup-enhanced-cleanup" class="api-endpoint">POST /api/backup/enhanced/cleanup</a></li>
+                                <li><a href="#backup-enhanced-status" class="api-endpoint">GET /api/backup/enhanced/status</a></li>
                             </ul>
                         </li>
                         <li><a href="#api-terminal">🖥️ Terminal API</a>
                             <ul>
                                 <li><a href="#terminal-websocket" class="api-endpoint">WS /api/terminal/connect</a></li>
+                                <li><a href="#terminal-sessions" class="api-endpoint">GET /api/terminal/sessions</a></li>
+                                <li><a href="#terminal-sessions-delete" class="api-endpoint">DELETE /api/terminal/sessions/:sessionId</a></li>
+                                <li><a href="#terminal-redirect" class="api-endpoint">GET /api/terminal/redirect</a></li>
+                                <li><a href="#terminal-ssh" class="api-endpoint">GET /api/terminal/ssh/:hostId</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-commands">📝 Commands API</a>
+                            <ul>
+                                <li><a href="#commands-ssh-hosts" class="api-endpoint">GET /api/commands/ssh-hosts</a></li>
+                                <li><a href="#commands-all" class="api-endpoint">GET /api/commands/all</a></li>
+                                <li><a href="#commands-appliance" class="api-endpoint">GET /api/commands/appliance/:applianceId</a></li>
+                                <li><a href="#commands-create" class="api-endpoint">POST /api/commands</a></li>
+                                <li><a href="#commands-update" class="api-endpoint">PUT /api/commands/:id</a></li>
+                                <li><a href="#commands-delete" class="api-endpoint">DELETE /api/commands/:id</a></li>
+                                <li><a href="#commands-execute" class="api-endpoint">POST /api/commands/:id/execute</a></li>
+                                <li><a href="#commands-execute-direct" class="api-endpoint">POST /api/commands/execute</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-guacamole">🖥️ Guacamole API</a>
+                            <ul>
+                                <li><a href="#guacamole-auth" class="api-endpoint">GET /api/guacamole/auth</a></li>
+                                <li><a href="#guacamole-token" class="api-endpoint">POST /api/guacamole/token</a></li>
+                                <li><a href="#guacamole-validate" class="api-endpoint">GET /api/guacamole/validate/:token</a></li>
+                                <li><a href="#guacamole-cleanup" class="api-endpoint">GET /api/guacamole/cleanup</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-background">🎨 Background API</a>
+                            <ul>
+                                <li><a href="#background-upload" class="api-endpoint">POST /api/background/upload</a></li>
+                                <li><a href="#background-current" class="api-endpoint">GET /api/background/current</a></li>
+                                <li><a href="#background-list" class="api-endpoint">GET /api/background/list</a></li>
+                                <li><a href="#background-set" class="api-endpoint">POST /api/background/set/:id</a></li>
+                                <li><a href="#background-delete" class="api-endpoint">DELETE /api/background/:id</a></li>
+                                <li><a href="#background-disable" class="api-endpoint">POST /api/background/disable</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-browser">🌐 Browser API</a>
+                            <ul>
+                                <li><a href="#browser-open" class="api-endpoint">POST /api/browser/open</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-status">📊 Status Check API</a>
+                            <ul>
+                                <li><a href="#status-check" class="api-endpoint">POST /api/status-check</a></li>
+                                <li><a href="#status-force" class="api-endpoint">POST /api/status-check/force</a></li>
+                                <li><a href="#status-info" class="api-endpoint">GET /api/status-check/info</a></li>
+                                <li><a href="#status-cache-clear" class="api-endpoint">POST /api/status-check/cache/clear</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-users">👥 Users API</a>
+                            <ul>
+                                <li><a href="#users-list" class="api-endpoint">GET /api/auth/users</a></li>
+                                <li><a href="#users-create" class="api-endpoint">POST /api/auth/users</a></li>
+                                <li><a href="#users-update" class="api-endpoint">PUT /api/auth/users/:id</a></li>
+                                <li><a href="#users-toggle-active" class="api-endpoint">PUT /api/auth/users/:id/toggle-active</a></li>
+                                <li><a href="#users-delete" class="api-endpoint">DELETE /api/auth/users/:id</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-roles">🔐 Roles API</a>
+                            <ul>
+                                <li><a href="#roles-list" class="api-endpoint">GET /api/roles</a></li>
+                                <li><a href="#roles-users" class="api-endpoint">GET /api/roles/users</a></li>
+                                <li><a href="#roles-update-user" class="api-endpoint">PUT /api/roles/users/:userId/role</a></li>
+                                <li><a href="#roles-user-appliances" class="api-endpoint">GET /api/roles/users/:userId/appliances</a></li>
+                                <li><a href="#roles-update-permission" class="api-endpoint">PUT /api/roles/users/:userId/appliances/:applianceId</a></li>
+                                <li><a href="#roles-appliance-visibility" class="api-endpoint">GET /api/roles/appliances/visibility</a></li>
+                                <li><a href="#roles-update-visibility" class="api-endpoint">PUT /api/roles/appliances/:applianceId/visibility</a></li>
+                                <li><a href="#roles-stats" class="api-endpoint">GET /api/roles/stats</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#api-settings">⚙️ Settings API</a>
+                            <ul>
+                                <li><a href="#settings-list" class="api-endpoint">GET /api/settings</a></li>
+                                <li><a href="#settings-get" class="api-endpoint">GET /api/settings/:key</a></li>
+                                <li><a href="#settings-update" class="api-endpoint">POST /api/settings/:key</a></li>
+                                <li><a href="#settings-bulk" class="api-endpoint">PUT /api/settings/bulk</a></li>
+                                <li><a href="#settings-delete" class="api-endpoint">DELETE /api/settings/:key</a></li>
                             </ul>
                         </li>
                         <li><a href="#api-sse">📊 Server-Sent Events (SSE)</a>
@@ -3808,3 +3913,650 @@ for event in client.events():
     </script>
 </body>
 </html>
+                    <!-- New Authentication Endpoints -->
+                    <div class="endpoint" id="auth-me">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/auth/me</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt Informationen über den aktuell angemeldeten Benutzer zurück.</p>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "id": 1,
+  "username": "admin",
+  "email": "admin@example.com",
+  "role": "admin",
+  "createdAt": "2024-01-01T00:00:00Z",
+  "isActive": true
+}</pre>
+                            
+                            <h4>cURL Beispiel:</h4>
+                            <pre class="code-block">curl -X GET http://localhost:3001/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="auth-change-password">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/auth/change-password</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Ändert das Passwort des aktuell angemeldeten Benutzers.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "currentPassword": "oldPassword123",
+  "newPassword": "newPassword456"
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "message": "Password changed successfully"
+}</pre>
+                            
+                            <h4>Python Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+response = requests.post(
+    'http://localhost:3001/api/auth/change-password',
+    headers={'Authorization': f'Bearer {token}'},
+    json={
+        'currentPassword': 'oldPassword123',
+        'newPassword': 'newPassword456'
+    }
+)
+
+if response.status_code == 200:
+    print("Password changed successfully")
+else:
+    print(f"Error: {response.json()['error']}")</pre>
+                        </div>
+                    </div>
+                    
+                    <h3>📝 Commands API</h3>
+                    <div class="endpoint" id="commands-ssh-hosts">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/commands/ssh-hosts</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt alle verfügbaren SSH-Hosts für Command-Ausführung zurück.</p>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">[
+  {
+    "id": 1,
+    "name": "Production Server",
+    "hostname": "192.168.1.100",
+    "username": "deploy"
+  },
+  {
+    "id": 2,
+    "name": "Dev Server",
+    "hostname": "192.168.1.101",
+    "username": "dev"
+  }
+]</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="commands-appliance">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/commands/appliance/{applianceId}</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt alle Commands für eine spezifische Appliance zurück.</p>
+                            
+                            <h4>URL Parameter:</h4>
+                            <ul>
+                                <li><strong>applianceId</strong> (integer, required) - ID der Appliance</li>
+                            </ul>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">[
+  {
+    "id": 1,
+    "appliance_id": 5,
+    "name": "Restart Nginx",
+    "command": "sudo systemctl restart nginx",
+    "icon": "RotateCw",
+    "color": "#FF5733",
+    "requires_sudo": true,
+    "confirmation_required": true,
+    "ssh_host_id": 1,
+    "ssh_host": {
+      "id": 1,
+      "name": "Production Server",
+      "hostname": "192.168.1.100"
+    }
+  }
+]</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="commands-create">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/commands</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Erstellt einen neuen Command für eine Appliance.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "appliance_id": 5,
+  "name": "Clear Cache",
+  "command": "sudo rm -rf /var/cache/nginx/*",
+  "icon": "Trash2",
+  "color": "#DC3545",
+  "requires_sudo": true,
+  "confirmation_required": true,
+  "ssh_host_id": 1
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "id": 2,
+  "appliance_id": 5,
+  "name": "Clear Cache",
+  "command": "sudo rm -rf /var/cache/nginx/*",
+  "created_at": "2024-01-15T10:30:00Z"
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="commands-execute">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/commands/{id}/execute</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Führt einen Command via SSH aus.</p>
+                            
+                            <h4>URL Parameter:</h4>
+                            <ul>
+                                <li><strong>id</strong> (integer, required) - Command ID</li>
+                            </ul>
+                            
+                            <h4>Request Body (optional):</h4>
+                            <pre class="code-block">{
+  "parameters": {
+    "service": "nginx",
+    "action": "reload"
+  }
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "success": true,
+  "output": "nginx: configuration file /etc/nginx/nginx.conf test is successful\nReloading nginx...\n",
+  "executedCommand": "sudo systemctl reload nginx",
+  "executedAt": "2024-01-15T10:35:00Z"
+}</pre>
+                            
+                            <h4>JavaScript Beispiel:</h4>
+                            <pre class="code-block">async function executeCommand(commandId) {
+  try {
+    const response = await fetch(`http://localhost:3001/api/commands/${commandId}/execute`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const result = await response.json();
+    if (result.success) {
+      console.log('Command output:', result.output);
+    } else {
+      console.error('Command failed:', result.error);
+    }
+  } catch (error) {
+    console.error('Error executing command:', error);
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <h3>🖥️ Guacamole Remote Desktop API</h3>
+                    <div class="endpoint" id="guacamole-token">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/guacamole/token</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Generiert einen temporären Zugangstoken für Guacamole Remote Desktop (5 Minuten gültig).</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "applianceId": 1
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "token": "temp_1234567890abcdef",
+  "url": "/guacamole/#/client/appliance_1?token=temp_1234567890abcdef",
+  "expiresAt": "2024-01-15T10:40:00Z"
+}</pre>
+                            
+                            <h4>JavaScript Integration:</h4>
+                            <pre class="code-block">async function openRemoteDesktop(applianceId) {
+  try {
+    const response = await fetch('/api/guacamole/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ applianceId })
+    });
+    
+    const data = await response.json();
+    if (data.url) {
+      // Öffne Remote Desktop in neuem Fenster
+      window.open(data.url, `remote_${applianceId}`, 'width=1280,height=720');
+    }
+  } catch (error) {
+    console.error('Failed to get remote desktop token:', error);
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="guacamole-validate">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/guacamole/validate/{token}</span>
+                            <span class="auth-badge public">Public</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Validiert einen Guacamole-Zugangstoken (wird intern von nginx verwendet).</p>
+                            
+                            <h4>URL Parameter:</h4>
+                            <ul>
+                                <li><strong>token</strong> (string, required) - Temporärer Zugangstoken</li>
+                            </ul>
+                            
+                            <h4>Response (wenn gültig):</h4>
+                            <pre class="code-block">{
+  "valid": true,
+  "applianceId": 1,
+  "expiresAt": "2024-01-15T10:40:00Z",
+  "userId": 1
+}</pre>
+                            
+                            <h4>Response (wenn ungültig):</h4>
+                            <pre class="code-block">{
+  "valid": false,
+  "error": "Token expired or invalid"
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <h3>🎨 Background Image API</h3>
+                    <div class="endpoint" id="background-upload">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/background/upload</span>
+                            <span class="auth-badge admin">Admin Only</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Lädt ein neues Hintergrundbild hoch. Unterstützt JPEG, PNG und WebP.</p>
+                            
+                            <h4>Request:</h4>
+                            <p>Multipart form data mit Feld "image"</p>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "id": 3,
+  "filename": "background_1705315800000.jpg",
+  "url": "/uploads/backgrounds/background_1705315800000.jpg",
+  "uploadedAt": "2024-01-15T10:30:00Z"
+}</pre>
+                            
+                            <h4>JavaScript Upload Beispiel:</h4>
+                            <pre class="code-block">async function uploadBackground(file) {
+  const formData = new FormData();
+  formData.append('image', file);
+  
+  const response = await fetch('/api/background/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  });
+  
+  if (response.ok) {
+    const result = await response.json();
+    console.log('Background uploaded:', result.url);
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="background-list">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/background/list</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt eine Liste aller hochgeladenen Hintergrundbilder zurück.</p>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">[
+  {
+    "id": 1,
+    "filename": "default_background.jpg",
+    "url": "/uploads/backgrounds/default_background.jpg",
+    "isActive": true,
+    "uploadedAt": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": 2,
+    "filename": "dark_theme_bg.png",
+    "url": "/uploads/backgrounds/dark_theme_bg.png",
+    "isActive": false,
+    "uploadedAt": "2024-01-10T15:30:00Z"
+  }
+]</pre>
+                        </div>
+                    </div>
+                    
+                    <h3>📊 Status Check API</h3>
+                    <div class="endpoint" id="status-check">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/status-check</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Prüft den Online-Status einer oder mehrerer Appliances.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "applianceIds": [1, 2, 3]
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "1": {
+    "status": "online",
+    "responseTime": 145,
+    "lastChecked": "2024-01-15T10:30:00Z"
+  },
+  "2": {
+    "status": "offline",
+    "error": "Connection refused",
+    "lastChecked": "2024-01-15T10:30:00Z"
+  },
+  "3": {
+    "status": "online",
+    "responseTime": 89,
+    "lastChecked": "2024-01-15T10:30:00Z"
+  }
+}</pre>
+                            
+                            <h4>React Hook Beispiel:</h4>
+                            <pre class="code-block">import { useState, useEffect } from 'react';
+
+function useApplianceStatus(applianceIds) {
+  const [statuses, setStatuses] = useState({});
+  const [loading, setLoading] = useState(false);
+  
+  const checkStatus = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/status-check', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ applianceIds })
+      });
+      
+      const data = await response.json();
+      setStatuses(data);
+    } catch (error) {
+      console.error('Status check failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    checkStatus();
+    const interval = setInterval(checkStatus, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, [applianceIds]);
+  
+  return { statuses, loading, refresh: checkStatus };
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <h3>👥 User Management API</h3>
+                    <div class="endpoint" id="users-list">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/auth/users</span>
+                            <span class="auth-badge admin">Admin Only</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt eine Liste aller Benutzer zurück (nur für Administratoren).</p>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">[
+  {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@example.com",
+    "role": "admin",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "lastLogin": "2024-01-15T09:00:00Z"
+  },
+  {
+    "id": 2,
+    "username": "user1",
+    "email": "user1@example.com",
+    "role": "user",
+    "isActive": true,
+    "createdAt": "2024-01-05T10:00:00Z",
+    "lastLogin": "2024-01-14T15:30:00Z"
+  }
+]</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="users-create">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <span class="path">/api/auth/users</span>
+                            <span class="auth-badge admin">Admin Only</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Erstellt einen neuen Benutzer (nur für Administratoren).</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "username": "newuser",
+  "password": "securePassword123",
+  "email": "newuser@example.com",
+  "role": "user"  // "user" oder "admin"
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "id": 3,
+  "username": "newuser",
+  "email": "newuser@example.com",
+  "role": "user",
+  "createdAt": "2024-01-15T10:45:00Z"
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <h3>🔐 Role Management API</h3>
+                    <div class="endpoint" id="roles-list">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/api/roles</span>
+                            <span class="auth-badge auth">Auth Required</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Gibt alle verfügbaren Rollen mit ihren Berechtigungen zurück.</p>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">[
+  {
+    "name": "admin",
+    "displayName": "Administrator",
+    "permissions": [
+      "appliances.create",
+      "appliances.update",
+      "appliances.delete",
+      "users.manage",
+      "settings.manage",
+      "backup.manage"
+    ]
+  },
+  {
+    "name": "user",
+    "displayName": "Standard User",
+    "permissions": [
+      "appliances.view",
+      "appliances.use"
+    ]
+  }
+]</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="endpoint" id="roles-update-user">
+                        <div class="endpoint-header">
+                            <span class="method put">PUT</span>
+                            <span class="path">/api/roles/users/{userId}/role</span>
+                            <span class="auth-badge admin">Admin Only</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Ändert die Rolle eines Benutzers.</p>
+                            
+                            <h4>URL Parameter:</h4>
+                            <ul>
+                                <li><strong>userId</strong> (integer, required) - Benutzer ID</li>
+                            </ul>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "role": "admin"  // "user" oder "admin"
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "message": "User role updated successfully",
+  "user": {
+    "id": 2,
+    "username": "user1",
+    "role": "admin"
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <h3>⚙️ Settings API (Erweitert)</h3>
+                    <div class="endpoint" id="settings-bulk">
+                        <div class="endpoint-header">
+                            <span class="method put">PUT</span>
+                            <span class="path">/api/settings/bulk</span>
+                            <span class="auth-badge admin">Admin Only</span>
+                        </div>
+                        <div class="endpoint-details">
+                            <h4>Beschreibung:</h4>
+                            <p>Aktualisiert mehrere Einstellungen auf einmal.</p>
+                            
+                            <h4>Request Body:</h4>
+                            <pre class="code-block">{
+  "settings": [
+    {
+      "key": "ssh_enabled",
+      "value": "true"
+    },
+    {
+      "key": "terminal_enabled",
+      "value": "true"
+    },
+    {
+      "key": "default_theme",
+      "value": "dark"
+    }
+  ]
+}</pre>
+                            
+                            <h4>Response:</h4>
+                            <pre class="code-block">{
+  "message": "Settings updated successfully",
+  "updated": 3
+}</pre>
+                            
+                            <h4>Python Bulk Update Beispiel:</h4>
+                            <pre class="code-block">import requests
+
+def update_multiple_settings(settings_dict):
+    settings_list = [
+        {"key": k, "value": v} 
+        for k, v in settings_dict.items()
+    ]
+    
+    response = requests.put(
+        'http://localhost:3001/api/settings/bulk',
+        headers={'Authorization': f'Bearer {token}'},
+        json={'settings': settings_list}
+    )
+    
+    return response.json()
+
+# Beispiel Verwendung
+new_settings = {
+    'ssh_enabled': 'true',
+    'terminal_enabled': 'true',
+    'status_check_interval': '30',
+    'default_theme': 'dark'
+}
+
+result = update_multiple_settings(new_settings)
+print(f"Updated {result['updated']} settings")</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="note">
