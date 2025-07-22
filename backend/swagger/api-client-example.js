@@ -16,7 +16,7 @@
 const fetch = require('node-fetch');
 
 class WebApplianceAPIClient {
-  constructor(baseUrl = 'http://localhost:3001') {
+  constructor(baseUrl = 'http://localhost:9080') {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.token = null;
   }

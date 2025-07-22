@@ -38,7 +38,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3001"
+      "value": "http://localhost:9080"
     },
     {
       "key": "token",

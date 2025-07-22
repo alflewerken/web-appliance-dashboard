@@ -209,11 +209,11 @@ const ServicePanel = ({
         openModeMini: appliance.openModeMini || 'browser_tab',
         openModeMobile: appliance.openModeMobile || 'browser_tab',
         openModeDesktop: appliance.openModeDesktop || 'browser_tab',
-        remoteDesktopEnabled: appliance.remote_desktop_enabled || false,
-        remoteProtocol: appliance.remote_protocol || 'vnc',
-        remoteHost: appliance.remote_host || extractHostFromUrl(appliance.url) || '',
-        remotePort: appliance.remote_port || null,
-        remoteUsername: appliance.remote_username || '',
+        remoteDesktopEnabled: appliance.remoteDesktopEnabled || false,
+        remoteProtocol: appliance.remoteProtocol || 'vnc',
+        remoteHost: appliance.remoteHost || extractHostFromUrl(appliance.url) || '',
+        remotePort: appliance.remotePort || null,
+        remoteUsername: appliance.remoteUsername || '',
         remotePassword: '', // Passwort wird nicht vom Server zurückgegeben
       });
 

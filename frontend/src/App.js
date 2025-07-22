@@ -52,7 +52,6 @@ import {
   getTimeBasedSections,
   getAllCategories,
 } from './utils';
-import './utils/lightModeIconFix';
 
 // Import Styles
 import './App.css';

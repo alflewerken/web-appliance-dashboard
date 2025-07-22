@@ -4,7 +4,6 @@ import './styles/globals.css'; // Global CSS variables
 import './App.css';
 import App from './App';
 import StandaloneServicePanel from './components/StandaloneServicePanel';
-import { SSEProvider } from './contexts/SSEContext';
 import './utils/axiosConfig'; // Import axios configuration
 
 // Error Boundary für besseres Debugging

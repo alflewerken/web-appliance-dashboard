@@ -26,9 +26,7 @@
 /* Import all terminal CSS files */
 @import './XTerminal.css';
 @import './TTYDTerminal.css';
-@import './SimpleTerminal.css';
 @import './TerminalModal.css';
-@import './FullTerminal.css';
 
 /* Additional global terminal styles for light mode */
 body.theme-light .terminal-container,

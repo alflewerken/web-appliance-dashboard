@@ -573,7 +573,7 @@ Check the enhanced documentation at \`/backend/swagger/enhanced-api-docs.md\` fo
       },
     ],
   },
-  apis: ['./routes/*.js', './routes/debug/*.js', './swagger/api-endpoints.js'], // Path to the API routes
+  apis: ['./routes/*.js', './routes/debug/*.js', './swagger/api-endpoints.js', './swagger/enhanced-swagger-docs.js'], // Path to the API routes
 };
 
 const swaggerSpec = swaggerJsdoc(options);

@@ -1,25 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
-  Plus,
   Server,
   Key,
-  Lock,
   CheckCircle,
   AlertCircle,
-  Edit,
-  Trash2,
   Shield,
-  Eye,
-  EyeOff,
   Activity,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  FileKey,
   Home,
-  Settings,
-  Terminal,
 } from 'lucide-react';
 import SSHHostManagerResponsive from './SSHHostManagerResponsive';
 import SSHDiagnosticPanel from './SSHDiagnosticPanel';

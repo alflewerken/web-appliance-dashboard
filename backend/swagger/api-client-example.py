@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Any
 class WebApplianceAPIClient:
     """Client for interacting with the Web Appliance Dashboard API."""
     
-    def __init__(self, base_url: str = "http://localhost:3001"):
+    def __init__(self, base_url: str = "http://localhost:9080"):
         """
         Initialize the API client.
         

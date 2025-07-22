@@ -121,7 +121,7 @@
  *       
  *       **Example Usage**:
  *       ```bash
- *       curl -X GET http://localhost:3001/api/backup \
+ *       curl -X GET http://localhost:9080/api/backup \
  *         -H "Authorization: Bearer YOUR_JWT_TOKEN" \
  *         -o backup-$(date +%Y%m%d-%H%M%S).json
  *       ```
@@ -212,7 +212,7 @@
  *         settings: true
  *       }));
  *       
- *       const response = await fetch('http://localhost:3001/api/restore', {
+ *       const response = await fetch('http://localhost:9080/api/restore', {
  *         method: 'POST',
  *         headers: {
  *           'Authorization': `Bearer ${token}`
@@ -554,7 +554,7 @@
  *       }
  *       
  *       response = requests.get(
- *           'http://localhost:3001/api/audit-logs',
+ *           'http://localhost:9080/api/audit-logs',
  *           headers={'Authorization': f'Bearer {token}'},
  *           params=params
  *       )
@@ -1132,7 +1132,7 @@
  *       
  *       **JavaScript Example**:
  *       ```javascript
- *       const response = await fetch('http://localhost:3001/api/status-check', {
+ *       const response = await fetch('http://localhost:9080/api/status-check', {
  *         method: 'POST',
  *         headers: {
  *           'Authorization': `Bearer ${token}`,
@@ -1713,7 +1713,7 @@
  *       **JavaScript Example**:
  *       ```javascript
  *       const eventSource = new EventSource(
- *         `http://localhost:3001/api/sse?token=${token}`
+ *         `http://localhost:9080/api/sse?token=${token}`
  *       );
  *       
  *       eventSource.onmessage = (event) => {
