@@ -697,10 +697,24 @@ function Dashboard() {
   };
 
   const startService = async appliance => {
+    console.log('[DEBUG] startService called for:', appliance?.name, 'at', new Date().toISOString());
+    
     if (!appliance || !appliance.startCommand) {
       console.error('startService called with invalid appliance:', appliance);
       return;
     }
+
+    // Add a simple debounce check
+    const lastCallKey = `lastStartCall_${appliance.id}`;
+    const lastCall = window[lastCallKey];
+    const now = Date.now();
+    
+    if (lastCall && (now - lastCall) < 1000) {
+      console.log('[DEBUG] Ignoring duplicate start call within 1 second');
+      return;
+    }
+    
+    window[lastCallKey] = now;
 
     try {
       const token = localStorage.getItem('token');

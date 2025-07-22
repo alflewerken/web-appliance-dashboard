@@ -215,6 +215,9 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      # Standard SSH-Zugangsdaten für SFTP
+      DEFAULT_SSH_USER: ${DEFAULT_SSH_USER:-alflewerken}
+      DEFAULT_SSH_PASS: ${DEFAULT_SSH_PASS:-}
     volumes:
       - guacamole_home:/etc/guacamole
     # Port wird nicht nach außen geöffnet - nur über nginx erreichbar
@@ -231,27 +234,7 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 60s
 
-  # # Nginx JWT Authentication Proxy for Guacamole - DEAKTIVIERT
-  # # Alles läuft über den Haupt-nginx auf Port 9080
-  # guacamole-proxy:
-  #   build: ./nginx
-  #   container_name: ${GUACAMOLE_PROXY_CONTAINER_NAME:-appliance_guacamole_proxy}
-  #   restart: always
-  #   depends_on:
-  #     guacamole:
-  #       condition: service_healthy
-  #   environment:
-  #     JWT_SECRET: ${JWT_SECRET}
-  #     GUACAMOLE_URL: http://guacamole:8080
-  #   ports:
-  #     - "${GUACAMOLE_PROXY_PORT:-8070}:8070"
-  #   networks:
-  #     - ${NETWORK_NAME:-appliance_network}
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8070/health"]
-  #     interval: ${HEALTH_CHECK_INTERVAL:-30s}
-  #     timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-  #     retries: ${HEALTH_CHECK_RETRIES:-3}
+
 
 # ====================================================================
 # VOLUMES

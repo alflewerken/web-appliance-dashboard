@@ -4,7 +4,13 @@
  */
 
 const WebSocket = require('ws');
-const { spawn } = require('node-pty');
+let pty;
+try {
+  pty = require('node-pty');
+} catch (error) {
+  console.warn('node-pty not available, terminal websocket will use child_process instead');
+}
+const { spawn: childSpawn } = require('child_process');
 const pool = require('../../utils/database');
 const jwt = require('jsonwebtoken');
 
@@ -80,14 +86,27 @@ function setupTerminalWebSocket(server) {
               return;
             }
 
-            // Create PTY process
-            ptyProcess = spawn('/bin/bash', [], {
-              name: 'xterm-color',
-              cols: 80,
-              rows: 30,
-              cwd: process.env.HOME,
-              env: process.env,
-            });
+            // Create PTY process or fallback to child_process
+            if (pty) {
+              ptyProcess = pty.spawn('/bin/bash', [], {
+                name: 'xterm-color',
+                cols: 80,
+                rows: 30,
+                cwd: process.env.HOME,
+                env: process.env,
+              });
+            } else {
+              // Fallback to child_process for ARM64 compatibility
+              ptyProcess = childSpawn('/bin/bash', [], {
+                cwd: process.env.HOME,
+                env: process.env,
+                stdio: ['pipe', 'pipe', 'pipe']
+              });
+              
+              // Simulate PTY interface
+              ptyProcess.write = (data) => ptyProcess.stdin.write(data);
+              ptyProcess.resize = () => {}; // No-op for regular process
+            }
 
             // Store session
             terminals.set(sessionId, {
@@ -105,9 +124,19 @@ function setupTerminalWebSocket(server) {
             );
 
             // Handle PTY output
-            ptyProcess.on('data', data => {
-              ws.send(data);
-            });
+            if (pty) {
+              ptyProcess.on('data', data => {
+                ws.send(data);
+              });
+            } else {
+              // Handle stdout for child_process
+              ptyProcess.stdout.on('data', data => {
+                ws.send(data.toString());
+              });
+              ptyProcess.stderr.on('data', data => {
+                ws.send(data.toString());
+              });
+            }
 
             break;
 

@@ -8,6 +8,22 @@ const { createAuditLog } = require('../utils/auth');
 
 // Service Control: Start Service
 router.post('/:id/start', async (req, res) => {
+  const requestId = req.headers['x-request-id'] || Math.random().toString(36).substring(7);
+  console.log(`[DEBUG] Start service endpoint called - Request ID: ${requestId}, Service ID: ${req.params.id} at ${new Date().toISOString()}`);
+  
+  // Simple debounce mechanism
+  const debounceKey = `start_${req.params.id}`;
+  const lastRequest = global.lastServiceRequests?.[debounceKey];
+  const now = Date.now();
+  
+  if (lastRequest && (now - lastRequest) < 1000) {
+    console.log(`[DEBUG] Ignoring duplicate start request within 1 second - Request ID: ${requestId}`);
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+  
+  if (!global.lastServiceRequests) global.lastServiceRequests = {};
+  global.lastServiceRequests[debounceKey] = now;
+  
   try {
     const { id } = req.params;
 

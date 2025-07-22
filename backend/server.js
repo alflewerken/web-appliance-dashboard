@@ -65,6 +65,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Debug middleware for SSH upload
+app.use((req, res, next) => {
+  if (req.path.includes('/ssh/upload') || req.url.includes('/ssh/upload')) {
+    console.log('DEBUG: SSH Upload Request:', {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      originalUrl: req.originalUrl,
+      baseUrl: req.baseUrl
+    });
+  }
+  next();
+});
+
 app.use(
   express.json({
     limit: '100mb', // Increased limit for large backup files with Base64 images
@@ -110,6 +124,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Auth routes (no authentication required)
 app.use('/api/auth', authRouter);
+
+// Debug routes (temporary - no authentication)
+const tokenDebugRouter = require('./routes/debug/tokenDebug');
+app.use('/api/debug', tokenDebugRouter);
 
 // Guacamole auth validation (special case for nginx auth_request)
 const authGuacamoleRouter = require('./routes/auth-guacamole');

@@ -79,6 +79,31 @@ class GuacamoleDBManager {
         parameters.height = '1080';
       }
 
+      // SFTP automatisch aktivieren mit den gleichen Credentials
+      if (config.hostname && (config.protocol === 'vnc' || config.protocol === 'rdp')) {
+        parameters['enable-sftp'] = 'true';
+        
+        // Verwende SSH-Credentials wenn verfügbar, sonst die Remote-Desktop-Credentials
+        if (config.sshHostname) {
+          parameters['sftp-hostname'] = config.sshHostname;
+          parameters['sftp-username'] = config.sshUsername || config.username || '';
+          parameters['sftp-password'] = config.sshPassword || config.password || '';
+        } else {
+          // Fallback: Verwende die gleichen Host/Credentials wie Remote Desktop
+          parameters['sftp-hostname'] = config.hostname;
+          parameters['sftp-username'] = config.username || '';
+          parameters['sftp-password'] = config.password || '';
+        }
+        
+        parameters['sftp-port'] = '22';
+        
+        // Standard Upload-Verzeichnis
+        const sftpUsername = parameters['sftp-username'] || 'root';
+        parameters['sftp-root-directory'] = `/home/${sftpUsername}/Desktop`;
+        parameters['sftp-disable-download'] = 'false';
+        parameters['sftp-disable-upload'] = 'false';
+      }
+
       // Füge alle Parameter ein
       for (const [key, value] of Object.entries(parameters)) {
         await client.query(

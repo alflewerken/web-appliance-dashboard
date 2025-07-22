@@ -4,10 +4,13 @@ import { MoreVertical, Star, Play, XCircle, Terminal } from 'lucide-react';
 import axios from 'axios';
 import SimpleIcon from './SimpleIcon';
 import RemoteDesktopButton from './RemoteDesktopButton';
+import FileTransferButton from './FileTransferButton';
 import ConfirmDialog from './ConfirmDialog';
 
 import { iconMap } from '../utils/iconMap';
 import './ApplianceCard.css';
+import './ApplianceCard.mobile.css';
+import './MobileButtonFix.css';
 
 const ApplianceCard = ({
   appliance,
@@ -161,6 +164,8 @@ const ApplianceCard = ({
   };
 
   const openService = async e => {
+    console.log('[DEBUG] openService called in ApplianceCard for:', appliance.name);
+    
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -173,13 +178,19 @@ const ApplianceCard = ({
       await axios.post(`/api/services/${appliance.id}/access`);
       // Trigger a refresh of the appliance data if onOpen callback is provided
       if (onOpen) {
+        console.log('[DEBUG] onOpen callback exists, delegating to parent');
+        // Let the parent handle the opening
         onOpen(appliance);
+        return; // Don't open URL here, let parent handle it
       }
     } catch (error) {
       console.error('Failed to log service access:', error);
       // Continue opening the service even if logging fails
     }
 
+    console.log('[DEBUG] No onOpen callback, opening URL directly from ApplianceCard');
+
+    // Only open URL if no onOpen callback is provided
     // Determine the correct open mode based on device type
     let openMode = 'browser_tab'; // default
 
@@ -265,6 +276,8 @@ const ApplianceCard = ({
   };
 
   const handleCardClick = e => {
+    console.log('[DEBUG] handleCardClick called for:', appliance.name, 'isMobile:', isMobile);
+    
     // If we're saving, ignore all clicks
     if (isSavingSettings) {
       e.preventDefault();
@@ -274,6 +287,7 @@ const ApplianceCard = ({
 
     // If touch was already handled, ignore click
     if (touchHandled) {
+      console.log('[DEBUG] Click ignored - touch already handled');
       setTouchHandled(false);
       return;
     }
@@ -330,6 +344,8 @@ const ApplianceCard = ({
   );
 
   const handleServiceAction = async action => {
+    console.log('[DEBUG] handleServiceAction called:', action, 'for', appliance?.name, 'at', new Date().toISOString());
+    
     if (!appliance.sshConnection || isProcessing) return;
 
     // Zeige den Confirm Dialog
@@ -345,6 +361,8 @@ const ApplianceCard = ({
 
   const handleConfirmServiceAction = async () => {
     const action = confirmDialog.action;
+    console.log('[DEBUG] handleConfirmServiceAction:', action, 'for', appliance?.name, 'at', new Date().toISOString());
+    
     setConfirmDialog({ ...confirmDialog, isOpen: false });
     
     setIsProcessing(true);
@@ -467,60 +485,17 @@ const ApplianceCard = ({
                 <SimpleIcon name={iconName} size="100%" />
               </div>
 
-              {/* Top Button Row - Always visible */}
-              {(isTouchDevice ? hasBeenTouched : true) && (
-                <div className="card-buttons-top">
-                  {adminMode ? (
-                    <>
-                      <button
-                        className="action-btn edit-btn"
-                        onClick={handleEditClick}
-                        title="Service bearbeiten"
-                      >
-                        <MoreVertical size={16} />
-                      </button>
-                      <button
-                        className={`action-btn favorite-btn ${appliance.isFavorite ? 'active' : ''}`}
-                        onClick={handleFavoriteClick}
-                        title={
-                          appliance.isFavorite
-                            ? 'Von Favoriten entfernen'
-                            : 'Zu Favoriten hinzufügen'
-                        }
-                      >
-                        <Star
-                          size={16}
-                          fill={appliance.isFavorite ? 'currentColor' : 'none'}
-                        />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className={`action-btn favorite-btn ${appliance.isFavorite ? 'active' : ''}`}
-                        onClick={handleFavoriteClick}
-                        title={
-                          appliance.isFavorite
-                            ? 'Von Favoriten entfernen'
-                            : 'Zu Favoriten hinzufügen'
-                        }
-                      >
-                        <Star
-                          size={16}
-                          fill={appliance.isFavorite ? 'currentColor' : 'none'}
-                        />
-                      </button>
-                      <div className="button-spacer"></div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Bottom Button Row - Service Controls and Remote Desktop */}
-              {(isTouchDevice && !isIPad ? hasBeenTouched : true) && (
-                <div className="card-buttons-bottom">
-                  {/* Service Controls - nur wenn Admin und SSH vorhanden */}
-                  {adminMode && appliance.sshConnection && (
+              {/* Left Button Column - Service Controls */}
+              {(isTouchDevice ? hasBeenTouched : true) && adminMode && (
+                <div className="card-buttons-left">
+                  <button
+                    className="action-btn edit-btn"
+                    onClick={handleEditClick}
+                    title="Service bearbeiten"
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  {appliance.sshConnection && (
                     <>
                       <button
                         type="button"
@@ -537,18 +512,6 @@ const ApplianceCard = ({
                       </button>
                       <button
                         type="button"
-                        className="action-btn terminal-btn"
-                        onClick={e => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onOpenTerminal(appliance);
-                        }}
-                        title="Terminal öffnen"
-                      >
-                        <Terminal size={16} />
-                      </button>
-                      <button
-                        type="button"
                         className="action-btn start-btn"
                         onClick={e => {
                           e.preventDefault();
@@ -562,8 +525,44 @@ const ApplianceCard = ({
                       </button>
                     </>
                   )}
-                  {/* Remote Desktop Button - immer wenn aktiviert */}
+                </div>
+              )}
+
+              {/* Right Button Column - Other Functions */}
+              {(isTouchDevice ? hasBeenTouched : true) && (
+                <div className="card-buttons-right">
+                  <button
+                    className={`action-btn favorite-btn ${appliance.isFavorite ? 'active' : ''}`}
+                    onClick={handleFavoriteClick}
+                    title={
+                      appliance.isFavorite
+                        ? 'Von Favoriten entfernen'
+                        : 'Zu Favoriten hinzufügen'
+                    }
+                  >
+                    <Star
+                      size={16}
+                      fill={appliance.isFavorite ? 'currentColor' : 'none'}
+                    />
+                  </button>
+                  {adminMode && appliance.sshConnection && (
+                    <button
+                      type="button"
+                      className="action-btn terminal-btn"
+                      onClick={e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onOpenTerminal(appliance);
+                      }}
+                      title="Terminal öffnen"
+                    >
+                      <Terminal size={16} />
+                    </button>
+                  )}
+                  {/* Remote Desktop Button */}
                   <RemoteDesktopButton appliance={appliance} />
+                  {/* File Transfer Button */}
+                  <FileTransferButton appliance={appliance} />
                 </div>
               )}
             </div>

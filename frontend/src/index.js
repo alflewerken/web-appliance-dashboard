@@ -6,6 +6,9 @@ import App from './App';
 import StandaloneServicePanel from './components/StandaloneServicePanel';
 import './utils/axiosConfig'; // Import axios configuration
 
+// Import mobile button override as LAST CSS file
+import './styles/mobile-button-override.css';
+
 // Error Boundary für besseres Debugging
 class ErrorBoundary extends React.Component {
   constructor(props) {

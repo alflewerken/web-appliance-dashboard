@@ -421,6 +421,11 @@ const BackupTab = () => {
               Konfiguration. Die Backup-Datei enthält alle Ihre Services,
               Kategorien, SSH-Konfigurationen und Einstellungen.
             </Typography>
+            <Typography variant="body2" sx={{ mt: 1, fontWeight: 600, color: '#ff9800' }}>
+              <strong>Wichtig:</strong> Remote Desktop Passwörter können nur wiederhergestellt werden, 
+              wenn der Verschlüsselungsschlüssel (SSH_KEY_ENCRYPTION_SECRET) übereinstimmt. 
+              Sichern Sie auch Ihre .env Datei!
+            </Typography>
           </Alert>
         </Box>
       </Fade>

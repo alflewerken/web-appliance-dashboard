@@ -9,6 +9,13 @@
     height: clamp(20px, calc(var(--card-size) * 0.15), 32px) !important;
   }
 
+  /* Remote Desktop und File Transfer Buttons gleiche Größe */
+  .appliance-card-container .remote-desktop-btn,
+  .appliance-card-container .file-transfer-button {
+    width: clamp(20px, calc(var(--card-size) * 0.15), 32px) !important;
+    height: clamp(20px, calc(var(--card-size) * 0.15), 32px) !important;
+  }
+
   /* Spezielle Touch-Optimierung für Commands Button */
   .appliance-card-container .commands-btn {
     touch-action: manipulation !important;
@@ -45,6 +52,15 @@
     height: 12px !important;
     min-width: 10px !important;
     min-height: 10px !important;
+  }
+
+  /* Icons für Remote Desktop und File Transfer Buttons */
+  .appliance-card-container .remote-desktop-btn svg,
+  .appliance-card-container .file-transfer-button svg {
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 12px !important;
+    min-height: 12px !important;
   }
 
   /* Standard Action-Buttons (oben/unten) */

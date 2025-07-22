@@ -1,0 +1,62 @@
+/* Remote Desktop Button Styles */
+.remote-desktop-btn {
+  /* Inherit action-btn base styles */
+  width: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  height: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: clamp(10px, calc(var(--card-size) * 0.07), 14px);
+  flex-shrink: 0;
+  padding: 0;
+  /* Remote desktop specific accent */
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.3);
+}
+
+.remote-desktop-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  transform: scale(1.1);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.5);
+}
+
+.remote-desktop-btn:active {
+  transform: scale(0.95);
+}
+
+.remote-desktop-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Specific protocol variants */
+.remote-desktop-btn.vnc {
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.3);
+}
+
+.remote-desktop-btn.vnc:hover {
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.5);
+}
+
+.remote-desktop-btn.rdp {
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.remote-desktop-btn.rdp:hover {
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
+/* Icon sizing to match other action buttons */
+.remote-desktop-btn svg {
+  width: 65%;
+  height: 65%;
+  min-width: 10px;
+  min-height: 10px;
+}

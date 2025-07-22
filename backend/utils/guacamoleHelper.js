@@ -1,5 +1,6 @@
 const GuacamoleDBManager = require('./guacamole/GuacamoleDBManager');
 const { decrypt } = require('./crypto');
+const pool = require('./database');
 
 /**
  * Erstellt oder aktualisiert eine Guacamole-Verbindung basierend auf den Appliance-Daten
@@ -24,17 +25,58 @@ async function syncGuacamoleConnection(appliance) {
       }
     }
 
+    // Hole SSH-Credentials wenn ein SSH-Host verknüpft ist
+    let sshCredentials = null;
+    if (appliance.ssh_host_id) {
+      try {
+        const [sshHosts] = await pool.execute(
+          'SELECT hostname, username, password_encrypted FROM ssh_hosts WHERE id = ?',
+          [appliance.ssh_host_id]
+        );
+        
+        if (sshHosts.length > 0) {
+          const sshHost = sshHosts[0];
+          sshCredentials = {
+            hostname: sshHost.hostname,
+            username: sshHost.username,
+            password: null
+          };
+          
+          // Entschlüssele SSH-Passwort
+          if (sshHost.password_encrypted) {
+            try {
+              sshCredentials.password = decrypt(sshHost.password_encrypted);
+            } catch (error) {
+              console.error(`Failed to decrypt SSH password for host ${appliance.ssh_host_id}:`, error.message);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch SSH host for appliance ${appliance.id}:`, error.message);
+      }
+    }
+
     const dbManager = new GuacamoleDBManager();
     
     try {
-      // Erstelle oder aktualisiere die Verbindung
-      await dbManager.createOrUpdateConnection(appliance.id, {
+      // Erstelle Konfiguration mit SSH-Credentials falls verfügbar
+      const connectionConfig = {
         protocol: appliance.remote_protocol || 'vnc',
         hostname: appliance.remote_host,
         port: appliance.remote_port || (appliance.remote_protocol === 'vnc' ? 5900 : 3389),
         username: appliance.remote_username || '',
         password: decryptedPassword || ''
-      });
+      };
+      
+      // Füge SSH-Credentials hinzu wenn verfügbar
+      if (sshCredentials) {
+        connectionConfig.sshHostname = sshCredentials.hostname;
+        connectionConfig.sshUsername = sshCredentials.username;
+        connectionConfig.sshPassword = sshCredentials.password;
+      }
+      
+      // Erstelle oder aktualisiere die Verbindung
+      await dbManager.createOrUpdateConnection(appliance.id, connectionConfig);
       
       console.log(`Successfully synced Guacamole connection for appliance ${appliance.id}`);
     } finally {

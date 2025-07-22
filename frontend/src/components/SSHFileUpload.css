@@ -1,0 +1,237 @@
+.ssh-file-upload-container {
+  margin: 20px 0;
+}
+
+.ssh-file-upload-dropzone {
+  border: 2px dashed var(--border-primary);
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: var(--bg-secondary);
+  position: relative;
+  overflow: hidden;
+}
+
+.ssh-file-upload-dropzone.dragging {
+  border-color: var(--primary-color);
+  background: var(--primary-color-alpha);
+  transform: scale(1.02);
+}
+
+.ssh-file-upload-dropzone.uploading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.ssh-file-input {
+  display: none;
+}
+
+.ssh-file-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.ssh-file-label:hover {
+  color: var(--primary-color);
+}
+
+.upload-text {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.upload-info {
+  font-size: 12px;
+  opacity: 0.7;
+  font-family: monospace;
+}
+
+.upload-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-primary);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.upload-status {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.upload-status.success {
+  background: var(--success-bg);
+  color: var(--success-color);
+  border: 1px solid var(--success-border);
+}
+
+.upload-status.error {
+  background: var(--error-bg);
+  color: var(--error-color);
+  border: 1px solid var(--error-border);
+}
+
+.status-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.status-close:hover {
+  opacity: 1;
+}
+
+.ssh-file-upload-disabled {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+}
+
+/* CSS Variables for theming */
+:root {
+  --success-bg: rgba(76, 175, 80, 0.1);
+  --success-color: #4CAF50;
+  --success-border: rgba(76, 175, 80, 0.3);
+  --error-bg: rgba(244, 67, 54, 0.1);
+  --error-color: #F44336;
+  --error-border: rgba(244, 67, 54, 0.3);
+  --primary-color-alpha: rgba(33, 150, 243, 0.1);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] {
+  --success-bg: rgba(76, 175, 80, 0.15);
+  --error-bg: rgba(244, 67, 54, 0.15);
+}
+
+/* Password prompt styles */
+.password-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.password-prompt {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.password-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.password-prompt-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.password-prompt p {
+  margin-bottom: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.password-prompt input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.password-prompt input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.password-prompt-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.password-prompt-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.password-prompt-buttons button[type="button"] {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.password-prompt-buttons button[type="button"]:hover {
+  background: var(--button-hover-bg);
+}
+
+.password-prompt-buttons button[type="submit"] {
+  background: var(--primary-color);
+  color: white;
+}
+
+.password-prompt-buttons button[type="submit"]:hover {
+  opacity: 0.9;
+}

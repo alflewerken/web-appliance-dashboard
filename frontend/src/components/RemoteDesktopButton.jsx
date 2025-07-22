@@ -1,6 +1,7 @@
 import React from 'react';
 import { Monitor, MonitorDot } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import './RemoteDesktopButton.css';
 
 const RemoteDesktopButton = ({ appliance }) => {
   const { token } = useAuth();

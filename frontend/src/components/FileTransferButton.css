@@ -1,0 +1,171 @@
+.file-transfer-button {
+  /* Inherit action-btn base styles */
+  width: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  height: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: clamp(10px, calc(var(--card-size) * 0.07), 14px);
+  flex-shrink: 0;
+  padding: 0;
+  /* File transfer specific accent */
+  box-shadow: inset 0 0 0 1px rgba(255, 149, 0, 0.3);
+}
+
+.file-transfer-button:hover {
+  background: rgba(0, 0, 0, 0.5);
+  transform: scale(1.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 149, 0, 0.5);
+}
+
+.file-transfer-button:active {
+  transform: scale(0.95);
+}
+
+/* Icon sizing to match other action buttons */
+.file-transfer-button svg {
+  width: 65%;
+  height: 65%;
+  min-width: 10px;
+  min-height: 10px;
+}
+
+.file-transfer-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.file-transfer-modal {
+  position: relative;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.file-transfer-content {
+  max-height: 80vh;
+  overflow: auto;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.file-transfer-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-transfer-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.file-transfer-path-input {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-transfer-path-input label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.path-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--input-bg, var(--bg-secondary));
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: monospace;
+  transition: all 0.2s ease;
+}
+
+.path-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-color-alpha);
+}
+
+.path-input:hover {
+  border-color: var(--border-secondary);
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background: var(--button-hover-bg);
+  color: var(--text-primary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .file-transfer-modal {
+    width: 95%;
+    margin: 20px;
+  }
+}

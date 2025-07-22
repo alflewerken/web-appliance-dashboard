@@ -53,8 +53,28 @@ router.get('/', async (req, res) => {
       ORDER BY name
     `);
 
+    // Debug: Log first appliance with SSH connection
+    const debugAppliance = appliances.find(a => a.ssh_connection);
+    if (debugAppliance) {
+      console.log('DEBUG: Raw appliance with SSH:', {
+        id: debugAppliance.id,
+        name: debugAppliance.name,
+        ssh_connection: debugAppliance.ssh_connection
+      });
+    }
+
     // Map all appliances to consistent JS format
     const mappedAppliances = appliances.map(mapDbToJs);
+    
+    // Debug: Check mapped appliance
+    const debugMapped = mappedAppliances.find(a => a.sshConnection);
+    if (debugMapped) {
+      console.log('DEBUG: Mapped appliance with SSH:', {
+        id: debugMapped.id,
+        name: debugMapped.name,
+        sshConnection: debugMapped.sshConnection
+      });
+    }
 
     res.json(mappedAppliances);
   } catch (error) {
