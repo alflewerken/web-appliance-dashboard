@@ -2631,3 +2631,40 @@ VERIFIZIERUNG:
 - Alle anderen verlinkten Dokumentations-Dateien existieren ✓
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 21:30:00
+PURPOSE: Remove Health Monitoring feature from README files
+CHANGES:
+
+PATCH 1: README.md - Health Monitoring entfernt
+--- a/README.md
++++ b/README.md
+@@ -33,7 +33,6 @@ ### Erweiterte Features
+ - **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
+ - **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP, keine Debug-Endpoints
+ - **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem
+-- **🚨 Health Monitoring** - Automatische Gesundheitsprüfungen mit Alerting
+ - **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
+ - **🔍 Volltextsuche** - Schnelle Suche über alle Appliances
+ - **💡 Smart UI** - Tooltips, Toggle-Panels, Resize-fähige Sidebars
+
+PATCH 2: README.en.md - Health Monitoring removed
+--- a/README.en.md
++++ b/README.en.md
+@@ -33,7 +33,6 @@ ### Advanced Features
+ - **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
+ - **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP, no debug endpoints
+ - **🌐 Multi-User** - User management with granular permission system
+-- **🚨 Health Monitoring** - Automatic health checks with alerting
+ - **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
+ - **🔍 Full-text Search** - Fast search across all appliances
+ - **💡 Smart UI** - Tooltips, toggle panels, resizable sidebars
+
+BESCHREIBUNG:
+- Health Monitoring Feature aus beiden README-Dateien entfernt
+- Diese Funktionalität ist noch nicht implementiert
+- Verhindert falsche Erwartungen bei Nutzern
+- README zeigt nur tatsächlich vorhandene Features
+
+=======================================

@@ -31,7 +31,6 @@ A modern, containerized dashboard for centralized management and monitoring of w
 - **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
 - **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP, no debug endpoints
 - **🌐 Multi-User** - User management with granular permission system
-- **🚨 Health Monitoring** - Automatic health checks with alerting
 - **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
 - **🔍 Full-text Search** - Fast search across all appliances
 - **💡 Smart UI** - Tooltips, toggle panels, resizable sidebars
