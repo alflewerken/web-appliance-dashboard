@@ -2184,3 +2184,30 @@ Bei einem Release:
 3. Neue [Unreleased] Section für zukünftige Änderungen hinzufügen
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 20:45:00
+PURPOSE: Temporäre Backup-Verzeichnisse gelöscht
+CHANGES:
+
+GELÖSCHTE VERZEICHNISSE:
+- frontend/src-backup-20250727_185619/
+- frontend/src-backup-20250727_185635/
+- src-backup-20250727_185659/
+
+BESCHREIBUNG:
+- Drei temporäre Backup-Verzeichnisse entfernt, die beim Entfernen der console.log Statements erstellt wurden
+- Diese Backups wurden versehentlich mit dem letzten Commit zu GitHub gepusht
+- Das legitime backend/utils/backup Verzeichnis bleibt erhalten (Teil der Backup-Funktionalität)
+
+BEGRÜNDUNG:
+- Temporäre Backups gehören nicht ins Repository
+- Reduziert die Repository-Größe erheblich (551 Dateien weniger)
+- Die Backups sind nicht mehr nötig, da die Änderungen erfolgreich waren
+
+NÄCHSTE SCHRITTE:
+- Git Commit mit Löschung der Backup-Verzeichnisse
+- Push zu GitHub
+- Optional: .gitignore erweitern um zukünftige *-backup-* Verzeichnisse zu ignorieren
+
+=======================================
