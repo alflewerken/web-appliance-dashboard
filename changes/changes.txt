@@ -2242,3 +2242,141 @@ BESCHREIBUNG:
 - Verhindert versehentliches Committen von temporären Backups in der Zukunft
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 21:00:00
+PURPOSE: Debug-Ordner und -Dateien im Projekt gefunden
+ANALYSIS:
+
+DEBUG-ORDNER:
+1. /debug/ - Hauptordner mit Debug-Scripts
+   - browser-check-upload-button.js
+   - browser-fix-services.js
+   - check-file-transfer-button.sh
+   - complete-fix-services.sh
+   - debug-services-api.sh
+   - debug-ttyd-wrapper.sh
+   - debug-upload-request.js
+   - file-upload-browser-debug.js
+   - nuclear-reset.sh
+   - test-file-upload.js
+   - test-mac-upload.sh
+   - test-upload-auth.sh
+   - test-upload-curl.sh
+
+2. /debug/terminal-debug/ - Terminal-spezifische Debug-Tools
+   - API_DOCUMENTATION.md
+   - SOLUTION_SUMMARY.md
+   - apply-final-fix.sh
+   - apply-fix-in-container.sh
+   - check-session-files.sh
+   - debug-terminal.js
+   - implement-terminal-fix.js
+   - setup-ssh-key.sh
+   - test-session-creation.sh
+   - test-ssh-connection.sh
+   - test-terminal-connection.js
+
+DEBUG-DATEIEN IN ANDEREN VERZEICHNISSEN:
+
+Backend:
+- backend/sse-debug.js
+- backend/test-sse-debug.js
+- backend/utils/ssh-deep-debug.js
+
+Frontend (Build):
+- frontend/build/debug-appliances.js
+- frontend/build/debug-audit.html
+- frontend/build/debug-nextcloud.js
+- frontend/build/debug-panel-layout.js
+
+Frontend (Public):
+- frontend/public/debug-appliances.js
+- frontend/public/debug-audit.html
+- frontend/public/debug-nextcloud.js
+- frontend/public/debug-panel-layout.js
+
+Frontend (Source):
+- frontend/src/components/SSEDebugPanel.css
+- frontend/src/components/SSEDebugPanel.js
+- frontend/src/test/DebugAppliances.js
+- frontend/src/utils/sseDebugger.js
+
+Scripts:
+- scripts/debug-sftp.sh
+- scripts/debug-ttyd-wrapper.sh
+- scripts/ttyd-debug.sh
+
+Dokumentation:
+- docs/updates/proxy-auth-debugging.md
+
+EMPFEHLUNG:
+Diese Debug-Dateien sollten für Production entfernt oder in eine separate 
+Development-Umgebung verschoben werden. Besonders kritisch sind:
+- Die öffentlich zugänglichen Debug-Dateien in frontend/build/ und frontend/public/
+- Debug-Scripts die möglicherweise sensitive Informationen ausgeben
+- SSE Debug Panel Komponenten
+
+MÖGLICHE AKTIONEN:
+1. Debug-Ordner komplett entfernen
+2. Debug-Dateien aus frontend/build und frontend/public entfernen
+3. SSEDebugPanel Komponente entfernen
+4. Debug-Scripts in scripts/ entfernen
+5. Backend Debug-Dateien entfernen
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 21:05:00
+PURPOSE: Alle Debug-Ordner und -Dateien aus dem Projekt entfernt
+CHANGES:
+
+GELÖSCHTE ORDNER:
+- /debug/ (kompletter Ordner mit 13 Dateien)
+- /debug/terminal-debug/ (Unterordner mit 10 Dateien)
+
+GELÖSCHTE DATEIEN:
+
+Backend:
+- backend/sse-debug.js
+- backend/test-sse-debug.js
+- backend/utils/ssh-deep-debug.js
+
+Frontend Build (öffentlich zugänglich):
+- frontend/build/debug-appliances.js
+- frontend/build/debug-audit.html
+- frontend/build/debug-nextcloud.js
+- frontend/build/debug-panel-layout.js
+
+Frontend Public (öffentlich zugänglich):
+- frontend/public/debug-appliances.js
+- frontend/public/debug-audit.html
+- frontend/public/debug-nextcloud.js
+- frontend/public/debug-panel-layout.js
+
+Frontend Source:
+- frontend/src/components/SSEDebugPanel.css
+- frontend/src/components/SSEDebugPanel.js
+- frontend/src/test/DebugAppliances.js
+- frontend/src/utils/sseDebugger.js
+
+Scripts:
+- scripts/debug-sftp.sh
+- scripts/debug-ttyd-wrapper.sh
+- scripts/ttyd-debug.sh
+
+BEHALTEN:
+- docs/updates/proxy-auth-debugging.md (Dokumentation)
+
+SICHERHEITSVERBESSERUNGEN:
+- Entfernt potentielle Sicherheitsrisiken durch öffentlich zugängliche Debug-Dateien
+- Verhindert versehentliche Exposition von Debug-Funktionalität
+- Reduziert Angriffsfläche der Anwendung
+- Entfernt Test- und Debug-Scripts die sensitive Informationen ausgeben könnten
+
+INSGESAMT GELÖSCHT:
+- 2 Ordner
+- 31 Dateien
+- Erhebliche Verbesserung der Produktionssicherheit
+
+=======================================

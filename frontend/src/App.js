@@ -26,7 +26,7 @@ import Login from './components/Login';
 import UserPanel from './components/UserPanel';
 import { openTerminalInNewWindow } from './utils/terminalWindow';
 import { AuditLogPanel } from './components/AuditLog';
-import SSEDebugPanel from './components/SSEDebugPanel';
+
 import MobileSwipeableWrapper from './components/MobileSwipeableWrapper';
 
 // Import Contexts
@@ -1353,7 +1353,7 @@ function Dashboard() {
       ))}
 
       {/* SSE Debug Panel - nur im Development Mode */}
-      {process.env.NODE_ENV === 'development' && <SSEDebugPanel />}
+
     </div>
   );
 }

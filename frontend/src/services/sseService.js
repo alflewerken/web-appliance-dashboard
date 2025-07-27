@@ -1,5 +1,5 @@
 // Server-Sent Events Service for real-time updates
-import { sseDebugger } from '../utils/sseDebugger';
+
 
 class SSEService {
   constructor() {
@@ -120,7 +120,7 @@ class SSEService {
             try {
               const data = JSON.parse(event.data);
               // Log to debugger
-              sseDebugger.logEvent(eventType, data);
+
 
               this.notifyListeners(eventType, data);
             } catch (error) {
