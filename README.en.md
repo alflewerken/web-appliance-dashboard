@@ -136,10 +136,15 @@ The script will:
 - Ask for encryption key
 - Prepare the Docker environment
 
-### 3. Start Containers
+### 3. Build Frontend and Start Containers
 ```bash
-docker compose up -d
+./scripts/build.sh
 ```
+The build script:
+- Installs all dependencies
+- Builds the React frontend
+- Creates Docker images
+- Starts all containers
 
 ### 4. Open Dashboard
 ```

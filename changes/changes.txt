@@ -3490,3 +3490,64 @@ ERGEBNIS:
 - Vollständige Nachvollziehbarkeit aller Modifikationen
 
 =======================================
+
+
+=======================================
+[2025-07-28 00:40:00] - README Quick Start Update - build.sh Script hinzugefügt
+Zweck: Aktualisierung der Schnellinstallations-Anleitung mit build.sh Script
+Dateien: README.md, README.en.md
+
+PROBLEM: Die Schnellinstallations-Anleitung zeigte nur "docker compose up -d", 
+was zu einem 403 Forbidden Fehler führt, wenn das Frontend noch nicht gebaut wurde.
+
+ÄNDERUNGEN:
+
+1. README.md - Deutsche Version
+--- a/README.md
++++ b/README.md
+@@ -139,10 +139,15 @@ Das Script:
+ - Fragt nach Verschlüsselungsschlüssel
+ - Bereitet die Docker-Umgebung vor
+ 
+-### 3. Container starten
++### 3. Frontend bauen und Container starten
+ ```bash
+-docker compose up -d
++./scripts/build.sh
+ ```
++Das Build-Script:
++- Installiert alle Dependencies
++- Baut das React Frontend
++- Erstellt die Docker Images
++- Startet alle Container
+ 
+ ### 4. Dashboard öffnen
+
+2. README.en.md - Englische Version
+--- a/README.en.md
++++ b/README.en.md
+@@ -139,10 +139,15 @@ The script:
+ - Ask for encryption key
+ - Prepare the Docker environment
+ 
+-### 3. Start Containers
++### 3. Build Frontend and Start Containers
+ ```bash
+-docker compose up -d
++./scripts/build.sh
+ ```
++The build script:
++- Installs all dependencies
++- Builds the React frontend
++- Creates Docker images
++- Starts all containers
+ 
+ ### 4. Open Dashboard
+
+ERGEBNIS:
+- Quick Start Anleitung zeigt jetzt den korrekten Installationsprozess
+- Frontend wird automatisch gebaut bevor die Container starten
+- Verhindert 403 Forbidden Fehler bei Neuinstallationen
+- Klare Beschreibung was das build.sh Script macht
+
+=======================================
