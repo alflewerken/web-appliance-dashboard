@@ -2591,3 +2591,43 @@ DESCRIPTION:
 - Maintains consistency with German README.md
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 21:25:00
+PURPOSE: Fix broken API Reference links in README files
+CHANGES:
+
+PATCH 1: README.md - API Reference links korrigiert
+--- a/README.md
++++ b/README.md
+@@ -526,7 +526,7 @@
+-- **[API Reference](docs/api-client-sdks)** - Detaillierte Endpoint-Dokumentation
++- **[API Reference](docs/api-client-sdks.md)** - Detaillierte Endpoint-Dokumentation
+
+@@ -583,7 +583,7 @@
+-- **[API Reference](docs/api-reference.md)** - Vollständige API-Dokumentation mit Beispielen
++- **[API Reference](docs/api-client-sdks.md)** - Vollständige API-Dokumentation mit Beispielen
+
+PATCH 2: README.en.md - API Reference links korrigiert
+--- a/README.en.md
++++ b/README.en.md
+@@ -522,7 +522,7 @@
+-- **[API Reference](docs/api-client-sdks)** - Detailed endpoint documentation
++- **[API Reference](docs/api-client-sdks.md)** - Detailed endpoint documentation
+
+@@ -579,7 +579,7 @@
+-- **[API Reference](docs/api-reference.md)** - Complete API documentation with examples
++- **[API Reference](docs/api-client-sdks.md)** - Complete API documentation with examples
+
+BESCHREIBUNG:
+- Fehlende .md Erweiterung zum ersten API Reference Link hinzugefügt
+- Falschen Dateinamen api-reference.md zu api-client-sdks.md korrigiert
+- Beide Änderungen in deutscher und englischer README durchgeführt
+- Alle API Reference Links zeigen jetzt auf die korrekte Datei
+
+VERIFIZIERUNG:
+- docs/api-client-sdks.md existiert ✓
+- docs/api-reference.md existiert nicht ✗
+- Alle anderen verlinkten Dokumentations-Dateien existieren ✓
+
+=======================================

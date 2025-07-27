@@ -523,7 +523,7 @@ services:
 
 Eine vollständige Dokumentation ist verfügbar:
 
-- **[API Reference](docs/api-client-sdks)** - Detaillierte Endpoint-Dokumentation
+- **[API Reference](docs/api-client-sdks.md)** - Detaillierte Endpoint-Dokumentation
 - **[OpenAPI/Swagger](http://localhost:9080/api-docs)** - Interaktive API-Dokumentation
 - **[Developer Documentation](docs/developer.html)** - Entwickler-Dokumentation
 - **[Docker Environment Setup](docs/docker-env-setup.md)** - Docker-Umgebung einrichten
@@ -580,7 +580,7 @@ newman run docs/postman-collection.json
 
 ## 📖 Weitere Dokumentation
 
-- **[API Reference](docs/api-reference.md)** - Vollständige API-Dokumentation mit Beispielen
+- **[API Reference](docs/api-client-sdks.md)** - Vollständige API-Dokumentation mit Beispielen
 - **[User Manual](docs/user-manual/)** - Benutzerhandbuch mit Screenshots
 - **[Developer Guide](docs/developer-guide.md)** - Entwickler-Dokumentation
 - **[Docker Guide](docs/docker-guide.md)** - Docker Setup und Konfiguration

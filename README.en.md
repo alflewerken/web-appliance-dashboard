@@ -519,7 +519,7 @@ services:
 
 Complete documentation is available:
 
-- **[API Reference](docs/api-client-sdks)** - Detailed endpoint documentation
+- **[API Reference](docs/api-client-sdks.md)** - Detailed endpoint documentation
 - **[OpenAPI/Swagger](http://localhost:9080/api-docs)** - Interactive API documentation
 - **[Developer Documentation](docs/developer.html)** - Developer documentation- **[Docker Environment Setup](docs/docker-env-setup.md)** - Docker environment setup
 - **[Performance Tuning Guide](docs/performance-tuning-guide.md)** - Performance optimization
@@ -576,7 +576,7 @@ newman run docs/postman-collection.json
 
 ## 📖 Additional Documentation
 
-- **[API Reference](docs/api-reference.md)** - Complete API documentation with examples
+- **[API Reference](docs/api-client-sdks.md)** - Complete API documentation with examples
 - **[User Manual](docs/user-manual/)** - User manual with screenshots
 - **[Developer Guide](docs/developer-guide.md)** - Developer documentation
 - **[Docker Guide](docs/docker-guide.md)** - Docker setup and configuration
