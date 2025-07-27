@@ -21,6 +21,7 @@ import {
 } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 import { BackupService } from '../services/backupService';
+import EncryptionKeyDialog from './EncryptionKeyDialog';
 import './BackupTab.css';
 
 // Animation definitions
@@ -57,6 +58,8 @@ const BackupTab = () => {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [encryptionKey, setEncryptionKey] = useState('');
+  const [showEncryptionDialog, setShowEncryptionDialog] = useState(false);
 
   const handleCreateBackup = async () => {
     try {
@@ -64,6 +67,11 @@ const BackupTab = () => {
       const result = await BackupService.createBackup();
       if (result.success) {
         setSuccess(result.message);
+        // Show encryption key dialog if key is provided
+        if (result.encryptionKey) {
+          setEncryptionKey(result.encryptionKey);
+          setShowEncryptionDialog(true);
+        }
         setTimeout(() => setSuccess(''), 5000);
       } else {
         setError(result.message);
@@ -462,6 +470,13 @@ const BackupTab = () => {
           {error}
         </Alert>
       </Snackbar>
+
+      {/* Encryption Key Dialog */}
+      <EncryptionKeyDialog
+        open={showEncryptionDialog}
+        onClose={() => setShowEncryptionDialog(false)}
+        encryptionKey={encryptionKey}
+      />
     </Box>
   );
 };

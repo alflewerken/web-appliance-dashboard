@@ -663,6 +663,7 @@ router.post('/setup', async (req, res) => {
 
             if (testResult.success) {
               // Check if host already exists before inserting (only active hosts)
+              // Skip this check if we're updating an existing host (indicated by isUpdate flag or existing entry)
               const [existingCheck] = await pool.execute(
                 'SELECT id, hostname FROM ssh_hosts WHERE (hostname = ? OR (host = ? AND username = ? AND port = ?)) AND is_active = 1',
                 [hostname, host, username, port]
@@ -670,6 +671,34 @@ router.post('/setup', async (req, res) => {
 
               if (existingCheck.length > 0) {
                 const existingHost = existingCheck[0];
+                
+                // If we found exactly one host and it matches our connection details, this is likely an update
+                // In this case, we should update the existing host instead of creating a new one
+                if (existingCheck.length === 1 && 
+                    existingHost.hostname === hostname) {
+                  console.log(`📝 Updating existing SSH host: ${hostname} (ID: ${existingHost.id})`);
+                  
+                  // Update the key_name for the existing host
+                  await pool.execute(
+                    'UPDATE ssh_hosts SET key_name = ?, test_status = ? WHERE id = ?',
+                    [keyName, 'success', existingHost.id]
+                  );
+                  
+                  // Regenerate SSH config
+                  await sshManager.generateSSHConfig();
+                  
+                  resolve(
+                    res.json({
+                      success: true,
+                      message: 'SSH key updated successfully for existing host',
+                      hostId: existingHost.id,
+                      isUpdate: true
+                    })
+                  );
+                  return;
+                }
+                
+                // If it's a different host, show error
                 let errorMessage = 'SSH-Host existiert bereits';
                 
                 if (existingHost.hostname === hostname) {
@@ -1514,6 +1543,24 @@ router.put('/hosts/:id', async (req, res) => {
       port: portNumber
     });
 
+    // Check if hostname changed and if new hostname already exists
+    if (oldData.hostname !== hostname) {
+      console.log('Hostname changed, checking for duplicate hostname...');
+      
+      const [existingHostname] = await pool.execute(
+        'SELECT id, hostname FROM ssh_hosts WHERE hostname = ? AND id != ? AND is_active = 1',
+        [hostname, hostId]
+      );
+      
+      if (existingHostname.length > 0) {
+        console.log(`Hostname conflict: "${hostname}" already exists (ID: ${existingHostname[0].id})`);
+        return res.status(409).json({
+          success: false,
+          error: `Ein SSH-Host mit dem Namen "${hostname}" existiert bereits`
+        });
+      }
+    }
+
     // Check if the new combination would violate unique constraint
     // Only check if host, username, or port have changed
     const oldPortNumber = parseInt(oldData.port, 10);
@@ -1702,6 +1749,16 @@ router.put('/hosts/:id', async (req, res) => {
     
     // Handle specific database errors
     if (error.code === 'ER_DUP_ENTRY') {
+      // Parse the error to determine which field caused the duplicate
+      if (error.sqlMessage && error.sqlMessage.includes('hostname')) {
+        const hostnameMatch = error.sqlMessage.match(/'([^']+)'/);
+        const duplicateHostname = hostnameMatch ? hostnameMatch[1] : hostname;
+        return res.status(409).json({
+          success: false,
+          error: `Ein SSH-Host mit dem Namen "${duplicateHostname}" existiert bereits`
+        });
+      }
+      
       return res.status(409).json({
         success: false,
         error: 'SSH host with this connection already exists',

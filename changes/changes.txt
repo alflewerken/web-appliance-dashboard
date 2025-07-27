@@ -374,3 +374,397 @@ ERGEBNIS:
 - Sowohl Key-basierte als auch Passwort-Authentifizierung funktioniert
 
 =======================================
+
+=======================================[2025-01-27 16:15:00] Version Update to 1.1.1
+Zweck: Versions-Update auf 1.1.1 und Aktualisierung des CHANGELOG.md
+Dateien:
+- VERSION
+- CHANGELOG.md
+
+ÄNDERUNGEN:
+
+1. VERSION - Version bump
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-1.1.0
++1.1.1
+
+2. CHANGELOG.md - Added 1.1.1 release notes
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+ 
++## [1.1.1] - 2025-01-27
++
++### Fixed
++- **SSH File Upload** - Fixed file upload hanging at 10% due to SSH config mismatch
++  - Added dual Host entries in SSH config generation (hostname and host_id)
++  - Fixed password authentication detection logic in upload handler
++  - Updated SSH config regeneration script for compatibility
++
++### Removed
++- **Security Improvements**
++  - Removed temporary debug routes that didn't require authentication
++  - Removed unused authDebug middleware
++  - Cleaned up debug directory with potential security risks
++  
++### Changed
++- **Code Cleanup**
++  - Removed unused CSS files (ApplianceCard_heimdall.css)
++  - Removed unused RemoteDesktopButton component variants
++  - Removed unused maintenance scripts in fixes/ and patches/ directories
++  - Disabled Webpack performance warnings for cleaner build output
++  
++### Added
++- **Environment Variables**
++  - Added GUACAMOLE_PROXY_URL to .env files to prevent Docker Compose warnings
++
+ ## [1.1.0] - 2025-07-24
+
+BESCHREIBUNG:
+- Version von 1.1.0 auf 1.1.1 erhöht
+- CHANGELOG.md mit allen Änderungen seit 1.1.0 aktualisiert
+- Dokumentiert alle Fixes, Entfernungen, Änderungen und Hinzufügungen
+- Folgt dem Keep a Changelog Format
+
+=======================================
+=======================================[2025-01-27 16:30:00] SSH Host Update - Hostname Duplicate Check Fix
+Zweck: Fix für Fehlermeldung beim Update von SSH-Hosts mit existierendem Hostnamen
+Datei: backend/routes/ssh.js
+
+PROBLEM: Beim Bearbeiten eines SSH-Hosts und nur Ändern des Passworts kam die Fehlermeldung
+"Ein SSH-Host mit dem Namen 'mac' existiert bereits", obwohl der Hostname nicht geändert wurde.
+
+URSACHE: Es fehlte eine Prüfung, ob der Hostname geändert wurde, bevor auf Duplikate geprüft wird.
+Die Datenbank hat einen UNIQUE constraint auf dem hostname-Feld.
+
+ÄNDERUNGEN:
+
+1. Hostname-Duplikatsprüfung hinzugefügt (nur wenn Hostname geändert wird):
+--- a/backend/routes/ssh.js
++++ b/backend/routes/ssh.js
+@@ -1509,6 +1509,20 @@ router.put('/hosts/:id', async (req, res) => {
+       port: portNumber
+     });
+ 
++    // Check if hostname changed and if new hostname already exists
++    if (oldData.hostname !== hostname) {
++      console.log('Hostname changed, checking for duplicate hostname...');
++      
++      const [existingHostname] = await pool.execute(
++        'SELECT id, hostname FROM ssh_hosts WHERE hostname = ? AND id != ? AND is_active = 1',
++        [hostname, hostId]
++      );
++      
++      if (existingHostname.length > 0) {
++        console.log(`Hostname conflict: "${hostname}" already exists (ID: ${existingHostname[0].id})`);
++        return res.status(409).json({
++          success: false,
++          error: `Ein SSH-Host mit dem Namen "${hostname}" existiert bereits`
++        });
++      }
++    }
++
+     // Check if the new combination would violate unique constraint
+     // Only check if host, username, or port have changed
+
+2. Verbesserte Error-Handler für Datenbank-Duplikate:
+--- a/backend/routes/ssh.js
++++ b/backend/routes/ssh.js
+@@ -1703,6 +1703,15 @@ router.put('/hosts/:id', async (req, res) => {
+     // Handle specific database errors
+     if (error.code === 'ER_DUP_ENTRY') {
++      // Parse the error to determine which field caused the duplicate
++      if (error.sqlMessage && error.sqlMessage.includes('hostname')) {
++        const hostnameMatch = error.sqlMessage.match(/'([^']+)'/);
++        const duplicateHostname = hostnameMatch ? hostnameMatch[1] : hostname;
++        return res.status(409).json({
++          success: false,
++          error: `Ein SSH-Host mit dem Namen "${duplicateHostname}" existiert bereits`
++        });
++      }
++      
+       return res.status(409).json({
+         success: false,
+         error: 'SSH host with this connection already exists',
+
+ERGEBNIS:
+- Hostname-Duplikate werden nur geprüft, wenn der Hostname tatsächlich geändert wird
+- Bessere Fehlermeldungen, die klar angeben, welcher Hostname bereits existiert
+- Passwort-Updates ohne Hostname-Änderung funktionieren jetzt korrekt
+
+=======================================
+=======================================[2025-01-27 16:45:00] SSH Setup - Update Existing Host Support
+Zweck: Fix für SSH-Setup beim Update eines existierenden Hosts
+Datei: backend/routes/ssh.js
+
+PROBLEM: Beim Ändern des Passworts eines SSH-Hosts wurde der Setup-Endpoint aufgerufen,
+welcher prüfte ob ein Host mit diesem Namen bereits existiert und den Vorgang ablehnte.
+
+URSACHE: Der /api/ssh/setup Endpoint war nur für neue Hosts konzipiert und konnte nicht
+mit Updates umgehen.
+
+LÖSUNG: Setup-Endpoint erkennt jetzt, wenn ein Host bereits existiert und aktualisiert
+diesen anstatt einen Fehler zu werfen.
+
+ÄNDERUNGEN:
+
+--- a/backend/routes/ssh.js
++++ b/backend/routes/ssh.js
+@@ -659,10 +659,34 @@ router.post('/setup', async (req, res) => {
+ 
+               if (existingCheck.length > 0) {
+                 const existingHost = existingCheck[0];
++                
++                // If we found exactly one host and it matches our connection details, this is likely an update
++                // In this case, we should update the existing host instead of creating a new one
++                if (existingCheck.length === 1 && 
++                    existingHost.hostname === hostname) {
++                  console.log(`📝 Updating existing SSH host: ${hostname} (ID: ${existingHost.id})`);
++                  
++                  // Update the key_name for the existing host
++                  await pool.execute(
++                    'UPDATE ssh_hosts SET key_name = ?, test_status = ? WHERE id = ?',
++                    [keyName, 'success', existingHost.id]
++                  );
++                  
++                  // Regenerate SSH config
++                  await sshManager.generateSSHConfig();
++                  
++                  resolve(
++                    res.json({
++                      success: true,
++                      message: 'SSH key updated successfully for existing host',
++                      hostId: existingHost.id,
++                      isUpdate: true
++                    })
++                  );
++                  return;
++                }
++                
++                // If it's a different host, show error
+                 let errorMessage = 'SSH-Host existiert bereits';
+
+FUNKTIONSWEISE:
+1. Wenn ein Host mit gleichem Namen und gleichen Verbindungsdaten gefunden wird
+2. Wird dieser als Update erkannt und der SSH-Schlüssel aktualisiert
+3. Anstatt einen neuen Host zu erstellen, wird der bestehende aktualisiert
+4. SSH-Config wird regeneriert
+
+ERGEBNIS:
+- Passwort-Updates für SSH-Hosts funktionieren jetzt korrekt
+- Der SSH-Schlüssel wird auf dem Server aktualisiert
+- Keine Fehlermeldung mehr über bereits existierende Hosts
+
+=======================================
+=======================================[2025-01-27 17:00:00] Backup Encryption Key Dialog
+Zweck: Dialog zur Anzeige des Verschlüsselungsschlüssels nach Backup-Erstellung
+Dateien:
+- frontend/src/components/EncryptionKeyDialog.js (neu)
+- frontend/src/components/BackupTab.js
+- frontend/src/services/backupService.js
+- backend/routes/backup.js
+
+FUNKTIONALITÄT:
+Nach erfolgreicher Backup-Erstellung wird ein Dialog mit dem Verschlüsselungsschlüssel angezeigt.
+Der Schlüssel wird benötigt, um verschlüsselte Passwörter nach einer Wiederherstellung zu entschlüsseln.
+
+ÄNDERUNGEN:
+
+1. Neue Dialog-Komponente EncryptionKeyDialog.js erstellt:
+   - Zeigt den Verschlüsselungsschlüssel an
+   - Erklärt wozu der Schlüssel benötigt wird (Remote-Host-Passwörter)
+   - Empfehlungen zur sicheren Aufbewahrung
+   - Copy-to-Clipboard Funktionalität
+
+2. BackupTab.js - Import und State für Dialog:
+--- a/frontend/src/components/BackupTab.js
++++ b/frontend/src/components/BackupTab.js
+@@ -23,6 +23,7 @@ import { keyframes } from '@mui/system';
+ import { BackupService } from '../services/backupService';
++import EncryptionKeyDialog from './EncryptionKeyDialog';
+ import './BackupTab.css';
+
+@@ -55,6 +56,8 @@ const BackupTab = () => {
+   const [dragOver, setDragOver] = useState(false);
+   const [error, setError] = useState('');
+   const [success, setSuccess] = useState('');
++  const [encryptionKey, setEncryptionKey] = useState('');
++  const [showEncryptionDialog, setShowEncryptionDialog] = useState(false);
+
+3. BackupTab.js - Dialog nach Backup anzeigen:
+--- a/frontend/src/components/BackupTab.js
++++ b/frontend/src/components/BackupTab.js
+@@ -65,6 +65,11 @@ const BackupTab = () => {
+       const result = await BackupService.createBackup();
+       if (result.success) {
+         setSuccess(result.message);
++        // Show encryption key dialog if key is provided
++        if (result.encryptionKey) {
++          setEncryptionKey(result.encryptionKey);
++          setShowEncryptionDialog(true);
++        }
+         setTimeout(() => setSuccess(''), 5000);
+
+@@ -470,6 +475,12 @@ const BackupTab = () => {
+         </Alert>
+       </Snackbar>
++
++      {/* Encryption Key Dialog */}
++      <EncryptionKeyDialog
++        open={showEncryptionDialog}
++        onClose={() => setShowEncryptionDialog(false)}
++        encryptionKey={encryptionKey}
++      />
+     </Box>
+
+4. BackupService.js - Schlüssel extrahieren:
+--- a/frontend/src/services/backupService.js
++++ b/frontend/src/services/backupService.js
+@@ -22,6 +22,10 @@ export class BackupService {
+       const response = await axios.get('/api/backup');
+       const backupData = response.data;
+
++      // Extract encryption key if present
++      const encryptionKey = backupData.encryption_key;
++      delete backupData.encryption_key; // Remove from backup data before saving
++
+       // Create and download file
+       const dataStr = JSON.stringify(backupData, null, 2);
+
+@@ -38,6 +42,7 @@ export class BackupService {
+       return {
+         success: true,
+         message: `Backup erfolgreich erstellt! ${backupData.metadata.appliances_count} Services gesichert.`,
++        encryptionKey: encryptionKey,
+       };
+
+5. backend/routes/backup.js - Schlüssel im Response zurückgeben:
+--- a/backend/routes/backup.js
++++ b/backend/routes/backup.js
+@@ -561,7 +561,16 @@ router.get('/backup', async (req, res) => {
+       resource_id: null,
+     });
+
+-    res.json(backupData);
++    // Get encryption key from environment
++    const encryptionKey = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET || 'default-insecure-key-change-this-in-production!!';
++    
++    // Add encryption key to response (but not to the backup file)
++    const responseData = {
++      ...backupData,
++      encryption_key: encryptionKey
++    };
++
++    res.json(responseData);
+
+SICHERHEITSHINWEISE IM DIALOG:
+- Warnung dass ohne Schlüssel alle Remote-Passwörter neu eingegeben werden müssen
+- Empfehlung zur Speicherung in Passwort-Manager
+- Hinweis den Schlüssel nicht mit dem Backup zusammen zu speichern
+- Hinweis den Schlüssel nicht mit Unbefugten zu teilen
+
+=======================================
+=======================================[2025-01-27 17:30:00] Setup Script - Encryption Key Input
+Zweck: Benutzer nach Verschlüsselungsschlüssel fragen oder sicheren Schlüssel generieren
+Datei: scripts/setup-env.sh
+
+FUNKTIONALITÄT:
+Das Setup-Script fragt jetzt nach einem Verschlüsselungsschlüssel für Remote-Host-Passwörter.
+Der Benutzer kann entweder einen eigenen Schlüssel eingeben oder einen sicheren Schlüssel
+generieren lassen.
+
+ÄNDERUNGEN:
+
+1. Interaktive Abfrage für Verschlüsselungsschlüssel:
+--- a/scripts/setup-env.sh
++++ b/scripts/setup-env.sh
+@@ -60,8 +60,38 @@ echo "🔐 Generiere sichere Secrets..."
+ JWT_SECRET=$(generate_secret 64)
+ safe_replace .env "JWT_SECRET" "$JWT_SECRET"
+ 
+-# SSH Encryption Key (32 Zeichen)
+-SSH_KEY=$(generate_secret 32 | head -c 32)
+-safe_replace .env "SSH_KEY_ENCRYPTION_SECRET" "$SSH_KEY"
++# SSH Encryption Key - Frage den Benutzer
++echo ""
++echo "🔐 Verschlüsselungsschlüssel für Remote-Host-Passwörter"
++echo "=================================================="
++echo ""
++echo "Dieser Schlüssel wird verwendet, um Passwörter für Remote-Hosts (SSH, VNC, RDP)"
++echo "sicher zu verschlüsseln. Er wird benötigt, um nach einer Backup-Wiederherstellung"
++echo "die verschlüsselten Passwörter wieder entschlüsseln zu können."
++echo ""
++echo "⚠️  WICHTIG: Bewahren Sie diesen Schlüssel sicher auf!"
++echo "   - Ohne diesen Schlüssel müssen alle Remote-Passwörter neu eingegeben werden"
++echo "   - Speichern Sie ihn in einem Passwort-Manager"
++echo "   - Teilen Sie ihn nicht mit unbefugten Personen"
++echo ""
++read -p "Verschlüsselungsschlüssel eingeben (Enter für automatische Generierung): " SSH_KEY_INPUT
++
++if [ -n "$SSH_KEY_INPUT" ]; then
++    # Benutzer hat einen Schlüssel eingegeben
++    SSH_KEY="$SSH_KEY_INPUT"
++    echo "✅ Benutzerdefinierter Verschlüsselungsschlüssel wird verwendet"
++else
++    # Generiere einen sicheren Schlüssel (32 Zeichen)
++    SSH_KEY=$(generate_secret 32 | head -c 32)
++    echo ""
++    echo "🔑 Ein sicherer Schlüssel wurde generiert:"
++    echo ""
++    echo "    $SSH_KEY"
++    echo ""
++    echo "⚠️  BITTE NOTIEREN SIE SICH DIESEN SCHLÜSSEL!"
++    echo "   Er wird für die Entschlüsselung von Remote-Passwörtern nach einer"
++    echo "   Backup-Wiederherstellung benötigt."
++    echo ""
++    read -p "Drücken Sie Enter, wenn Sie den Schlüssel notiert haben..." -n 1 -r
++    echo ""
++fi
++
++safe_replace .env "SSH_KEY_ENCRYPTION_SECRET" "$SSH_KEY"
++safe_replace .env "ENCRYPTION_SECRET" "$SSH_KEY"
+
+2. Backend-Synchronisation erweitert:
+--- a/scripts/setup-env.sh
++++ b/scripts/setup-env.sh
+@@ -187,11 +187,13 @@ if [ -f backend/.env.example ]; then
+     # JWT und SSH Keys synchronisieren
+     JWT_VALUE=$(grep "JWT_SECRET=" .env | cut -d= -f2- || echo "")
+     SSH_VALUE=$(grep "SSH_KEY_ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
++    ENCRYPTION_VALUE=$(grep "ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
+     NODE_ENV=$(grep "NODE_ENV=" .env | cut -d= -f2- || echo "production")
+     ALLOWED_ORIGINS=$(grep "ALLOWED_ORIGINS=" .env | cut -d= -f2- || echo "http://localhost,https://localhost")
+     EXTERNAL_URL=$(grep "EXTERNAL_URL=" .env | cut -d= -f2- || echo "")
+     
+     safe_replace backend/.env "JWT_SECRET" "$JWT_VALUE"
+     safe_replace backend/.env "SSH_KEY_ENCRYPTION_SECRET" "$SSH_VALUE"
++    safe_replace backend/.env "ENCRYPTION_SECRET" "$ENCRYPTION_VALUE"
+     safe_replace backend/.env "NODE_ENV" "$NODE_ENV"
+
+3. Minimale backend/.env Konfiguration erweitert:
+--- a/scripts/setup-env.sh
++++ b/scripts/setup-env.sh
+@@ -241,6 +241,7 @@ JWT_SECRET=$JWT_VALUE
+ 
+ # SSH Key Encryption
+ SSH_KEY_ENCRYPTION_SECRET=$SSH_VALUE
++ENCRYPTION_SECRET=$ENCRYPTION_VALUE
+
+FUNKTIONSWEISE:
+1. Das Script erklärt wozu der Verschlüsselungsschlüssel benötigt wird
+2. Der Benutzer kann einen eigenen Schlüssel eingeben oder Enter drücken
+3. Bei Enter wird ein sicherer 32-Zeichen Schlüssel generiert
+4. Der generierte Schlüssel wird angezeigt mit der Aufforderung ihn zu notieren
+5. Der Schlüssel wird sowohl als SSH_KEY_ENCRYPTION_SECRET als auch ENCRYPTION_SECRET gespeichert
+6. Beide Variablen werden ins Backend synchronisiert
+
+SICHERHEITSHINWEISE:
+- Erklärung dass der Schlüssel für Remote-Host-Passwörter verwendet wird
+- Warnung dass ohne Schlüssel alle Passwörter neu eingegeben werden müssen
+- Empfehlung zur Speicherung in einem Passwort-Manager
+- Warnung den Schlüssel nicht mit Unbefugten zu teilen
+
+=======================================

@@ -561,7 +561,16 @@ router.get('/backup', async (req, res) => {
       resource_id: null,
     });
 
-    res.json(backupData);
+    // Get encryption key from environment
+    const encryptionKey = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET || 'default-insecure-key-change-this-in-production!!';
+    
+    // Add encryption key to response (but not to the backup file)
+    const responseData = {
+      ...backupData,
+      encryption_key: encryptionKey
+    };
+
+    res.json(responseData);
   } catch (error) {
     console.error('Error creating enhanced backup:', error);
     res

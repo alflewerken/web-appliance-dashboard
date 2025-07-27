@@ -22,6 +22,10 @@ export class BackupService {
       const response = await axios.get('/api/backup');
       const backupData = response.data;
 
+      // Extract encryption key if present
+      const encryptionKey = backupData.encryption_key;
+      delete backupData.encryption_key; // Remove from backup data before saving
+
       // Create and download file
       const dataStr = JSON.stringify(backupData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -38,6 +42,7 @@ export class BackupService {
       return {
         success: true,
         message: `Backup erfolgreich erstellt! ${backupData.metadata.appliances_count} Services gesichert.`,
+        encryptionKey: encryptionKey,
       };
     } catch (error) {
       return {

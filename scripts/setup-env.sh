@@ -62,9 +62,44 @@ echo "🔐 Generiere sichere Secrets..."
 JWT_SECRET=$(generate_secret 64)
 safe_replace .env "JWT_SECRET" "$JWT_SECRET"
 
-# SSH Encryption Key (32 Zeichen)
-SSH_KEY=$(generate_secret 32 | head -c 32)
+# SSH Encryption Key - Frage den Benutzer
+echo ""
+echo "🔐 Verschlüsselungsschlüssel für Remote-Host-Passwörter"
+echo "=================================================="
+echo ""
+echo "Dieser Schlüssel wird verwendet, um Passwörter für Remote-Hosts (SSH, VNC, RDP)"
+echo "sicher zu verschlüsseln. Er wird benötigt, um nach einer Backup-Wiederherstellung"
+echo "die verschlüsselten Passwörter wieder entschlüsseln zu können."
+echo ""
+echo "⚠️  WICHTIG: Bewahren Sie diesen Schlüssel sicher auf!"
+echo "   - Ohne diesen Schlüssel müssen alle Remote-Passwörter neu eingegeben werden"
+echo "   - Speichern Sie ihn in einem Passwort-Manager"
+echo "   - Teilen Sie ihn nicht mit unbefugten Personen"
+echo ""
+read -p "Verschlüsselungsschlüssel eingeben (Enter für automatische Generierung): " SSH_KEY_INPUT
+
+if [ -n "$SSH_KEY_INPUT" ]; then
+    # Benutzer hat einen Schlüssel eingegeben
+    SSH_KEY="$SSH_KEY_INPUT"
+    echo "✅ Benutzerdefinierter Verschlüsselungsschlüssel wird verwendet"
+else
+    # Generiere einen sicheren Schlüssel (32 Zeichen)
+    SSH_KEY=$(generate_secret 32 | head -c 32)
+    echo ""
+    echo "🔑 Ein sicherer Schlüssel wurde generiert:"
+    echo ""
+    echo "    $SSH_KEY"
+    echo ""
+    echo "⚠️  BITTE NOTIEREN SIE SICH DIESEN SCHLÜSSEL!"
+    echo "   Er wird für die Entschlüsselung von Remote-Passwörtern nach einer"
+    echo "   Backup-Wiederherstellung benötigt."
+    echo ""
+    read -p "Drücken Sie Enter, wenn Sie den Schlüssel notiert haben..." -n 1 -r
+    echo ""
+fi
+
 safe_replace .env "SSH_KEY_ENCRYPTION_SECRET" "$SSH_KEY"
+safe_replace .env "ENCRYPTION_SECRET" "$SSH_KEY"
 
 # MySQL Root Password
 MYSQL_ROOT_PWD=$(generate_secret 24)
@@ -175,12 +210,14 @@ if [ -f backend/.env.example ]; then
     # JWT und SSH Keys synchronisieren
     JWT_VALUE=$(grep "JWT_SECRET=" .env | cut -d= -f2- || echo "")
     SSH_VALUE=$(grep "SSH_KEY_ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
+    ENCRYPTION_VALUE=$(grep "ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
     NODE_ENV=$(grep "NODE_ENV=" .env | cut -d= -f2- || echo "production")
     ALLOWED_ORIGINS=$(grep "ALLOWED_ORIGINS=" .env | cut -d= -f2- || echo "http://localhost,https://localhost")
     EXTERNAL_URL=$(grep "EXTERNAL_URL=" .env | cut -d= -f2- || echo "")
     
     safe_replace backend/.env "JWT_SECRET" "$JWT_VALUE"
     safe_replace backend/.env "SSH_KEY_ENCRYPTION_SECRET" "$SSH_VALUE"
+    safe_replace backend/.env "ENCRYPTION_SECRET" "$ENCRYPTION_VALUE"
     safe_replace backend/.env "NODE_ENV" "$NODE_ENV"
     
     # CORS Settings aktualisieren
@@ -228,6 +265,7 @@ JWT_SECRET=$JWT_VALUE
 
 # SSH Key Encryption
 SSH_KEY_ENCRYPTION_SECRET=$SSH_VALUE
+ENCRYPTION_SECRET=$ENCRYPTION_VALUE
 
 # Node Environment
 NODE_ENV=$NODE_ENV

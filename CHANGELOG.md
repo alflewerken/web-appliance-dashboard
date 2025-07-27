@@ -5,6 +5,45 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-01-27
+
+### Added
+- **Encryption Key Dialog** - Shows encryption key after backup creation
+  - Displays the encryption key needed for decrypting remote host passwords
+  - Explains the purpose of the key with clear warnings
+  - Provides copy-to-clipboard functionality
+  - Includes security recommendations for safe storage
+- **Environment Variables**
+  - Added GUACAMOLE_PROXY_URL to .env files to prevent Docker Compose warnings
+- **Setup Script Enhancement** - Interactive encryption key configuration
+  - Asks user for encryption key during setup with detailed explanation
+  - Generates secure 32-character key if none provided
+  - Shows generated key prominently with storage instructions
+  - Added quick setup script for users with existing keys
+
+### Fixed
+- **SSH File Upload** - Fixed file upload hanging at 10% due to SSH config mismatch
+  - Added dual Host entries in SSH config generation (hostname and host_id)
+  - Fixed password authentication detection logic in upload handler
+  - Updated SSH config regeneration script for compatibility
+- **SSH Host Update** - Fixed hostname duplicate check when updating hosts
+  - Only checks for duplicate hostnames when hostname actually changes
+  - Setup endpoint now updates existing hosts instead of failing
+  - Better error messages for duplicate key violations
+
+### Removed
+- **Security Improvements**
+  - Removed temporary debug routes that didn't require authentication
+  - Removed unused authDebug middleware
+  - Cleaned up debug directory with potential security risks
+  
+### Changed
+- **Code Cleanup**
+  - Removed unused CSS files (ApplianceCard_heimdall.css)
+  - Removed unused RemoteDesktopButton component variants
+  - Removed unused maintenance scripts in fixes/ and patches/ directories
+  - Disabled Webpack performance warnings for cleaner build output
+
 ## [1.1.0] - 2025-07-24
 
 ### Added
