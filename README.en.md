@@ -346,7 +346,7 @@ docker compose restart backend
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+We welcome contributions! See [CONTRIBUTING-EN.md](CONTRIBUTING-EN.md) for details.
 
 ### Development Setup
 ```bash

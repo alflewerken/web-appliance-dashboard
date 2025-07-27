@@ -3551,3 +3551,53 @@ ERGEBNIS:
 - Klare Beschreibung was das build.sh Script macht
 
 =======================================
+
+
+=======================================
+[2025-07-28 00:50:00] - CONTRIBUTING.md englische Übersetzung erstellt
+Zweck: Englische Version der CONTRIBUTING.md erstellt und im englischen README verlinkt
+Dateien: CONTRIBUTING-EN.md (neu), README.en.md
+
+DURCHGEFÜHRTE AKTIONEN:
+
+1. CONTRIBUTING-EN.md erstellt - Vollständige englische Übersetzung:
+   - Code of Conduct
+   - How can I contribute?
+   - Reporting Bugs
+   - Suggesting Features
+   - Contributing Code
+   - Development Guidelines
+   - Testing
+   - Pull Request Process
+   - Documentation
+   - Translations
+   - Development Environment
+   - Release Process
+   - Questions
+   - Recognition
+
+2. README.en.md - Link aktualisiert:
+--- a/README.en.md
++++ b/README.en.md
+@@ -347,7 +347,7 @@
+ ## 🤝 Contributing
+ 
+-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
++We welcome contributions! See [CONTRIBUTING-EN.md](CONTRIBUTING-EN.md) for details.
+
+ÜBERSETZUNGEN:
+- "Vielen Dank für Ihr Interesse" → "Thank you for your interest"
+- "Bugs melden" → "Reporting Bugs"
+- "Features vorschlagen" → "Suggesting Features"
+- "Code beitragen" → "Contributing Code"
+- "Entwicklungsumgebung" → "Development Environment"
+- "Hilfreiche Befehle" → "Helpful Commands"
+- "Fragen?" → "Questions?"
+- "Anerkennung" → "Recognition"
+
+ERGEBNIS:
+- Englischsprachige Entwickler haben nun eine vollständige Contributing-Anleitung
+- Konsistente Dokumentation in beiden Sprachen
+- Korrekte Verlinkung vom englischen README zur englischen Contributing-Datei
+
+=======================================
