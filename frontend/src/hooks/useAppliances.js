@@ -148,7 +148,7 @@ export const useAppliances = () => {
     // Prevent duplicate opens with a simple debounce
     const openKey = `opening_${appliance?.id || applianceIdParam}_${Date.now()}`;
     if (window._openingAppliance) {
-      console.log('[DEBUG] Preventing duplicate open - already opening an appliance');
+
       return;
     }
     
@@ -156,8 +156,6 @@ export const useAppliances = () => {
     setTimeout(() => {
       window._openingAppliance = false;
     }, 500); // Clear flag after 500ms
-
-    console.log('[DEBUG] openAppliance called for:', appliance?.name || 'unknown');
 
     // Handle both old format (url, applianceId) and new format (appliance object)
     let url, applianceId;
@@ -168,7 +166,7 @@ export const useAppliances = () => {
 
       // Verwende Proxy-URL statt direkter URL
       url = proxyService.convertToProxyUrl(appliance);
-      console.log('[DEBUG] Using proxy URL:', url);
+
     } else {
       // Old format: separate url and id (for backwards compatibility)
       // Für altes Format müssen wir die Appliance erst laden
@@ -214,27 +212,25 @@ export const useAppliances = () => {
       if (isMiniDashboard) {
         // Im Miniatur-Widget-Modus: Die ApplianceCard behandelt das Öffnen selbst
         // Hier nur als Fallback
-        console.log('[DEBUG] Opening in mini dashboard mode');
+
         window.open(url, '_blank', 'noopener,noreferrer');
       } else if (isIOS) {
         // Auf iOS IMMER im gleichen Tab öffnen (vermeidet Popup-Blocker)
-        console.log('[DEBUG] Opening on iOS - same tab');
+
         window.location.href = url;
       } else {
         // Check if we're running as a PWA
         const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
                      window.navigator.standalone || 
                      document.referrer.includes('android-app://');
-        
-        console.log('[DEBUG] Opening URL:', url, 'isPWA:', isPWA, 'at', new Date().toISOString());
-        
+
         // Add a final check to prevent duplicate opens
         const openCheckKey = `lastOpen_${url}`;
         const lastOpen = window[openCheckKey];
         const now = Date.now();
         
         if (lastOpen && (now - lastOpen) < 1000) {
-          console.log('[DEBUG] Skipping duplicate open within 1 second');
+
           return;
         }
         
@@ -243,12 +239,12 @@ export const useAppliances = () => {
         if (isPWA) {
           // In PWA mode, always open in external browser
           // This prevents opening within the PWA window
-          console.log('[DEBUG] Using window.open for PWA');
+
           window.open(url, '_blank', 'noopener,noreferrer');
         } else {
           // Desktop/Android Browser: Use a temporary anchor element for better compatibility
           // Create a temporary anchor element
-          console.log('[DEBUG] Using anchor click for browser');
+
           const link = document.createElement('a');
           link.href = url;
           link.target = '_blank';

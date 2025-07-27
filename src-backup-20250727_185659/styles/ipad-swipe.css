@@ -1,0 +1,399 @@
+/* iPad Category Fade Animations with Better Scroll Support */
+
+/* Category Content Wrapper */
+.category-content-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* Erlaube beide Richtungen für Touch */
+  touch-action: manipulation;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Category Content Container */
+.category-content {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* Wichtig: Erlaube Touch-Manipulation */
+  touch-action: manipulation;
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+/* Verhindere horizontales Overscroll */
+.category-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Fade Transition States */
+.category-content.category-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.category-content.category-fade {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Smooth fade transition */
+.category-content {
+  transition:
+    opacity 0.3s ease-in-out,
+    transform 0.3s ease-in-out;
+  will-change: opacity, transform;
+}
+
+/* Prevent flickering during transition */
+.category-content-wrapper {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Ensure content is properly positioned */
+.category-content .content-section {
+  opacity: inherit;
+  transition: none;
+  /* Verhindere ungewollte horizontale Scrollbalken */
+  overflow-x: hidden;
+}
+
+/* Grid sollte nicht breiter als Viewport sein */
+.category-content .appliances-grid {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Performance optimization for iPad */
+@supports (-webkit-touch-callout: none) {
+  .category-content {
+    -webkit-transform: translateY(0);
+    perspective: 1000px;
+    /* iOS-spezifische Scroll-Optimierung */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .category-content.category-fade {
+    -webkit-transform: translateY(10px);
+  }
+
+  /* Verhindere Rubber-Band-Effekt horizontal */
+  .category-content-wrapper {
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* Disable animations during scroll */
+.category-content:active {
+  transition: none !important;
+}
+
+/* Scroll-Indikator für besseres Feedback */
+.category-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.category-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.category-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.category-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+/* Landscape adjustments */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .category-content {
+    transition-duration: 0.25s;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .category-content {
+    transition: none !important;
+  }
+
+  .category-content.category-fade {
+    transform: none;
+  }
+}
+
+/* Fade animation for category changes */
+@keyframes categoryFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Apply animation to grid items for staggered effect */
+.category-visible .appliances-grid .appliance-card-container {
+  animation: categoryFadeIn 0.4s ease-out;
+  animation-fill-mode: both;
+}
+
+/* Stagger the animations */
+.category-visible .appliances-grid .appliance-card-container:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.category-visible .appliances-grid .appliance-card-container:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.category-visible .appliances-grid .appliance-card-container:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.category-visible .appliances-grid .appliance-card-container:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.category-visible .appliances-grid .appliance-card-container:nth-child(5) {
+  animation-delay: 0.25s;
+}
+.category-visible .appliances-grid .appliance-card-container:nth-child(6) {
+  animation-delay: 0.3s;
+}
+
+/* For more items, use a repeating pattern */
+.category-visible .appliances-grid .appliance-card-container:nth-child(n + 7) {
+  animation-delay: 0.35s;
+}
+
+/* Subtle edge indicators for swipe */
+.category-content-wrapper::before,
+.category-content-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 60px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.1), transparent);
+  border-radius: 0 30px 30px 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.category-content-wrapper::after {
+  right: 0;
+  left: auto;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.1), transparent);
+  border-radius: 30px 0 0 30px;
+}
+
+/* Show indicators on hover/touch */
+@media (hover: hover) {
+  .category-content-wrapper:hover::before,
+  .category-content-wrapper:hover::after {
+    opacity: 0.5;
+  }
+}
+
+/* Visual feedback for swipe possibility */
+.category-content-wrapper[data-can-swipe-left='true']::before {
+  opacity: 0.3;
+}
+
+.category-content-wrapper[data-can-swipe-right='true']::after {
+  opacity: 0.3;
+}
+
+/* Disable staggered animation on reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .category-visible .appliances-grid .appliance-card-container {
+    animation: none !important;
+  }
+
+  .category-content-wrapper::before,
+  .category-content-wrapper::after {
+    display: none;
+  }
+}
+
+/* Fix for content jumping during transition */
+.category-content-wrapper {
+  min-height: 100%;
+  position: relative;
+}
+
+/* Ensure proper touch handling */
+@media (pointer: coarse) {
+  /* Größerer Bereich für Swipe-Erkennung an den Rändern */
+  .category-content-wrapper {
+    padding: 0 10px;
+  }
+
+  .category-content {
+    width: calc(100% - 20px);
+    margin: 0 auto;
+  }
+}
+
+/* Optimized Touch Handling for Scroll vs Swipe */
+@media (hover: none) and (pointer: coarse) {
+  /* Deaktiviere Swipe-Gesten beim aktiven Scrollen */
+  .category-content:active {
+    touch-action: pan-y !important;
+  }
+
+  /* Verbesserte Touch-Targets */
+  .category-content {
+    /* Scrollbar für besseres visuelles Feedback */
+    scrollbar-width: thin;
+  }
+
+  /* Swipe-Bereiche nur an den Rändern (optional) */
+  .category-content-wrapper {
+    position: relative;
+  }
+
+  /* Optional: Dedizierte Swipe-Zonen an den Seiten 
+  .swipe-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    z-index: 5;
+    touch-action: pan-x;
+  }
+  
+  .swipe-zone.left {
+    left: 0;
+  }
+  
+  .swipe-zone.right {
+    right: 0;
+  } */
+}
+
+/* Verbesserte Scroll-Performance */
+.category-content {
+  /* Optimiere Scroll-Performance */
+  will-change: scroll-position;
+
+  /* Verhindere ungewollte Auswahl beim Scrollen */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Erlaube Text-Auswahl in bestimmten Bereichen */
+.category-content h2,
+.category-content p,
+.category-content .card-title,
+.category-content .card-description {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Debug-Hilfe: Zeige Touch-Bereiche (bei Bedarf aktivieren) */
+/*
+.category-content-wrapper.debug::before,
+.category-content-wrapper.debug::after {
+  opacity: 0.5 !important;
+  background: rgba(255, 0, 0, 0.3) !important;
+}
+*/
+
+/* Visueller Hinweis für Swipe-Möglichkeit */
+@media (max-width: 1024px) {
+  /* Swipe-Hinweis am unteren Rand */
+  .category-content-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Animierter Hinweis beim ersten Laden */
+  @keyframes swipeHint {
+    0%,
+    100% {
+      transform: translateX(-50%) scaleX(1);
+      opacity: 0.2;
+    }
+    50% {
+      transform: translateX(-50%) scaleX(1.5);
+      opacity: 0.4;
+    }
+  }
+
+  .category-content-wrapper.show-hint::after {
+    animation: swipeHint 2s ease-in-out 3;
+  }
+
+  /* Punkte für Kategorien */
+  .category-dots {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    z-index: 20;
+  }
+
+  .category-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .category-dot.active {
+    background: rgba(255, 255, 255, 0.9);
+    transform: scale(1.3);
+  }
+}
+
+/* Swipe-Feedback während der Geste */
+.category-content-wrapper.swiping {
+  transition: none;
+}
+
+.category-content-wrapper.swiping .category-content {
+  opacity: 0.8;
+  transform: scale(0.98);
+  transition: all 0.1s ease;
+}

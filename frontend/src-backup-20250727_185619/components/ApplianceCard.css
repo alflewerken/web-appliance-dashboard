@@ -1,0 +1,1136 @@
+/* ===== App Styles (Basic rules - moved from App.css) ===== */
+:host,
+:root {
+  --primary-color: #007aff;
+  --card-size: 180px;
+  --card-bg-blur: blur(var(--card-blur, 8px));
+  --card-bg-transparency: var(--card-transparency, 0.85);
+}
+
+/* ===== Appliance Card Container ===== */
+.appliance-card-container {
+  position: relative;
+  width: var(--card-size, 180px);
+  height: calc(var(--card-size, 180px) + 80px);
+  perspective: 1000px;
+  transform-style: preserve-3d;
+  display: block;
+  touch-action: manipulation;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover effect - scale up */
+.appliance-card-container:hover {
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+/* Card Container */
+.appliance-card {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+}
+
+/* Common Styles for Both Sides */
+.card-side {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Front Side */
+.card-front {
+  z-index: 2;
+  transform: rotateY(0deg);
+  display: flex;
+  flex-direction: column;
+  /* Default background with good visibility */
+  background: rgba(var(--card-rgb, 59, 130, 246), 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+  position: relative;
+  /* Allow vertical scrolling and pinch-zoom, but handle taps */
+  touch-action: manipulation;
+}
+
+/* Verstärkter Schatten beim Hover */
+.appliance-card-container:hover .card-front {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Card Cover */
+.card-cover {
+  position: relative;
+  width: var(--card-size, 180px);
+  height: var(--card-size, 180px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 24px;
+  flex-shrink: 0;
+}
+
+/* Card Icon Container */
+.card-icon {
+  /* Dynamic sizing: 35% of card size, but min 24px and max 60% of card */
+  width: min(60%, max(24px, calc(var(--card-size) * 0.35)));
+  height: min(60%, max(24px, calc(var(--card-size) * 0.35)));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  transition: transform 0.3s ease;
+}
+
+/* Card Icon SVG */
+.card-icon svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+}
+
+/* Card Info Section */
+.card-info {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+/* Card Title */
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.3;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Card Description */
+.card-description {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+}
+
+/* Edit Menu Toggle */
+.edit-menu-toggle {
+  position: absolute;
+  top: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  right: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  color: white;
+  width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+.edit-menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+/* Edit Menu Dropdown */
+.edit-menu {
+  position: absolute;
+  top: 44px; /* Simplified from complex calc() */
+  right: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  background: rgba(28, 28, 30, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  z-index: 20;
+  min-width: 150px;
+  transform-origin: top right;
+  animation: dropdownOpen 0.2s ease-out;
+}
+
+@keyframes dropdownOpen {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.edit-menu-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  transition: background 0.2s ease;
+  font-size: 14px;
+}
+
+.edit-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.edit-menu-item.delete {
+  color: #ff4444;
+}
+
+.edit-menu-item.delete:hover {
+  background: rgba(255, 68, 68, 0.2);
+}
+
+/* Card Button Layouts - Vertical columns */
+.card-buttons-left,
+.card-buttons-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, calc(var(--card-size) * 0.04), 12px);
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card-buttons-left {
+  left: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+}
+
+.card-buttons-right {
+  right: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+}
+
+/* Show buttons on hover */
+.card-front:hover .card-buttons-left,
+.card-front:hover .card-buttons-right {
+  opacity: 1;
+}
+
+/* Show buttons when touched on mobile */
+.card.touched .card-buttons-left,
+.card.touched .card-buttons-right {
+  opacity: 1;
+}
+
+/* Legacy button layouts - kept for backwards compatibility */
+.card-buttons-top,
+.card-buttons-bottom {
+  position: absolute;
+  left: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  right: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  gap: clamp(4px, calc(var(--card-size) * 0.03), 8px);
+}
+
+.card-buttons-top {
+  top: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+}
+
+.card-buttons-bottom {
+  bottom: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  justify-content: center;
+  gap: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+}
+
+/* Button spacer for middle column */
+.button-spacer {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 1; /* Allow shrinking on small cards */
+}
+
+/* Show buttons on hover */
+.card-front:hover .card-buttons-top,
+.card-front:hover .card-buttons-bottom {
+  opacity: 1;
+}
+
+/* Touch device styles */
+@media (hover: none) {
+  .card-front.mobile-tap-hint .card-buttons-top,
+  .card-front.mobile-tap-hint .card-buttons-bottom {
+    opacity: 0.9;
+  }
+}
+
+/* Remove old grid styles */
+.card-actions-grid {
+  display: none !important;
+}
+
+/* Action Buttons */
+.action-btn {
+  /* Dynamische Größe basierend auf Kartengröße - mit besserer Skalierung */
+  width: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  height: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: clamp(10px, calc(var(--card-size) * 0.07), 14px);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+/* Dynamic spacer size */
+.button-spacer {
+  width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  flex-shrink: 1;
+}
+
+.action-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  transform: scale(1.1);
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+/* Specific action button styles */
+.favorite-btn.active {
+  background: rgba(255, 59, 48, 0.3);
+  color: #ff3b30;
+  border-color: rgba(255, 59, 48, 0.4);
+}
+
+.favorite-btn.active:hover {
+  background: rgba(255, 59, 48, 0.5);
+}
+
+.edit-btn {
+  background: rgba(147, 51, 234, 0.3) !important;  /* Violett transparent */
+  border-color: rgba(147, 51, 234, 0.5) !important;
+}
+
+.edit-btn:hover {
+  background: rgba(147, 51, 234, 0.5) !important;
+  border-color: rgba(147, 51, 234, 0.7) !important;
+}
+
+.terminal-btn {
+  background: rgba(30, 58, 138, 0.3) !important;  /* Dunkelblau transparent */
+  border-color: rgba(30, 58, 138, 0.5) !important;
+}
+
+.terminal-btn:hover {
+  background: rgba(30, 58, 138, 0.5) !important;
+  border-color: rgba(30, 58, 138, 0.7) !important;
+}
+
+.commands-btn {
+  background: rgba(147, 102, 255, 0.2);
+  border-color: rgba(147, 102, 255, 0.3);
+}
+
+.commands-btn:hover {
+  background: rgba(147, 102, 255, 0.3);
+}
+
+.start-btn {
+  background: rgba(34, 197, 94, 0.3) !important;  /* Grün transparent */
+  color: #22c55e !important;
+  border-color: rgba(34, 197, 94, 0.5) !important;
+}
+
+.start-btn:hover {
+  background: rgba(34, 197, 94, 0.5) !important;
+  border-color: rgba(34, 197, 94, 0.7) !important;
+}
+
+.stop-btn {
+  background: rgba(239, 68, 68, 0.3) !important;  /* Rot transparent */
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+.stop-btn:hover {
+  background: rgba(239, 68, 68, 0.5) !important;
+  border-color: rgba(239, 68, 68, 0.7) !important;
+}
+
+/* Flip Button */
+.flip-btn {
+  position: absolute;
+  bottom: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  right: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  color: white;
+  width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+.flip-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+/* Service Status Icon */
+.status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.status-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Icon sizes in buttons */
+.action-btn svg,
+.service-btn svg,
+.settings-btn-icon svg,
+.flip-btn svg,
+.edit-menu-toggle svg {
+  width: 65%;
+  height: 65%;
+  min-width: 10px;
+  min-height: 10px;
+  max-width: 18px;
+  max-height: 18px;
+}
+
+/* Service Action Buttons */
+.service-actions {
+  position: absolute;
+  bottom: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  left: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  display: flex;
+  gap: clamp(4px, calc(var(--card-size) * 0.03), 8px);
+  z-index: 5;
+}
+
+.service-btn {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  color: white;
+  width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: clamp(10px, calc(var(--card-size) * 0.07), 14px);
+}
+
+.service-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.5);
+  transform: scale(1.1);
+}
+
+.service-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Settings Button Icon */
+.settings-btn-icon {
+  position: absolute;
+  top: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  left: clamp(4px, calc(var(--card-size) * 0.03), 12px);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  color: rgba(255, 255, 255, 0.9);
+  width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 5;
+  opacity: 0;
+}
+
+.settings-btn-icon:hover {
+  background: rgba(0, 0, 0, 0.5);
+  transform: scale(1.1);
+}
+
+/* Show settings button on card hover */
+.card-front:hover .settings-btn-icon {
+  opacity: 1;
+}
+
+/* For touch devices, always show when card is touched */
+@media (hover: none) {
+  .settings-btn-icon {
+    opacity: 0.9;
+  }
+}
+
+/* Settings Dialog */
+.settings-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.settings-dialog {
+  position: relative;
+  background: rgba(28, 28, 30, 0.98);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  margin: auto;
+}
+
+.settings-dialog h3 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.settings-control-group {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-control-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.settings-control-group label svg {
+  width: 16px;
+  height: 16px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.settings-slider {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #007aff;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.settings-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #007aff;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+/* Settings Dialog Button Styles */
+.settings-dialog-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.settings-dialog .settings-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  flex: 0 0 auto;
+  min-width: 100px;
+}
+
+.settings-dialog .settings-btn.cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.settings-dialog .settings-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.settings-dialog .settings-btn.save {
+  background: #007aff;
+  color: #ffffff;
+}
+
+.settings-dialog .settings-btn.save:hover {
+  background: #0056cc;
+}
+
+.settings-dialog .settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Service Controls Bottom - DEPRECATED - Use card-buttons-bottom instead */
+
+/* Mobile-specific styles */
+.mobile-card .card-buttons-top,
+.mobile-card .card-buttons-bottom,
+.mobile-card .settings-btn-icon {
+  opacity: 0;
+}
+
+/* Mobile show actions when touched */
+.mobile-card .card-front.mobile-tap-hint .card-buttons-top,
+.mobile-card .card-front.mobile-tap-hint .card-buttons-bottom,
+.mobile-card .card-front.mobile-tap-hint .settings-btn-icon {
+  opacity: 1;
+}
+
+/* Mobile tap hint animation */
+@keyframes tapHint {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.98);
+  }
+}
+
+.card-front.mobile-tap-hint {
+  animation: tapHint 0.3s ease-out;
+}
+
+/* Prevent text selection on cards */
+.appliance-card {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in specific areas */
+.card-title,
+.card-description {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Loading state */
+.appliance-card.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.appliance-card.loading .card-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Error state */
+.appliance-card.error {
+  border-color: #ff4444;
+}
+
+.appliance-card.error .card-icon {
+  color: #ff4444;
+}
+
+/* Mobile specific overrides for touch handling */
+@media (max-width: 768px) {
+  /* Ensure buttons are large enough for touch */
+  .action-btn,
+  .service-btn,
+  .settings-btn-icon,
+  .remote-desktop-btn,
+  .file-transfer-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Better spacing for mobile */
+  .card-buttons-top,
+  .card-buttons-bottom {
+    left: 8px;
+    right: 8px;
+  }
+
+  .card-buttons-bottom {
+    bottom: 8px;
+  }
+
+  /* Larger touch targets on mobile */
+  .button-spacer {
+    width: 44px;
+    height: 44px;
+  }
+
+  .service-controls-bottom {
+    gap: 12px;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Prevent iOS tap highlight */
+  .card-front {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Ensure smooth animations */
+  .appliance-card {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
+
+/* Ensure proper stacking context */
+.appliance-card-container.flipped {
+  z-index: 100;
+}
+
+/* Service Status Bar - moved here from inline styles */
+.service-status-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transition: background-color 0.3s ease;
+  border-radius: 0 0 16px 16px;
+  z-index: 10; /* Ensure it's above other elements */
+}
+
+/* Extended Settings Dialog Styles */
+.settings-dialog.extended-settings {
+  max-width: 500px;
+}
+
+.settings-dialog .settings-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.settings-dialog .settings-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #007aff;
+}
+
+.settings-dialog .icon-selector-preview {
+  margin-top: 8px;
+}
+
+.settings-dialog .icon-selector-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.settings-dialog .icon-selector-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #007aff;
+}
+
+.settings-dialog .color-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.settings-dialog .color-input {
+  width: 60px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.settings-dialog .color-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-dialog .color-preset {
+  width: 32px;
+  height: 32px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.settings-dialog .color-preset:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.1);
+}
+
+/* Responsive Card Sizes - Corrected CSS without nesting */
+/* Extra Small Cards (60px - 100px) */
+.appliance-card-container[style*='--card-size: 6'] .card-info,
+.appliance-card-container[style*='--card-size: 7'] .card-info,
+.appliance-card-container[style*='--card-size: 8'] .card-info,
+.appliance-card-container[style*='--card-size: 9'] .card-info {
+  /* Zeige card-info bei kleinen Karten an, aber kompakter */
+  display: flex;
+  padding: 8px;
+  gap: 2px;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-title,
+.appliance-card-container[style*='--card-size: 7'] .card-title,
+.appliance-card-container[style*='--card-size: 8'] .card-title,
+.appliance-card-container[style*='--card-size: 9'] .card-title {
+  font-size: 12px;
+  -webkit-line-clamp: 1;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-description,
+.appliance-card-container[style*='--card-size: 7'] .card-description,
+.appliance-card-container[style*='--card-size: 8'] .card-description,
+.appliance-card-container[style*='--card-size: 9'] .card-description {
+  font-size: 10px;
+  -webkit-line-clamp: 1;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-front,
+.appliance-card-container[style*='--card-size: 7'] .card-front,
+.appliance-card-container[style*='--card-size: 8'] .card-front,
+.appliance-card-container[style*='--card-size: 9'] .card-front {
+  padding: 8px;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-icon svg,
+.appliance-card-container[style*='--card-size: 7'] .card-icon svg,
+.appliance-card-container[style*='--card-size: 8'] .card-icon svg,
+.appliance-card-container[style*='--card-size: 9'] .card-icon svg {
+  width: 80%;
+  height: 80%;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-actions-grid,
+.appliance-card-container[style*='--card-size: 7'] .card-actions-grid,
+.appliance-card-container[style*='--card-size: 8'] .card-actions-grid,
+.appliance-card-container[style*='--card-size: 9'] .card-actions-grid,
+.appliance-card-container[style*='--card-size: 6'] .service-controls-bottom,
+.appliance-card-container[style*='--card-size: 7'] .service-controls-bottom,
+.appliance-card-container[style*='--card-size: 8'] .service-controls-bottom,
+.appliance-card-container[style*='--card-size: 9'] .service-controls-bottom {
+  opacity: 0;
+}
+
+.appliance-card-container[style*='--card-size: 6']:hover .card-actions-grid,
+.appliance-card-container[style*='--card-size: 7']:hover .card-actions-grid,
+.appliance-card-container[style*='--card-size: 8']:hover .card-actions-grid,
+.appliance-card-container[style*='--card-size: 9']:hover .card-actions-grid,
+.appliance-card-container[style*='--card-size: 6']:hover
+  .service-controls-bottom,
+.appliance-card-container[style*='--card-size: 7']:hover
+  .service-controls-bottom,
+.appliance-card-container[style*='--card-size: 8']:hover
+  .service-controls-bottom,
+.appliance-card-container[style*='--card-size: 9']:hover
+  .service-controls-bottom {
+  opacity: 1;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .action-btn,
+.appliance-card-container[style*='--card-size: 7'] .action-btn,
+.appliance-card-container[style*='--card-size: 8'] .action-btn,
+.appliance-card-container[style*='--card-size: 9'] .action-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .action-btn svg,
+.appliance-card-container[style*='--card-size: 7'] .action-btn svg,
+.appliance-card-container[style*='--card-size: 8'] .action-btn svg,
+.appliance-card-container[style*='--card-size: 9'] .action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Ultra-compact mode for cards under 80px */
+@media (max-width: 768px) {
+  .appliance-card-container[style*='--card-size: 6'] .card-front,
+  .appliance-card-container[style*='--card-size: 7'] .card-front {
+    padding: 4px;
+  }
+
+  .appliance-card-container[style*='--card-size: 6'] .card-cover,
+  .appliance-card-container[style*='--card-size: 7'] .card-cover {
+    padding: 4px;
+  }
+
+  .appliance-card-container[style*='--card-size: 6'] .settings-btn-icon,
+  .appliance-card-container[style*='--card-size: 7'] .settings-btn-icon,
+  .appliance-card-container[style*='--card-size: 6'] .card-actions-grid,
+  .appliance-card-container[style*='--card-size: 7'] .card-actions-grid,
+  .appliance-card-container[style*='--card-size: 6'] .service-controls-bottom,
+  .appliance-card-container[style*='--card-size: 7'] .service-controls-bottom {
+    display: none !important;
+  }
+
+  .appliance-card-container[style*='--card-size: 6'] .service-status-bar,
+  .appliance-card-container[style*='--card-size: 7'] .service-status-bar {
+    height: 2px;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+  }
+}
+/* Special rules for very small cards to scale icons properly */
+
+/* For cards 60-80px */
+.appliance-card-container[style*='--card-size: 6'] .card-icon,
+.appliance-card-container[style*='--card-size: 7'] .card-icon {
+  width: 40%;
+  height: 40%;
+  max-width: 28px;
+  max-height: 28px;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-cover,
+.appliance-card-container[style*='--card-size: 7'] .card-cover {
+  padding: 8px;
+}
+
+/* For cards 80-100px */
+.appliance-card-container[style*='--card-size: 8'] .card-icon,
+.appliance-card-container[style*='--card-size: 9'] .card-icon {
+  width: 45%;
+  height: 45%;
+  max-width: 40px;
+  max-height: 40px;
+}
+
+/* For cards 100-120px */
+.appliance-card-container[style*='--card-size: 10'] .card-icon,
+.appliance-card-container[style*='--card-size: 11'] .card-icon {
+  width: 50%;
+  height: 50%;
+  max-width: 50px;
+  max-height: 50px;
+}
+
+/* For cards 120-140px */
+.appliance-card-container[style*='--card-size: 12'] .card-icon,
+.appliance-card-container[style*='--card-size: 13'] .card-icon {
+  width: 55%;
+  height: 55%;
+  max-width: 60px;
+  max-height: 60px;
+}
+
+/* Adjust card cover padding for smaller sizes */
+.appliance-card-container[style*='--card-size: 6'] .card-cover,
+.appliance-card-container[style*='--card-size: 7'] .card-cover,
+.appliance-card-container[style*='--card-size: 8'] .card-cover,
+.appliance-card-container[style*='--card-size: 9'] .card-cover {
+  padding: 12px;
+}
+
+.appliance-card-container[style*='--card-size: 10'] .card-cover,
+.appliance-card-container[style*='--card-size: 11'] .card-cover,
+.appliance-card-container[style*='--card-size: 12'] .card-cover,
+.appliance-card-container[style*='--card-size: 13'] .card-cover {
+  padding: 16px;
+}
+
+/* Dynamic icon sizing using CSS calc() */
+.card-icon {
+  /* Base calculation: icon should be 35-60% of card size, with limits */
+  width: min(60%, max(24px, calc(var(--card-size) * 0.35)));
+  height: min(60%, max(24px, calc(var(--card-size) * 0.35)));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  transition: transform 0.3s ease;
+}
+
+/* Ensure SVG fills the icon container properly */
+.card-icon svg {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+}
+
+/* Override the generic 80% rule for very small cards */
+.appliance-card-container[style*='--card-size: 6'] .card-icon svg,
+.appliance-card-container[style*='--card-size: 7'] .card-icon svg,
+.appliance-card-container[style*='--card-size: 8'] .card-icon svg,
+.appliance-card-container[style*='--card-size: 9'] .card-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* Remote Desktop Button Styles */
+.remote-desktop-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+}
+
+.remote-desktop-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--primary-color);
+}
+
+.remote-desktop-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* VNC Button */
+.remote-desktop-btn.vnc {
+  color: #4CAF50;
+}
+
+.remote-desktop-btn.vnc:hover {
+  background: rgba(76, 175, 80, 0.2);
+}
+
+/* RDP Button */
+.remote-desktop-btn.rdp {
+  color: #2196F3;
+}
+
+.remote-desktop-btn.rdp:hover {
+  background: rgba(33, 150, 243, 0.2);
+}

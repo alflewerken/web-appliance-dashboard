@@ -1,0 +1,197 @@
+.mobile-swipeable-wrapper {
+  display: none;
+}
+
+/* Only show on mobile */
+@media (max-width: 768px) {
+  .mobile-swipeable-wrapper {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1300;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Hide individual panel containers on mobile when wrapper is active */
+  body.has-swipeable-panels .panel-container {
+    display: none !important;
+  }
+
+  /* Swipeable container */
+  .swipeable-panels-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Panel navigation header */
+  .swipeable-panels-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(28, 28, 30, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  body.theme-light .swipeable-panels-header {
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  /* Tab indicators */
+  .panel-tabs {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .panel-tab {
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .panel-tab.active {
+    background: #007AFF;
+    color: white;
+  }
+
+  body.theme-light .panel-tab {
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  body.theme-light .panel-tab.active {
+    background: #007AFF;
+    color: white;
+  }
+
+  /* Close button */
+  .swipeable-close-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .swipeable-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  body.theme-light .swipeable-close-btn {
+    background: rgba(0, 0, 0, 0.05);
+    color: #1c1c1e;
+  }
+
+  body.theme-light .swipeable-close-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  /* Swipeable content area */
+  .swipeable-panels-content {
+    position: relative;
+    height: calc(100% - 73px); /* Header height */
+    overflow: hidden;
+  }
+
+  .swipeable-panels-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.3s ease-out;
+  }
+
+  .swipeable-panel-slot {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Individual panel styles in mobile */
+  .swipeable-panel-slot .settings-panel,
+  .swipeable-panel-slot .service-panel,
+  .swipeable-panel-slot .user-panel,
+  .swipeable-panel-slot .audit-log-panel {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Touch indicators */
+  .swipe-indicators {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 20px;
+  }
+
+  .swipe-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: all 0.3s;
+  }
+
+  .swipe-indicator.active {
+    width: 20px;
+    border-radius: 3px;
+    background: #007AFF;
+  }
+
+  /* Touch gesture support */
+  .swipeable-panels-content {
+    touch-action: pan-y;
+  }
+
+  /* Disable panel resize on mobile */
+  .resize-handle {
+    display: none !important;
+  }
+}
+
+/* Animation for panel entry */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.mobile-swipeable-wrapper {
+  animation: slideInFromRight 0.3s ease-out;
+}

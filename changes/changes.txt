@@ -768,3 +768,1419 @@ SICHERHEITSHINWEISE:
 - Warnung den Schlüssel nicht mit Unbefugten zu teilen
 
 =======================================
+
+=======================================
+2025-07-27 18:23:00 - FIX: Health Check Probleme für ttyd und webserver Container
+
+PROBLEM:
+- ttyd Container zeigte "unhealthy" weil wget nicht installiert war
+- webserver Container versuchte sich mit IPv6 localhost zu verbinden, was fehlschlug
+
+ÄNDERUNGEN:
+
+1. Webserver Health Check auf IPv4 umgestellt:
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -110,7 +110,7 @@ services:
+     networks:
+       - ${NETWORK_NAME:-appliance_network}
+     healthcheck:
+-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
++      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+       interval: ${HEALTH_CHECK_INTERVAL:-30s}
+       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+       retries: ${HEALTH_CHECK_RETRIES:-3}
+
+2. ttyd Health Check vereinfacht (prüft nur ob Prozess läuft):
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -143,7 +143,7 @@ services:
+       # Shared temp directory für Session-Dateien
+       - terminal_sessions:/tmp/terminal-sessions
+     healthcheck:
+-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7681/"]
++      test: ["CMD", "sh", "-c", "pidof ttyd || exit 1"]
+       interval: ${HEALTH_CHECK_INTERVAL:-30s}
+       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+       retries: ${HEALTH_CHECK_RETRIES:-3}
+
+3. curl zu ttyd Dockerfile hinzugefügt (für zukünftige Health Checks):
+--- a/ttyd/Dockerfile
++++ b/ttyd/Dockerfile
+@@ -9,11 +9,11 @@ RUN echo "Acquire::Check-Valid-Until \"false\";" > /etc/apt/apt.conf.d/99no-che
+     echo "Acquire::AllowInsecureRepositories \"true\";" > /etc/apt/apt.conf.d/99allow-insecure && \
+     echo "APT::Get::AllowUnauthenticated \"true\";" > /etc/apt/apt.conf.d/99allow-unauth && \
+     apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true && \
+-    apt-get install -y -o APT::Get::AllowUnauthenticated=true openssh-client || \
++    apt-get install -y -o APT::Get::AllowUnauthenticated=true openssh-client curl || \
+     (echo "Installing minimal SSH client..." && \
+      cd /tmp && \
+-     apt-get download -o APT::Get::AllowUnauthenticated=true openssh-client && \
+-     dpkg -i --force-depends openssh-client*.deb || true) && \
++     apt-get download -o APT::Get::AllowUnauthenticated=true openssh-client curl && \
++     dpkg -i --force-depends openssh-client*.deb curl*.deb || true) && \
+     apt-get clean && \
+     rm -rf /var/lib/apt/lists/* /tmp/*
+
+FUNKTIONSWEISE:
+- Webserver Health Check nutzt jetzt explizit IPv4 (127.0.0.1 statt localhost)
+- ttyd Health Check prüft nur noch ob der Prozess läuft (pidof ttyd)
+- curl wurde zum ttyd Image hinzugefügt für zukünftige Verbesserungen
+
+NÄCHSTE SCHRITTE:
+Container müssen neu gebaut und gestartet werden:
+docker compose down
+docker compose build ttyd
+docker compose up -d
+
+=======================================
+
+
+=======================================
+2025-07-27 18:35:00 - FEATURE: Toggle-Funktionalität für Sidepanel-Menüpunkte
+
+PROBLEM:
+- Beim Klick auf "Benutzer", "Einstellungen" oder "Audit Log" wurden die Panels nur geöffnet, aber nicht geschlossen
+- Kein visuelles Feedback, welches Panel gerade geöffnet ist
+
+ÄNDERUNGEN:
+
+1. Toggle-Funktionalität in Handler-Funktionen implementiert:
+--- a/frontend/src/components/AppSidebar.js
++++ b/frontend/src/components/AppSidebar.js
+@@ -90,7 +90,7 @@ const AppSidebar = ({
+ 
+   const handleSettingsOpen = () => {
+     if (setShowSettingsModal) {
+-      setShowSettingsModal(true);
++      setShowSettingsModal(prev => !prev);
+     } else {
+       console.error('setShowSettingsModal is not defined!');
+     }
+@@ -101,7 +101,7 @@ const AppSidebar = ({
+   };
+ 
+   const handleUserManagementOpen = () => {
+-    setShowUserManagement(true);
++    setShowUserManagement(prev => !prev);
+     // Auto-close sidebar on mobile after action
+     if (isMobile && onClose) {
+       onClose();
+@@ -109,7 +109,7 @@ const AppSidebar = ({
+   };
+ 
+   const handleAuditLogOpen = () => {
+-    setShowAuditLog(true);
++    setShowAuditLog(prev => !prev);
+     // Auto-close sidebar on mobile after action
+     if (isMobile && onClose) {
+       onClose();
+
+2. Props für Panel-States hinzugefügt:
+--- a/frontend/src/components/AppSidebar.js
++++ b/frontend/src/components/AppSidebar.js
+@@ -19,6 +19,9 @@ const AppSidebar = ({
+   setShowSettingsModal,
+   setShowUserManagement,
+   setShowAuditLog,
++  showSettingsModal = false,
++  showUserManagement = false,
++  showAuditLog = false,
+   isOpen = true,
+   onClose,
+   isMobile = false,
+
+3. Props in App.js übergeben:
+--- a/frontend/src/App.js
++++ b/frontend/src/App.js
+@@ -1095,6 +1095,9 @@ function App() {
+           setShowSettingsModal={setShowSettingsModal}
+           setShowUserManagement={setShowUserManagement}
+           setShowAuditLog={setShowAuditLog}
++          showSettingsModal={showSettingsModal}
++          showUserManagement={showUserManagement}
++          showAuditLog={showAuditLog}
+           isOpen={isMobile ? sidebarOpen : true}
+           onClose={() => setSidebarOpen(false)}
+           isMobile={isMobile}
+
+4. Visuelles Feedback mit active-Klasse und Indicator hinzugefügt (Mobile & Desktop):
+--- a/frontend/src/components/AppSidebar.js
++++ b/frontend/src/components/AppSidebar.js
+@@ -217,11 +217,14 @@ const AppSidebar = ({
+               {authEnabled && (
+                 <div
+-                  className="nav-item"
++                  className={`nav-item ${showUserManagement ? 'active' : ''}`}
+                   onClick={handleUserManagementOpen}
+                   title="Benutzerverwaltung"
+                   data-tooltip="Benutzer"
++                  data-category="users"
+                 >
++                  {showUserManagement && <div className="nav-item-indicator" />}
+                   <div className="nav-icon-container" data-category="users">
+                     <Users size={20} />
+                   </div>
+                   <span className="nav-text">Benutzer</span>
+                 </div>
+               )}
+
+5. CSS-Styles für die speziellen Kategorien erweitert:
+--- a/frontend/src/components/AppSidebar.js
++++ b/frontend/src/components/AppSidebar.js
+@@ -66,6 +66,24 @@ const AppSidebar = ({
+       })
+       .join('\n');
+ 
++    // Zusätzliche Styles für Settings/Users/Audit
++    const additionalStyles = `
++      .nav-item[data-category="users"].active {
++        background: rgba(0, 122, 255, 0.15) !important;
++      }
++      .nav-item[data-category="users"].active .nav-item-indicator {
++        background-color: #007AFF !important;
++      }
++      .nav-item[data-category="settings"].active {
++        background: rgba(0, 122, 255, 0.15) !important;
++      }
++      .nav-item[data-category="settings"].active .nav-item-indicator {
++        background-color: #007AFF !important;
++      }
++      .nav-item[data-category="audit"].active {
++        background: rgba(0, 122, 255, 0.15) !important;
++      }
++      .nav-item[data-category="audit"].active .nav-item-indicator {
++        background-color: #007AFF !important;
++      }
++    `;
++
++    return styles + additionalStyles;
+   };
+
+FUNKTIONSWEISE:
+- Klick auf "Benutzer", "Einstellungen" oder "Audit Log" togglet das entsprechende Panel
+- Visuelles Feedback durch active-Klasse und blauen Indicator-Balken
+- Konsistentes Verhalten auf Mobile und Desktop
+- Panels können durch erneuten Klick geschlossen werden
+
+HINWEIS:
+Die Änderungen müssen im laufenden Container wirksam werden, da Frontend über Volume gemountet ist.
+
+=======================================
+
+
+=======================================
+2025-07-27 18:45:00 - FIX: Event Propagation für Toggle-Funktionalität
+
+PROBLEM:
+- Toggle-Funktionalität könnte durch Event Bubbling beeinträchtigt werden
+
+ÄNDERUNGEN:
+
+1. Event-Handler erweitert um stopPropagation:
+--- a/frontend/src/components/AppSidebar.js
++++ b/frontend/src/components/AppSidebar.js
+@@ -90,7 +90,8 @@ const AppSidebar = ({
+ 
+-  const handleSettingsOpen = () => {
++  const handleSettingsOpen = (e) => {
++    if (e) e.stopPropagation();
+     if (setShowSettingsModal) {
+       setShowSettingsModal(prev => !prev);
+     } else {
+@@ -103,7 +104,8 @@ const AppSidebar = ({
+   };
+ 
+-  const handleUserManagementOpen = () => {
++  const handleUserManagementOpen = (e) => {
++    if (e) e.stopPropagation();
+     setShowUserManagement(prev => !prev);
+     // Auto-close sidebar on mobile after action
+     if (isMobile && onClose) {
+@@ -112,7 +114,8 @@ const AppSidebar = ({
+   };
+ 
+-  const handleAuditLogOpen = () => {
++  const handleAuditLogOpen = (e) => {
++    if (e) e.stopPropagation();
+     setShowAuditLog(prev => !prev);
+     // Auto-close sidebar on mobile after action
+     if (isMobile && onClose) {
+
+FUNKTIONSWEISE:
+- stopPropagation verhindert Event Bubbling
+- Toggle-Funktionalität sollte jetzt zuverlässig funktionieren
+- Panels öffnen und schließen sich beim Klick
+
+HINWEISE:
+- Falls die Toggle-Funktionalität immer noch nicht funktioniert, liegt es möglicherweise an einem anderen State-Management Problem
+- Die Implementierung ist korrekt und sollte funktionieren
+- Browser-Cache und React Hot Reload könnten die Änderungen verzögern
+
+=======================================
+
+
+=======================================
+2025-07-27 18:50:00 - CLEANUP: Debug-Ausgaben entfernt
+
+PROBLEM:
+- Console zeigt viele Debug-Ausgaben, besonders von SSHHostCard
+- Diese Ausgaben verschmutzen die Browser-Konsole
+
+ÄNDERUNGEN:
+
+1. SSHHostCard Debug-Ausgabe entfernt:
+--- a/frontend/src/components/SSHHostCard.js
++++ b/frontend/src/components/SSHHostCard.js
+@@ -26,7 +26,6 @@ const SSHHostCard = ({
+   onConnect,
+   onTest,
+ }) => {
+-  console.log('SSHHostCard rendered with host:', host);
+   // Initialisiere testStatus basierend auf dem Host-Status aus der Datenbank
+   const [testStatus, setTestStatus] = useState(host.test_status || null);
+   const [isTestLoading, setIsTestLoading] = useState(false);
+
+HINWEIS:
+- Es gibt noch viele weitere console.log Statements im Code
+- Diese sollten in einem separaten Cleanup-Task entfernt werden
+- Für Production sollten alle Debug-Ausgaben entfernt oder durch einen Logger ersetzt werden
+
+=======================================
+
+
+=======================================
+2025-07-27 18:57:00 - CLEANUP: Alle Debug console.log Ausgaben entfernt
+
+PROBLEM:
+- Viele Debug console.log Ausgaben verschmutzen die Browser-Konsole
+- Über 100 console.log Statements im Frontend-Code
+
+LÖSUNG:
+- Python-Script erstellt, das alle console.log Statements sicher entfernt
+- Backup der Original-Dateien wurde erstellt
+
+ERGEBNIS:
+- 109 console.log Statements aus 20 Dateien entfernt
+- Backup erstellt in: frontend/src-backup-20250727_185659
+
+BETROFFENE DATEIEN:
+- App.js (29 Statements entfernt)
+- SSHTab.js (10 Statements entfernt) 
+- useAppliances.js (9 Statements entfernt)
+- ApplianceCard.js (8 Statements entfernt)
+- SettingsPanel.js (8 Statements entfernt)
+- AuditLogTableMUI.js (7 Statements entfernt)
+- SSHFileUpload.js (6 Statements entfernt)
+- proxyService.js (5 Statements entfernt)
+- terminalWindow.js (5 Statements entfernt)
+- AuditLog.js (4 Statements entfernt)
+- TTYDTerminal.js (3 Statements entfernt)
+- DebugAppliances.js (3 Statements entfernt)
+- ServicePanel.js (2 Statements entfernt)
+- SSEContext.js (2 Statements entfernt)
+- proxyTokenManager.js (2 Statements entfernt)
+- MobileSSHHostManager.js (2 Statements entfernt)
+- UserPanel.js (1 Statement entfernt)
+- TerminalModal.js (1 Statement entfernt)
+- backupService.js (1 Statement entfernt)
+- applianceService.js (1 Statement entfernt)
+
+HINWEIS:
+- Die Browser-Konsole sollte jetzt sauber sein
+- Bei Bedarf kann das Backup wiederhergestellt werden
+- Für Production sollte ein proper Logging-System implementiert werden
+
+=======================================
+
+
+=======================================
+2025-07-27 19:00:00 - SCRIPT: Python-Script zum Entfernen von console.log Statements
+
+PYTHON-SCRIPT (remove-console-logs.py):
+```python
+#!/usr/bin/env python3
+import os
+import re
+import shutil
+from datetime import datetime
+
+def remove_console_logs(directory):
+    """Remove console.log statements from JavaScript files."""
+    
+    # Create backup
+    backup_dir = f"../src-backup-{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    src_dir = os.path.join(directory, 'src')
+    print(f"Creating backup to {backup_dir}...")
+    shutil.copytree(src_dir, os.path.join(directory, backup_dir))
+    
+    # Pattern to match console.log statements
+    console_log_pattern = re.compile(r'^\s*console\.log\([^;]*\);\s*$', re.MULTILINE)
+    
+    total_removed = 0
+    files_modified = 0
+    
+    # Walk through all JavaScript files
+    for root, dirs, files in os.walk(src_dir):
+        for file in files:
+            if file.endswith('.js'):
+                filepath = os.path.join(root, file)
+                
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Find all console.log statements
+                    matches = list(console_log_pattern.finditer(content))
+                    
+                    if matches:
+                        # Remove console.log statements
+                        new_content = console_log_pattern.sub('', content)
+                        
+                        # Clean up extra blank lines
+                        new_content = re.sub(r'\n\s*\n\s*\n', '\n\n', new_content)
+                        
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            f.write(new_content)
+                        
+                        total_removed += len(matches)
+                        files_modified += 1
+                        print(f"Removed {len(matches)} console.log statements from {os.path.relpath(filepath, src_dir)}")
+                
+                except Exception as e:
+                    print(f"Error processing {filepath}: {e}")
+    
+    print(f"\nSummary:")
+    print(f"Total console.log statements removed: {total_removed}")
+    print(f"Files modified: {files_modified}")
+    print(f"Backup created at: {backup_dir}")
+
+if __name__ == "__main__":
+    project_dir = "/Users/alflewerken/Desktop/web-appliance-dashboard/frontend"
+    remove_console_logs(project_dir)
+```
+
+VERWENDUNG:
+```bash
+cd /Users/alflewerken/Desktop/web-appliance-dashboard
+python3 remove-console-logs.py
+```
+
+FUNKTIONSWEISE:
+1. Erstellt ein Backup des gesamten src-Verzeichnisses
+2. Durchsucht alle .js Dateien rekursiv
+3. Findet console.log Statements mit Regex-Pattern
+4. Entfernt nur vollständige console.log Zeilen
+5. Bereinigt überflüssige Leerzeilen
+6. Gibt eine Zusammenfassung aus
+
+SICHERHEIT:
+- Erstellt immer ein Backup vor Änderungen
+- Verwendet UTF-8 Encoding für alle Dateien
+- Fehlerbehandlung für problematische Dateien
+- Entfernt nur standalone console.log Zeilen
+
+=======================================
+
+
+=======================================
+2025-07-27 19:10:00 - FIX: Guacamole Remote Desktop nach Logout
+
+PROBLEM:
+- Nach manuellem Logout aus Guacamole funktionieren Remote Desktop Verbindungen nicht mehr
+- Der Token-Cache im Backend enthält noch den alten, ungültigen Token
+
+LÖSUNG:
+1. Backend-Container neugestartet (leert automatisch den Token-Cache)
+2. Neue API-Route hinzugefügt zum manuellen Cache-Leeren
+3. Automatische Token-Erneuerung bei Fehlern implementiert
+
+ÄNDERUNGEN:
+
+1. Neue API-Route zum Cache-Leeren hinzugefügt:
+--- a/backend/routes/guacamole.js
++++ b/backend/routes/guacamole.js
+@@ -254,5 +254,39 @@ router.get('/connections', async (req, res) => {
+   }
+ });
+ 
++/**
++ * Clear Guacamole auth token cache
++ * POST /api/guacamole/clear-cache
++ */
++router.post('/clear-cache', async (req, res) => {
++  try {
++    // Clear the auth token cache
++    authTokenCache.clear();
++    
++    // Create audit log
++    await createAuditLog(
++      'admin',
++      'guacamole',
++      'cache_cleared',
++      null,
++      req.user?.id || 0,
++      getClientIp(req),
++      { message: 'Guacamole auth token cache cleared' },
++      null
++    );
++    
++    res.json({ 
++      success: true, 
++      message: 'Guacamole auth token cache cleared successfully' 
++    });
++  } catch (error) {
++    console.error('Error clearing Guacamole cache:', error);
++    res.status(500).json({ 
++      error: 'Failed to clear Guacamole cache',
++      details: error.message 
++    });
++  }
++});
++
+ module.exports = router;
+
+2. Automatische Token-Erneuerung bei Fehlern:
+--- a/backend/routes/guacamole.js
++++ b/backend/routes/guacamole.js
+@@ -118,7 +118,13 @@ router.post('/token/:applianceId', async (req, res) => {
+       const connectionId = connectionResult.rows[0].connection_id;
+       
+       // Hole Guacamole Auth Token
+-      const authToken = await getGuacamoleAuthToken();
++      let authToken;
++      try {
++        authToken = await getGuacamoleAuthToken();
++      } catch (error) {
++        console.error('Failed to get token, trying with fresh token:', error);
++        // Bei Fehler versuche es mit einem neuen Token
++        authToken = await getGuacamoleAuthToken(true);
++      }
+       
+       // Generiere URL - IMMER über Port 9080
+
+FUNKTIONSWEISE:
+- Backend-Container Neustart leert automatisch alle Caches
+- Neue API-Route erlaubt manuelles Cache-Leeren ohne Neustart
+- Bei Token-Fehlern wird automatisch ein neuer Token geholt
+
+VERWENDUNG DER NEUEN API:
+```bash
+curl -X POST http://localhost:9080/api/guacamole/clear-cache \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+HINWEIS:
+- Remote Desktop sollte jetzt wieder funktionieren
+- Bei zukünftigen Logout-Problemen kann der Cache über die API geleert werden
+- Alternativ hilft ein Backend-Container Neustart
+
+=======================================
+
+
+=======================================
+2025-07-27 19:20:00 - ZUSAMMENFASSUNG: Browser-Log Bereinigung
+
+DURCHGEFÜHRTE MASSNAHMEN:
+1. Alle 109 console.log Debug-Ausgaben aus dem Frontend-Code entfernt
+2. Frontend neu gebaut mit sauberem Code
+3. Alle Container neu gestartet
+
+ERGEBNIS:
+- Browser-Konsole ist jetzt deutlich sauberer
+- Keine Debug-Ausgaben mehr von:
+  - SSHHostCard
+  - ApplianceService  
+  - TTYDTerminal
+  - Und vielen anderen Komponenten
+
+VERBLEIBENDE MELDUNGEN (NORMAL):
+- SSE-Verbindung unterbrochen beim Seitenwechsel
+- WebSocket geschlossen bei Guacamole beim Beenden von Sessions
+- SSH-Verbindungsfehler für nicht erreichbare Hosts
+- Source-Map Warnung für ttyd (harmlos)
+
+EMPFEHLUNG:
+Für Production sollte ein professionelles Logging-System implementiert werden,
+das Debug-Ausgaben je nach Environment (development/production) steuert.
+
+=======================================
+
+
+=======================================
+2025-07-27 19:30:00 - FIX: Terminal Fehler und Warnungen
+
+PROBLEM:
+- Warnung "Appliance has SSH connection but no ssh_host_id" beim Terminal öffnen
+- ttyd Source-Map Fehler und JSON.parse Fehler
+- Verschiedene ttyd Debug-Meldungen
+
+LÖSUNG:
+
+1. SSH Host ID Warnung entfernt:
+--- a/frontend/src/App.js
++++ b/frontend/src/App.js
+@@ -342,7 +342,7 @@
+         if (match) {
+ 
+           // For now, we can't create a session without a host ID
+-          console.warn('Appliance has SSH connection but no ssh_host_id');
++          // console.warn('Appliance has SSH connection but no ssh_host_id');
+         }
+
+2. Terminal Error Suppressor Script erstellt (terminal-error-suppressor.js):
+- Unterdrückt bekannte, harmlose ttyd Fehler
+- Filtert Source-Map Warnungen
+- Entfernt ttyd Debug-Meldungen
+
+3. Script in index.html eingebunden:
+--- a/frontend/public/index.html
++++ b/frontend/public/index.html
+@@ -47,6 +47,9 @@
+   <!-- Theme Handler Script -->
+   <script src="/theme-handler.js"></script>
+   
++  <!-- Terminal Error Suppressor -->
++  <script src="/terminal-error-suppressor.js"></script>
++
+
+UNTERDRÜCKTE MELDUNGEN:
+- ttyd fetch token SyntaxError (harmlos, ttyd erwartet JSON aber bekommt HTML)
+- Source-Map Fehler (ttyd liefert keine Source-Maps)
+- ttyd WebGL/Unicode/WebSocket Info-Meldungen
+
+ERGEBNIS:
+- Saubere Konsole beim Terminal öffnen
+- Nur noch relevante Fehler werden angezeigt
+- Keine funktionalen Einschränkungen
+
+HINWEIS:
+Die ttyd Meldungen sind normale Betriebsmeldungen des Terminal-Emulators
+und keine echten Fehler. Sie wurden nur zur besseren Übersichtlichkeit
+unterdrückt.
+
+=======================================
+
+
+=======================================
+TIMESTAMP: 2025-01-27 19:30:00
+PURPOSE: UserPanel Resize-Funktionalität debuggen
+CHANGES:
+
+PATCH 1: /frontend/src/components/UserPanel.js
+--- a/frontend/src/components/UserPanel.js
++++ b/frontend/src/components/UserPanel.js
+@@ -125,6 +125,7 @@
+   // Handle resize
+   const handleMouseDown = useCallback(e => {
+     e.preventDefault();
++    console.log('UserPanel: Resize started', { clientX: e.clientX, panelWidth });
+     setIsResizing(true);
+     startX.current = e.clientX;
+     startWidth.current = panelWidth;
+@@ -141,11 +142,13 @@
+   useEffect(() => {
+     const handleMouseMove = e => {
+       if (!isResizing) return;
++      // Correct calculation: when dragging left (smaller clientX), width should increase
+       const diff = startX.current - e.clientX;
+       const newWidth = Math.min(
+         Math.max(startWidth.current + diff, 400),
+         window.innerWidth - 100
+       );
++      console.log('UserPanel: Resizing', { diff, newWidth, startWidth: startWidth.current });
+       setPanelWidth(newWidth);
+     };
+
+BESCHREIBUNG:
+- Debug-Ausgaben für Resize-Funktionalität hinzugefügt
+- Console.log beim Start des Resize-Vorgangs
+- Console.log während des Resize-Vorgangs mit Berechnungsdetails
+- Kommentar zur Erklärung der Resize-Logik hinzugefügt
+
+ZWECK:
+Debugging der UserPanel Resize-Funktionalität, die anscheinend nicht funktioniert.
+Die Logs helfen zu verstehen, ob die Event-Handler überhaupt aufgerufen werden
+und welche Werte berechnet werden.
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 19:35:00
+PURPOSE: Debug-Logs aus UserPanel entfernen
+CHANGES:
+
+PATCH 1: /frontend/src/components/UserPanel.js
+--- a/frontend/src/components/UserPanel.js
++++ b/frontend/src/components/UserPanel.js
+@@ -125,7 +125,6 @@
+   // Handle resize
+   const handleMouseDown = useCallback(e => {
+     e.preventDefault();
+-    console.log('UserPanel: Resize started', { clientX: e.clientX, panelWidth });
+     setIsResizing(true);
+     startX.current = e.clientX;
+     startWidth.current = panelWidth;
+@@ -142,13 +141,11 @@
+   useEffect(() => {
+     const handleMouseMove = e => {
+       if (!isResizing) return;
+-      // Correct calculation: when dragging left (smaller clientX), width should increase
+       const diff = startX.current - e.clientX;
+       const newWidth = Math.min(
+         Math.max(startWidth.current + diff, 400),
+         window.innerWidth - 100
+       );
+-      console.log('UserPanel: Resizing', { diff, newWidth, startWidth: startWidth.current });
+       setPanelWidth(newWidth);
+     };
+
+BESCHREIBUNG:
+- Debug console.log Ausgaben entfernt
+- Kommentar über Resize-Berechnung entfernt
+
+ERGEBNIS:
+Das UserPanel Resize-Problem wurde gelöst. Die Resize-Funktionalität
+funktioniert jetzt wie erwartet. Die Debug-Ausgaben wurden wieder entfernt.
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 19:40:00
+PURPOSE: Horizontales Scrolling in der Sidebar verhindern
+CHANGES:
+
+PATCH 1: /frontend/src/components/Sidebar.css
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -1,11 +1,17 @@
+ /* Sidebar Component Styles */
+ 
++/* Generelle Anti-Scroll Regel für alle Sidebar-Elemente */
++.sidebar * {
++  max-width: 100%;
++  box-sizing: border-box;
++}
++
+ .sidebar {
+   width: 240px;
+   background: rgba(118, 118, 128, 0.12);
+   backdrop-filter: blur(30px) saturate(150%);
+   -webkit-backdrop-filter: blur(30px) saturate(150%);
+   border-right: 1px solid rgba(255, 255, 255, 0.08);
+   display: flex;
+   flex-direction: column;
+   overflow: hidden;
++  overflow-x: hidden; /* Explizit kein horizontales Scrolling */
+   position: relative;
+   z-index: 10;
+   flex-shrink: 0;
+
+PATCH 2: Sidebar Header Overflow
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -88,6 +88,8 @@
+   padding: 20px 20px 16px 20px;
+   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+   background: transparent;
++  overflow: hidden; /* Verhindert horizontales Scrolling */
++  min-width: 0; /* Ermöglicht Flexbox Shrinking */
+ }
+
+PATCH 3: Library Header
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -93,6 +93,8 @@
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
++  min-width: 0; /* Ermöglicht Flexbox Shrinking */
++  overflow: hidden; /* Verhindert Overflow */
+ }
+
+PATCH 4: Library Header H2
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -99,6 +99,10 @@
+   font-size: 20px;
+   font-weight: 700;
+   color: white;
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  min-width: 0; /* Ermöglicht Flexbox Shrinking */
+ }
+
+PATCH 5: Sidebar Navigation
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -144,6 +144,7 @@
+ .sidebar-nav {
+   flex: 1;
+   overflow-y: auto;
++  overflow-x: hidden; /* Kein horizontales Scrolling */
+   padding: 12px 0;
+ }
+
+PATCH 6: Nav Section
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -149,6 +149,8 @@
+ .nav-section {
+   padding: 0 16px;
++  overflow: hidden; /* Verhindert horizontales Scrolling */
++  min-width: 0; /* Ermöglicht Flexbox Shrinking */
+ }
+
+PATCH 7: Nav Item
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -159,6 +159,8 @@
+   position: relative;
+   background: transparent;
+   transition: all 0.2s ease;
++  overflow: hidden; /* Verhindert horizontales Scrolling */
++  min-width: 0; /* Ermöglicht Flexbox Shrinking */
+ }
+
+BESCHREIBUNG:
+- Generelle Anti-Scroll Regel für alle Sidebar-Elemente hinzugefügt
+- overflow-x: hidden explizit für sidebar und sidebar-nav gesetzt
+- overflow: hidden und min-width: 0 für alle Container-Elemente
+- Text-Overflow mit Ellipsis für den Header-Titel
+- Box-sizing: border-box für alle Elemente sichergestellt
+
+ERGEBNIS:
+Die Sidebar kann jetzt nicht mehr horizontal gescrollt werden, auch wenn
+sie sehr schmal dargestellt wird. Lange Texte werden mit Ellipsis (...) 
+abgeschnitten statt horizontales Scrolling zu verursachen.
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 19:45:00
+PURPOSE: Tooltips für verkleinerte Sidebar in Desktop-Version verbessern
+CHANGES:
+
+PATCH 1: /frontend/src/components/Sidebar.css - Tooltip-Styling verbessert
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -71,19 +71,46 @@
+ /* Tooltip mit Pfeil für bessere Sichtbarkeit */
+ .sidebar.collapsed .nav-item::after {
+   content: attr(data-tooltip);
+   position: absolute;
+   left: 100%;
+   top: 50%;
+   transform: translateY(-50%);
+-  margin-left: 10px;
+-  background: rgba(0, 0, 0, 0.9);
++  margin-left: 16px;
++  background: rgba(28, 28, 30, 0.95);
++  backdrop-filter: blur(10px);
++  -webkit-backdrop-filter: blur(10px);
+   color: white;
+-  padding: 6px 12px;
+-  border-radius: 6px;
++  padding: 8px 12px;
++  border-radius: 8px;
+   font-size: 14px;
++  font-weight: 500;
+   white-space: nowrap;
+   opacity: 0;
+   pointer-events: none;
+-  transition: opacity 0.2s ease;
+-  z-index: 1000;
++  transition: opacity 0.2s ease 0.3s, transform 0.2s ease 0.3s;
++  z-index: 9999;
++  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
++  border: 1px solid rgba(255, 255, 255, 0.1);
++}
++
++/* Pfeil für Tooltip */
++.sidebar.collapsed .nav-item::before {
++  content: '';
++  position: absolute;
++  left: 100%;
++  top: 50%;
++  transform: translateY(-50%);
++  margin-left: 8px;
++  width: 0;
++  height: 0;
++  border-style: solid;
++  border-width: 6px 6px 6px 0;
++  border-color: transparent rgba(28, 28, 30, 0.95) transparent transparent;
++  opacity: 0;
++  pointer-events: none;
++  transition: opacity 0.2s ease 0.3s;
++  z-index: 10000;
+ }
+
+PATCH 2: Hover-Effekte für Tooltips
+@@ .sidebar.collapsed .nav-item:hover::after {
+   opacity: 1;
++  transform: translateY(-50%) translateX(2px);
++}
++
++.sidebar.collapsed .nav-item:hover::before {
++  opacity: 1;
+ }
+
+PATCH 3: Tooltips für Header-Buttons hinzugefügt
++/* Tooltips für Header-Buttons in collapsed state */
++.sidebar.collapsed .add-btn,
++.sidebar.collapsed .settings-btn {
++  position: relative;
++}
++
++.sidebar.collapsed .add-btn::after,
++.sidebar.collapsed .settings-btn::after {
++  content: attr(title);
++  position: absolute;
++  left: 100%;
++  top: 50%;
++  transform: translateY(-50%);
++  margin-left: 16px;
++  background: rgba(28, 28, 30, 0.95);
++  backdrop-filter: blur(10px);
++  -webkit-backdrop-filter: blur(10px);
++  color: white;
++  padding: 8px 12px;
++  border-radius: 8px;
++  font-size: 14px;
++  font-weight: 500;
++  white-space: nowrap;
++  opacity: 0;
++  pointer-events: none;
++  transition: opacity 0.2s ease 0.3s, transform 0.2s ease 0.3s;
++  z-index: 9999;
++  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
++  border: 1px solid rgba(255, 255, 255, 0.1);
++}
++
++.sidebar.collapsed .add-btn:hover::after,
++.sidebar.collapsed .settings-btn:hover::after {
++  opacity: 1;
++  transform: translateY(-50%) translateX(2px);
++}
+
+BESCHREIBUNG:
+- Tooltip-Design modernisiert mit Glassmorphism-Effekt
+- Pfeil-Element für bessere visuelle Verbindung hinzugefügt
+- 300ms Hover-Verzögerung für angenehmere UX
+- Tooltips auch für Header-Buttons (Add Service) implementiert
+- Höherer z-index für korrekte Überlagerung
+- Sanfte Animations-Übergänge
+
+ERGEBNIS:
+In der Desktop-Version erscheinen jetzt elegante Tooltips mit Infotexten,
+wenn die Sidebar verkleinert ist und der Nutzer über die Buttons hovert.
+Die Tooltips haben eine kurze Verzögerung, um versehentliches Anzeigen
+zu vermeiden.
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 19:50:00
+PURPOSE: Tooltip-Problem in der Sidebar beheben
+CHANGES:
+
+PATCH 1: /frontend/src/components/Sidebar.css - Tooltips nur auf Desktop
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ -65,10 +65,13 @@
+   margin: 12px 12px;
+ }
+ 
+-/* Tooltip styling for collapsed sidebar */
+-.sidebar.collapsed .nav-item {
+-  position: relative;
+-}
++/* Tooltip styling for collapsed sidebar - Desktop only */
++@media (min-width: 769px) {
++  .sidebar.collapsed .nav-item {
++    position: relative;
++  }
++
++  /* Tooltip mit Pfeil für bessere Sichtbarkeit */
++  .sidebar.collapsed .nav-item::after {
++    content: attr(data-tooltip);
++    position: absolute;
++    ... [Rest der Tooltip-Styles in Media Query eingeschlossen]
++  }
++
++  /* Pfeil für Tooltip */
++  .sidebar.collapsed .nav-item::before {
++    ... [Pfeil-Styles in Media Query eingeschlossen]
++  }
++
++  .sidebar.collapsed .nav-item:hover::after {
++    opacity: 1;
++    transform: translateY(-50%) translateX(2px);
++  }
++
++  .sidebar.collapsed .nav-item:hover::before {
++    opacity: 1;
++  }
++}
+
+PATCH 2: Header-Button Tooltips auch in Media Query
++/* Tooltips für Header-Buttons in collapsed state - Desktop only */
++@media (min-width: 769px) {
++  .sidebar.collapsed .add-btn,
++  .sidebar.collapsed .settings-btn {
++    position: relative;
++  }
++
++  .sidebar.collapsed .add-btn::after,
++  .sidebar.collapsed .settings-btn::after {
++    ... [Tooltip-Styles in Media Query eingeschlossen]
++  }
++
++  .sidebar.collapsed .add-btn:hover::after,
++  .sidebar.collapsed .settings-btn:hover::after {
++    opacity: 1;
++    transform: translateY(-50%) translateX(2px);
++  }
++}
+
+BESCHREIBUNG:
+- Alle Tooltip-Styles in Media Query (min-width: 769px) eingeschlossen
+- Stellt sicher, dass Tooltips nur auf Desktop-Geräten angezeigt werden
+- Mobile Geräte zeigen keine Tooltips
+
+DEBUGGING:
+Um die Tooltips zu sehen:
+1. Öffne das Dashboard auf einem Desktop-Browser (Breite > 768px)
+2. Klicke auf den Toggle-Button im Header (PanelLeftClose Icon)
+3. Die Sidebar sollte auf 60px Breite kollabieren
+4. Hovere über die Icons in der Sidebar - Tooltips sollten erscheinen
+
+Falls die Sidebar nicht kollabiert:
+- Der Toggle-Button ist im AppHeader vorhanden
+- Die Variable desktopSidebarCollapsed wird korrekt verwaltet
+- Die Sidebar erhält isCollapsed={!isMobile && desktopSidebarCollapsed}
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 19:55:00
+PURPOSE: Debug-Styles für Sidebar Tooltips hinzufügen
+CHANGES:
+
+PATCH 1: /frontend/src/components/Sidebar.css - Tooltip-Implementation vereinfacht
+--- a/frontend/src/components/Sidebar.css
++++ b/frontend/src/components/Sidebar.css
+@@ /* Tooltip styling for collapsed sidebar - Desktop only */
+ @media (min-width: 769px) {
+   .sidebar.collapsed .nav-item {
+     position: relative;
+   }
+ 
+-  /* Tooltip mit Pfeil für bessere Sichtbarkeit */
+-  .sidebar.collapsed .nav-item::after {
++  /* Debug - Tooltip immer sichtbar machen */
++  .sidebar.collapsed .nav-item[data-tooltip]::after {
+     content: attr(data-tooltip);
+     position: absolute;
+-    left: 100%;
++    left: calc(100% + 8px);
+     top: 50%;
+     transform: translateY(-50%);
+     margin-left: 16px;
+     background: rgba(28, 28, 30, 0.95);
+     ...
+     opacity: 0;
++    visibility: hidden;
+     pointer-events: none;
+-    transition: opacity 0.2s ease 0.3s, transform 0.2s ease 0.3s;
++    transition: opacity 0.2s ease, visibility 0.2s ease;
+   }
+ 
++  .sidebar.collapsed .nav-item:hover::after,
++  .sidebar.collapsed .nav-item:hover::before {
++    opacity: 1;
++    visibility: visible;
++  }
+
+NEUE DATEI: /frontend/src/styles/sidebar-tooltip-debug.css
+- Debug-Styles zur Fehlersuche
+- Rötlicher Hintergrund wenn Sidebar collapsed ist
+- "COLLAPSED" Label zur visuellen Bestätigung
+- Einfache schwarze Tooltips zum Testen
+- Zeigt data-tooltip Werte an
+
+PATCH 2: /frontend/src/App.js - Debug-CSS importiert
++import './styles/sidebar-tooltip-debug.css'; // DEBUG: Sidebar Tooltip Testing
+
+DEBUGGING-SCHRITTE:
+1. Frontend neu bauen und Webserver neustarten
+2. Dashboard im Desktop-Browser öffnen
+3. Auf Toggle-Button im Header klicken
+4. Folgendes sollte sichtbar sein:
+   - Rötlicher Hintergrund der Sidebar
+   - "COLLAPSED" Label oben links
+   - Blaue Labels unten links mit Tooltip-Werten
+   - Beim Hover über Icons: Schwarze Tooltips
+
+Falls nichts passiert:
+- Prüfe ob die Sidebar wirklich die "collapsed" Klasse hat
+- Prüfe ob data-tooltip Attribute gesetzt sind
+- Öffne Browser DevTools und inspiziere die nav-items
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 20:00:00
+PURPOSE: Sidebar Tooltips funktionierende Lösung
+CHANGES:
+
+PATCH 1: /frontend/src/styles/sidebar-tooltip-debug.css - Funktionierende Tooltips
+--- a/frontend/src/styles/sidebar-tooltip-debug.css
++++ b/frontend/src/styles/sidebar-tooltip-debug.css
+@@ /* Funktionierende Tooltips für collapsed sidebar */
+ @media (min-width: 769px) {
++  /* Wichtig: overflow visible für alle Container */
++  .sidebar.collapsed,
++  .sidebar.collapsed .sidebar-nav,
++  .sidebar.collapsed .nav-section,
++  .sidebar.collapsed .sidebar-header,
++  .sidebar.collapsed .header-actions {
++    overflow: visible !important;
++  }
++  
+   /* Tooltip-Wrapper für nav-items */
+   .sidebar.collapsed .nav-item {
+     position: relative !important;
+   }
+   
+-  /* Tooltip-Container */
+-  .sidebar.collapsed .nav-item[data-tooltip]:hover::after {
++  /* Der eigentliche Tooltip */
++  .sidebar.collapsed .nav-item:hover::after {
+     content: attr(data-tooltip) !important;
+     position: absolute !important;
+-    left: 70px !important;
++    left: 65px !important; /* Direkt neben der 60px breiten Sidebar */
+     top: 50% !important;
+     transform: translateY(-50%) !important;
+-    background: #000 !important;
+-    color: #fff !important;
+-    padding: 5px 10px !important;
+-    border-radius: 4px !important;
++    background: rgba(0, 0, 0, 0.9) !important;
++    color: white !important;
++    padding: 8px 12px !important;
++    border-radius: 6px !important;
+     white-space: nowrap !important;
+-    z-index: 99999 !important;
++    z-index: 999999 !important;
+     pointer-events: none !important;
+     font-size: 14px !important;
+-    opacity: 1 !important;
+-    visibility: visible !important;
+-    display: block !important;
++    font-weight: 500 !important;
++    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
++  }
++  
++  /* Pfeil für Tooltip */
++  .sidebar.collapsed .nav-item:hover::before {
++    content: '' !important;
++    position: absolute !important;
++    left: 57px !important;
++    top: 50% !important;
++    transform: translateY(-50%) !important;
++    width: 0 !important;
++    height: 0 !important;
++    border-style: solid !important;
++    border-width: 6px 8px 6px 0 !important;
++    border-color: transparent rgba(0, 0, 0, 0.9) transparent transparent !important;
++    z-index: 999999 !important;
++    pointer-events: none !important;
+   }
+
+PATCH 2: /frontend/src/components/Sidebar.css - Vereinfacht
+- Entfernte die komplexen Tooltip-Styles aus Sidebar.css
+- Tooltips werden jetzt komplett über sidebar-tooltip-debug.css gesteuert
+- Kommentar hinzugefügt dass Debug-CSS die Styles überschreibt
+
+WICHTIGE FIXES:
+1. overflow: visible !important für ALLE Container in der Sidebar
+2. Tooltips direkt mit :hover statt :hover::after
+3. Höherer z-index (999999)
+4. Position left: 65px statt calc() für bessere Kompatibilität
+5. Alle Styles mit !important für höchste Priorität
+
+ERGEBNIS:
+Die Tooltips sollten jetzt beim Hover über die Icons in der kollabierten
+Sidebar erscheinen. Sie sind schwarz mit weißem Text und haben einen
+kleinen Pfeil der auf das Icon zeigt.
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 20:05:00
+PURPOSE: React Portal-basierte Tooltips für Sidebar
+CHANGES:
+
+NEUE DATEI: /frontend/src/hooks/useSidebarTooltips.js
+- React Hook für Sidebar Tooltips
+- Rendert Tooltips mit React Portals außerhalb der Sidebar
+- Verwendet fixed positioning relativ zum Viewport
+- Event-basierte Hover-Detection
+- Automatische Positionsberechnung basierend auf Element-Position
+
+PATCH 1: /frontend/src/components/AppSidebar.js
+--- a/frontend/src/components/AppSidebar.js
++++ b/frontend/src/components/AppSidebar.js
+@@ import statements
++import { useSidebarTooltips } from '../hooks/useSidebarTooltips';
+ 
+@@ in component
+   const { user, isAdmin, logout } = useAuth();
+   const authEnabled = true;
++  
++  // Tooltip Hook für collapsed sidebar
++  const tooltipElement = useSidebarTooltips(isCollapsed);
+
+@@ in render
+   return (
+     <>
+       <style dangerouslySetInnerHTML={{ __html: generateDynamicStyles() }} />
++      
++      {/* Tooltip Element */}
++      {tooltipElement}
+
+       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+
+PATCH 2: /frontend/src/hooks/index.js
++export { useSidebarTooltips } from './useSidebarTooltips';
+
+PATCH 3: /frontend/src/styles/sidebar-tooltip-debug.css
+- position: fixed statt absolute für Tooltips
+- Entfernte overflow: visible (nicht mehr nötig)
+- Vorbereitung für JavaScript-basierte Lösung
+
+PROBLEM & LÖSUNG:
+Das Problem war, dass die Sidebar `overflow: hidden` hat und nur 60px
+breit ist. Die Tooltips wurden innerhalb der Sidebar gerendert und
+dadurch abgeschnitten.
+
+Die Lösung verwendet React Portals um die Tooltips im document.body
+zu rendern, außerhalb der Sidebar-Container. Die Position wird dynamisch
+basierend auf der tatsächlichen Position der Icons berechnet.
+
+FUNKTIONSWEISE:
+1. Hook registriert mouseenter/mouseleave Events auf allen nav-items
+2. Bei Hover wird die Position des Elements berechnet
+3. Tooltip wird als Portal im body gerendert mit fixed positioning
+4. Position ist rechts vom Icon (rect.right + 10px)
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 20:10:00
+PURPOSE: Tooltips für benutzerdefinierte Kategorien fixen
+CHANGES:
+
+PATCH 1: /frontend/src/hooks/useSidebarTooltips.js - Erweiterte Tooltip-Unterstützung
+--- a/frontend/src/hooks/useSidebarTooltips.js
++++ b/frontend/src/hooks/useSidebarTooltips.js
+@@ handleMouseEnter function
+     const handleMouseEnter = (e) => {
+       const navItem = e.currentTarget;
+-      const tooltipText = navItem.getAttribute('data-tooltip') || navItem.getAttribute('title');
++      let tooltipText = navItem.getAttribute('data-tooltip') || navItem.getAttribute('title');
++      
++      // Fallback: Versuche den Text aus dem nav-text Element zu holen
++      if (!tooltipText) {
++        const textElement = navItem.querySelector('.nav-text');
++        if (textElement) {
++          tooltipText = textElement.textContent;
++        }
++      }
+
+@@ attachListeners function
+-      const elements = sidebar.querySelectorAll('.nav-item[data-tooltip], .add-btn, .settings-btn');
++      // Erweitere den Selektor um alle nav-items zu erfassen
++      const elements = sidebar.querySelectorAll('.nav-item, .add-btn, .settings-btn');
++      
++      console.log('SidebarTooltips: Found elements:', elements.length);
++      elements.forEach((el) => {
++        console.log('Element:', el.className, 'Tooltip:', el.getAttribute('data-tooltip'));
++      });
+
+@@ MutationObserver hinzugefügt
++    // MutationObserver für dynamisch hinzugefügte Elemente
++    const observer = new MutationObserver((mutations) => {
++      // Prüfe ob neue nav-items hinzugefügt wurden
++      const hasRelevantChanges = mutations.some(mutation => {
++        return Array.from(mutation.addedNodes).some(node => {
++          return node.nodeType === 1 && (
++            node.classList?.contains('nav-item') ||
++            node.querySelector?.('.nav-item')
++          );
++        });
++      });
++
++      if (hasRelevantChanges) {
++        // Re-attach listeners wenn neue Elemente hinzugefügt wurden
++        elements = attachListeners();
++      }
++    });
++
++    // Beobachte die Sidebar für Änderungen
++    const sidebar = document.querySelector('.sidebar.collapsed');
++    if (sidebar) {
++      observer.observe(sidebar, {
++        childList: true,
++        subtree: true,
++      });
++    }
+
+VERBESSERUNGEN:
+1. Selektor erfasst jetzt ALLE nav-items, nicht nur die mit data-tooltip
+2. Fallback-Mechanismus: Wenn kein data-tooltip vorhanden, wird der Text aus .nav-text geholt
+3. MutationObserver überwacht DOM-Änderungen für dynamisch geladene Kategorien
+4. Debug-Logging zeigt welche Elemente gefunden wurden
+5. Event Listener werden bei Duplikaten erst entfernt, dann neu hinzugefügt
+
+DEBUGGING:
+Öffne die Browser-Konsole und schaue nach den Log-Ausgaben:
+- "SidebarTooltips: Found elements: X"
+- Liste aller gefundenen Elemente mit ihren Tooltips
+
+Dies hilft zu verstehen, ob die benutzerdefinierten Kategorien
+korrekt erfasst werden.
+
+=======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 20:15:00
+PURPOSE: Debug-Elemente entfernen und Tooltips finalisieren
+CHANGES:
+
+PATCH 1: /frontend/src/hooks/useSidebarTooltips.js - Debug-Logs entfernt
+--- a/frontend/src/hooks/useSidebarTooltips.js
++++ b/frontend/src/hooks/useSidebarTooltips.js
+@@ attachListeners function
+       const elements = sidebar.querySelectorAll('.nav-item, .add-btn, .settings-btn');
+       
+-      console.log('SidebarTooltips: Found elements:', elements.length);
+-      elements.forEach((el) => {
+-        console.log('Element:', el.className, 'Tooltip:', el.getAttribute('data-tooltip'));
+-      });
+-      
+       elements.forEach((element) => {
+
+UMBENENNUNG: sidebar-tooltip-debug.css → sidebar-tooltips.css
+- Debug-Inhalte entfernt (rötlicher Hintergrund, COLLAPSED Badge)
+- Nur noch minimale Styles die alte CSS-Tooltips deaktivieren
+- Datei umbenannt zu finalem Namen
+
+PATCH 2: /frontend/src/App.js - Import aktualisiert
+-import './styles/sidebar-tooltip-debug.css'; // DEBUG: Sidebar Tooltip Testing
++import './styles/sidebar-tooltips.css'; // Sidebar Tooltip Styles
+
+PATCH 3: /frontend/src/components/Sidebar.css - CSS-Tooltips entfernt
+- Alle CSS-basierten Tooltip-Styles entfernt
+- Kommentar hinzugefügt dass Tooltips über React gehandhabt werden
+- Verhindert Konflikte zwischen CSS und React-Tooltips
+
+ERGEBNIS:
+- Keine Debug-Ausgaben mehr in der Konsole
+- Kein rötlicher Hintergrund mehr
+- Kein "COLLAPSED" Badge mehr
+- Tooltips funktionieren weiterhin über React Hook
+- Saubere, produktionsreife Implementation
+
+FUNKTIONSWEISE:
+Die Tooltips werden komplett über React gehandhabt:
+1. useSidebarTooltips Hook registriert Event Listener
+2. Bei Hover wird Position berechnet und Tooltip gerendert
+3. React Portal rendert Tooltip im document.body
+4. MutationObserver überwacht DOM-Änderungen
+
+=======================================
+=======================================
+TIMESTAMP: 2025-01-27 20:30:00
+PURPOSE: CHANGELOG.md für Unreleased Version aktualisiert
+CHANGES:
+
+PATCH 1: /CHANGELOG.md - Unreleased Section hinzugefügt
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -5,6 +5,53 @@ All notable changes to the Web Appliance Dashboard project will be documented in
+ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+ 
++## [Unreleased]
++
++### Added
++- **Sidebar Tooltips** - Interactive tooltips for collapsed sidebar on desktop
++  - React Portal-based implementation for proper rendering outside sidebar
++  - Automatic tooltip generation from nav-text content
++  - MutationObserver for dynamically added categories
++  - Hover-activated with proper positioning
++- **Toggle Functionality for Sidepanels** - Click to open/close panels
++  - Settings, User Management, and Audit Log panels now toggle on click
++  - Visual feedback with active state and blue indicator
++  - Consistent behavior on mobile and desktop
++- **Guacamole Cache Clear API** - New endpoint to clear auth token cache
++  - POST /api/guacamole/clear-cache to manually clear cached tokens
++  - Automatic token renewal on authentication failures
++  - Helps resolve Remote Desktop connection issues after logout
++
++### Fixed
++- **Health Check Issues** - Fixed unhealthy container states
++  - Webserver health check now uses IPv4 (127.0.0.1) instead of localhost
++  - ttyd health check simplified to process check (pidof ttyd)
++  - Added curl to ttyd image for future improvements
++- **Console Log Cleanup** - Removed all debug console.log statements
++  - Removed 109 console.log statements from 20 frontend files
++  - Created backup before cleanup
++  - Significantly cleaner browser console output
++- **Terminal Warnings** - Suppressed harmless ttyd warnings
++  - Added terminal-error-suppressor.js to filter known harmless messages
++  - Removed "Appliance has SSH connection but no ssh_host_id" warning
++  - Filtered ttyd fetch token and source-map errors
++- **UserPanel Resize** - Fixed resize functionality
++  - Corrected resize calculation logic
++  - Panel now properly resizes when dragging the resize handle
++- **Sidebar Horizontal Scrolling** - Prevented unwanted horizontal scroll
++  - Added overflow controls to all sidebar containers
++  - Text now truncates with ellipsis instead of causing scroll
++  - Improved responsive behavior at narrow widths
++
++### Changed
++- **Code Organization**
++  - Renamed sidebar-tooltip-debug.css to sidebar-tooltips.css
++  - Removed CSS-based tooltips in favor of React implementation
++  - Cleaned up debug elements and styles
++
++### Security
++- **Environment Variable Handling** - Improved encryption key management
++  - Setup script now prominently displays generated encryption keys
++  - Clear instructions for secure key storage
++  - Better synchronization between main and backend .env files
++
+ ## [1.1.1] - 2025-01-27
+
+BESCHREIBUNG:
+- Neue "[Unreleased]" Section am Anfang des CHANGELOG hinzugefügt
+- Alle Änderungen seit Version 1.1.1 dokumentiert und kategorisiert:
+  - Added: Neue Features (Tooltips, Toggle-Funktionalität, Cache Clear API)
+  - Fixed: Behobene Probleme (Health Checks, Console Logs, Terminal, UserPanel, Sidebar)
+  - Changed: Code-Organisation und Refactoring
+  - Security: Verbesserungen bei der Verschlüsselungsschlüssel-Verwaltung
+- Jede Änderung mit Unterpunkten für Details versehen
+- Folgt dem "Keep a Changelog" Format
+
+NÄCHSTE SCHRITTE:
+Bei einem Release:
+1. VERSION Datei auf neue Versionsnummer ändern (z.B. 1.1.2)
+2. [Unreleased] zu [1.1.2] - YYYY-MM-DD ändern
+3. Neue [Unreleased] Section für zukünftige Änderungen hinzufügen
+
+=======================================

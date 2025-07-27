@@ -1,0 +1,75 @@
+/* Patch for SettingsPanel unified theme scrolling behavior */
+
+/* Fix for SwipeableViews scrolling in mobile mode */
+@media (max-width: 768px) {
+  /* Remove double scrolling in SwipeableViews */
+  .MuiBox-root[role="tabpanel"] {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Ensure SwipeableViews container handles scrolling properly */
+  .react-swipeable-view-container {
+    height: 100% !important;
+  }
+  
+  /* Each slide should be scrollable */
+  .react-swipeable-view-container > div {
+    height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Prevent nested scrolling in SSH tab */
+  .react-swipeable-view-container .mobile-ssh-manager.embedded {
+    height: auto !important;
+  }
+  
+  .react-swipeable-view-container .mobile-ssh-manager.embedded .mobile-ssh-content {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Settings Panel container adjustments for mobile */
+  .MuiBox-root[style*="width"][style*="height"] {
+    height: 100vh !important;
+  }
+  
+  /* Touch drag styles for categories */
+  .MuiListItem-root.touch-dragging {
+    opacity: 0.5 !important;
+    transform: scale(0.95) !important;
+    transition: none !important;
+    z-index: 999 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  .MuiListItem-root.touch-drop-target {
+    border-color: var(--primary-color) !important;
+    background-color: rgba(0, 122, 255, 0.15) !important;
+    transform: scale(0.98) !important;
+  }
+  
+  /* Prevent text selection during drag */
+  body.touch-dragging * {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+  }
+  
+  /* Drag handle specific styles */
+  .drag-handle {
+    padding: 8px;
+    margin: -8px;
+    touch-action: none;
+  }
+}
+
+/* Desktop mode - keep existing behavior */
+@media (min-width: 769px) {
+  .MuiBox-root[role="tabpanel"] {
+    height: 100%;
+    overflow: auto;
+  }
+}

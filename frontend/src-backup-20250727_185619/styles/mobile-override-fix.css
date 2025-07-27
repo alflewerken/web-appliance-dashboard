@@ -1,0 +1,130 @@
+/* Override any conflicting styles that might cause empty space on mobile */
+
+/* Ensure mobile headers stack properly */
+@media (max-width: 768px) {
+  /* Mobile app structure */
+  .music-app.mobile-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: -webkit-fill-available;
+    overflow: hidden;
+  }
+
+  /* Headers container */
+  .mobile-header,
+  .mobile-search-header {
+    position: relative !important;
+    flex-shrink: 0;
+    width: 100%;
+    z-index: 100;
+  }
+
+  /* Main content fills remaining space */
+  .mobile-layout .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Content body fills its container */
+  .mobile-layout .content-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative !important;
+    top: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0;
+  }
+
+  /* Swipeable content fills content body */
+  .content-body .swipeable-content {
+    height: 100%;
+    overflow: hidden;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Category wrapper fills height */
+  .content-body .category-content-wrapper {
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Remove any background pseudo elements that might interfere */
+  .content-body::before,
+  .content-body::after,
+  .swipeable-content::before,
+  .swipeable-content::after,
+  .category-content-wrapper::before,
+  .category-content-wrapper::after {
+    display: none !important;
+  }
+
+  /* Ensure no margins on first elements */
+  .content-section:first-child,
+  .content-section:first-child h2,
+  .category-slide > :first-child,
+  .category-content > :first-child {
+    margin-top: 0 !important;
+    padding-top: 16px !important;
+  }
+
+  /* Background image specific fixes */
+  .has-background-image .content-body {
+    background: transparent !important;
+  }
+
+  /* Debug - remove any potential overlay elements */
+  .content-body > div:empty,
+  .swipeable-content > div:empty,
+  .category-content-wrapper > div:empty {
+    display: none !important;
+  }
+}
+
+/* High priority overrides */
+@media (max-width: 768px) {
+  .mobile-layout .main-content {
+    padding-top: 0 !important;
+  }
+
+  .mobile-layout .content-body {
+    position: relative !important;
+    top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Force removal of any fixed positioning */
+  .mobile-header,
+  .mobile-search-header,
+  .content-body {
+    position: relative !important;
+  }
+}
+
+/* iOS specific overrides */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    .mobile-layout .content-body {
+      /* Use safe area insets properly */
+      padding-top: 0 !important;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    /* Ensure headers don't create gaps */
+    .mobile-header + .mobile-search-header {
+      margin-top: 0 !important;
+    }
+
+    .mobile-search-header + .main-content {
+      margin-top: 0 !important;
+    }
+  }
+}

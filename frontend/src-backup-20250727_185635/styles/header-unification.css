@@ -1,0 +1,134 @@
+/* Header Height Unification - Match Panel Headers */
+
+/* Main content header - same height as panel headers */
+.content-header {
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  /* Glassmorphism effect matching side panels */
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Ensure header controls are vertically centered */
+.header-controls {
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* All child elements should be vertically centered */
+.header-controls > * {
+  display: flex;
+  align-items: center;
+}
+
+/* Search container alignment */
+.search-container {
+  position: relative;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+/* Ensure search input is properly aligned */
+.search-input {
+  height: 36px !important;
+  line-height: 36px;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0;
+  vertical-align: middle;
+}
+
+/* Fix search icon position */
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+}
+
+/* Size control alignment */
+.size-control {
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+/* Status toggle alignment */
+.status-toggle-control {
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+/* Grid icon alignment */
+.size-control > svg:first-child {
+  align-self: center;
+}
+
+/* Slider wrapper alignment */
+.size-slider {
+  align-self: center;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .content-header {
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 20px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .content-header {
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 16px !important;
+  }
+}
+
+/* Ensure content body starts right after header */
+.content-body {
+  margin-top: 0;
+  padding-top: 24px;
+}
+
+/* Light mode adjustments */
+body.theme-light .content-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  /* EXACT same glassmorphism as sidebar */
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+/* Fix for input elements vertical alignment */
+.header-controls input[type="text"],
+.header-controls input[type="search"] {
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: normal !important;
+  vertical-align: middle !important;
+}
+
+/* Ensure all flex children are centered */
+.header-controls > div {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+/* Remove any default margins that might affect alignment */
+.header-controls * {
+  margin-top: 0;
+  margin-bottom: 0;
+}

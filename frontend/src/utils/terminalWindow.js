@@ -19,7 +19,7 @@ export const openTerminalInNewWindow = async (terminalData = {}) => {
       hostId: terminalData.hostId
     }).then(result => {
       if (result.success) {
-        console.log('Terminal opened with ID:', result.id);
+
       } else {
         console.error('Failed to open terminal:', result.error);
         alert('Fehler beim Öffnen des Terminals: ' + result.error);
@@ -45,8 +45,7 @@ export const openTerminalInNewWindow = async (terminalData = {}) => {
       }
       
       const response = await axios.post('/api/ssh/terminal-session', sessionData);
-      console.log('Terminal session created for new window:', response.data);
-      
+
       // Wait a bit for session file to be written
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
@@ -86,16 +85,7 @@ export const openTerminalInNewWindow = async (terminalData = {}) => {
   if (params.toString()) {
     terminalUrl += '?' + params.toString();
   }
-  
-  console.log('Terminal URL construction (v1.1):', {
-    protocol: protocol,
-    hostname: hostname,
-    port: port,
-    fullUrl: terminalUrl,
-    windowLocationHref: window.location.href,
-    timestamp: new Date().toISOString()
-  });
-  
+
   // Öffne das Terminal in einem neuen Tab/Fenster
   try {
     // Verwende window.open mit expliziten Fenster-Features für ein neues Fenster
@@ -103,7 +93,7 @@ export const openTerminalInNewWindow = async (terminalData = {}) => {
     const newWindow = window.open(terminalUrl, '_blank', windowFeatures);
     
     if (newWindow) {
-      console.log('Terminal window opened successfully:', terminalUrl);
+
       newWindow.focus();
       return newWindow;
     } else {
@@ -131,8 +121,7 @@ export const openTerminalInNewWindow = async (terminalData = {}) => {
           document.body.removeChild(link);
         }
       }, 100);
-      
-      console.log('Terminal opened via link click:', terminalUrl);
+
     }
   } catch (error) {
     console.error('Error opening terminal window:', error);

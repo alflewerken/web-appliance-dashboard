@@ -1,0 +1,17 @@
+/* Finale Sidebar Tooltip Styles */
+
+/* Überschreibt die Standard-Styles aus Sidebar.css für bessere Kontrolle */
+@media (min-width: 769px) {
+  /* Stelle sicher, dass Tooltips nicht von der Sidebar abgeschnitten werden */
+  .sidebar.collapsed .nav-item {
+    position: relative !important;
+  }
+  
+  /* Cleanup: Entferne die alten ::after und ::before pseudo-elements */
+  .sidebar.collapsed .nav-item::after,
+  .sidebar.collapsed .nav-item::before,
+  .sidebar.collapsed .add-btn::after,
+  .sidebar.collapsed .settings-btn::after {
+    display: none !important;
+  }
+}

@@ -5,6 +5,56 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Sidebar Tooltips** - Interactive tooltips for collapsed sidebar on desktop
+  - React Portal-based implementation for proper rendering outside sidebar
+  - Automatic tooltip generation from nav-text content
+  - MutationObserver for dynamically added categories
+  - Hover-activated with proper positioning
+- **Toggle Functionality for Sidepanels** - Click to open/close panels
+  - Settings, User Management, and Audit Log panels now toggle on click
+  - Visual feedback with active state and blue indicator
+  - Consistent behavior on mobile and desktop
+- **Guacamole Cache Clear API** - New endpoint to clear auth token cache
+  - POST /api/guacamole/clear-cache to manually clear cached tokens
+  - Automatic token renewal on authentication failures
+  - Helps resolve Remote Desktop connection issues after logout
+
+### Fixed
+- **Health Check Issues** - Fixed unhealthy container states
+  - Webserver health check now uses IPv4 (127.0.0.1) instead of localhost
+  - ttyd health check simplified to process check (pidof ttyd)
+  - Added curl to ttyd image for future improvements
+- **Console Log Cleanup** - Removed all debug console.log statements
+  - Removed 109 console.log statements from 20 frontend files
+  - Created backup before cleanup
+  - Significantly cleaner browser console output
+- **Terminal Warnings** - Suppressed harmless ttyd warnings
+  - Added terminal-error-suppressor.js to filter known harmless messages
+  - Removed "Appliance has SSH connection but no ssh_host_id" warning
+  - Filtered ttyd fetch token and source-map errors
+- **UserPanel Resize** - Fixed resize functionality
+  - Corrected resize calculation logic
+  - Panel now properly resizes when dragging the resize handle
+- **Sidebar Horizontal Scrolling** - Prevented unwanted horizontal scroll
+  - Added overflow controls to all sidebar containers
+  - Text now truncates with ellipsis instead of causing scroll
+  - Improved responsive behavior at narrow widths
+
+### Changed
+- **Code Organization**
+  - Renamed sidebar-tooltip-debug.css to sidebar-tooltips.css
+  - Removed CSS-based tooltips in favor of React implementation
+  - Cleaned up debug elements and styles
+
+### Security
+- **Environment Variable Handling** - Improved encryption key management
+  - Setup script now prominently displays generated encryption keys
+  - Clear instructions for secure key storage
+  - Better synchronization between main and backend .env files
+
 ## [1.1.1] - 2025-01-27
 
 ### Added

@@ -48,10 +48,7 @@ export class ApplianceService {
         
         // Debug logging für Nextcloud
         if (app.name && app.name.includes('Nextcloud')) {
-          console.log(`[ApplianceService] Mapping ${app.name}:`, {
-            input: { remoteDesktopEnabled: app.remoteDesktopEnabled, remoteProtocol: app.remoteProtocol },
-            output: { vncEnabled: enhanced.vncEnabled, rdpEnabled: enhanced.rdpEnabled }
-          });
+
         }
         
         return enhanced;

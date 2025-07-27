@@ -1,0 +1,880 @@
+.ssh-file-upload-container {
+  margin: 20px 0;
+}
+
+.ssh-file-upload-dropzone {
+  border: 2px dashed var(--border-primary);
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: var(--bg-secondary);
+  position: relative;
+  overflow: hidden;
+}
+
+.ssh-file-upload-dropzone.dragging {
+  border-color: var(--primary-color);
+  background: var(--primary-color-alpha);
+  transform: scale(1.02);
+}
+
+.ssh-file-upload-dropzone.uploading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.ssh-file-input {
+  display: none;
+}
+
+.ssh-file-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.ssh-file-label:hover {
+  color: var(--primary-color);
+}
+
+.upload-text {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.upload-info {
+  font-size: 12px;
+  opacity: 0.7;
+  font-family: monospace;
+}
+
+.upload-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-primary);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.upload-status {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.upload-status.success {
+  background: var(--success-bg);
+  color: var(--success-color);
+  border: 1px solid var(--success-border);
+}
+
+.upload-status.error {
+  background: var(--error-bg);
+  color: var(--error-color);
+  border: 1px solid var(--error-border);
+}
+
+.status-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.status-close:hover {
+  opacity: 1;
+}
+
+.ssh-file-upload-disabled {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+}
+
+/* Upload Area Styles */
+.upload-area {
+  margin-top: 24px;
+  border: 2px dashed var(--upload-border, #d1d5da);
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--upload-bg, #fafbfc);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-area::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    transparent 0%, 
+    rgba(3, 102, 214, 0.03) 50%, 
+    transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.upload-area:hover {
+  border-color: var(--primary-color, #0366d6);
+  background: var(--upload-hover-bg, #f6f8fa);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.upload-area:hover::before {
+  opacity: 1;
+}
+
+.upload-area.dragging {
+  border-color: var(--primary-color, #0366d6);
+  background: var(--upload-drag-bg, #e7f3ff);
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(3, 102, 214, 0.15);
+}
+
+.upload-area.uploading {
+  pointer-events: none;
+  background: var(--upload-active-bg, #f6f8fa);
+}
+
+.upload-area svg {
+  color: var(--upload-icon-color, #959da5);
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.upload-area:hover svg {
+  color: var(--primary-color, #0366d6);
+  transform: translateY(-4px);
+}
+
+.upload-area p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary, #24292e);
+}
+
+.upload-target {
+  margin-top: 8px !important;
+  font-size: 13px;
+  color: var(--text-secondary, #586069);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Password prompt styles */
+.password-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.password-prompt {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.password-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.password-prompt-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.password-prompt p {
+  margin-bottom: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.password-prompt input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.password-prompt input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.password-prompt-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.password-prompt-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.password-prompt-buttons button[type="button"] {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.password-prompt-buttons button[type="button"]:hover {
+  background: var(--button-hover-bg);
+}
+
+.password-prompt-buttons button[type="submit"] {
+  background: var(--primary-color);
+  color: white;
+}
+
+.password-prompt-buttons button[type="submit"]:hover {
+  opacity: 0.9;
+}
+/* Upload progress styles */
+.upload-progress-info {
+  margin-top: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.upload-filename {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.upload-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--progress-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  background: var(--primary-color);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.2) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: progress-stripes 1s linear infinite;
+}
+
+@keyframes progress-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 0;
+  }
+}
+
+.upload-progress-text {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  font-family: monospace;
+}
+
+/* Progress bar color variables */
+:root {
+  --progress-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  --progress-bg: rgba(255, 255, 255, 0.1);
+}
+
+/* Adjust label spacing when showing progress */
+.ssh-file-label.uploading {
+  gap: 16px;
+}
+/* Updated progress details styling */
+.upload-progress-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.upload-progress-phase {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Different progress bar colors for different phases */
+.upload-progress-fill {
+  background: var(--primary-color);
+}
+
+.upload-progress-fill[data-phase="transferring"] {
+  background: var(--success-color) !important;
+  animation: progress-stripes 1s linear infinite, pulse 2s ease-in-out infinite;
+}
+
+/* Pulsing animation for transfer phase */
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.8;
+  }
+}
+
+.upload-progress-fill[data-phase="transferring"] {
+  animation: progress-stripes 1s linear infinite, pulse 2s ease-in-out infinite;
+}
+
+/* New phase-specific styles */
+.progress-fill.uploading {
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+}
+
+.progress-fill.transferring {
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  animation: progress-stripes 1s linear infinite, pulse 1.5s ease-in-out infinite;
+}
+
+.progress-fill.verifying {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+  animation: progress-stripes 0.5s linear infinite, pulse 1s ease-in-out infinite;
+}
+
+.progress-fill.complete {
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  animation: none;
+}
+
+/* Phase message styling */
+.phase-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 8px 0;
+  font-style: italic;
+}
+
+/* CSS Variables for theming */
+:root {
+  --success-bg: rgba(76, 175, 80, 0.1);
+  --success-color: #4CAF50;
+  --success-border: rgba(76, 175, 80, 0.3);
+  --error-bg: rgba(244, 67, 54, 0.1);
+  --error-color: #F44336;
+  --error-border: rgba(244, 67, 54, 0.3);
+  --primary-color: #0366d6;
+  --primary-color-alpha: rgba(3, 102, 214, 0.1);
+  --text-primary: #24292e;
+  --text-secondary: #586069;
+  --upload-border: #d1d5da;
+  --upload-bg: #fafbfc;
+  --upload-hover-bg: #f6f8fa;
+  --upload-drag-bg: #e7f3ff;
+  --upload-active-bg: #f6f8fa;
+  --upload-icon-color: #959da5;
+  --progress-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --success-bg: rgba(76, 175, 80, 0.15);
+    --error-bg: rgba(244, 67, 54, 0.15);
+    --primary-color: #58a6ff;
+    --text-primary: #f0f6fc;
+    --text-secondary: #8b949e;
+    --upload-border: #30363d;
+    --upload-bg: #0d1117;
+    --upload-hover-bg: #161b22;
+    --upload-drag-bg: #161b22;
+    --upload-active-bg: #161b22;
+    --upload-icon-color: #6e7681;
+    --progress-bg: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Spinner Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Make sure the modal is properly styled */
+.ssh-file-upload-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Ensure the upload area is clickable */
+.upload-area {
+  position: relative;
+}
+
+.upload-area input[type="file"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+/* SSH File Upload Modal Styles */
+.ssh-file-upload-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.ssh-file-upload-modal {
+  background: #2a2a2a;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  min-width: 500px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssh-file-upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ssh-file-upload-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.ssh-file-upload-close {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.ssh-file-upload-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ssh-file-upload-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ssh-file-upload-info {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #cccccc;
+}
+
+.ssh-file-upload-info strong {
+  color: #ffffff;
+  margin-right: 8px;
+}
+
+/* Update dropzone styles for dark theme */
+.ssh-file-upload-dropzone {
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 60px 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.02);
+  position: relative;
+  overflow: hidden;
+}
+
+.ssh-file-upload-dropzone.dragging {
+  border-color: #007AFF;
+  background: rgba(0, 122, 255, 0.1);
+  transform: scale(1.02);
+}
+
+.ssh-file-upload-dropzone.uploading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.ssh-file-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  color: #999999;
+}
+
+.ssh-file-label:hover {
+  color: #ffffff;
+}
+
+.ssh-file-label svg {
+  transition: transform 0.2s;
+}
+
+.ssh-file-label:hover svg {
+  transform: scale(1.1);
+}
+
+.upload-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.upload-info {
+  font-size: 14px;
+  opacity: 0.7;
+  color: #999999;
+}
+
+/* Progress styles */
+.upload-progress {
+  text-align: center;
+  color: #ffffff;
+}
+
+.upload-spinner {
+  animation: spin 1s linear infinite;
+  color: #007AFF;
+  margin: 0 auto 16px;
+}
+
+.phase-message {
+  font-size: 14px;
+  color: #999999;
+  margin: 8px 0 20px;
+}
+
+.file-progress {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #cccccc;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #007AFF;
+  transition: width 0.3s ease;
+}
+
+.progress-size {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #999999;
+}
+
+/* Status message styles */
+.upload-status {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  position: relative;
+}
+
+.upload-status.success {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.upload-status.error {
+  background: rgba(244, 67, 54, 0.2);
+  color: #F44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.upload-status.warning {
+  background: rgba(255, 152, 0, 0.2);
+  color: #FF9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.close-status {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.close-status:hover {
+  opacity: 1;
+}
+
+/* Password prompt styles */
+.password-prompt {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.password-prompt label {
+  display: block;
+  color: #ffffff;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.password-prompt input {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.password-prompt input:focus {
+  outline: none;
+  border-color: #007AFF;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.password-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.password-actions button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.password-actions button[type="submit"] {
+  background: #007AFF;
+  color: #ffffff;
+}
+
+.password-actions button[type="submit"]:hover {
+  background: #0056D3;
+}
+
+.password-actions button[type="button"] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cccccc;
+}
+
+.password-actions button[type="button"]:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+/* Target Path Input Styles */
+.ssh-file-upload-target-path {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ssh-file-upload-target-path label {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ssh-file-upload-target-path input {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 14px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+}
+
+.ssh-file-upload-target-path input:focus {
+  outline: none;
+  border-color: #007AFF;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.ssh-file-upload-target-path input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ssh-file-upload-target-path input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.ssh-file-upload-host-info {
+  color: #999999;
+  font-size: 14px;
+  white-space: nowrap;
+}

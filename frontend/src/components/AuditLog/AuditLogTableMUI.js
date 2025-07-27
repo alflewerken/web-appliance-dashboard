@@ -461,9 +461,6 @@ const AuditLogTableMUI = ({
     const restoreInfo = canRestore(log);
     if (!restoreInfo.canRestore) return;
 
-    console.log('Starting restore for log:', log);
-    console.log('Restore info:', restoreInfo);
-
     // Get resource name for confirmation
     let resourceName = '';
     if (log.details) {
@@ -482,7 +479,7 @@ const AuditLogTableMUI = ({
       : `Möchten Sie diesen Eintrag wirklich ${actionText}?`;
 
     if (!window.confirm(confirmMessage)) {
-      console.log('Restore cancelled by user');
+
       return;
     }
 
@@ -512,12 +509,9 @@ const AuditLogTableMUI = ({
             : `/api/audit-restore/revert/ssh_hosts/${log.id}`;
         }
 
-        console.log('Calling endpoint:', endpoint);
-        
         // Add new name to request body if provided
         const requestData = newName ? { newName } : {};
         const response = await axios.post(endpoint, requestData);
-        console.log('Response:', response);
 
         if (response.data.success) {
           setRestoreResults(prev => ({
@@ -776,7 +770,7 @@ const AuditLogTableMUI = ({
                   startIcon={restoringLogs.has(log.id) ? <CircularProgress size={16} /> : <RotateCcw size={16} />}
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('Restore button clicked for log:', log.id);
+
                     handleRestore(log);
                   }}
                   disabled={restoringLogs.has(log.id)}
@@ -995,7 +989,7 @@ const AuditLogTableMUI = ({
                       transition: 'background-color 0.2s ease',
                     }}
                     onClick={() => {
-                      console.log('Row clicked, toggling expand for log:', log.id);
+
                       onToggleExpand(log.id);
                     }}
                   >

@@ -99,14 +99,6 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   const terminalUrl = `/terminal/${params.toString() ? '?' + params.toString() : ''}`;
   
   // Debug-Ausgabe
-  console.log('TTYDTerminal Debug:', {
-    terminalUrl,
-    params: params.toString(),
-    sshData,
-    appliance,
-    host,
-    hostId
-  });
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -131,8 +123,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
         }
         
         const response = await axios.post('/api/ssh/terminal-session', sessionData);
-        console.log('Terminal session created for new window:', response.data);
-        
+
         // Wait for session file to be written
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
@@ -211,7 +202,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
               background: '#000'
             }}
             onLoad={(e) => {
-              console.log('Terminal iframe loaded:', e.target.src);
+
             }}
             onError={(e) => {
               console.error('Terminal iframe error:', e);

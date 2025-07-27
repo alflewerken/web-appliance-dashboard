@@ -287,14 +287,13 @@ const AuditLog = ({ onClose }) => {
       .map(eventName => {
         try {
           const unsubscribe = addEventListener(eventName, data => {
-            console.log(`📨 AuditLog: Received ${eventName} event:`, data);
 
             // Special handling for user activation/deactivation
             if (
               eventName === 'user_activated' ||
               eventName === 'user_deactivated'
             ) {
-              console.log(`👤 ${eventName}: User status changed`);
+
             }
 
             // Use shorter delay for better UX but still ensure DB write is complete
@@ -307,9 +306,7 @@ const AuditLog = ({ onClose }) => {
               : 1000;
 
             setTimeout(() => {
-              console.log(
-                `♻️ AuditLog: Refreshing logs after ${eventName} event`
-              );
+
               // Call fetchAuditLogs through the ref
               if (fetchAuditLogsRef.current) {
                 fetchAuditLogsRef.current();
@@ -326,7 +323,6 @@ const AuditLog = ({ onClose }) => {
             return null;
           }
 
-          console.log(`✅ AuditLog: Listener registered for ${eventName}`);
           return unsubscribe;
         } catch (error) {
           console.error(

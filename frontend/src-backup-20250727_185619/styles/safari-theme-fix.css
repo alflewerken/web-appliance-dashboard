@@ -1,0 +1,140 @@
+/* iOS Safari Theme Color Fixes */
+
+/* Force black theme color for Safari bars without affecting background images */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific */
+  :root {
+    --safari-theme-color: #000000;
+  }
+
+  /* Remove forced backgrounds - let background image show through */
+  html {
+    /* No background color here - let it be transparent */
+    background-color: transparent;
+  }
+
+  body {
+    /* No background color here - let background image show */
+    background-color: transparent;
+  }
+
+  /* Main app containers should be transparent to show background */
+  #root,
+  .music-app,
+  .main-content,
+  .content-body {
+    background-color: transparent !important;
+    background: transparent !important;
+  }
+
+  /* Mobile header should be semi-transparent dark */
+  .mobile-header {
+    background: rgba(42, 42, 46, 0.85) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  }
+
+  /* Ensure search header is also semi-transparent dark */
+  .mobile-search-header {
+    background: rgba(42, 42, 46, 0.85) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  }
+
+  /* Terminal modal overlay should be transparent */
+  .terminal-modal-overlay {
+    background: transparent !important;
+  }
+
+  .terminal-modal {
+    background: #1a1a1a !important;
+  }
+
+  /* Settings modal */
+  .modal-overlay {
+    background: transparent !important;
+  }
+
+  .modal,
+  .settings-modal {
+    background: #1c1c1e !important;
+  }
+}
+
+/* PWA Specific - When launched from home screen */
+@media (display-mode: standalone) {
+  /* Don't force black background - let background image show */
+  body {
+    background-color: transparent;
+  }
+
+  /* Status bar area - make it black for the bar color */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top);
+    background-color: #000000;
+    z-index: 9999;
+    pointer-events: none;
+  }
+}
+
+/* Dark mode consistency */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+
+  /* Don't force backgrounds - let them be transparent */
+  html,
+  body {
+    background-color: transparent;
+  }
+}
+
+/* Landscape mode */
+@media (orientation: landscape) and (-webkit-touch-callout: none) {
+  html,
+  body {
+    background-color: transparent;
+  }
+}
+
+/* Notch and home indicator areas */
+.ios-safari {
+  /* Safe areas without forcing background */
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Semi-transparent headers for iOS Safari */
+.ios-safari .mobile-header,
+.ios-safari .content-header {
+  background-color: rgba(42, 42, 46, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+/* Modal headers remain solid */
+.ios-safari .modal-header {
+  background-color: rgba(28, 28, 30, 0.95) !important;
+}
+
+/* Background image container should have black fallback */
+.background-image {
+  /* Fallback color if no image is loaded */
+  background-color: #000000;
+}
+
+/* Ensure the app has a black base but allows transparency */
+.music-app:not(.theme-light .music-app):not(.theme-dark .music-app):not(
+    .theme-auto .music-app
+  ) {
+  /* Base black color only when no theme is applied */
+  background-color: #000000;
+}

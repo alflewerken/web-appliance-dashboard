@@ -101,7 +101,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
 
     const unsubscribers = userEvents.map(eventType =>
       addEventListener(eventType, data => {
-        console.log(`[UserPanel] Received SSE event: ${eventType}`, data);
+
         debouncedFetchUsers();
       })
     );
@@ -131,6 +131,11 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     startWidth.current = panelWidth;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+    
+    // Add visual feedback
+    if (panelRef.current) {
+      panelRef.current.style.transition = 'none';
+    }
   }, [panelWidth]);
 
   useEffect(() => {
@@ -149,6 +154,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         setIsResizing(false);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        
+        // Restore transition
+        if (panelRef.current) {
+          panelRef.current.style.transition = '';
+        }
+        
         localStorage.setItem('userPanelWidth', panelWidth.toString());
         if (onWidthChange) {
           onWidthChange(panelWidth);
@@ -826,27 +837,48 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           position: 'absolute',
           left: 0,
           top: 0,
-          width: '4px',
+          width: '8px',
           height: '100%',
           cursor: 'col-resize',
           display: { xs: 'none', sm: 'flex' },
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: 'transparent',
-          transition: 'background-color 0.2s',
+          transition: 'all 0.2s',
+          zIndex: 10,
           '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'rgba(0, 122, 255, 0.3)',
+            width: '10px',
           },
           '&:active': {
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            backgroundColor: 'rgba(0, 122, 255, 0.5)',
+            width: '10px',
+          },
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '2px',
+            height: '40px',
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            borderRadius: '1px',
+            transition: 'all 0.2s',
+          },
+          '&:hover::before': {
+            backgroundColor: 'rgba(255, 255, 255, 0.5)',
+            height: '60px',
           },
         }}
       >
         <GripVertical
           size={16}
           style={{
-            color: 'rgba(255, 255, 255, 0.3)',
-            marginLeft: '-8px',
+            color: 'rgba(255, 255, 255, 0.5)',
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
           }}
         />
       </Box>

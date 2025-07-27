@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { getCategoryCount } from '../utils/applianceUtils';
 import { useAuth } from '../contexts/AuthContext';
+import { useSidebarTooltips } from '../hooks/useSidebarTooltips';
 import './Sidebar.css';
 
 const AppSidebar = ({
@@ -21,6 +22,9 @@ const AppSidebar = ({
   setShowSettingsModal,
   setShowUserManagement,
   setShowAuditLog,
+  showSettingsModal = false,
+  showUserManagement = false,
+  showAuditLog = false,
   isOpen = true,
   onClose,
   isMobile = false,
@@ -28,6 +32,9 @@ const AppSidebar = ({
 }) => {
   const { user, isAdmin, logout } = useAuth();
   const authEnabled = true; // Auth ist immer aktiviert in dieser Version
+  
+  // Tooltip Hook für collapsed sidebar
+  const tooltipElement = useSidebarTooltips(isCollapsed);
 
   /**
    * Convert hex color to RGB values
@@ -71,7 +78,29 @@ const AppSidebar = ({
       })
       .join('\n');
 
-    return styles;
+    // Zusätzliche Styles für Settings/Users/Audit
+    const additionalStyles = `
+      .nav-item[data-category="users"].active {
+        background: rgba(0, 122, 255, 0.15) !important;
+      }
+      .nav-item[data-category="users"].active .nav-item-indicator {
+        background-color: #007AFF !important;
+      }
+      .nav-item[data-category="settings"].active {
+        background: rgba(0, 122, 255, 0.15) !important;
+      }
+      .nav-item[data-category="settings"].active .nav-item-indicator {
+        background-color: #007AFF !important;
+      }
+      .nav-item[data-category="audit"].active {
+        background: rgba(0, 122, 255, 0.15) !important;
+      }
+      .nav-item[data-category="audit"].active .nav-item-indicator {
+        background-color: #007AFF !important;
+      }
+    `;
+
+    return styles + additionalStyles;
   };
 
   const handleCategorySelect = categoryId => {
@@ -90,9 +119,10 @@ const AppSidebar = ({
     }
   };
 
-  const handleSettingsOpen = () => {
+  const handleSettingsOpen = (e) => {
+    if (e) e.stopPropagation();
     if (setShowSettingsModal) {
-      setShowSettingsModal(true);
+      setShowSettingsModal(prev => !prev);
     } else {
       console.error('setShowSettingsModal is not defined!');
     }
@@ -102,16 +132,18 @@ const AppSidebar = ({
     }
   };
 
-  const handleUserManagementOpen = () => {
-    setShowUserManagement(true);
+  const handleUserManagementOpen = (e) => {
+    if (e) e.stopPropagation();
+    setShowUserManagement(prev => !prev);
     // Auto-close sidebar on mobile after action
     if (isMobile && onClose) {
       onClose();
     }
   };
 
-  const handleAuditLogOpen = () => {
-    setShowAuditLog(true);
+  const handleAuditLogOpen = (e) => {
+    if (e) e.stopPropagation();
+    setShowAuditLog(prev => !prev);
     // Auto-close sidebar on mobile after action
     if (isMobile && onClose) {
       onClose();
@@ -213,11 +245,13 @@ const AppSidebar = ({
             >
               {authEnabled && (
                 <div
-                  className="nav-item"
+                  className={`nav-item ${showUserManagement ? 'active' : ''}`}
                   onClick={handleUserManagementOpen}
                   title="Benutzerverwaltung"
                   data-tooltip="Benutzer"
+                  data-category="users"
                 >
+                  {showUserManagement && <div className="nav-item-indicator" />}
                   <div className="nav-icon-container" data-category="users">
                     <Users size={20} />
                   </div>
@@ -225,11 +259,13 @@ const AppSidebar = ({
                 </div>
               )}
               <div
-                className="nav-item"
+                className={`nav-item ${showSettingsModal ? 'active' : ''}`}
                 onClick={handleSettingsOpen}
                 title="Einstellungen"
                 data-tooltip="Einstellungen"
+                data-category="settings"
               >
+                {showSettingsModal && <div className="nav-item-indicator" />}
                 <div className="nav-icon-container" data-category="settings">
                   <Sliders size={20} />
                 </div>
@@ -237,11 +273,13 @@ const AppSidebar = ({
               </div>
               {authEnabled && isAdmin && (
                 <div
-                  className="nav-item"
+                  className={`nav-item ${showAuditLog ? 'active' : ''}`}
                   onClick={handleAuditLogOpen}
                   title="Audit Log"
                   data-tooltip="Audit Log"
+                  data-category="audit"
                 >
+                  {showAuditLog && <div className="nav-item-indicator" />}
                   <div className="nav-icon-container" data-category="audit">
                     <FileText size={20} />
                   </div>
@@ -276,6 +314,9 @@ const AppSidebar = ({
     <>
       {/* Dynamic Styles */}
       <style dangerouslySetInnerHTML={{ __html: generateDynamicStyles() }} />
+      
+      {/* Tooltip Element */}
+      {tooltipElement}
 
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
@@ -349,11 +390,13 @@ const AppSidebar = ({
           >
             {authEnabled && (
               <div
-                className="nav-item"
+                className={`nav-item ${showUserManagement ? 'active' : ''}`}
                 onClick={handleUserManagementOpen}
                 title="Benutzerverwaltung"
                 data-tooltip="Benutzer"
+                data-category="users"
               >
+                {showUserManagement && <div className="nav-item-indicator" />}
                 <div className="nav-icon-container" data-category="users">
                   <Users size={20} />
                 </div>
@@ -361,11 +404,13 @@ const AppSidebar = ({
               </div>
             )}
             <div
-              className="nav-item"
+              className={`nav-item ${showSettingsModal ? 'active' : ''}`}
               onClick={handleSettingsOpen}
               title="Einstellungen"
               data-tooltip="Einstellungen"
+              data-category="settings"
             >
+              {showSettingsModal && <div className="nav-item-indicator" />}
               <div className="nav-icon-container" data-category="settings">
                 <Sliders size={20} />
               </div>
@@ -373,11 +418,13 @@ const AppSidebar = ({
             </div>
             {authEnabled && isAdmin && (
               <div
-                className="nav-item"
+                className={`nav-item ${showAuditLog ? 'active' : ''}`}
                 onClick={handleAuditLogOpen}
                 title="Audit Log"
                 data-tooltip="Audit Log"
+                data-category="audit"
               >
+                {showAuditLog && <div className="nav-item-indicator" />}
                 <div className="nav-icon-container" data-category="audit">
                   <FileText size={20} />
                 </div>

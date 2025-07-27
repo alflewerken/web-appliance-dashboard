@@ -291,31 +291,31 @@ const SettingsPanel = ({
     if (addEventListener && visibleTabs[tabValue]?.key === 'categories') {
       const unsubscribers = [
         addEventListener('category_created', (data) => {
-          console.log('Category created event received:', data);
+
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
         addEventListener('category_updated', (data) => {
-          console.log('Category updated event received:', data);
+
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
         addEventListener('category_deleted', (data) => {
-          console.log('Category deleted event received:', data);
+
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
         addEventListener('category_restored', (data) => {
-          console.log('Category restored event received:', data);
+
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
         addEventListener('category_reverted', (data) => {
-          console.log('Category reverted event received:', data);
+
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
@@ -335,7 +335,7 @@ const SettingsPanel = ({
     if (addEventListener) {
       const unsubscribers = [
         addEventListener('setting_update', (data) => {
-          console.log('Setting update event received:', data);
+
           // Update local state if current tab is affected
           if (data.key && generalSettings.hasOwnProperty(data.key)) {
             setGeneralSettings(prev => ({ ...prev, [data.key]: data.value }));
@@ -349,7 +349,7 @@ const SettingsPanel = ({
           }
         }),
         addEventListener('settings_bulk_update', (data) => {
-          console.log('Settings bulk update event received:', data);
+
           // Update all settings that match
           const newGeneralSettings = { ...generalSettings };
           const newSystemSettings = { ...systemSettings };
@@ -636,7 +636,7 @@ const SettingsPanel = ({
 
   // Touch event handlers for mobile drag & drop
   const handleTouchStart = (e, index) => {
-    console.log('Touch start on category:', index);
+
     e.stopPropagation(); // Prevent event bubbling
     
     const touch = e.touches?.[0] || e; // Handle both touch and pointer events

@@ -9,7 +9,7 @@ class ProxyTokenManager {
         if (token) {
             // Setze Cookie mit SameSite=Lax für Cross-Origin-Requests
             document.cookie = `token=${token}; path=/; SameSite=Lax`;
-            console.log('[ProxyTokenManager] Auth cookie gesetzt');
+
             return true;
         }
         console.warn('[ProxyTokenManager] Kein Token im localStorage gefunden');
@@ -21,7 +21,7 @@ class ProxyTokenManager {
      */
     static removeAuthCookie() {
         document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        console.log('[ProxyTokenManager] Auth cookie entfernt');
+
     }
     
     /**

@@ -1,0 +1,42 @@
+/* Global CSS Variables */
+:root {
+  /* Primary Colors */
+  --bg-primary: #1c1c1e;
+  --text-primary: #ffffff;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #636366;
+  --accent-primary: #007aff;
+  --border-color: rgba(255, 255, 255, 0.1);
+
+  /* Component Colors */
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --modal-bg: #2c2c2e;
+  --input-bg: rgba(255, 255, 255, 0.05);
+
+  /* Container Colors for Dark Mode */
+  --container-bg: rgba(0, 0, 0, 0.3);  /* Dunkler im Dark Mode */
+  --container-border: rgba(255, 255, 255, 0.08);
+  --container-bg-hover: rgba(0, 0, 0, 0.4);
+
+  /* Status Colors */
+  --success: #34c759;
+  --warning: #ff9500;
+  --error: #ff3b30;
+}
+
+/* Light Theme Override */
+body.theme-light {
+  --bg-primary: #f2f2f7;
+  --text-primary: #000000;
+  --text-secondary: #6c6c70;
+  --text-tertiary: #8e8e93;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --card-bg: rgba(0, 0, 0, 0.05);
+  --modal-bg: #ffffff;
+  --input-bg: rgba(0, 0, 0, 0.05);
+  
+  /* Container Colors for Light Mode */
+  --container-bg: rgba(255, 255, 255, 0.7);  /* Heller im Light Mode */
+  --container-border: rgba(0, 0, 0, 0.1);
+  --container-bg-hover: rgba(255, 255, 255, 0.8);
+}

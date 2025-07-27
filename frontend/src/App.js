@@ -80,6 +80,7 @@ import './styles/modal-theme-support.css'; // Modal Theme Support für Dark/Ligh
 import './styles/settings-panel-clean.css'; // SAUBERER Fix für Settings Panel
 import './components/terminal-light-mode.css'; // Terminal Light Mode Styles
 import './styles/fixes/header-light-mode-fix.css'; // Fix für transparenten Header im Light Mode
+import './styles/sidebar-tooltips.css'; // Sidebar Tooltip Styles
 
 // Dashboard Component - Only rendered when authenticated
 function Dashboard() {
@@ -287,8 +288,7 @@ function Dashboard() {
 
   // Make handleTerminalOpen available globally for SSH Manager
   const handleTerminalOpen = useCallback(async (target) => {
-    console.log('handleTerminalOpen called with:', target);
-    
+
     // Check if it's an SSH host or an appliance
     if (target.hostname && target.username) {
       // It's an SSH host
@@ -298,8 +298,7 @@ function Dashboard() {
         const response = await axios.post('/api/ssh/terminal-session', {
           hostId: target.id
         });
-        console.log('Terminal session created:', response.data);
-        
+
         // Add a small delay to ensure the session file is written
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
@@ -327,7 +326,7 @@ function Dashboard() {
           isOpen: true,
           isSSH: true,
         };
-        console.log('Creating SSH terminal:', sshTerminal);
+
         setActiveTerminals(prev => [...prev, sshTerminal]);
       }
     } else {
@@ -341,9 +340,9 @@ function Dashboard() {
         // Parse SSH connection string (e.g., "alflewerken@mac:22")
         const match = target.sshConnection.match(/^(.+)@(.+):(\d+)$/);
         if (match) {
-          console.log('Parsed SSH connection:', { user: match[1], host: match[2], port: match[3] });
+
           // For now, we can't create a session without a host ID
-          console.warn('Appliance has SSH connection but no ssh_host_id');
+          // console.warn('Appliance has SSH connection but no ssh_host_id');
         }
       }
       
@@ -353,8 +352,7 @@ function Dashboard() {
           const response = await axios.post('/api/ssh/terminal-session', {
             hostId: sshHostId
           });
-          console.log('Terminal session created for appliance:', response.data);
-          
+
           // Add a small delay to ensure the session file is written
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch (error) {
@@ -366,15 +364,14 @@ function Dashboard() {
           const response = await axios.post('/api/ssh/terminal-session', {
             sshConnection: target.sshConnection
           });
-          console.log('Terminal session created from SSH connection:', response.data);
-          
+
           // Add a small delay to ensure the session file is written
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch (error) {
           console.error('Failed to create terminal session:', error);
         }
       } else {
-        console.log('No SSH host ID or connection found for appliance, opening terminal without session');
+
       }
       
       const existingTerminal = activeTerminals.find(
@@ -512,9 +509,7 @@ function Dashboard() {
           cat => cat.id === data.id
         )?.name;
         if (deletedCategoryName && selectedCategory === deletedCategoryName) {
-          console.log(
-            '📡 App.js - Currently selected category was deleted, switching to "all"'
-          );
+
           setSelectedCategory('all');
         }
       }
@@ -633,19 +628,19 @@ function Dashboard() {
     if (addEventListener) {
       const unsubscribers = [
         addEventListener('category_created', (data) => {
-          console.log('Category created event received:', data);
+
           handleCategoriesUpdate();
         }),
         addEventListener('category_updated', (data) => {
-          console.log('Category updated event received:', data);
+
           handleCategoriesUpdate();
         }),
         addEventListener('category_deleted', (data) => {
-          console.log('Category deleted event received:', data);
+
           handleCategoriesUpdate();
         }),
         addEventListener('category_restored', (data) => {
-          console.log('Category restored event received:', data);
+
           handleCategoriesUpdate();
         }),
       ];
@@ -663,19 +658,19 @@ function Dashboard() {
     if (addEventListener) {
       const unsubscribers = [
         addEventListener('appliance_created', (data) => {
-          console.log('Appliance created event received:', data);
+
           fetchAppliances();
         }),
         addEventListener('appliance_updated', (data) => {
-          console.log('Appliance updated event received:', data);
+
           fetchAppliances();
         }),
         addEventListener('appliance_deleted', (data) => {
-          console.log('Appliance deleted event received:', data);
+
           fetchAppliances();
         }),
         addEventListener('appliance_restored', (data) => {
-          console.log('Appliance restored event received:', data);
+
           fetchAppliances();
         }),
       ];
@@ -729,12 +724,7 @@ function Dashboard() {
   };
 
   const startEdit = (appliance, initialTab = 'service') => {
-    console.log(
-      'startEdit called for appliance:',
-      appliance,
-      'with tab:',
-      initialTab
-    );
+
     // Öffne das ServicePanel statt des Modals
     setSelectedServiceForPanel({ ...appliance, initialTab });
     setShowServicePanel(true);
@@ -757,8 +747,7 @@ function Dashboard() {
   };
 
   const startService = async appliance => {
-    console.log('[DEBUG] startService called for:', appliance?.name, 'at', new Date().toISOString());
-    
+
     if (!appliance || !appliance.startCommand) {
       console.error('startService called with invalid appliance:', appliance);
       return;
@@ -770,7 +759,7 @@ function Dashboard() {
     const now = Date.now();
     
     if (lastCall && (now - lastCall) < 1000) {
-      console.log('[DEBUG] Ignoring duplicate start call within 1 second');
+
       return;
     }
     
@@ -790,9 +779,9 @@ function Dashboard() {
         let result;
         try {
           result = await response.json();
-          console.log('Service started successfully:', result);
+
         } catch (jsonError) {
-          console.log('Service started successfully (no JSON response)');
+
         }
 
         // Show success message
@@ -839,9 +828,9 @@ function Dashboard() {
         let result;
         try {
           result = await response.json();
-          console.log('Service stopped successfully:', result);
+
         } catch (jsonError) {
-          console.log('Service stopped successfully (no JSON response)');
+
         }
 
         // Show success message
@@ -872,17 +861,13 @@ function Dashboard() {
     try {
       // Status updates are handled by SSE events in useAppliances hook
       // This function is kept for compatibility but doesn't need to do anything
-      console.log(`Service status update: ${applianceId} -> ${newStatus}`);
+
     } catch (error) {
       console.error('Error updating service status:', error);
     }
   };
 
   const handleUpdateCardSettings = async (applianceId, settings) => {
-    console.log('handleUpdateCardSettings called with:', {
-      applianceId,
-      settings,
-    });
 
     try {
       // Build update data - only send the fields that were provided
@@ -896,18 +881,14 @@ function Dashboard() {
         updateData.transparency = settings.transparency;
       if (settings.blur !== undefined) updateData.blur = settings.blur;
 
-      console.log('Sending to patchAppliance:', updateData);
-
       const success = await ApplianceService.patchAppliance(
         applianceId,
         updateData
       );
 
-      console.log('patchAppliance result:', success);
-
       if (success) {
         // Success - the useAppliances hook will update the state via SSE
-        console.log('Card settings updated successfully');
+
       } else {
         // Error
         console.error('Failed to update card settings');
@@ -953,7 +934,6 @@ function Dashboard() {
 
         if (!response.ok) throw new Error('Failed to reorder categories');
 
-        console.log('Categories reordered successfully');
         await handleCategoriesUpdate();
       } catch (error) {
         console.error('Error reordering categories:', error);
@@ -1096,6 +1076,9 @@ function Dashboard() {
           setShowSettingsModal={setShowSettingsModal}
           setShowUserManagement={setShowUserManagement}
           setShowAuditLog={setShowAuditLog}
+          showSettingsModal={showSettingsModal}
+          showUserManagement={showUserManagement}
+          showAuditLog={showAuditLog}
           isOpen={isMobile ? sidebarOpen : true}
           onClose={() => setSidebarOpen(false)}
           isMobile={isMobile}

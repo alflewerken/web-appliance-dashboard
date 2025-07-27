@@ -133,7 +133,7 @@ export class BackupService {
         timeout: 300000, // 5 Minuten Timeout für große Backups
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log(`Upload Progress: ${percentCompleted}%`);
+
         }
       });
       const result = restoreResponse.data;

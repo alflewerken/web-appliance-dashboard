@@ -36,7 +36,7 @@ const TerminalModal = ({ show, onHide, appliance = null, title = 'Terminal' }) =
 
   const handleIframeLoad = () => {
     setIsConnecting(false);
-    console.log('[Terminal] Connected to:', appliance.name);
+
   };
 
   const handleIframeError = (e) => {

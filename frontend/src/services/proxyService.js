@@ -19,16 +19,14 @@ class ProxyService {
         
         // Token hinzufügen für Authentifizierung
         const token = localStorage.getItem('token');
-        console.log('[ProxyService.getProxyUrl] Token:', token ? 'vorhanden' : 'FEHLT!');
-        
+
         if (token) {
             const separator = baseUrl.includes('?') ? '&' : '?';
             const finalUrl = `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
-            console.log('[ProxyService.getProxyUrl] URL mit Token:', finalUrl);
+
             return finalUrl;
         }
-        
-        console.log('[ProxyService.getProxyUrl] URL ohne Token:', baseUrl);
+
         return baseUrl;
     }
     
@@ -201,13 +199,7 @@ class ProxyService {
         
         // Debug-Ausgaben
         const token = localStorage.getItem('token');
-        console.log('[ProxyService] Opening appliance:', {
-            appliance,
-            path,
-            token: token ? 'Token vorhanden' : 'KEIN TOKEN!',
-            isExternal: this.isExternalService(appliance)
-        });
-        
+
         // Wenn es ein externer Service ist, direkt öffnen
         if (this.isExternalService(appliance)) {
             if (appliance.url) {
@@ -221,8 +213,7 @@ class ProxyService {
             // getProxyUrl fügt bereits den Token hinzu
             targetUrl = this.getProxyUrl(appliance.id, path);
         }
-        
-        console.log('[ProxyService] Final URL:', targetUrl);
+
         window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
     

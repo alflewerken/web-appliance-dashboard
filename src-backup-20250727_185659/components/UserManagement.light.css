@@ -1,0 +1,75 @@
+/* Light mode specific styles for UserManagement */
+
+/* User cards in light mode - make them much darker */
+.light-mode .MuiCard-root {
+  background-color: rgba(0, 0, 0, 0.25) !important; /* Much darker background */
+  border: 1px solid rgba(0, 0, 0, 0.3) !important; /* Darker border */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important; /* Stronger shadow */
+}
+
+/* Alternative darker style with slight blue tint */
+.light-mode .user-management-container .MuiCard-root {
+  background-color: rgba(30, 40, 50, 0.3) !important; /* Slight blue-gray tint */
+}
+
+/* Chips in light mode - make them more visible */
+.light-mode .MuiChip-root {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.light-mode .MuiChip-colorDefault {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.light-mode .MuiChip-colorPrimary {
+  background-color: #1976d2;
+  color: #ffffff;
+}
+
+.light-mode .MuiChip-colorSuccess {
+  background-color: #2e7d32;
+  color: #ffffff;
+}
+
+.light-mode .MuiChip-colorInfo {
+  background-color: #0288d1;
+  color: #ffffff;
+}
+
+.light-mode .MuiChip-colorWarning {
+  background-color: #ed6c02;
+  color: #ffffff;
+}
+
+.light-mode .MuiChip-colorError {
+  background-color: #d32f2f;
+  color: #ffffff;
+}
+
+/* Text colors in light mode */
+.light-mode .user-management-container {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Ensure text visibility in light mode cards */
+.light-mode .MuiCard-root .MuiTypography-h6 {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+.light-mode .MuiCard-root .MuiTypography-body2 {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+
+.light-mode .MuiCard-root .MuiTypography-caption {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* IconButton colors in light mode */
+.light-mode .MuiIconButton-root {
+  color: rgba(0, 0, 0, 0.54);
+}
+
+.light-mode .MuiIconButton-root:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}

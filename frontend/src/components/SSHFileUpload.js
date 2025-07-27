@@ -32,10 +32,6 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
     try {
       const results = [];
 
-      console.log('📤 Starting upload process');
-      console.log('SSH Host:', sshHost);
-      console.log('Target Path:', targetPath);
-      
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setCurrentFile(file.name);
@@ -46,9 +42,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
         formData.append('targetPath', currentTargetPath);
         
         // Debug: Log the actual targetPath being sent
-        console.log('🎯 Target path being sent:', currentTargetPath);
-        console.log('🎯 FormData targetPath:', formData.get('targetPath'));
-        
+
         if (password) {
           formData.append('password', password);
         }
@@ -86,8 +80,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
               if (line.startsWith('data: ')) {
                 try {
                   const data = JSON.parse(line.substring(6));
-                  console.log('📊 Progress update:', data);
-                  
+
                   if (data.phase && data.progress !== undefined) {
                     setUploadProgress(prev => ({
                       ...prev,

@@ -708,8 +708,7 @@ const ServicePanel = ({
 
   // Debug logging
   useEffect(() => {
-    console.log('Active Tab Index:', activeTabIndex);
-    console.log('Active Tab Name:', getTabFromIndex(activeTabIndex));
+
   }, [activeTabIndex]);
 
   return (

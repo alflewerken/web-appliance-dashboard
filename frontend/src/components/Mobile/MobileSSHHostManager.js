@@ -149,7 +149,7 @@ const MobileSSHHostManager = ({ onBack, onTerminalOpen, embedded }) => {
     if (onTerminalOpen) {
       onTerminalOpen(host);
     } else {
-      console.log('Connecting to:', host);
+
     }
   };
 
@@ -181,7 +181,7 @@ const MobileSSHHostManager = ({ onBack, onTerminalOpen, embedded }) => {
 
   const handleDiagnose = (host) => {
     // TODO: Diagnose-Funktion implementieren
-    console.log('Diagnosing:', host);
+
     alert('Diagnose-Funktion wird noch implementiert');
   };
 

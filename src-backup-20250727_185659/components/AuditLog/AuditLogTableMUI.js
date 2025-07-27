@@ -1,0 +1,1054 @@
+import React, { useState } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Collapse,
+  Box,
+  Typography,
+  Chip,
+  useTheme,
+  alpha,
+  Stack,
+  Button,
+  Tooltip,
+  Divider,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Code,
+  RefreshCw,
+  History,
+  User,
+  FileText,
+  Shield,
+  Terminal,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Server,
+  Key,
+  Database,
+  Globe,
+  Hash,
+  Layers,
+  RotateCcw,
+} from 'lucide-react';
+import SSHAuditDetailMUI from './SSHAuditDetailMUI';
+import axios from '../../utils/axiosConfig';
+
+const AuditLogTableMUI = ({
+  logs,
+  expandedRows,
+  onToggleExpand,
+  formatTimestamp,
+  formatActionName,
+  getActionIcon,
+  getActionColor,
+}) => {
+  const theme = useTheme();
+  const [viewModes, setViewModes] = useState({});
+  const [containerWidth, setContainerWidth] = useState(0);
+  const containerRef = React.useRef(null);
+  const [restoringLogs, setRestoringLogs] = useState(new Set());
+  const [restoreResults, setRestoreResults] = useState({});
+  
+  // Common header cell styles
+  const headerCellStyle = {
+    backgroundColor: theme.palette.mode === 'dark'
+      ? 'rgba(50, 50, 60, 0.2)'
+      : 'rgba(200, 200, 210, 0.4)',
+    borderBottom: `1px solid ${theme.palette.mode === 'dark' 
+      ? 'rgba(255, 255, 255, 0.08)' 
+      : 'rgba(0, 0, 0, 0.08)'}`,
+    color: 'text.secondary',
+    fontWeight: 600,
+  };
+
+  // Monitor container width
+  React.useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateWidth);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  // Switch to widget view when width < 600px
+  const useWidgetView = containerWidth < 600;
+
+  // Toggle between JSON and formatted view
+  const toggleViewMode = (logId) => {
+    setViewModes(prev => ({
+      ...prev,
+      [logId]: prev[logId] === 'formatted' ? 'json' : 'formatted',
+    }));
+  };
+
+  // Get row background color based on action
+  const getRowBackgroundColor = (action) => {
+    // Base background for all rows
+    const baseBackground = theme.palette.mode === 'dark'
+      ? 'rgba(60, 60, 70, 0.12)'  // Slightly darker than the card
+      : 'rgba(220, 220, 225, 0.4)';
+      
+    // Gelöschte Aktionen - Rot
+    if (action.includes('delete') || action.includes('gelöscht')) {
+      return theme.palette.mode === 'dark'
+        ? alpha(theme.palette.error.main, 0.2)
+        : alpha(theme.palette.error.light, 0.15);
+    }
+    // Erstellte Aktionen - Grün
+    if (action.includes('create') || action.includes('erstellt')) {
+      return theme.palette.mode === 'dark'
+        ? alpha(theme.palette.success.main, 0.2)
+        : alpha(theme.palette.success.light, 0.15);
+    }
+    // Fehlgeschlagene Aktionen - Rot/Orange
+    if (action.includes('failed') || action.includes('fehlgeschlagen')) {
+      return theme.palette.mode === 'dark'
+        ? alpha(theme.palette.error.main, 0.15)
+        : alpha(theme.palette.error.light, 0.1);
+    }
+    // Update Aktionen - Blau
+    if (action.includes('update') || action.includes('aktualisiert')) {
+      return theme.palette.mode === 'dark'
+        ? alpha(theme.palette.info.main, 0.15)
+        : alpha(theme.palette.info.light, 0.1);
+    }
+    
+    // Standard - return base background
+    return baseBackground;
+  };
+
+  // Format field names
+  const formatFieldName = (key) => {
+    const translations = {
+      name: 'Name',
+      appliance_name: 'Service Name',
+      service_name: 'Service Name',
+      command: 'Befehl',
+      command_description: 'Befehlsbeschreibung',
+      username: 'Benutzername',
+      created_by: 'Erstellt von',
+      deleted_by: 'Gelöscht von',
+      updated_by: 'Aktualisiert von',
+      executed_on: 'Ausgeführt auf',
+      ssh_host: 'SSH Host',
+      ip_address: 'IP-Adresse',
+      created_at: 'Erstellt am',
+      timestamp: 'Zeitstempel',
+      error: 'Fehler',
+      success: 'Erfolgreich',
+      failed: 'Fehlgeschlagen',
+      category: 'Kategorie',
+      url: 'URL',
+      key_name: 'Schlüsselname',
+      backup_version: 'Backup Version',
+      output_length: 'Ausgabelänge',
+      exit_code: 'Exit Code',
+      role: 'Rolle',
+      is_active: 'Status',
+      email: 'E-Mail',
+      password: 'Passwort',
+    };
+
+    return translations[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Format values
+  const formatValue = (key, value) => {
+    if (key === 'role') {
+      const roleMap = {
+        admin: 'Administrator',
+        user: 'Benutzer',
+      };
+      return roleMap[value] || value;
+    }
+
+    if (key === 'is_active') {
+      return value === 1 || value === true ? 'Aktiv' : 'Inaktiv';
+    }
+
+    if (key === 'password' || key === 'password_hash') {
+      return '••••••••';
+    }
+
+    if (key.includes('_at') || key === 'timestamp') {
+      return new Date(value).toLocaleString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+
+    if (key === 'output_length') {
+      return `${value.toLocaleString('de-DE')} Zeichen`;
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'Ja' : 'Nein';
+    }
+
+    if (key === 'exit_code') {
+      return value === 0 ? '0 (Erfolgreich)' : `${value} (Fehler)`;
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      return JSON.stringify(value, null, 2);
+    }
+
+    return value || '-';
+  };
+
+  // Get detail icon
+  const getDetailIcon = (key) => {
+    const iconMap = {
+      name: FileText,
+      appliance_name: Server,
+      service_name: Server,
+      command: Terminal,
+      username: User,
+      created_by: User,
+      deleted_by: User,
+      updated_by: User,
+      executed_on: Server,
+      ssh_host: Server,
+      ip_address: Globe,
+      created_at: Clock,
+      timestamp: Clock,
+      error: AlertTriangle,
+      success: CheckCircle,
+      failed: XCircle,
+      category: Layers,
+      url: Globe,
+      key_name: Key,
+      backup_version: Database,
+      output_length: Hash,
+      exit_code: Hash,
+    };
+
+    return iconMap[key] || FileText;
+  };
+
+  // Format resource type for display
+  const formatResourceType = (resourceType) => {
+    const typeMap = {
+      'appliances': 'Service',
+      'appliance': 'Service',
+      'categories': 'Kategorie',
+      'category': 'Kategorie',
+      'users': 'Benutzer',
+      'user': 'Benutzer',
+      'ssh_host': 'SSH-Host',
+      'ssh_hosts': 'SSH-Host',
+      'ssh_key': 'SSH-Schlüssel',
+      'ssh_keys': 'SSH-Schlüssel',
+      'command': 'Befehl',
+      'backup': 'Backup',
+      'restore': 'Wiederherstellung'
+    };
+    
+    return typeMap[resourceType] || resourceType || '-';
+  };
+
+  // Parse resource name from details
+  const getResourceName = (log) => {
+    if (!log.details) return null;
+    
+    try {
+      const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+      
+      // For command executions, prioritize showing service name with command description
+      if (log.action === 'command_execute' || log.action === 'command_execute_failed') {
+        const serviceName = details.appliance_name || '';
+        const commandName = details.name || details.command_description || '';
+        if (serviceName && commandName) {
+          return `${serviceName}: ${commandName}`;
+        } else if (serviceName) {
+          return serviceName;
+        }
+      }
+      
+      // Appliance/Service specific handling
+      if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+        // Check for service object (used in create operations)
+        if (details.service && details.service.name) {
+          return details.service.name;
+        }
+        // Check for appliance object (used in delete operations)
+        if (details.appliance && details.appliance.name) {
+          return details.appliance.name;
+        }
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.name) {
+          return details.old_data.name;
+        }
+        if (details.new_data && details.new_data.name) {
+          return details.new_data.name;
+        }
+        // Check for direct appliance_name field (used in access logs)
+        if (details.appliance_name) {
+          return details.appliance_name;
+        }
+        return details.name || null;
+      }
+      
+      // SSH Host specific handling
+      if (log.resource_type === 'ssh_host') {
+        // Check for nested deleted_host object (used in delete operations)
+        if (details.deleted_host && details.deleted_host.hostname) {
+          return details.deleted_host.hostname;
+        }
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.hostname) {
+          return details.old_data.hostname;
+        }
+        if (details.new_data && details.new_data.hostname) {
+          return details.new_data.hostname;
+        }
+        return details.hostname || details.ssh_host || details.host || null;
+      }
+      
+      // Category specific handling
+      if (log.resource_type === 'categories' || log.resource_type === 'category') {
+        // Check for nested category object (used in delete operations)
+        if (details.category && details.category.name) {
+          return details.category.name;
+        }
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.name) {
+          return details.old_data.name;
+        }
+        if (details.new_data && details.new_data.name) {
+          return details.new_data.name;
+        }
+        return details.category_name || details.name || null;
+      }
+      
+      // User specific handling
+      if (log.resource_type === 'users' || log.resource_type === 'user') {
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.username) {
+          return details.old_data.username;
+        }
+        if (details.new_data && details.new_data.username) {
+          return details.new_data.username;
+        }
+        // Check for user object
+        if (details.user && details.user.username) {
+          return details.user.username;
+        }
+        return details.username || details.name || null;
+      }
+      
+      // Service/Appliance specific handling
+      if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.name) {
+          return details.old_data.name;
+        }
+        if (details.new_data && details.new_data.name) {
+          return details.new_data.name;
+        }
+        // Check for service object
+        if (details.service && details.service.name) {
+          return details.service.name;
+        }
+        if (details.appliance && details.appliance.name) {
+          return details.appliance.name;
+        }
+        return details.name || details.service_name || details.appliance_name || null;
+      }
+      
+      // SSH Key specific handling
+      if (log.resource_type === 'ssh_key') {
+        return details.key_name || details.name || null;
+      }
+      
+      // For restore operations, check restored_* fields
+      if (log.action.includes('restore')) {
+        const restoredName = details.restored_name || details.restored_hostname || details.restored_username || 
+                           details.restored_service_name || details.restored_appliance_name || details.name;
+        if (restoredName) return restoredName;
+      }
+      
+      // For delete operations, check deleted_* fields
+      if (log.action.includes('delete')) {
+        const deletedName = details.deleted_name || details.deleted_hostname || details.deleted_username || 
+                          details.deleted_service_name || details.deleted_appliance_name || details.name;
+        if (deletedName) return deletedName;
+      }
+      
+      // Check for nested data structures
+      const nestedObjects = ['old_data', 'new_data', 'deleted_host', 'category', 'service', 'appliance', 'user'];
+      for (const objName of nestedObjects) {
+        if (details[objName] && typeof details[objName] === 'object') {
+          const name = details[objName].name || details[objName].hostname || details[objName].username || 
+                      details[objName].service_name || details[objName].appliance_name || details[objName].category_name;
+          if (name) return name;
+        }
+      }
+      
+      // Generic fallback - check all common name fields
+      return details.name || details.service_name || details.appliance_name || details.hostname || 
+             details.username || details.key_name || details.category_name || null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Check if log can be restored
+  const canRestore = (log) => {
+    // Deleted actions
+    if (log.action === 'appliance_delete' || log.action === 'appliance_deleted') {
+      return { canRestore: true, type: 'restore', resourceType: 'appliances' };
+    }
+    if (log.action === 'category_deleted') {
+      return { canRestore: true, type: 'restore', resourceType: 'categories' };
+    }
+    if (log.action === 'user_delete' || log.action === 'user_deleted') {
+      return { canRestore: true, type: 'restore', resourceType: 'users' };
+    }
+    if (log.action === 'ssh_host_deleted') {
+      return { canRestore: true, type: 'restore', resourceType: 'ssh_hosts' };
+    }
+
+    // Updated actions
+    if (log.action === 'appliance_update' || log.action === 'appliance_updated') {
+      return { canRestore: true, type: 'revert', resourceType: 'appliances' };
+    }
+    if (log.action === 'category_updated') {
+      return { canRestore: true, type: 'revert', resourceType: 'categories' };
+    }
+    if (log.action === 'user_update' || log.action === 'user_updated') {
+      return { canRestore: true, type: 'revert', resourceType: 'users' };
+    }
+    if (log.action === 'ssh_host_updated') {
+      return { canRestore: true, type: 'revert', resourceType: 'ssh_hosts' };
+    }
+
+    return { canRestore: false };
+  };
+
+  // Handle restore
+  const handleRestore = async (log) => {
+    const restoreInfo = canRestore(log);
+    if (!restoreInfo.canRestore) return;
+
+    console.log('Starting restore for log:', log);
+    console.log('Restore info:', restoreInfo);
+
+    // Get resource name for confirmation
+    let resourceName = '';
+    if (log.details) {
+      try {
+        const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+        const resource = details.appliance || details.service || details.category || details.user || details.ssh_host || {};
+        resourceName = resource.name || resource.service_name || resource.appliance_name || resource.username || '';
+      } catch (e) {
+        console.error('Error parsing details for name:', e);
+      }
+    }
+
+    const actionText = restoreInfo.type === 'restore' ? 'wiederherstellen' : 'auf Original zurücksetzen';
+    const confirmMessage = resourceName 
+      ? `Möchten Sie "${resourceName}" wirklich ${actionText}?`
+      : `Möchten Sie diesen Eintrag wirklich ${actionText}?`;
+
+    if (!window.confirm(confirmMessage)) {
+      console.log('Restore cancelled by user');
+      return;
+    }
+
+    setRestoringLogs(prev => new Set(prev).add(log.id));
+    setRestoreResults(prev => ({ ...prev, [log.id]: null }));
+
+    const attemptRestore = async (newName = null) => {
+      try {
+        let endpoint = '';
+        
+        // Map resource types to endpoints
+        if (restoreInfo.resourceType === 'appliances') {
+          endpoint = restoreInfo.type === 'restore' 
+            ? `/api/audit-restore/restore/appliances/${log.id}`
+            : `/api/audit-restore/revert/appliances/${log.id}`;
+        } else if (restoreInfo.resourceType === 'categories') {
+          endpoint = restoreInfo.type === 'restore'
+            ? `/api/audit-restore/restore/category/${log.id}`
+            : `/api/audit-restore/revert/category/${log.id}`;
+        } else if (restoreInfo.resourceType === 'users') {
+          endpoint = restoreInfo.type === 'restore'
+            ? `/api/audit-restore/restore/user/${log.id}`
+            : `/api/audit-restore/revert/user/${log.id}`;
+        } else if (restoreInfo.resourceType === 'ssh_hosts') {
+          endpoint = restoreInfo.type === 'restore'
+            ? `/api/audit-restore/restore/ssh_hosts/${log.id}`
+            : `/api/audit-restore/revert/ssh_hosts/${log.id}`;
+        }
+
+        console.log('Calling endpoint:', endpoint);
+        
+        // Add new name to request body if provided
+        const requestData = newName ? { newName } : {};
+        const response = await axios.post(endpoint, requestData);
+        console.log('Response:', response);
+
+        if (response.data.success) {
+          setRestoreResults(prev => ({
+            ...prev,
+            [log.id]: { success: true, message: response.data.message || 'Erfolgreich wiederhergestellt' }
+          }));
+        } else {
+          throw new Error(response.data.error || 'Wiederherstellung fehlgeschlagen');
+        }
+      } catch (error) {
+        console.error('Error restoring:', error);
+        console.error('Error response:', error.response);
+        
+        // Check if error is due to name conflict
+        if (error.response?.status === 409 || 
+            (error.response?.data?.error && error.response.data.error.toLowerCase().includes('already exists'))) {
+          
+          // Ask for new name
+          const newName = window.prompt(
+            `Ein Eintrag mit dem Namen "${resourceName}" existiert bereits.\n\nBitte geben Sie einen neuen Namen ein:`,
+            resourceName + ' (Kopie)'
+          );
+          
+          if (newName && newName.trim()) {
+            // Retry with new name
+            await attemptRestore(newName.trim());
+          } else {
+            setRestoreResults(prev => ({
+              ...prev,
+              [log.id]: { 
+                success: false, 
+                message: 'Wiederherstellung abgebrochen' 
+              }
+            }));
+          }
+        } else {
+          setRestoreResults(prev => ({
+            ...prev,
+            [log.id]: { 
+              success: false, 
+              message: error.response?.data?.error || error.message || 'Fehler bei der Wiederherstellung' 
+            }
+          }));
+        }
+      }
+    };
+
+    try {
+      await attemptRestore();
+    } finally {
+      setRestoringLogs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(log.id);
+        return newSet;
+      });
+    }
+  };
+
+  // Render details
+  const renderDetails = (log) => {
+    if (!log.details) return null;
+
+    const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+    const isJsonView = viewModes[log.id] === 'json';
+
+    // Special rendering for SSH commands
+    if (log.action === 'command_execute' || log.action === 'command_executed' || log.action === 'command_execute_failed') {
+      return <SSHAuditDetailMUI details={details} />;
+    }
+
+    if (isJsonView) {
+      return (
+        <Box
+          component="pre"
+          sx={{
+            p: 2,
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(0, 0, 0, 0.3)' 
+              : 'rgba(0, 0, 0, 0.05)',
+            borderRadius: 1,
+            fontSize: '12px',
+            overflow: 'auto',
+            maxHeight: '400px',
+          }}
+        >
+          {JSON.stringify(details, null, 2)}
+        </Box>
+      );
+    }
+
+    // Formatted view
+    const categorizedDetails = {
+      primary: {},
+      user: {},
+      technical: {},
+      other: {},
+    };
+
+    Object.entries(details).forEach(([key, value]) => {
+      if (['fields_updated', 'original_data', 'new_data', 'changes'].includes(key)) {
+        return;
+      }
+
+      if (['name', 'command_description', 'service_name', 'appliance_name'].includes(key)) {
+        categorizedDetails.primary[key] = value;
+      } else if (key.includes('user') || key.includes('_by')) {
+        categorizedDetails.user[key] = value;
+      } else if (key.includes('ssh') || key.includes('executed') || key === 'ip_address' || 
+                 key === 'command' || key === 'output' || key === 'error') {
+        categorizedDetails.technical[key] = value;
+      } else {
+        categorizedDetails.other[key] = value;
+      }
+    });
+
+    const renderDetailSection = (title, icon, detailsObj) => {
+      if (Object.keys(detailsObj).length === 0) return null;
+
+      const Icon = icon;
+      return (
+        <Box sx={{ mb: 2 }}>
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1, 
+              mb: 1,
+              color: 'text.secondary',
+              fontWeight: 600,
+            }}
+          >
+            <Icon size={16} />
+            {title}
+          </Typography>
+          <Box sx={{ pl: 3 }}>
+            {Object.entries(detailsObj).map(([key, value]) => {
+              const DetailIcon = getDetailIcon(key);
+              return (
+                <Box 
+                  key={key} 
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: 2, 
+                    mb: 1,
+                    py: 0.5,
+                  }}
+                >
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 0.5,
+                      color: 'text.secondary',
+                      minWidth: '150px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <DetailIcon size={14} />
+                    {formatFieldName(key)}:
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      wordBreak: 'break-word',
+                      flex: 1,
+                    }}
+                  >
+                    {formatValue(key, value)}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      );
+    };
+
+    // Render fields_updated if available
+    const renderFieldsUpdated = () => {
+      if (!details.fields_updated || !Array.isArray(details.fields_updated) || 
+          !details.original_data || !details.new_data) {
+        return null;
+      }
+
+      const changedFields = details.fields_updated.filter(field => {
+        const oldValue = details.original_data[field];
+        const newValue = details.new_data[field];
+        return String(oldValue || '') !== String(newValue || '');
+      });
+
+      if (changedFields.length === 0) return null;
+
+      return (
+        <Box 
+          sx={{ 
+            mb: 2, 
+            p: 2, 
+            backgroundColor: alpha(theme.palette.warning.main, 0.1),
+            borderRadius: 1,
+            border: 1,
+            borderColor: alpha(theme.palette.warning.main, 0.3),
+          }}
+        >
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1, 
+              mb: 1,
+              fontWeight: 600,
+            }}
+          >
+            <RefreshCw size={16} />
+            Aktualisierte Felder
+          </Typography>
+          {changedFields.map(field => (
+            <Box key={field} sx={{ mb: 1 }}>
+              <Typography variant="body2" fontWeight={600}>
+                {formatFieldName(field)}:
+              </Typography>
+              <Box sx={{ pl: 2 }}>
+                <Typography variant="body2" color="error.main">
+                  Alt: {formatValue(field, details.original_data[field])}
+                </Typography>
+                <Typography variant="body2" color="success.main">
+                  Neu: {formatValue(field, details.new_data[field])}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      );
+    };
+
+    return (
+      <Box sx={{ p: 2 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          {/* Restore button if applicable */}
+          {canRestore(log).canRestore && (
+            <Box>
+              {restoreResults[log.id] ? (
+                <Alert 
+                  severity={restoreResults[log.id].success ? 'success' : 'error'}
+                  sx={{ py: 0.5, px: 2 }}
+                >
+                  {restoreResults[log.id].message}
+                </Alert>
+              ) : (
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={restoringLogs.has(log.id) ? <CircularProgress size={16} /> : <RotateCcw size={16} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Restore button clicked for log:', log.id);
+                    handleRestore(log);
+                  }}
+                  disabled={restoringLogs.has(log.id)}
+                  sx={{
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(34, 197, 94, 0.2)' 
+                      : 'rgba(34, 197, 94, 0.15)',
+                    color: theme.palette.mode === 'dark' ? '#86efac' : '#22c55e',
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(34, 197, 94, 0.3)' 
+                        : 'rgba(34, 197, 94, 0.25)',
+                    },
+                    '&:disabled': {
+                      opacity: 0.7,
+                    },
+                  }}
+                >
+                  {restoringLogs.has(log.id) ? 'Wird wiederhergestellt...' : 'Original wiederherstellen'}
+                </Button>
+              )}
+            </Box>
+          )}
+          
+          {/* View toggle button */}
+          <Button
+            size="small"
+            startIcon={isJsonView ? <Eye size={16} /> : <Code size={16} />}
+            onClick={() => toggleViewMode(log.id)}
+            sx={{ ml: 'auto' }}
+          >
+            {isJsonView ? 'Formatiert' : 'JSON'}
+          </Button>
+        </Stack>
+
+        {renderFieldsUpdated()}
+
+        {renderDetailSection('Hauptinformationen', FileText, categorizedDetails.primary)}
+        {renderDetailSection('Benutzerinformationen', User, categorizedDetails.user)}
+        {renderDetailSection('Technische Details', Terminal, categorizedDetails.technical)}
+        {renderDetailSection('Weitere Details', FileText, categorizedDetails.other)}
+      </Box>
+    );
+  };
+
+  // Widget view for narrow screens
+  if (useWidgetView) {
+    return (
+      <Box ref={containerRef} sx={{ backgroundColor: 'transparent' }}>
+        <Stack spacing={0.5} sx={{ p: 1 }}>
+          {logs.map(log => {
+            const isExpanded = expandedRows.has(log.id);
+            const resourceName = getResourceName(log);
+            const resourceDisplay = resourceName || 
+              (log.resource_type && log.resource_id 
+                ? `${formatResourceType(log.resource_type)} #${log.resource_id}` 
+                : formatResourceType(log.resource_type));
+
+            return (
+              <Box
+                key={log.id}
+                sx={{
+                  backgroundColor: getRowBackgroundColor(log.action),
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.action.hover, 0.1),
+                  },
+                }}
+              >
+                <Box
+                  onClick={() => onToggleExpand(log.id)}
+                  sx={{
+                    p: 1.5,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {/* Compact header row */}
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: '80px' }}>
+                      {formatTimestamp(log.created_at)}
+                    </Typography>
+                    <Chip
+                      icon={getActionIcon(log.action)}
+                      label={formatActionName(log.action)}
+                      size="small"
+                      color={getActionColor(log.action)}
+                      variant="outlined"
+                      sx={{ height: '24px' }}
+                    />
+                    <Box sx={{ flexGrow: 1 }} />
+                    <IconButton size="small" sx={{ p: 0.5 }}>
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </IconButton>
+                  </Stack>
+
+                  {/* User and resource row */}
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <User size={12} style={{ opacity: 0.6 }} />
+                      <Typography variant="caption">
+                        {log.username || 'System'}
+                      </Typography>
+                    </Stack>
+                    
+                    {resourceDisplay !== '-' && (
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Server size={12} style={{ opacity: 0.6 }} />
+                        <Typography variant="caption" sx={{ wordBreak: 'break-word' }}>
+                          {resourceDisplay}
+                        </Typography>
+                      </Stack>
+                    )}
+
+                    {log.ip_address && (
+                      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
+                        <Globe size={12} style={{ opacity: 0.6 }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {log.ip_address}
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Stack>
+                </Box>
+
+                {/* Expanded details */}
+                <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                  <Divider />
+                  {renderDetails(log)}
+                </Collapse>
+              </Box>
+            );
+          })}
+        </Stack>
+      </Box>
+    );
+  }
+
+  // Regular table view
+  return (
+    <Box ref={containerRef}>
+      <TableContainer 
+        sx={{ 
+          backgroundColor: 'transparent',
+          boxShadow: 'none',
+          '& .MuiTable-root': {
+            backgroundColor: 'transparent',
+          },
+        }}
+      >
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell 
+                width="40px" 
+                sx={{ 
+                  backgroundColor: theme.palette.mode === 'dark'
+                    ? 'rgba(50, 50, 60, 0.2)'
+                    : 'rgba(200, 200, 210, 0.4)',
+                  borderBottom: `1px solid ${theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.08)' 
+                    : 'rgba(0, 0, 0, 0.08)'}`,
+                }}
+              />
+              <TableCell
+                sx={headerCellStyle}
+              >
+                Zeit
+              </TableCell>
+              <TableCell
+                sx={headerCellStyle}
+              >
+                Benutzer
+              </TableCell>
+              <TableCell
+                sx={headerCellStyle}
+              >
+                Aktion
+              </TableCell>
+              <TableCell
+                sx={headerCellStyle}
+              >
+                Ressource
+              </TableCell>
+              <TableCell
+                sx={headerCellStyle}
+              >
+                IP-Adresse
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {logs.map(log => {
+              const isExpanded = expandedRows.has(log.id);
+              const resourceName = getResourceName(log);
+              const resourceDisplay = resourceName || 
+                (log.resource_type && log.resource_id 
+                  ? `${formatResourceType(log.resource_type)} #${log.resource_id}` 
+                  : formatResourceType(log.resource_type));
+
+              return (
+                <React.Fragment key={log.id}>
+                  <TableRow 
+                    hover
+                    sx={{ 
+                      '& > *': { borderBottom: 'unset' },
+                      cursor: 'pointer',
+                      backgroundColor: getRowBackgroundColor(log.action),
+                      '&:hover': {
+                        backgroundColor: theme.palette.mode === 'dark'
+                          ? alpha(theme.palette.action.hover, 0.2)
+                          : alpha(theme.palette.action.hover, 0.15),
+                      },
+                      transition: 'background-color 0.2s ease',
+                    }}
+                    onClick={() => {
+                      console.log('Row clicked, toggling expand for log:', log.id);
+                      onToggleExpand(log.id);
+                    }}
+                  >
+                    <TableCell>
+                      <IconButton size="small">
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </IconButton>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap>
+                        {formatTimestamp(log.created_at)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {log.username || 'System'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        icon={getActionIcon(log.action)}
+                        label={formatActionName(log.action)}
+                        size="small"
+                        color={getActionColor(log.action)}
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap>
+                        {resourceDisplay}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {log.ip_address || '-'}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+                      <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                        {renderDetails(log)}
+                      </Collapse>
+                    </TableCell>
+                  </TableRow>
+                </React.Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+};
+
+export default AuditLogTableMUI;

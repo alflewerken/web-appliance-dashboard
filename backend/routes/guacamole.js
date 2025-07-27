@@ -117,7 +117,14 @@ router.post('/token/:applianceId', async (req, res) => {
       const connectionId = connectionResult.rows[0].connection_id;
       
       // Hole Guacamole Auth Token
-      const authToken = await getGuacamoleAuthToken();
+      let authToken;
+      try {
+        authToken = await getGuacamoleAuthToken();
+      } catch (error) {
+        console.error('Failed to get token, trying with fresh token:', error);
+        // Bei Fehler versuche es mit einem neuen Token
+        authToken = await getGuacamoleAuthToken(true);
+      }
       
       // Generiere URL - IMMER über Port 9080
       const baseUrl = getGuacamoleUrl(req);
@@ -250,6 +257,40 @@ router.get('/connections', async (req, res) => {
   } catch (error) {
     console.error('Fehler beim Abrufen der Verbindungen:', error);
     res.status(500).json({ error: 'Fehler beim Abrufen der Verbindungen' });
+  }
+});
+
+/**
+ * Clear Guacamole auth token cache
+ * POST /api/guacamole/clear-cache
+ */
+router.post('/clear-cache', async (req, res) => {
+  try {
+    // Clear the auth token cache
+    authTokenCache.clear();
+    
+    // Create audit log
+    await createAuditLog(
+      'admin',
+      'guacamole',
+      'cache_cleared',
+      null,
+      req.user?.id || 0,
+      getClientIp(req),
+      { message: 'Guacamole auth token cache cleared' },
+      null
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Guacamole auth token cache cleared successfully' 
+    });
+  } catch (error) {
+    console.error('Error clearing Guacamole cache:', error);
+    res.status(500).json({ 
+      error: 'Failed to clear Guacamole cache',
+      details: error.message 
+    });
   }
 });
 

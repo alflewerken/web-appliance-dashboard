@@ -1,0 +1,29 @@
+/* CSS Reset for conflicting button styles - MINIMAL VERSION */
+
+/* Only hide old deprecated layouts */
+.card-actions-grid {
+  display: none !important;
+}
+
+/* Ensure proper z-index stacking */
+.card-buttons-left,
+.card-buttons-right,
+.service-controls-bottom {
+  z-index: 10;
+}
+
+.card-icon {
+  z-index: 1;
+}
+
+/* Fix button positioning without breaking the layout */
+.card-cover {
+  position: relative;
+}
+
+/* Ensure buttons stay within bounds */
+.action-btn,
+.remote-desktop-btn,
+.file-transfer-button {
+  flex-shrink: 0;
+}

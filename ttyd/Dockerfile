@@ -8,11 +8,11 @@ RUN echo "Acquire::Check-Valid-Until \"false\";" > /etc/apt/apt.conf.d/99no-chec
     echo "Acquire::AllowInsecureRepositories \"true\";" > /etc/apt/apt.conf.d/99allow-insecure && \
     echo "APT::Get::AllowUnauthenticated \"true\";" > /etc/apt/apt.conf.d/99allow-unauth && \
     apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true && \
-    apt-get install -y -o APT::Get::AllowUnauthenticated=true openssh-client || \
+    apt-get install -y -o APT::Get::AllowUnauthenticated=true openssh-client curl || \
     (echo "Installing minimal SSH client..." && \
      cd /tmp && \
-     apt-get download -o APT::Get::AllowUnauthenticated=true openssh-client && \
-     dpkg -i --force-depends openssh-client*.deb || true) && \
+     apt-get download -o APT::Get::AllowUnauthenticated=true openssh-client curl && \
+     dpkg -i --force-depends openssh-client*.deb curl*.deb || true) && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/*
 

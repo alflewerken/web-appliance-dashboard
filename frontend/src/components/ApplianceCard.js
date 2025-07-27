@@ -194,24 +194,21 @@ const ApplianceCard = ({
     if (isExternalUrl(appliance.url)) {
       // Externe URL - direkt öffnen ohne Proxy
       targetUrl = appliance.url;
-      console.log('[DEBUG] Opening external URL directly:', targetUrl);
+
     } else {
       // Interne URL oder Service - verwende Proxy
       // convertToProxyUrl fügt bereits den Token hinzu, wenn es eine interne URL ist
       targetUrl = proxyService.convertToProxyUrl(appliance);
-      
-      console.log('[DEBUG] Using proxy URL:', targetUrl);
+
     }
 
     // The onOpen callback from useAppliances will handle updating lastUsed and creating audit log
     if (onOpen) {
-      console.log('[DEBUG] onOpen callback exists, delegating to parent');
+
       // Let the parent handle the opening
       onOpen(appliance);
       return; // Don't open URL here, let parent handle it
     }
-
-    console.log('[DEBUG] No onOpen callback, opening URL directly from ApplianceCard');
 
     // Only open URL if no onOpen callback is provided
     // Determine the correct open mode based on device type
@@ -299,8 +296,7 @@ const ApplianceCard = ({
   };
 
   const handleCardClick = e => {
-    console.log('[DEBUG] handleCardClick called for:', appliance.name, 'isMobile:', isMobile);
-    
+
     // If we're saving, ignore all clicks
     if (isSavingSettings) {
       e.preventDefault();
@@ -310,7 +306,7 @@ const ApplianceCard = ({
 
     // If touch was already handled, ignore click
     if (touchHandled) {
-      console.log('[DEBUG] Click ignored - touch already handled');
+
       setTouchHandled(false);
       return;
     }
@@ -367,8 +363,7 @@ const ApplianceCard = ({
   );
 
   const handleServiceAction = async action => {
-    console.log('[DEBUG] handleServiceAction called:', action, 'for', appliance?.name, 'at', new Date().toISOString());
-    
+
     if (!appliance.sshConnection || isProcessing) return;
 
     // Zeige den Confirm Dialog
@@ -384,8 +379,7 @@ const ApplianceCard = ({
 
   const handleConfirmServiceAction = async () => {
     const action = confirmDialog.action;
-    console.log('[DEBUG] handleConfirmServiceAction:', action, 'for', appliance?.name, 'at', new Date().toISOString());
-    
+
     setConfirmDialog({ ...confirmDialog, isOpen: false });
     
     setIsProcessing(true);

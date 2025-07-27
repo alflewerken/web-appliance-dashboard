@@ -1,0 +1,68 @@
+/* Mobile Swipeable Tab Content */
+@media (max-width: 768px) {
+  /* Settings Panel Tab Content */
+  .settings-panel .MuiBox-root[style*="overflow: auto"] {
+    scroll-snap-type: x mandatory;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Service Panel Tabs */
+  .service-panel .tab-content-container {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .service-panel .tab-content-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .service-panel .tab-panel {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+  }
+
+  /* Visual hint for swipeable content */
+  .swipeable-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.6);
+    padding: 4px 12px;
+    border-radius: 20px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Add swipe indicators to tab panels */
+  .tab-swipe-indicator {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+  }
+
+  .tab-swipe-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: all 0.3s;
+  }
+
+  .tab-swipe-dot.active {
+    width: 20px;
+    border-radius: 3px;
+    background: #007AFF;
+  }
+}

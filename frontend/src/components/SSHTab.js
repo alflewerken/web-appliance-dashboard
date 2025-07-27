@@ -62,7 +62,6 @@ import axios from '../utils/axiosConfig';
 import SSHHostManager from './SSHHostManager';
 import { useSSE } from '../hooks/useSSE';
 
-
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
   return (
@@ -118,9 +117,9 @@ const SSHTab = ({ onTerminalOpen }) => {
   // Fetch functions
   const fetchHosts = useCallback(async () => {
     try {
-      console.log('Fetching SSH hosts...');
+
       const response = await axios.get('/api/ssh/hosts');
-      console.log('SSH hosts response:', response.data);
+
       setHosts(response.data.hosts || []);
     } catch (error) {
       console.error('Error fetching SSH hosts:', error);
@@ -130,9 +129,9 @@ const SSHTab = ({ onTerminalOpen }) => {
 
   const fetchKeys = useCallback(async () => {
     try {
-      console.log('Fetching SSH keys...');
+
       const response = await axios.get('/api/ssh/keys');
-      console.log('SSH keys response:', response.data);
+
       setKeys(response.data.keys || []);
     } catch (error) {
       console.error('Error fetching SSH keys:', error);
@@ -142,30 +141,30 @@ const SSHTab = ({ onTerminalOpen }) => {
 
   // Load data on mount and setup SSE listeners
   useEffect(() => {
-    console.log('SSHTab mounted, loading data...');
+
     fetchHosts();
     fetchKeys();
 
     if (addEventListener) {
       const unsubscribers = [
         addEventListener('ssh_host_created', () => {
-          console.log('SSE: ssh_host_created event received');
+
           fetchHosts();
         }),
         addEventListener('ssh_host_updated', () => {
-          console.log('SSE: ssh_host_updated event received');
+
           fetchHosts();
         }),
         addEventListener('ssh_host_deleted', () => {
-          console.log('SSE: ssh_host_deleted event received');
+
           fetchHosts();
         }),
         addEventListener('ssh_key_created', () => {
-          console.log('SSE: ssh_key_created event received');
+
           fetchKeys();
         }),
         addEventListener('ssh_key_deleted', () => {
-          console.log('SSE: ssh_key_deleted event received');
+
           fetchKeys();
         }),
       ];

@@ -1,0 +1,53 @@
+/* ============================================================
+   TERMINAL LIGHT MODE STYLES
+   Unified styles for all terminal components in light mode
+   ============================================================ */
+
+/* CSS Variables for consistent theming */
+:root {
+  --terminal-light-bg: #ffffff;
+  --terminal-light-header-bg: #f5f5f5;
+  --terminal-light-border: #e1e1e1;
+  --terminal-light-text: #333333;
+  --terminal-light-text-secondary: #666666;
+  --terminal-light-shadow: rgba(0, 0, 0, 0.1);
+  --terminal-light-overlay: rgba(0, 0, 0, 0.3);
+  --terminal-light-button-bg: #ffffff;
+  --terminal-light-button-hover: #f5f5f5;
+  --terminal-light-scrollbar-track: #f5f5f5;
+  --terminal-light-scrollbar-thumb: #cccccc;
+  --terminal-light-scrollbar-thumb-hover: #999999;
+  --terminal-light-success: #52c41a;
+  --terminal-light-warning: #faad14;
+  --terminal-light-error: #ff4d4f;
+  --terminal-light-info: #1890ff;
+}
+
+/* Import all terminal CSS files */
+@import './XTerminal.css';
+@import './TTYDTerminal.css';
+@import './TerminalModal.css';
+
+/* Additional global terminal styles for light mode */
+body.theme-light .terminal-container,
+body.theme-light [class*='terminal-container'] {
+  color: var(--terminal-light-text);
+}
+
+/* Ensure consistent button styling across all terminals */
+body.theme-light [class*='terminal'] button {
+  transition: all 0.2s ease;
+}
+
+/* Consistent icon colors */
+body.theme-light [class*='terminal'] svg {
+  transition: color 0.2s ease;
+}
+
+/* Auto theme media query support */
+@media (prefers-color-scheme: light) {
+  body.theme-auto .terminal-container,
+  body.theme-auto [class*='terminal-container'] {
+    color: var(--terminal-light-text);
+  }
+}
