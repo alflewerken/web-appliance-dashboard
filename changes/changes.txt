@@ -2668,3 +2668,38 @@ BESCHREIBUNG:
 - README zeigt nur tatsächlich vorhandene Features
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 21:35:00
+PURPOSE: Remove Performance Metrics feature from README files
+CHANGES:
+
+PATCH 1: README.md - Performance Metrics entfernt
+--- a/README.md
++++ b/README.md
+@@ -33,7 +33,6 @@ ### Erweiterte Features
+ - **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
+ - **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP, keine Debug-Endpoints
+ - **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem
+-- **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
+ - **🔍 Volltextsuche** - Schnelle Suche über alle Appliances
+ - **💡 Smart UI** - Tooltips, Toggle-Panels, Resize-fähige Sidebars
+
+PATCH 2: README.en.md - Performance Metrics removed
+--- a/README.en.md
++++ b/README.en.md
+@@ -33,7 +33,6 @@ ### Advanced Features
+ - **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
+ - **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP, no debug endpoints
+ - **🌐 Multi-User** - User management with granular permission system
+-- **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
+ - **🔍 Full-text Search** - Fast search across all appliances
+ - **💡 Smart UI** - Tooltips, toggle panels, resizable sidebars
+
+BESCHREIBUNG:
+- Performance Metrics Feature aus beiden README-Dateien entfernt
+- Diese Funktionalität ist noch nicht implementiert
+- README zeigt nur tatsächlich vorhandene Features
+- Konsistent mit der vorherigen Entfernung von Health Monitoring
+
+=======================================

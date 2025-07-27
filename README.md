@@ -31,7 +31,6 @@ Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwach
 - **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
 - **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP, keine Debug-Endpoints
 - **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem
-- **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
 - **🔍 Volltextsuche** - Schnelle Suche über alle Appliances
 - **💡 Smart UI** - Tooltips, Toggle-Panels, Resize-fähige Sidebars
 
