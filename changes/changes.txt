@@ -2788,3 +2788,64 @@ ZUSAMMENFASSUNG:
 - CHANGELOG.md mit allen v1.1.1 Änderungen aktualisiert
 
 =======================================
+
+=======================================
+[2025-01-27 19:30:00] - README Dateien aufgeräumt und konsolidiert
+Zweck: Entfernung nicht funktionierender Links, Konsolidierung der Dokumentation und Screenshots
+Dateien:
+- README.md
+- README.en.md
+
+ÄNDERUNGEN:
+
+1. README.md - Deutsche Version komplett überarbeitet:
+   - Screenshot-Sektion konsolidiert in einen ausklappbaren Bereich
+   - Nicht existierende Screenshots entfernt (Guacamole Login)
+   - Doppelte Dokumentationssektionen entfernt
+   - Klare Struktur mit logischer Reihenfolge
+   - Alle Links überprüft und korrigiert
+   - Screenshots nach Kategorien gruppiert:
+     * Dashboard & Navigation
+     * Service Management
+     * Terminal & Remote Access
+     * Administration
+     * Einstellungen
+
+2. README.en.md - Englische Version komplett überarbeitet:
+   - Identische Struktur wie deutsche Version
+   - Screenshot-Sektion konsolidiert
+   - Nicht existierende Links entfernt
+   - Übersetzungen angepasst
+
+3. Strukturelle Verbesserungen:
+   - Screenshots in <details> Tag für bessere Übersicht
+   - Konsistente Reihenfolge der Sektionen
+   - Entfernte überflüssige Inhalte:
+     * Doppelte Feature-Listen
+     * Redundante Screenshots
+     * Veraltete Roadmap-Details
+     * Überflüssige Architektur-Details
+   - Fokus auf wesentliche Informationen
+
+4. Vereinfachte Dokumentationsstruktur:
+   - Nur eine Dokumentationssektion
+   - Klare Unterteilung in:
+     * Benutzer-Dokumentation
+     * Entwickler-Dokumentation  
+     * Setup & Konfiguration
+   - Entfernte nicht existierende Links
+
+5. Inhaltliche Optimierungen:
+   - Quick Start prominenter platziert
+   - Sicherheitshinweise kompakter
+   - Architektur-Diagramm vereinfacht
+   - Troubleshooting-Sektion praktischer
+
+ERGEBNIS:
+- README-Dateien sind jetzt übersichtlicher und benutzerfreundlicher
+- Alle Links funktionieren
+- Screenshots sind logisch gruppiert
+- Keine redundanten Informationen mehr
+- Bessere Navigation durch ausklappbare Bereiche
+
+=======================================
