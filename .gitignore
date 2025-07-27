@@ -24,6 +24,12 @@ terminal-app/build/
 .env.test.local
 .env.production.local
 
+# Backup directories
+*-backup-*/
+*.backup.*
+src-backup*/
+frontend/src-backup*/
+
 # IDE
 .vscode/settings.json
 .vscode/launch.json

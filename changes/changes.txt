@@ -2211,3 +2211,34 @@ NÄCHSTE SCHRITTE:
 - Optional: .gitignore erweitern um zukünftige *-backup-* Verzeichnisse zu ignorieren
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 20:50:00
+PURPOSE: .gitignore erweitert um Backup-Verzeichnisse zu ignorieren
+CHANGES:
+
+PATCH 1: /.gitignore - Backup-Verzeichnisse hinzugefügt
+--- a/.gitignore
++++ b/.gitignore
+@@ -24,6 +24,12 @@ terminal-app/build/
+ .env.test.local
+ .env.production.local
+ 
++# Backup directories
++*-backup-*/
++*.backup.*
++src-backup*/
++frontend/src-backup*/
++
+ # IDE
+ .vscode/settings.json
+ .vscode/launch.json
+
+BESCHREIBUNG:
+- Pattern für Backup-Verzeichnisse zur .gitignore hinzugefügt
+- Ignoriert alle Verzeichnisse die mit "-backup-" enden
+- Ignoriert alle Dateien mit ".backup." im Namen
+- Ignoriert spezifisch src-backup* Verzeichnisse
+- Verhindert versehentliches Committen von temporären Backups in der Zukunft
+
+=======================================
