@@ -3342,3 +3342,42 @@ HINWEIS: Die README-Dateien zeigen nur die Versionsnummer, nicht das Release-Dat
 daher war dort keine Änderung erforderlich.
 
 =======================================
+
+
+=======================================
+[2025-07-27 19:20:00] - Architektur-Diagramm Korrektur
+Zweck: Korrektur der Architektur-Diagramme in README-Dateien
+Dateien: README.md, README.en.md
+
+PROBLEM: Die Architektur-Diagramme zeigten falsche Komponenten-Namen und Ports:
+- React-Komponente hieß "React SPA" statt "React Frontend"
+- React Frontend zeigte Port 3001 (was der Backend-Port ist)
+- Nginx Proxy zeigte Port 80 statt 9080
+- Node.js API zeigte Port 3000 statt 3001
+
+ÄNDERUNGEN:
+
+1. Beide README-Dateien korrigiert:
+--- a/README.md
++++ b/README.md
+@@ -203,8 +203,8 @@
+ ```
+ ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+-│   React SPA     │────▶│  Nginx Proxy    │────▶│  Node.js API    │
+-│   (Port 3001)   │     │   (Port 80)     │     │   (Port 3000)   │
++│ React Frontend  │────▶│  Nginx Proxy    │────▶│  Node.js API    │
++│                 │     │   (Port 9080)   │     │   (Port 3001)   │
+ └─────────────────┘     └─────────────────┘     └─────────────────┘
+
+KORREKTE ARCHITEKTUR:
+- React Frontend: Keine Port-Angabe (wird über Nginx serviert)
+- Nginx Proxy: Port 9080 (öffentlich zugänglich)
+- Node.js API: Port 3001 (nur intern)
+- MySQL DB: Port 3306 (bereits korrekt)
+
+ERGEBNIS:
+- Architektur-Diagramme zeigen nun die korrekten Komponenten-Namen
+- Port-Angaben entsprechen der tatsächlichen Konfiguration
+- Konsistente Darstellung in beiden Sprachversionen
+
+=======================================
