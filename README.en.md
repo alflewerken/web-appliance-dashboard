@@ -6,7 +6,8 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.1-brightgreen.svg)](package.json)
+[![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
 A modern, containerized dashboard for centralized management and monitoring of web appliances, services, and servers with integrated SSH functionality, web terminal, and remote desktop support.
 
@@ -25,15 +26,48 @@ A modern, containerized dashboard for centralized management and monitoring of w
 - **📱 Responsive** - Optimized for desktop, tablet, and mobile (PWA-ready)
 
 ### Advanced Features
-- **💾 Backup & Restore** - Complete system backup with encryption
+- **💾 Backup & Restore** - Complete system backup with encryption and key dialog
 - **📝 Audit Logging** - Traceable action logs with export
 - **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
-- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP
+- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP, no debug endpoints
 - **🌐 Multi-User** - User management with granular permission system
 - **🚨 Health Monitoring** - Automatic health checks with alerting
 - **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
 - **🔍 Full-text Search** - Fast search across all appliances
-## 🆕 Latest Updates (v1.1.0)
+- **💡 Smart UI** - Tooltips, toggle panels, resizable sidebars
+## 🆕 Latest Updates (v1.1.1)
+
+### Security Improvements
+- ✅ All debug files and directories removed
+- ✅ No more publicly accessible debug endpoints
+- ✅ Clean browser console without debug output
+- ✅ Reduced attack surface for production
+
+### UI/UX Improvements
+- ✅ Interactive tooltips for collapsed sidebar
+- ✅ Toggle functionality for side panels
+- ✅ Improved resize functionality for panels
+- ✅ No horizontal scrolling in sidebar
+
+### New Features
+- ✅ Encryption key dialog after backup
+- ✅ Guacamole cache-clear API endpoint
+- ✅ Improved SSH host update functionality
+- ✅ Terminal error suppressor for clean console
+
+### Bug Fixes
+- ✅ Health check issues fixed (ttyd, webserver)
+- ✅ SSH file upload hanging at 10% fixed
+- ✅ Hostname duplicate check on update corrected
+- ✅ Remote desktop after logout works again
+
+### Code Quality
+- ✅ 109 console.log statements removed
+- ✅ 31 debug files deleted
+- ✅ 3 temporary backup directories removed
+- ✅ Improved code organization
+
+## 🆕 Previous Updates (v1.1.0)
 
 ### Remote Desktop Integration
 - ✅ Apache Guacamole for VNC/RDP access
@@ -256,6 +290,35 @@ docker compose stop guacamole-postgres guacd guacamole
 # Check Guacamole connections
 docker exec appliance_backend node utils/guacamole/test-connection.js
 ```
+## 🛡️ Security
+
+### Production-Ready Security
+- **No Debug Endpoints** - All debug files and directories removed
+- **JWT Authentication** - Secure token-based authentication
+- **Encrypted Passwords** - AES-256 encryption for remote host passwords
+- **Rate Limiting** - Protection against brute-force attacks
+- **CORS Protection** - Configurable cross-origin policies
+- **CSP Headers** - Content Security Policy enabled
+- **SQL Injection Protection** - Prepared statements for all queries
+- **XSS Prevention** - Input sanitization and output encoding
+
+### Important Security Notes
+
+⚠️ **Encryption Key**: 
+- The encryption key is generated during setup
+- Store it securely (e.g., in a password manager)
+- Without this key, remote passwords cannot be decrypted after a restore
+
+⚠️ **Default Passwords**:
+- Change ALL default passwords in the .env file
+- Use strong, unique passwords
+- Use the setup-env.sh script for secure random passwords
+
+⚠️ **Network Security**:
+- Run the dashboard behind a reverse proxy with HTTPS
+- Restrict access via firewall rules
+- Use VPN for remote access
+
 ## 🏗️ Architecture
 
 ```

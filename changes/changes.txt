@@ -2485,3 +2485,109 @@ BESCHREIBUNG:
 - Dokumentiert alle Verbesserungen seit v1.1.0
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 21:20:00
+PURPOSE: README.en.md (English version) updated with v1.1.1 changes
+CHANGES:
+
+PATCH 1: README.en.md - Version Badge updated
+--- a/README.en.md
++++ b/README.en.md
+@@ -8,7 +8,8 @@
+ [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
+ [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+-[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen.svg)](package.json)
++[![Version](https://img.shields.io/badge/Version-1.1.1-brightgreen.svg)](package.json)
++[![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
+
+PATCH 2: README.en.md - Features section enhanced
+ ### Advanced Features
+-- **💾 Backup & Restore** - Complete system backup with encryption
++- **💾 Backup & Restore** - Complete system backup with encryption and key dialog
+ - **📝 Audit Logging** - Traceable action logs with export
+ - **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
+-- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP
++- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP, no debug endpoints
+ - **🌐 Multi-User** - User management with granular permission system
+ - **🚨 Health Monitoring** - Automatic health checks with alerting
+ - **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
+ - **🔍 Full-text Search** - Fast search across all appliances
++- **💡 Smart UI** - Tooltips, toggle panels, resizable sidebars
+
+PATCH 3: README.en.md - New section for v1.1.1 updates
++## 🆕 Latest Updates (v1.1.1)
++
++### Security Improvements
++- ✅ All debug files and directories removed
++- ✅ No more publicly accessible debug endpoints
++- ✅ Clean browser console without debug output
++- ✅ Reduced attack surface for production
++
++### UI/UX Improvements
++- ✅ Interactive tooltips for collapsed sidebar
++- ✅ Toggle functionality for side panels
++- ✅ Improved resize functionality for panels
++- ✅ No horizontal scrolling in sidebar
++
++### New Features
++- ✅ Encryption key dialog after backup
++- ✅ Guacamole cache-clear API endpoint
++- ✅ Improved SSH host update functionality
++- ✅ Terminal error suppressor for clean console
++
++### Bug Fixes
++- ✅ Health check issues fixed (ttyd, webserver)
++- ✅ SSH file upload hanging at 10% fixed
++- ✅ Hostname duplicate check on update corrected
++- ✅ Remote desktop after logout works again
++
++### Code Quality
++- ✅ 109 console.log statements removed
++- ✅ 31 debug files deleted
++- ✅ 3 temporary backup directories removed
++- ✅ Improved code organization
++
+-## 🆕 Latest Updates (v1.1.0)
++## 🆕 Previous Updates (v1.1.0)
+
+PATCH 4: README.en.md - New security section
++## 🛡️ Security
++
++### Production-Ready Security
++- **No Debug Endpoints** - All debug files and directories removed
++- **JWT Authentication** - Secure token-based authentication
++- **Encrypted Passwords** - AES-256 encryption for remote host passwords
++- **Rate Limiting** - Protection against brute-force attacks
++- **CORS Protection** - Configurable cross-origin policies
++- **CSP Headers** - Content Security Policy enabled
++- **SQL Injection Protection** - Prepared statements for all queries
++- **XSS Prevention** - Input sanitization and output encoding
++
++### Important Security Notes
++
++⚠️ **Encryption Key**: 
++- The encryption key is generated during setup
++- Store it securely (e.g., in a password manager)
++- Without this key, remote passwords cannot be decrypted after a restore
++
++⚠️ **Default Passwords**:
++- Change ALL default passwords in the .env file
++- Use strong, unique passwords
++- Use the setup-env.sh script for secure random passwords
++
++⚠️ **Network Security**:
++- Run the dashboard behind a reverse proxy with HTTPS
++- Restrict access via firewall rules
++- Use VPN for remote access
+
+DESCRIPTION:
+- Updated version badge to 1.1.1
+- Added security badge
+- Added comprehensive v1.1.1 changelog section
+- Enhanced features section with new UI improvements
+- Added dedicated security section with important warnings
+- All content translated to English
+- Maintains consistency with German README.md
+
+=======================================
