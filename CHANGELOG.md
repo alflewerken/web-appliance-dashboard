@@ -5,9 +5,13 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.1] - 2025-01-27
 
 ### Added
+- **Encryption Key Dialog** - Shows encryption key after backup creation
+  - Dialog displays the key needed to decrypt remote passwords after restore
+  - Copy-to-clipboard functionality
+  - Security warnings and best practices
 - **Sidebar Tooltips** - Interactive tooltips for collapsed sidebar on desktop
   - React Portal-based implementation for proper rendering outside sidebar
   - Automatic tooltip generation from nav-text content
@@ -21,8 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - POST /api/guacamole/clear-cache to manually clear cached tokens
   - Automatic token renewal on authentication failures
   - Helps resolve Remote Desktop connection issues after logout
+- **Setup Script Improvements** - Interactive encryption key setup
+  - Prompts user to enter custom encryption key or generate secure one
+  - Shows generated key with instructions to save it
+  - Synchronizes key to both .env files
 
 ### Fixed
+- **SSH File Upload** - Fixed file upload hanging at 10% due to SSH config mismatch
+  - Added dual Host entries in SSH config generation (hostname and host_id)
+  - Fixed password authentication detection logic in upload handler
+  - Updated SSH config regeneration script for compatibility
+- **SSH Host Update** - Fixed hostname duplicate check when updating
+  - Only checks for duplicate hostnames when hostname actually changes
+  - Better error messages indicating which hostname already exists
+  - SSH setup endpoint now updates existing hosts instead of failing
 - **Health Check Issues** - Fixed unhealthy container states
   - Webserver health check now uses IPv4 (127.0.0.1) instead of localhost
   - ttyd health check simplified to process check (pidof ttyd)
@@ -43,11 +59,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Text now truncates with ellipsis instead of causing scroll
   - Improved responsive behavior at narrow widths
 
+### Removed
+- **Security Improvements**
+  - Removed temporary debug routes that didn't require authentication
+  - Removed unused authDebug middleware
+  - Cleaned up debug directory with potential security risks
+  - Removed unused maintenance scripts in fixes/ and patches/ directories
+  
 ### Changed
-- **Code Organization**
-  - Renamed sidebar-tooltip-debug.css to sidebar-tooltips.css
-  - Removed CSS-based tooltips in favor of React implementation
-  - Cleaned up debug elements and styles
+- **Code Cleanup**
+  - Removed unused CSS files (ApplianceCard_heimdall.css)
+  - Removed unused RemoteDesktopButton component variants
+  - Disabled Webpack performance warnings for cleaner build output
+  - Moved ProxyService and cleaned up unused versions
+  - Better code organization and reduced attack surface
+  
+### Added
+- **Environment Variables**
+  - Added GUACAMOLE_PROXY_URL to .env files to prevent Docker Compose warnings
+  - Added ENCRYPTION_SECRET as alias for SSH_KEY_ENCRYPTION_SECRET
+
+### Documentation
+- **Updated Documentation** - All docs updated to version 1.1.1
+  - Created comprehensive API Reference guide
+  - Updated developer.html with current Mermaid diagrams
+  - Created integration guide with examples
+  - Enhanced remote desktop setup guide with client implementations
+  - Updated performance tuning and security best practices guides
+  - Added extensive API client SDK examples for 9 languages
+  - Updated both German and English README files
+
+## [Unreleased]
 
 ### Security
 - **Environment Variable Handling** - Improved encryption key management

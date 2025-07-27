@@ -668,6 +668,30 @@ Beiträge sind willkommen! Bitte beachten Sie:
 - Database Query Optimization
 - Connection Pooling
 
+## 📚 Dokumentation
+
+### Benutzer-Dokumentation
+- [User Manual](docs/user-manual/) - Ausführliche Benutzeranleitung
+- [Installation Guide](docs/user-manual/installation.md) - Schritt-für-Schritt Installation
+- [Quick Start](docs/user-manual/quick-start.md) - Schnellstart für neue Benutzer
+
+### Entwickler-Dokumentation
+- [Developer Guide](docs/developer.html) - Architektur und Mermaid-Diagramme
+- [API Reference](docs/api-reference.md) - Vollständige API-Dokumentation
+- [Integration Guide](docs/integration-guide.md) - Integration in bestehende Systeme
+- [API Client SDKs](docs/api-client-sdks.md) - Client-Bibliotheken für verschiedene Sprachen
+
+### Setup & Configuration
+- [Remote Desktop Setup](docs/remote-desktop-setup-guide.md) - Guacamole Konfiguration
+- [Security Best Practices](docs/security-best-practices-guide.md) - Sicherheitsrichtlinien
+- [Performance Tuning](docs/performance-tuning-guide.md) - Optimierung für Production
+- [Docker Environment Setup](docs/docker-env-setup.md) - Container-Konfiguration
+
+### API & Development
+- [OpenAPI Specification](docs/openapi.yaml) - OpenAPI 3.0 Spezifikation
+- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION.md) - Proxy-Architektur
+- [Development Setup](docs/DEVELOPMENT_SETUP.md) - Entwicklungsumgebung einrichten
+
 ## 🛟 Support
 
 ### Community

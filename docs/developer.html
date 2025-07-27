@@ -3,781 +3,603 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Appliance Dashboard - Entwickler Dokumentation v1.1.0</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+    <title>Web Appliance Dashboard - Developer Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #1a1a1a;
-            color: #e0e0e0;
             line-height: 1.6;
-        }
-        
-        .container {
+            color: #333;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 20px;
+            background-color: #f5f5f5;
         }
-        
+        h1, h2, h3 {
+            color: #1a1a1a;
+        }
         h1 {
-            text-align: center;
-            color: #61dafb;
-            margin-bottom: 50px;
-            font-size: 2.5em;
-        }
-        
-        h2 {
-            color: #61dafb;
-            margin-top: 40px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #333;
+            border-bottom: 3px solid #007AFF;
             padding-bottom: 10px;
         }
-        
-        h3 {
-            color: #68d391;
-            margin-top: 30px;
+        h2 {
+            margin-top: 40px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
         }
-        
         .version-badge {
-            display: inline-block;
-            background: #68d391;
-            color: #000;
-            padding: 5px 15px;
+            background-color: #007AFF;
+            color: white;
+            padding: 4px 12px;
             border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: bold;
-            margin-left: 20px;
+            font-size: 14px;
+            display: inline-block;
+            margin-left: 10px;
         }
-        
-        .diagram-section {
-            background: #2d2d2d;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
-        
-        .mermaid {
-            text-align: center;
-            background: #f5f5f5;
-            border-radius: 8px;
+        .diagram-container {
+            background: white;
             padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin: 20px 0;
         }
-        
-        .description {
-            background: #3a3a3a;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            line-height: 1.8;
-        }
-        
-        .note {
-            background: #4a4a4a;
-            padding: 15px;
-            border-radius: 6px;
-            border-left: 4px solid #61dafb;
-            margin: 20px 0;
-        }
-        
-        .changelog {
-            background: #2d2d2d;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-        
-        pre {
-            background: #1e1e1e;
-            border: 1px solid #444;
-            border-radius: 6px;
+        .code-block {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             padding: 15px;
             overflow-x: auto;
-            font-family: 'Consolas', 'Monaco', monospace;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
         }
-        
-        code {
-            background: #2d2d2d;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Consolas', 'Monaco', monospace;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        .info-box {
+            background: #e8f4f9;
+            border-left: 4px solid #007AFF;
+            padding: 15px;
             margin: 20px 0;
+            border-radius: 4px;
         }
-        
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #444;
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
         }
-        
-        th {
-            background: #2d2d2d;
-            color: #61dafb;
-            font-weight: bold;
+        .toc {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
         }
-        
-        tr:hover {
-            background: #333;
+        .toc ul {
+            list-style-type: none;
+            padding-left: 20px;
         }
-        
-        ul {
-            line-height: 1.8;
-        }
-        
-        a {
-            color: #61dafb;
+        .toc a {
+            color: #007AFF;
             text-decoration: none;
         }
-        
-        a:hover {
+        .toc a:hover {
             text-decoration: underline;
         }
     </style>
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#007AFF',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#0051D5',
+                lineColor: '#333',
+                secondaryColor: '#f0f0f0',
+                tertiaryColor: '#fff'
+            }
+        });
+    </script>
 </head>
 <body>
-    <div class="container">
-        <h1>Web Appliance Dashboard - Entwickler Dokumentation <span class="version-badge">v1.1.0</span></h1>
-        
-        <div class="changelog">
-            <h3>🆕 Neu in Version 1.1.0</h3>
-            <ul>
-                <li>✅ Remote Desktop Integration (Apache Guacamole)</li>
-                <li>✅ Erweiterte SSH Terminal Features</li>
-                <li>✅ Glassmorphism UI Design</li>
-                <li>✅ Verbesserte Mobile Navigation</li>
-                <li>✅ Token-basierte Authentifizierung für Remote Desktop</li>
-            </ul>
-        </div>
+    <h1>Web Appliance Dashboard - Developer Documentation <span class="version-badge">v1.1.1</span></h1>
+    
+    <div class="toc">
+        <h2>Table of Contents</h2>
+        <ul>
+            <li><a href="#overview">System Overview</a></li>
+            <li><a href="#architecture">Architecture</a></li>
+            <li><a href="#components">Components</a></li>
+            <li><a href="#data-flow">Data Flow</a></li>
+            <li><a href="#auth-flow">Authentication Flow</a></li>
+            <li><a href="#ssh-architecture">SSH Architecture</a></li>
+            <li><a href="#remote-desktop">Remote Desktop Integration</a></li>
+            <li><a href="#deployment">Deployment Architecture</a></li>
+            <li><a href="#security">Security Architecture</a></li>
+            <li><a href="#api-structure">API Structure</a></li>
+        </ul>
+    </div>
 
-        <h2>📊 System Architektur</h2>
-        
-        <div class="diagram-section">
-            <h3>Gesamt-Systemarchitektur</h3>
-            <div class="mermaid">
-graph TB
-    subgraph "Frontend"
-        UI[React SPA<br/>Port: 9080]
-        PWA[PWA Features]
-        UI --> PWA
-    end
-    
-    subgraph "Reverse Proxy"
-        NGINX[Nginx<br/>Port: 9080/9443]
-    end
-    
-    subgraph "Backend Services"
-        API[Node.js API<br/>Port: 3001]
-        TTYD[Web Terminal<br/>Port: 7681]
-        GUAC[Guacamole<br/>Port: 8080]
-        GUACD[Guacd<br/>Port: 4822]
-    end
-    
-    subgraph "Databases"
-        MARIADB[(MariaDB<br/>Port: 3306)]
-        POSTGRES[(PostgreSQL<br/>Port: 5432)]
-    end
-    
-    subgraph "External Services"
-        SSH[SSH Hosts]
-        VNC[VNC Servers]
-        RDP[RDP Hosts]
-    end
-    
-    UI -->|HTTP/WS| NGINX
-    NGINX -->|Proxy /api| API
-    NGINX -->|Proxy /terminal| TTYD
-    NGINX -->|Proxy /guacamole| GUAC
-    
-    API -->|Query| MARIADB
-    API -->|SSH| SSH
-    API -->|Token Auth| GUAC
-    
-    GUAC -->|Protocol| GUACD
-    GUAC -->|Config| POSTGRES
-    GUACD -->|VNC| VNC
-    GUACD -->|RDP| RDP
-    GUACD -->|SSH| SSH
-    
-    TTYD -->|SSH| SSH
-    
-    style UI fill:#61dafb,stroke:#333,stroke-width:2px
-    style API fill:#68d391,stroke:#333,stroke-width:2px
-    style NGINX fill:#ff6b6b,stroke:#333,stroke-width:2px
-    style MARIADB fill:#4ecdc4,stroke:#333,stroke-width:2px
-    style GUAC fill:#f7b731,stroke:#333,stroke-width:2px
-            </div>
-            <div class="description">
-                <p>Das System besteht aus mehreren Docker-Containern, die über Docker Compose orchestriert werden. Nginx fungiert als zentraler Reverse Proxy und leitet Anfragen an die entsprechenden Services weiter.</p>
-            </div>
-        </div>
+    <h2 id="overview">System Overview</h2>
+    <div class="info-box">
+        <p>Web Appliance Dashboard is a containerized web application built with React (Frontend) and Node.js (Backend), 
+        designed to manage and monitor web services, SSH connections, and remote desktop sessions.</p>
+    </div>
 
-        <div class="diagram-section">
-            <h3>Authentication Flow</h3>
-            <div class="mermaid">
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant A as API
-    participant DB as Database
-    participant G as Guacamole
-    
-    U->>F: Login Request
-    F->>A: POST /api/auth/login
-    A->>DB: Validate Credentials
-    DB-->>A: User Data
-    A->>A: Generate JWT Token
-    A-->>F: JWT Token + User Info
-    F->>F: Store Token
-    
-    Note over F: Authenticated Requests
-    
-    F->>A: GET /api/appliances<br/>Auth: Bearer JWT
-    A->>A: Validate JWT
-    A->>DB: Fetch Appliances
-    DB-->>A: Appliance Data
-    A-->>F: Appliances JSON
-    
-    Note over F: Remote Desktop Access
-    
-    F->>A: POST /api/guacamole/token/:id<br/>Auth: Bearer JWT
-    A->>A: Validate JWT
-    A->>DB: Get Connection Info
-    A->>A: Generate Temp Token
-    A->>G: Create Token Session
-    G-->>A: Token Confirmed
-    A-->>F: Guacamole URL + Token
-    F->>G: Open Remote Desktop<br/>with Token
-            </div>
-            <div class="description">
-                <p>Die Authentifizierung erfolgt über JWT-Tokens. Für Remote Desktop Zugriffe werden temporäre Tokens mit 5 Minuten Gültigkeit generiert.</p>
-            </div>
-        </div>
-
-        <h2>🗄️ Datenbank Schema</h2>
-        
-        <div class="diagram-section">
-            <h3>Entity Relationship Diagram</h3>
-            <div class="mermaid">
-erDiagram
-    USERS ||--o{ APPLIANCES : creates
-    USERS ||--o{ SSH_KEYS : owns
-    USERS ||--o{ AUDIT_LOGS : performs
-    APPLIANCES ||--o{ SERVICE_STATUS : has
-    APPLIANCES ||--o{ APPLIANCE_SSH_KEYS : uses
-    SSH_KEYS ||--o{ APPLIANCE_SSH_KEYS : assigned_to
-    CATEGORIES ||--o{ APPLIANCES : contains
-    
-    USERS {
-        int id PK
-        string username UK
-        string password_hash
-        string email
-        string role
-        timestamp created_at
-        timestamp last_login
-    }
-    
-    APPLIANCES {
-        int id PK
-        string name
-        string url
-        string icon
-        int category_id FK
-        int user_id FK
-        string ssh_host
-        string ssh_username
-        int ssh_port
-        boolean ssh_enabled
-        boolean remote_desktop_enabled
-        string remote_protocol
-        string remote_host
-        int remote_port
-        string remote_username
-        string remote_password_encrypted
-        timestamp created_at
-        timestamp updated_at
-    }
-    
-    SSH_KEYS {
-        int id PK
-        int user_id FK
-        string name
-        string type
-        text public_key
-        text private_key_encrypted
-        timestamp created_at
-    }
-    
-    SERVICE_STATUS {
-        int id PK
-        int appliance_id FK
-        string status
-        string service_info
-        timestamp last_check
-        timestamp created_at
-    }
-    
-    AUDIT_LOGS {
-        int id PK
-        int user_id FK
-        string action
-        string entity_type
-        int entity_id
-        text details
-        string ip_address
-        timestamp created_at
-    }
-    
-    CATEGORIES {
-        int id PK
-        string name
-        string slug
-        string color
-        int display_order
-    }
-            </div>
-            <div class="description">
-                <p>Die Datenbank verwendet MariaDB für die Hauptanwendung und PostgreSQL für Guacamole. Passwörter und SSH-Keys werden verschlüsselt gespeichert.</p>
-            </div>
-        </div>
-
-        <h2>🔄 API Request Flow</h2>
-        
-        <div class="diagram-section">
-            <h3>Service Control Flow</h3>
-            <div class="mermaid">
-flowchart LR
-    A[Frontend] -->|Request| B[Nginx]
-    B -->|/api/*| C[API Server]
-    C -->|Validate| D{Auth OK?}
-    D -->|No| E[401 Error]
-    D -->|Yes| F[Process Request]
-    F -->|SSH Command| G[SSH Host]
-    G -->|Result| F
-    F -->|Update| H[(Database)]
-    F -->|Response| C
-    C -->|JSON| B
-    B -->|Response| A
-    
-    style A fill:#61dafb
-    style C fill:#68d391
-    style H fill:#4ecdc4
-    style E fill:#ff6b6b
-            </div>
-        </div>
-
-        <h2>🐳 Docker Architektur</h2>
-        
-        <div class="diagram-section">
-            <h3>Container Struktur</h3>
-            <div class="mermaid">
-graph TD
-    subgraph "Docker Network: appliance_network"
-        subgraph "Frontend Services"
-            NGINX[nginx<br/>9080:80<br/>9443:443]
-            FRONTEND[frontend<br/>Build Only]
-        end
-        
-        subgraph "Backend Services"
-            API[backend<br/>3001:3001]
-            TTYD[ttyd<br/>7681:7681]
-        end
-        
-        subgraph "Remote Desktop"
-            GUAC[guacamole<br/>8080:8080]
-            GUACD[guacd<br/>4822:4822]
-        end
-        
-        subgraph "Databases"
-            MARIADB[database<br/>3306:3306]
-            POSTGRES[guacamole-postgres<br/>5432:5432]
-        end
-    end
-    
-    subgraph "Volumes"
-        V1[frontend_build]
-        V2[mariadb_data]
-        V3[postgres_data]
-        V4[ssh_keys]
-        V5[uploads]
-    end
-    
-    FRONTEND -.->|build| V1
-    NGINX -->|serve| V1
-    MARIADB -->|persist| V2
-    POSTGRES -->|persist| V3
-    API -->|store| V4
-    API -->|store| V5
-    
-    style NGINX fill:#ff6b6b
-    style API fill:#68d391
-    style MARIADB fill:#4ecdc4
-    style GUAC fill:#f7b731
-            </div>
-        </div>
-
-        <h2>🚀 Build & Deployment Pipeline</h2>
-        
-        <div class="diagram-section">
-            <h3>Build Process</h3>
-            <div class="mermaid">
-flowchart TD
-    A[Start Build] -->|./scripts/build.sh| B{Check Args}
-    B -->|--nocache| C[Clean Docker Cache]
-    B -->|default| D[Use Cache]
-    C --> E[Setup Environment]
-    D --> E
-    E -->|Copy .env files| F[Build Frontend]
-    F -->|npm run build| G[Build Backend Image]
-    G -->|Docker build| H{Remote Desktop?}
-    H -->|Yes| I[Build Guacamole]
-    H -->|No| J[Skip Guacamole]
-    I --> K[Build ttyd]
-    J --> K
-    K --> L[Start Containers]
-    L --> M[Run Migrations]
-    M --> N[Health Checks]
-    N --> O{All OK?}
-    O -->|Yes| P[✅ Success]
-    O -->|No| Q[❌ Show Errors]
-    
-    style A fill:#61dafb
-    style P fill:#68d391
-    style Q fill:#ff6b6b
-            </div>
-        </div>
-
-        <h2>🔒 Security Architecture</h2>
-        
-        <div class="diagram-section">
-            <h3>Security Layers</h3>
-            <div class="mermaid">
-graph TB
-    subgraph "External"
-        USER[User Request]
-    end
-    
-    subgraph "Layer 1: Nginx"
-        RATE[Rate Limiting]
-        SSL[SSL/TLS]
-        CORS[CORS Headers]
-    end
-    
-    subgraph "Layer 2: API"
-        JWT[JWT Validation]
-        RBAC[Role Based Access]
-        INPUT[Input Validation]
-    end
-    
-    subgraph "Layer 3: Backend"
-        CRYPT[Encryption]
-        HASH[Password Hashing]
-        ESCAPE[SQL Escaping]
-    end
-    
-    subgraph "Layer 4: Infrastructure"
-        DOCKER[Docker Isolation]
-        SECRETS[Environment Secrets]
-        FIREWALL[Firewall Rules]
-    end
-    
-    USER --> RATE
-    RATE --> SSL
-    SSL --> CORS
-    CORS --> JWT
-    JWT --> RBAC
-    RBAC --> INPUT
-    INPUT --> CRYPT
-    CRYPT --> HASH
-    HASH --> ESCAPE
-    ESCAPE --> DOCKER
-    DOCKER --> SECRETS
-    SECRETS --> FIREWALL
-    
-    style USER fill:#ff6b6b
-    style JWT fill:#61dafb
-    style CRYPT fill:#68d391
-            </div>
-            <div class="description">
-                <h4>Sicherheitsmaßnahmen:</h4>
-                <ul>
-                    <li><strong>Rate Limiting:</strong> Nginx begrenzt Anfragen pro IP</li>
-                    <li><strong>JWT Tokens:</strong> Stateless Authentication mit Expiration</li>
-                    <li><strong>Verschlüsselung:</strong> AES-256 für Passwörter und SSH-Keys</li>
-                    <li><strong>RBAC:</strong> Admin und User Rollen</li>
-                    <li><strong>Input Validation:</strong> Sanitization aller Eingaben</li>
-                    <li><strong>Docker Isolation:</strong> Container-basierte Trennung</li>
-                </ul>
-            </div>
-        </div>
-
-        <h2>📡 WebSocket Communication</h2>
-        
-        <div class="diagram-section">
-            <h3>Real-time Updates (SSE)</h3>
-            <div class="mermaid">
-sequenceDiagram
-    participant C as Client
-    participant N as Nginx
-    participant A as API Server
-    participant W as Worker
-    participant D as Database
-    
-    C->>N: GET /api/sse
-    N->>A: Proxy SSE Request
-    A->>A: Create SSE Stream
-    A-->>C: HTTP 200<br/>Content-Type: text/event-stream
-    
-    loop Health Check Interval
-        W->>D: Check Service Status
-        D-->>W: Current Status
-        W->>W: Compare Changes
-        alt Status Changed
-            W->>A: Emit Update Event
-            A-->>C: data: {status update}<br/><br/>
-        end
-    end
-    
-    C->>N: Close Connection
-    N->>A: Connection Closed
-    A->>A: Clean up Stream
-            </div>
-        </div>
-
-        <h2>🛠️ Development Setup</h2>
-        
-        <div class="description">
-            <h3>Prerequisites</h3>
-            <pre>
-- Docker & Docker Compose v2.0+
-- Node.js 18+
-- Git
-- 4GB RAM (minimum)
-- 10GB free disk space
-            </pre>
+    <h2 id="architecture">Architecture</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        graph TB
+            subgraph "Client Layer"
+                Browser[Web Browser]
+                Mobile[Mobile Device]
+            end
             
-            <h3>Quick Start</h3>
-            <pre>
+            subgraph "Proxy Layer"
+                Nginx[Nginx Reverse Proxy<br/>Port 80/443]
+            end
+            
+            subgraph "Application Layer"
+                Frontend[React Frontend<br/>Port 3001]
+                Backend[Node.js Backend<br/>Port 3000]
+            end
+            
+            subgraph "Service Layer"
+                TTYD[TTYD Terminal<br/>Port 7681]
+                Guacamole[Apache Guacamole<br/>Port 9070]
+                Guacd[Guacd Server<br/>Port 4822]
+            end
+            
+            subgraph "Data Layer"
+                MySQL[(MySQL Database<br/>Port 3306)]
+                FileSystem[File System<br/>SSH Keys & Configs]
+            end
+            
+            subgraph "External Services"
+                SSH[SSH Hosts]
+                VNC[VNC Servers]
+                RDP[RDP Hosts]
+                WebApps[Web Applications]
+            end
+            
+            Browser --> Nginx
+            Mobile --> Nginx
+            Nginx --> Frontend
+            Nginx --> Backend
+            Nginx --> TTYD
+            Nginx --> Guacamole
+            
+            Frontend -.->|API Calls| Backend
+            Backend --> MySQL
+            Backend --> FileSystem
+            Backend --> SSH
+            Backend --> WebApps
+            
+            Guacamole --> Guacd
+            Guacd --> VNC
+            Guacd --> RDP
+            Guacd --> SSH
+            
+            TTYD --> SSH
+            
+            style Nginx fill:#e1f5fe
+            style Frontend fill:#c5e1a5
+            style Backend fill:#ffccbc
+            style MySQL fill:#d1c4e9
+            style Guacamole fill:#fff9c4        </div>
+    </div>
+
+    <h2 id="components">Components</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        graph LR
+            subgraph "Frontend Components"
+                App[App.js<br/>Main Component]
+                Login[LoginForm]
+                Dashboard[Dashboard]
+                Sidebar[AppSidebar]
+                AppCard[ApplianceCard]
+                Terminal[TerminalModal]
+                RemoteDesktop[RemoteDesktopButton]
+                Settings[SettingsModal]
+                UserMgmt[UserManagement]
+                Backup[BackupTab]
+                AuditLog[AuditLog]
+            end
+            
+            subgraph "Services"
+                AuthService[authService]
+                ProxyService[proxyService]
+                BackupService[backupService]
+                SSHService[sshService]
+            end
+            
+            subgraph "Hooks"
+                useAppliances[useAppliances]
+                useAuth[useAuth]
+                useSSH[useSSH]
+            end
+            
+            App --> Login
+            App --> Dashboard
+            Dashboard --> Sidebar
+            Dashboard --> AppCard
+            Dashboard --> Settings
+            Dashboard --> UserMgmt
+            Dashboard --> AuditLog
+            
+            AppCard --> Terminal
+            AppCard --> RemoteDesktop
+            
+            Settings --> Backup
+            
+            Dashboard --> useAppliances
+            Login --> AuthService
+            Terminal --> SSHService
+            Backup --> BackupService
+            
+            style App fill:#4CAF50
+            style Dashboard fill:#2196F3
+            style AuthService fill:#FF9800
+            style useAppliances fill:#9C27B0
+        </div>
+    </div>
+
+    <h2 id="data-flow">Data Flow</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        sequenceDiagram
+            participant User
+            participant Frontend
+            participant Nginx
+            participant Backend
+            participant MySQL
+            participant SSH Host
+            
+            User->>Frontend: Access Dashboard
+            Frontend->>Backend: GET /api/appliances
+            Backend->>MySQL: Query appliances
+            MySQL-->>Backend: Return data
+            Backend-->>Frontend: JSON response
+            Frontend-->>User: Display appliances
+            
+            User->>Frontend: Click Terminal
+            Frontend->>Backend: POST /api/ssh/execute
+            Backend->>SSH Host: SSH Connection
+            SSH Host-->>Backend: Command output
+            Backend-->>Frontend: Stream response
+            Frontend-->>User: Display output
+            
+            User->>Frontend: Access via Proxy
+            Frontend->>Nginx: Proxy request
+            Nginx->>Backend: Forward to /api/appliances/:id/proxy
+            Backend->>SSH Host: Forward request
+            SSH Host-->>Backend: Response
+            Backend-->>Nginx: Proxy response
+            Nginx-->>Frontend: Return response
+            Frontend-->>User: Display content
+        </div>
+    </div>
+
+    <h2 id="auth-flow">Authentication Flow</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        sequenceDiagram
+            participant User
+            participant Frontend
+            participant Backend
+            participant MySQL
+            participant JWT
+            
+            User->>Frontend: Enter credentials
+            Frontend->>Backend: POST /api/auth/login
+            Backend->>MySQL: Verify user
+            MySQL-->>Backend: User data
+            Backend->>JWT: Generate token
+            JWT-->>Backend: Token
+            Backend-->>Frontend: Token + User info
+            Frontend->>Frontend: Store in localStorage
+            
+            Note over Frontend: Subsequent requests
+            
+            Frontend->>Backend: API request + Bearer token
+            Backend->>JWT: Verify token
+            JWT-->>Backend: Valid/Invalid
+            alt Token valid
+                Backend->>MySQL: Process request
+                MySQL-->>Backend: Data
+                Backend-->>Frontend: Response
+            else Token invalid
+                Backend-->>Frontend: 401 Unauthorized
+                Frontend->>User: Redirect to login
+            end
+        </div>
+    </div>
+
+    <h2 id="ssh-architecture">SSH Architecture</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        graph TB
+            subgraph "SSH Management"
+                SSHManager[SSH Manager<br/>routes/ssh.js]
+                KeyGen[Key Generation]
+                ConfigGen[Config Generation]
+                HostMgmt[Host Management]
+            end
+            
+            subgraph "Storage"
+                KeyStore[SSH Keys<br/>/app/ssh-keys/]
+                ConfigFile[SSH Config<br/>/app/.ssh/config]
+                Database[(MySQL<br/>ssh_hosts table)]
+            end
+            
+            subgraph "Execution"
+                Terminal[Web Terminal<br/>TTYD]
+                DirectSSH[Direct SSH<br/>node-ssh]
+                FileUpload[File Upload<br/>scp]
+            end
+            
+            SSHManager --> KeyGen
+            SSHManager --> ConfigGen
+            SSHManager --> HostMgmt
+            
+            KeyGen --> KeyStore
+            ConfigGen --> ConfigFile
+            HostMgmt --> Database
+            
+            Terminal --> ConfigFile
+            DirectSSH --> KeyStore
+            FileUpload --> KeyStore
+            
+            style SSHManager fill:#FF6B6B
+            style KeyStore fill:#4ECDC4
+            style Database fill:#45B7D1
+        </div>
+    </div>
+
+    <h2 id="remote-desktop">Remote Desktop Integration</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        graph LR
+            subgraph "Client"
+                User[User Browser]
+                RemoteBtn[Remote Desktop Button]
+            end
+            
+            subgraph "Backend API"
+                TokenAPI[GET /api/remote-desktop/token/:id]
+                ConnMgmt[Connection Management]
+                AuthToken[Token Generation]
+            end
+            
+            subgraph "Guacamole Stack"
+                GuacWeb[Guacamole Web<br/>Port 9070]
+                GuacAPI[Guacamole API]
+                Guacd[Guacd Server<br/>Port 4822]
+            end
+            
+            subgraph "Remote Hosts"
+                VNC[VNC Server<br/>Port 5900]
+                RDP[RDP Host<br/>Port 3389]
+                SSH2[SSH Server<br/>Port 22]
+            end
+            
+            User --> RemoteBtn
+            RemoteBtn --> TokenAPI
+            TokenAPI --> ConnMgmt
+            ConnMgmt --> AuthToken
+            AuthToken --> GuacAPI
+            
+            User --> GuacWeb
+            GuacWeb --> Guacd
+            Guacd --> VNC
+            Guacd --> RDP
+            Guacd --> SSH2
+            
+            style GuacWeb fill:#FFA726
+            style Guacd fill:#66BB6A
+            style TokenAPI fill:#42A5F5
+        </div>
+    </div>
+
+    <h2 id="deployment">Deployment Architecture</h2>    <div class="diagram-container">
+        <div class="mermaid">
+        graph TB
+            subgraph "Docker Compose Stack"
+                Network[Docker Network<br/>appliance_network]
+                
+                subgraph "Containers"
+                    Web[webserver<br/>Nginx]
+                    Front[frontend<br/>React Dev Server]
+                    Back[backend<br/>Node.js]
+                    DB[(database<br/>MySQL)]
+                    Term[ttyd<br/>Web Terminal]
+                    Guac[guacamole<br/>Tomcat]
+                    GuacD[guacd<br/>RDP/VNC Proxy]
+                end
+                
+                subgraph "Volumes"
+                    AppData[appliance_data]
+                    DBData[mysql_data]
+                    SSHKeys[ssh_keys]
+                    GuacData[guacamole_data]
+                    Sessions[terminal_sessions]
+                end
+            end
+            
+            subgraph "Host System"
+                Ports[Exposed Ports<br/>80, 443, 3306]
+                EnvFile[.env Configuration]
+                DockerEngine[Docker Engine]
+            end
+            
+            Network --> Web
+            Network --> Front
+            Network --> Back
+            Network --> DB
+            Network --> Term
+            Network --> Guac
+            Network --> GuacD
+            
+            Back --> AppData
+            Back --> SSHKeys
+            DB --> DBData
+            Guac --> GuacData
+            Term --> Sessions
+            
+            DockerEngine --> Network
+            EnvFile --> DockerEngine
+            Ports --> Web
+            
+            style Network fill:#E1BEE7
+            style Web fill:#BBDEFB
+            style Back fill:#C8E6C9
+            style DB fill:#FFE082
+        </div>
+    </div>
+
+    <h2 id="security">Security Architecture</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        graph TB
+            subgraph "Security Layers"
+                subgraph "Network Security"
+                    CORS[CORS Policy]
+                    RateLimit[Rate Limiting]
+                    Helmet[Helmet.js]
+                end
+                
+                subgraph "Authentication"
+                    JWT[JWT Tokens]
+                    Sessions[Session Management]
+                    RBAC[Role-Based Access]
+                end
+                
+                subgraph "Data Security"
+                    Encryption[AES-256 Encryption]
+                    Hashing[bcrypt Hashing]
+                    Sanitization[Input Sanitization]
+                end
+                
+                subgraph "Access Control"
+                    APIAuth[API Authentication]
+                    ProxyAuth[Proxy Authorization]
+                    FileAccess[File Access Control]
+                end
+            end
+            
+            subgraph "Threats Mitigated"
+                XSS[XSS Attacks]
+                CSRF[CSRF Attacks]
+                SQLInj[SQL Injection]
+                BruteForce[Brute Force]
+                Unauth[Unauthorized Access]
+            end
+            
+            CORS --> XSS
+            CORS --> CSRF
+            Helmet --> XSS
+            RateLimit --> BruteForce
+            JWT --> Unauth
+            Sanitization --> SQLInj
+            Encryption --> Unauth
+            
+            style CORS fill:#FFCDD2
+            style JWT fill:#C5E1A5
+            style Encryption fill:#B2DFDB
+        </div>
+    </div>
+
+    <h2 id="api-structure">API Structure</h2>
+    <div class="diagram-container">
+        <div class="mermaid">
+        graph LR
+            subgraph "API Routes"
+                Auth[/api/auth<br/>Authentication]
+                Appliances[/api/appliances<br/>Service Management]
+                SSH[/api/ssh<br/>SSH Operations]
+                Remote[/api/remote-desktop<br/>Remote Access]
+                Users[/api/users<br/>User Management]
+                Backup[/api/backup<br/>Backup/Restore]
+                Audit[/api/audit<br/>Audit Logging]
+                Health[/api/health<br/>Health Check]
+            end
+            
+            subgraph "Middleware"
+                AuthMW[authenticateToken]
+                AdminMW[requireAdmin]
+                RateLimitMW[rateLimiter]
+                ValidateMW[validateInput]
+            end
+            
+            subgraph "Controllers"
+                AuthCtrl[authController]
+                AppCtrl[applianceController]
+                SSHCtrl[sshController]
+                UserCtrl[userController]
+            end
+            
+            Auth --> AuthCtrl
+            Appliances --> AuthMW
+            Appliances --> AppCtrl
+            SSH --> AuthMW
+            SSH --> SSHCtrl
+            Users --> AuthMW
+            Users --> AdminMW
+            Users --> UserCtrl
+            
+            style Auth fill:#FF7043
+            style AuthMW fill:#5C6BC0
+            style AuthCtrl fill:#26A69A
+        </div>
+    </div>
+
+    <div class="info-box">
+        <h3>Key Technologies</h3>
+        <ul>
+            <li><strong>Frontend:</strong> React 18.2, Material-UI, Axios</li>
+            <li><strong>Backend:</strong> Node.js, Express, MySQL2, node-ssh</li>
+            <li><strong>Security:</strong> JWT, bcrypt, Helmet.js, express-rate-limit</li>
+            <li><strong>Infrastructure:</strong> Docker, Nginx, Apache Guacamole</li>
+            <li><strong>Real-time:</strong> Server-Sent Events (SSE)</li>
+        </ul>
+    </div>
+
+    <div class="warning-box">
+        <h3>Development Notes</h3>
+        <ul>
+            <li>Always use <code>docker compose</code> for development</li>
+            <li>Frontend runs in development mode with hot reload</li>
+            <li>Backend uses nodemon for auto-restart</li>
+            <li>MySQL data persists in Docker volumes</li>
+            <li>SSH keys are stored encrypted in the filesystem</li>
+        </ul>
+    </div>
+
+    <div class="code-block">
+        <h3>Quick Start</h3>
+        <pre>
 # Clone repository
-git clone git@github.com:alflewerken/web-appliance-dashboard.git
+git clone https://github.com/your-repo/web-appliance-dashboard.git
 cd web-appliance-dashboard
 
 # Setup environment
 ./scripts/setup-env.sh
 
-# Build and start
-./scripts/build.sh --nocache
+# Start all services
+docker compose up -d
 
-# Access dashboard
-open http://localhost:9080
-            </pre>
-            
-            <h3>Development Mode</h3>
-            <pre>
-# Backend development with hot reload
-cd backend && npm run dev
+# Check status
+docker compose ps
 
-# Frontend development
-cd frontend && npm start
-
-# Docker development mode
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-            </pre>
-        </div>
-
-        <h2>📚 API Endpoints Overview</h2>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>Endpoint</th>
-                    <th>Method</th>
-                    <th>Description</th>
-                    <th>Auth Required</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>/api/auth/login</td>
-                    <td>POST</td>
-                    <td>User login</td>
-                    <td>No</td>
-                </tr>
-                <tr>
-                    <td>/api/appliances</td>
-                    <td>GET</td>
-                    <td>List all appliances</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/appliances</td>
-                    <td>POST</td>
-                    <td>Create new appliance</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/appliances/:id</td>
-                    <td>PUT</td>
-                    <td>Update appliance</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/appliances/:id</td>
-                    <td>DELETE</td>
-                    <td>Delete appliance</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/ssh/keys</td>
-                    <td>GET</td>
-                    <td>List SSH keys</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/ssh/test</td>
-                    <td>POST</td>
-                    <td>Test SSH connection</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/terminal/create</td>
-                    <td>POST</td>
-                    <td>Create terminal session</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/guacamole/token/:id</td>
-                    <td>POST</td>
-                    <td>Get remote desktop token</td>
-                    <td>Yes</td>
-                </tr>
-                <tr>
-                    <td>/api/backup/create</td>
-                    <td>POST</td>
-                    <td>Create system backup</td>
-                    <td>Yes (Admin)</td>
-                </tr>
-                <tr>
-                    <td>/api/audit-logs</td>
-                    <td>GET</td>
-                    <td>View audit logs</td>
-                    <td>Yes (Admin)</td>
-                </tr>
-                <tr>
-                    <td>/api/sse</td>
-                    <td>GET</td>
-                    <td>Server-sent events stream</td>
-                    <td>Yes</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h2>🧪 Testing Strategy</h2>
-        
-        <div class="diagram-section">
-            <h3>Test Pyramid</h3>
-            <div class="mermaid">
-graph BT
-    A[Unit Tests<br/>Jest, React Testing Library]
-    B[Integration Tests<br/>API Tests, DB Tests]
-    C[E2E Tests<br/>Cypress/Playwright]
-    D[Manual Tests<br/>User Acceptance]
-    
-    A -->|Many| B
-    B -->|Some| C
-    C -->|Few| D
-    
-    style A fill:#68d391,stroke:#333,stroke-width:2px
-    style B fill:#61dafb,stroke:#333,stroke-width:2px
-    style C fill:#f7b731,stroke:#333,stroke-width:2px
-    style D fill:#ff6b6b,stroke:#333,stroke-width:2px
-            </div>
-            <div class="description">
-                <h4>Test Coverage Goals:</h4>
-                <ul>
-                    <li>Unit Tests: >80% coverage</li>
-                    <li>Integration Tests: All API endpoints</li>
-                    <li>E2E Tests: Critical user journeys</li>
-                    <li>Performance Tests: Load testing with k6</li>
-                </ul>
-            </div>
-        </div>
-
-        <h2>🚨 Monitoring & Logging</h2>
-        
-        <div class="description">
-            <h3>Log Aggregation</h3>
-            <pre>
-# View all logs
-docker compose logs -f
-
-# Specific service logs
+# View logs
 docker compose logs -f backend
-docker compose logs -f nginx
-
-# Export logs
-docker compose logs > logs/system-$(date +%Y%m%d).log
-            </pre>
-            
-            <h3>Health Monitoring</h3>
-            <pre>
-# Check system status
-./status.sh
-
-# Health endpoints
-curl http://localhost:9080/api/health
-curl http://localhost:9080/api/health/detailed
-            </pre>
-        </div>
-
-        <h2>📋 Troubleshooting</h2>
-        
-        <div class="note">
-            <h3>Common Issues</h3>
-            <ul>
-                <li><strong>Port conflicts:</strong> Check if ports 9080, 3001, 3306, 5432 are free</li>
-                <li><strong>Docker memory:</strong> Increase Docker Desktop memory to 4GB minimum</li>
-                <li><strong>Permission errors:</strong> Run <code>chmod +x scripts/*.sh</code></li>
-                <li><strong>Database connection:</strong> Wait 30s after start for DB initialization</li>
-                <li><strong>Guacamole on M1:</strong> Requires Rosetta emulation</li>
-            </ul>
-        </div>
-
-        <h2>🔗 Useful Links</h2>
-        
-        <ul>
-            <li><a href="https://github.com/alflewerken/web-appliance-dashboard">GitHub Repository</a></li>
-            <li><a href="../api-reference.md">API Documentation</a></li>
-            <li><a href="../user-manual/">User Manual</a></li>
-            <li><a href="http://localhost:9080/api-docs">Swagger UI</a> (when running)</li>
-        </ul>
-        
-        <div class="note">
-            <p><strong>Version:</strong> 1.1.0 | <strong>Last Updated:</strong> July 24, 2025</p>
-        </div>
+        </pre>
     </div>
-    
-    <script>
-        mermaid.initialize({ 
-            theme: 'dark',
-            themeVariables: {
-                primaryColor: '#61dafb',
-                primaryTextColor: '#fff',
-                primaryBorderColor: '#7C0000',
-                lineColor: '#F8B229',
-                secondaryColor: '#006100',
-                tertiaryColor: '#fff'
-            }
-        });
-    </script>
+
+    <div class="info-box">
+        <p><strong>Version:</strong> 1.1.1<br>
+        <strong>Last Updated:</strong> January 2025<br>
+        <strong>License:</strong> MIT</p>
+    </div>
 </body>
 </html>

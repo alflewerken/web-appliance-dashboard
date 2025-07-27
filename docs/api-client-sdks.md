@@ -1,4 +1,4 @@
-## Web Appliance Dashboard v1.1.0
+## Web Appliance Dashboard v1.1.1
 
 Dieses Dokument enthält Beispielcode für die Integration der Web Appliance Dashboard API in verschiedenen Programmiersprachen.
 

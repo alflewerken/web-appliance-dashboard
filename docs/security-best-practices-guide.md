@@ -1,4 +1,349 @@
-nodejs . .
+# Security Best Practices Guide
+
+## Web Appliance Dashboard v1.1.1
+
+Dieser Guide beschreibt erweiterte Sicherheitsrichtlinien und Best Practices für den sicheren Betrieb des Web Appliance Dashboards.
+
+## 📋 Inhaltsverzeichnis
+
+- [Übersicht](#übersicht)
+- [Authentifizierung & Autorisierung](#authentifizierung--autorisierung)
+- [Netzwerksicherheit](#netzwerksicherheit)
+- [Datenverschlüsselung](#datenverschlüsselung)
+- [Container Security](#container-security)
+- [SSH Security](#ssh-security)
+- [Remote Desktop Security](#remote-desktop-security)
+- [Audit & Monitoring](#audit--monitoring)
+- [Incident Response](#incident-response)
+- [Compliance](#compliance)
+
+## 🎯 Übersicht
+
+Die Sicherheit des Web Appliance Dashboards basiert auf mehreren Schichten:
+
+1. **Perimeter Security**: Firewall, Reverse Proxy
+2. **Application Security**: JWT, RBAC, Input Validation
+3. **Data Security**: Encryption at Rest & in Transit
+4. **Infrastructure Security**: Container Hardening, Network Isolation
+5. **Operational Security**: Monitoring, Logging, Updates
+
+## 🔐 Authentifizierung & Autorisierung
+
+### JWT Configuration
+
+```javascript
+// Sichere JWT-Konfiguration
+const jwtConfig = {
+  secret: process.env.JWT_SECRET, // Mindestens 256-bit
+  expiresIn: '2h', // Kurze Lebensdauer
+  algorithm: 'HS256',
+  issuer: 'appliance-dashboard',
+  audience: 'appliance-users'
+};
+
+// Token-Validierung mit zusätzlichen Checks
+const validateToken = (token) => {
+  try {
+    const decoded = jwt.verify(token, jwtConfig.secret, {
+      algorithms: [jwtConfig.algorithm],
+      issuer: jwtConfig.issuer,
+      audience: jwtConfig.audience
+    });
+    
+    // Zusätzliche Validierung
+    if (!decoded.userId || !decoded.role) {
+      throw new Error('Invalid token structure');
+    }
+    
+    return decoded;
+  } catch (error) {
+    throw new Error('Token validation failed');
+  }
+};
+```
+
+### Password Policy
+
+```javascript
+// Starke Passwort-Richtlinie
+const passwordPolicy = {
+  minLength: 12,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSpecialChars: true,
+  preventCommon: true,
+  preventUserInfo: true
+};
+
+// Passwort-Validierung
+const validatePassword = (password, username) => {
+  const errors = [];
+  
+  if (password.length < passwordPolicy.minLength) {
+    errors.push(`Mindestens ${passwordPolicy.minLength} Zeichen`);
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Mindestens ein Großbuchstabe');
+  }
+  
+  if (!/[a-z]/.test(password)) {
+    errors.push('Mindestens ein Kleinbuchstabe');
+  }
+  
+  if (!/[0-9]/.test(password)) {
+    errors.push('Mindestens eine Zahl');
+  }
+  
+  if (!/[!@#$%^&*]/.test(password)) {
+    errors.push('Mindestens ein Sonderzeichen');
+  }
+  
+  if (password.toLowerCase().includes(username.toLowerCase())) {
+    errors.push('Passwort darf nicht den Benutzernamen enthalten');
+  }
+  
+  return errors;
+};
+```
+
+### Multi-Factor Authentication (MFA)
+
+```javascript
+// TOTP-basierte 2FA Implementation
+const speakeasy = require('speakeasy');
+const qrcode = require('qrcode');
+
+// Secret generieren
+const generateMFASecret = (username) => {
+  const secret = speakeasy.generateSecret({
+    length: 32,
+    name: `Appliance Dashboard (${username})`,
+    issuer: 'Appliance Dashboard'
+  });
+  
+  return {
+    secret: secret.base32,
+    qr_code: qrcode.toDataURL(secret.otpauth_url)
+  };
+};
+
+// Token verifizieren
+const verifyMFAToken = (token, secret) => {
+  return speakeasy.totp.verify({
+    secret: secret,
+    encoding: 'base32',
+    token: token,
+    window: 2 // Zeitfenster für Uhrendifferenzen
+  });
+};
+```
+
+## 🌐 Netzwerksicherheit
+
+### Nginx Security Headers
+
+```nginx
+# /etc/nginx/conf.d/security-headers.conf
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-XSS-Protection "1; mode=block" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+
+# Content Security Policy
+add_header Content-Security-Policy "
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
+  img-src 'self' data: https:;
+  connect-src 'self' wss: https:;
+  frame-ancestors 'none';
+  base-uri 'self';
+  form-action 'self';
+" always;
+
+# HSTS
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+```
+
+### Rate Limiting
+
+```javascript
+// Advanced Rate Limiting
+const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis');
+
+// Login Rate Limiter
+const loginLimiter = rateLimit({
+  store: new RedisStore({
+    client: redisClient,
+    prefix: 'rl:login:'
+  }),
+  windowMs: 15 * 60 * 1000, // 15 Minuten
+  max: 5, // 5 Versuche
+  message: 'Zu viele Login-Versuche',
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Exponential backoff
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => req.ip + ':' + req.body.username
+});
+
+// API Rate Limiter mit unterschiedlichen Limits
+const createApiLimiter = (maxRequests) => {
+  return rateLimit({
+    store: new RedisStore({
+      client: redisClient,
+      prefix: 'rl:api:'
+    }),
+    windowMs: 15 * 60 * 1000,
+    max: maxRequests,
+    keyGenerator: (req) => req.user.id
+  });
+};
+
+// Anwendung
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/appliances', createApiLimiter(100));
+app.use('/api/ssh/execute', createApiLimiter(30));
+```
+
+### Firewall Rules
+
+```bash
+#!/bin/bash
+# UFW Firewall Konfiguration
+
+# Reset
+ufw --force reset
+
+# Default Policies
+ufw default deny incoming
+ufw default allow outgoing
+
+# SSH (nur von Management-Netz)
+ufw allow from 10.0.1.0/24 to any port 22
+
+# HTTP/HTTPS
+ufw allow 80/tcp
+ufw allow 443/tcp
+
+# MySQL (nur intern)
+ufw allow from 172.18.0.0/16 to any port 3306
+
+# Guacamole (nur intern)
+ufw allow from 172.18.0.0/16 to any port 4822
+
+# Rate limiting für SSH
+ufw limit ssh
+
+# Aktivieren
+ufw --force enable
+```
+
+## 🔒 Datenverschlüsselung
+
+### Verschlüsselung sensibler Daten
+
+```javascript
+const crypto = require('crypto');
+
+class EncryptionService {
+  constructor() {
+    this.algorithm = 'aes-256-gcm';
+    this.keyLength = 32;
+    this.ivLength = 16;
+    this.tagLength = 16;
+    this.saltLength = 64;
+    this.iterations = 100000;
+  }
+
+  deriveKey(password, salt) {
+    return crypto.pbkdf2Sync(password, salt, this.iterations, this.keyLength, 'sha256');
+  }
+
+  encrypt(text, password) {
+    const salt = crypto.randomBytes(this.saltLength);
+    const key = this.deriveKey(password, salt);
+    const iv = crypto.randomBytes(this.ivLength);
+    
+    const cipher = crypto.createCipheriv(this.algorithm, key, iv);
+    
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    
+    const authTag = cipher.getAuthTag();
+    
+    return {
+      encrypted,
+      salt: salt.toString('hex'),
+      iv: iv.toString('hex'),
+      authTag: authTag.toString('hex')
+    };
+  }
+
+  decrypt(encryptedData, password) {
+    const salt = Buffer.from(encryptedData.salt, 'hex');
+    const key = this.deriveKey(password, salt);
+    const iv = Buffer.from(encryptedData.iv, 'hex');
+    const authTag = Buffer.from(encryptedData.authTag, 'hex');
+    
+    const decipher = crypto.createDecipheriv(this.algorithm, key, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  }
+}
+```
+
+### Database Encryption
+
+```sql
+-- MySQL Transparent Data Encryption (TDE)
+-- my.cnf
+[mysqld]
+early-plugin-load=keyring_file.so
+keyring_file_data=/var/lib/mysql-keyring/keyring
+
+-- Verschlüsselte Tabellen erstellen
+CREATE TABLE sensitive_data (
+  id INT PRIMARY KEY,
+  data VARBINARY(255)
+) ENCRYPTION='Y';
+
+-- Verschlüsselung für bestehende Tabellen
+ALTER TABLE ssh_hosts ENCRYPTION='Y';
+ALTER TABLE user_sessions ENCRYPTION='Y';
+```
+
+## 🐳 Container Security
+
+### Dockerfile Security
+
+```dockerfile
+# Multi-stage build für minimale Attack Surface
+FROM node:18-alpine AS builder
+
+# Security updates
+RUN apk update && apk upgrade && \
+    apk add --no-cache python3 make g++ && \
+    rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# Dependencies separat für besseres Caching
+COPY package*.json ./
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Source code
+COPY . .
 
 # Security scanning
 RUN npm audit fix
@@ -48,580 +393,290 @@ services:
     cap_drop:
       - ALL
     cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
+      - NET_BIND_SERVICE
     read_only: true
     tmpfs:
       - /tmp
-      - /app/temp
-    volumes:
-      - ./uploads:/app/uploads:rw
-      - ./logs:/app/logs:rw
+      - /app/uploads
     environment:
       NODE_ENV: production
+    secrets:
+      - jwt_secret
+      - db_password
     networks:
-      - backend_network
+      - backend
     restart: unless-stopped
 
   database:
-    image: mariadb:11
+    image: mysql:8.0
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     cap_add:
       - CHOWN
-      - SETUID
       - SETGID
-      - DAC_OVERRIDE
-    volumes:
-      - db_data:/var/lib/mysql:rw
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - SETUID
     environment:
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
       MYSQL_PASSWORD_FILE: /run/secrets/db_password
     secrets:
       - db_root_password
       - db_password
+    volumes:
+      - mysql_data:/var/lib/mysql:Z
     networks:
-      - backend_network
+      - backend
     restart: unless-stopped
 
+secrets:
+  jwt_secret:
+    external: true
+  db_password:
+    external: true
+  db_root_password:
+    external: true
+
 networks:
-  backend_network:
+  backend:
     driver: bridge
     driver_opts:
-      com.docker.network.bridge.name: br-appliance
+      com.docker.network.bridge.name: br-backend
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.20.0.0/24
 
-secrets:
-  db_root_password:
-    file: ./secrets/db_root_password.txt
-  db_password:
-    file: ./secrets/db_password.txt
+volumes:
+  mysql_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/appliance-dashboard/mysql
 ```
 
-### Container Scanning
-
-```bash
-# Trivy für Vulnerability Scanning
-trivy image appliance_backend:latest
-trivy image appliance_frontend:latest
-
-# Docker Bench Security
-docker run --rm -it \
-  --net host \
-  --pid host \
-  --userns host \
-  --cap-add audit_control \
-  -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
-  -v /etc:/etc:ro \
-  -v /usr/bin/containerd:/usr/bin/containerd:ro \
-  -v /usr/bin/docker:/usr/bin/docker:ro \
-  -v /usr/lib/systemd:/usr/lib/systemd:ro \
-  -v /var/lib:/var/lib:ro \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  docker/docker-bench-security
-```
-
-## 🗄️ Datenbanksicherheit
-
-### MariaDB Security
-
-```sql
--- Grundlegende Sicherheitsmaßnahmen
-DELETE FROM mysql.user WHERE User='';
-DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
-DROP DATABASE IF EXISTS test;
-DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
-FLUSH PRIVILEGES;
-
--- Benutzer mit minimalen Rechten
-CREATE USER 'app_user'@'%' IDENTIFIED BY 'strong_password';
-GRANT SELECT, INSERT, UPDATE, DELETE ON appliance_dashboard.* TO 'app_user'@'%';
-
--- Read-only User für Backups
-CREATE USER 'backup_user'@'localhost' IDENTIFIED BY 'backup_password';
-GRANT SELECT, LOCK TABLES ON appliance_dashboard.* TO 'backup_user'@'localhost';
-
--- Audit User
-CREATE USER 'audit_user'@'%' IDENTIFIED BY 'audit_password';
-GRANT SELECT ON appliance_dashboard.audit_logs TO 'audit_user'@'%';
-
--- SSL/TLS erzwingen
-ALTER USER 'app_user'@'%' REQUIRE SSL;
-```
-
-### Datenbank-Verschlüsselung
-
-```ini
-# /etc/mysql/mariadb.conf.d/encryption.cnf
-[mariadb]
-# File Key Management
-plugin_load_add = file_key_management
-file_key_management_filename = /etc/mysql/keys.txt
-file_key_management_filekey = FILE:/etc/mysql/filekey.key
-file_key_management_encryption_algorithm = AES_CTR
-
-# Encrypt tables
-innodb_encrypt_tables = ON
-innodb_encrypt_log = ON
-innodb_encryption_threads = 4
-innodb_encryption_rotate_key_age = 1
-
-# Encrypt temp files
-encrypt_tmp_files = ON
-
-# Encrypt binlog
-encrypt_binlog = ON
-```
-
-### SQL Injection Prevention
-
-```javascript
-// Parameterized Queries
-const mysql = require('mysql2/promise');
-
-// RICHTIG - Parameterized Query
-async function getAppliance(id) {
-  const [rows] = await db.execute(
-    'SELECT * FROM appliances WHERE id = ? AND deleted_at IS NULL',
-    [id]
-  );
-  return rows[0];
-}
-
-// FALSCH - SQL Injection anfällig
-async function getApplianceUnsafe(id) {
-  const [rows] = await db.execute(
-    `SELECT * FROM appliances WHERE id = ${id} AND deleted_at IS NULL`
-  );
-  return rows[0];
-}
-
-// Input Validation
-const validator = require('validator');
-
-function validateApplianceInput(input) {
-  const errors = [];
-  
-  if (!validator.isLength(input.name, { min: 1, max: 255 })) {
-    errors.push('Name must be between 1 and 255 characters');
-  }
-  
-  if (!validator.isURL(input.url, { require_protocol: true })) {
-    errors.push('Invalid URL format');
-  }
-  
-  if (input.ssh_port && !validator.isInt(input.ssh_port, { min: 1, max: 65535 })) {
-    errors.push('SSH port must be between 1 and 65535');
-  }
-  
-  return errors;
-}
-```
-
-## 🔑 SSH-Sicherheit
+## 🔑 SSH Security
 
 ### SSH Key Management
 
 ```javascript
 // Sichere SSH-Key Generierung
-const { generateKeyPair } = require('crypto');
-const sshpk = require('sshpk');
-
-async function generateSSHKeyPair(comment = 'web-appliance-dashboard') {
-  return new Promise((resolve, reject) => {
-    generateKeyPair('rsa', {
-      modulusLength: 4096,
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem',
-        cipher: 'aes-256-cbc',
-        passphrase: process.env.SSH_KEY_PASSPHRASE
-      }
-    }, (err, publicKey, privateKey) => {
-      if (err) return reject(err);
-      
-      // Convert to SSH format
-      const sshPublicKey = sshpk.parseKey(publicKey, 'pem');
-      const sshFormattedKey = sshPublicKey.toString('ssh') + ' ' + comment;
-      
-      resolve({
-        publicKey: sshFormattedKey,
-        privateKey: privateKey
-      });
-    });
-  });
-}
-
-// SSH-Key Rotation
-async function rotateSSHKeys() {
-  // Get all active SSH keys older than 90 days
-  const oldKeys = await db.query(
-    'SELECT * FROM ssh_keys WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY) AND status = "active"'
-  );
-  
-  for (const key of oldKeys) {
-    // Generate new key
-    const newKey = await generateSSHKeyPair();
-    
-    // Store new key
-    await storeSSHKey(key.user_id, newKey);
-    
-    // Mark old key for deletion (grace period)
-    await db.query(
-      'UPDATE ssh_keys SET status = "deprecated", deprecated_at = NOW() WHERE id = ?',
-      [key.id]
-    );
-    
-    // Notify user
-    await notifyKeyRotation(key.user_id, key.id);
-  }
-}
-```
-
-### SSH Connection Security
-
-```javascript
-const { Client } = require('ssh2');
-
-function createSecureSSHConnection(config) {
-  const conn = new Client();
-  
-  const secureConfig = {
-    host: config.host,
-    port: config.port || 22,
-    username: config.username,
-    privateKey: config.privateKey,
-    passphrase: config.passphrase,
-    
-    // Security options
-    algorithms: {
-      kex: ['ecdh-sha2-nistp256', 'ecdh-sha2-nistp384', 'ecdh-sha2-nistp521'],
-      cipher: ['aes128-gcm@openssh.com', 'aes256-gcm@openssh.com'],
-      serverHostKey: ['ssh-rsa', 'ecdsa-sha2-nistp256', 'ssh-ed25519'],
-      hmac: ['hmac-sha2-256', 'hmac-sha2-512']
+const generateSSHKeyPair = async (keyName, passphrase) => {
+  const keyPair = await generateKeyPair('rsa', {
+    modulusLength: 4096,
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
     },
-    
-    // Timeout settings
-    readyTimeout: 30000,
-    keepaliveInterval: 10000,
-    keepaliveCountMax: 3,
-    
-    // Host verification
-    hostVerifier: (hashedKey) => {
-      return verifyKnownHost(config.host, hashedKey);
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem',
+      cipher: 'aes-256-cbc',
+      passphrase: passphrase
     }
-  };
-  
-  return conn.connect(secureConfig);
-}
-
-// Known Hosts Management
-async function verifyKnownHost(hostname, hashedKey) {
-  const knownHost = await db.query(
-    'SELECT * FROM known_hosts WHERE hostname = ?',
-    [hostname]
-  );
-  
-  if (!knownHost) {
-    // First connection - store the key
-    await db.query(
-      'INSERT INTO known_hosts (hostname, key_hash, first_seen) VALUES (?, ?, NOW())',
-      [hostname, hashedKey]
-    );
-    return true;
-  }
-  
-  // Verify the key matches
-  if (knownHost.key_hash !== hashedKey) {
-    // Potential MITM attack
-    await logSecurityEvent('SSH_HOST_KEY_MISMATCH', {
-      hostname,
-      expected: knownHost.key_hash,
-      received: hashedKey
-    });
-    return false;
-  }
-  
-  return true;
-}
-```
-
-## 🖥️ Remote Desktop Sicherheit
-
-### Guacamole Security
-
-```javascript
-// Token-basierte Authentifizierung für Guacamole
-function generateGuacamoleToken(userId, connectionId) {
-  const payload = {
-    guac_username: `user_${userId}`,
-    guac_connection_id: connectionId,
-    guac_valid_until: Date.now() + (5 * 60 * 1000), // 5 Minuten
-    guac_client_ip: req.ip,
-    jti: uuidv4() // Unique token ID
-  };
-  
-  return jwt.sign(payload, process.env.GUACAMOLE_JWT_SECRET, {
-    algorithm: 'HS256',
-    expiresIn: '5m'
   });
-}
-
-// Single-Use Token Enforcement
-const usedTokens = new Set();
-
-async function validateGuacamoleToken(token) {
-  if (usedTokens.has(token)) {
-    throw new Error('Token already used');
-  }
   
-  try {
-    const decoded = jwt.verify(token, process.env.GUACAMOLE_JWT_SECRET);
-    
-    // Check if token is still valid
-    if (Date.now() > decoded.guac_valid_until) {
-      throw new Error('Token expired');
-    }
-    
-    // Mark token as used
-    usedTokens.add(token);
-    
-    // Clean up old tokens periodically
-    setTimeout(() => usedTokens.delete(token), 10 * 60 * 1000);
-    
-    return decoded;
-  } catch (error) {
-    throw new Error('Invalid token');
-  }
-}
-```
-
-### VNC/RDP Security
-
-```javascript
-// Sichere Remote Desktop Konfiguration
-const remoteDesktopConfig = {
-  vnc: {
-    // Verschlüsselung erzwingen
-    security: 'tls',
-    
-    // Starke Authentifizierung
-    authentication: 'vnc+tls',
-    
-    // Verbindungsparameter
-    'color-depth': 16,
-    'swap-red-blue': false,
-    'cursor': true,
-    'clipboard-encoding': 'UTF-8',
-    
-    // Security features
-    'disable-audio': true,
-    'disable-clipboard-write': false,
-    'disable-clipboard-read': false,
-    
-    // Performance vs Security
-    'enable-compression': true,
-    'quality': 8
-  },
+  // Sichere Speicherung
+  const keyPath = path.join(SSH_KEYS_DIR, keyName);
+  await fs.writeFile(`${keyPath}.pub`, keyPair.publicKey, { mode: 0o644 });
+  await fs.writeFile(keyPath, keyPair.privateKey, { mode: 0o600 });
   
-  rdp: {
-    // Security mode
-    security: 'nla',
-    
-    // Encryption
-    'server-layout': 'en-us-qwerty',
-    'ignore-cert': false,
-    
-    // Features
-    'disable-audio': true,
-    'disable-printing': true,
-    'disable-drive': true,
-    
-    // Performance
-    'enable-compression': true,
-    'color-depth': 16,
-    'force-lossless': false
-  }
+  return keyPair;
 };
 ```
 
-## 📊 Monitoring & Auditing
+### SSH Config Hardening
 
-### Audit Logging
-
-```javascript
-// Comprehensive Audit Logging
-class AuditLogger {
-  constructor(db) {
-    this.db = db;
-  }
-  
-  async log(event) {
-    const auditEntry = {
-      timestamp: new Date(),
-      user_id: event.userId,
-      username: event.username,
-      action: event.action,
-      resource_type: event.resourceType,
-      resource_id: event.resourceId,
-      resource_name: event.resourceName,
-      ip_address: event.ipAddress,
-      user_agent: event.userAgent,
-      success: event.success,
-      error_message: event.errorMessage,
-      details: JSON.stringify(event.details),
-      session_id: event.sessionId,
-      correlation_id: event.correlationId
-    };
+```bash
+# /app/.ssh/config
+Host *
+    # Verschlüsselung
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+    MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+    KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org
     
-    await this.db.query(
-      `INSERT INTO audit_logs 
-       (timestamp, user_id, username, action, resource_type, resource_id, 
-        resource_name, ip_address, user_agent, success, error_message, 
-        details, session_id, correlation_id) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      Object.values(auditEntry)
-    );
+    # Sicherheit
+    StrictHostKeyChecking ask
+    VerifyHostKeyDNS yes
+    ForwardAgent no
+    ForwardX11 no
+    PermitLocalCommand no
     
-    // Real-time alerting for critical events
-    if (this.isCriticalEvent(event)) {
-      await this.alertSecurityTeam(event);
-    }
-  }
-  
-  isCriticalEvent(event) {
-    const criticalActions = [
-      'USER_PRIVILEGE_ESCALATION',
-      'MULTIPLE_FAILED_LOGINS',
-      'SSH_KEY_DOWNLOAD',
-      'BACKUP_RESTORE',
-      'USER_DELETED',
-      'SECURITY_SETTING_CHANGED'
-    ];
+    # Timeouts
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+    ConnectTimeout 10
     
-    return criticalActions.includes(event.action) || !event.success;
-  }
-  
-  async alertSecurityTeam(event) {
-    // Send to SIEM
-    await sendToSIEM(event);
-    
-    // Email notification
-    if (event.severity === 'CRITICAL') {
-      await sendSecurityAlert(event);
-    }
-  }
-}
-
-// Verwendung
-const auditLogger = new AuditLogger(db);
-
-// Middleware für automatisches Audit Logging
-app.use(async (req, res, next) => {
-  const correlationId = uuidv4();
-  req.correlationId = correlationId;
-  
-  // Log request
-  const startTime = Date.now();
-  
-  // Override res.json to capture responses
-  const originalJson = res.json;
-  res.json = function(data) {
-    const duration = Date.now() - startTime;
-    
-    auditLogger.log({
-      userId: req.user?.id,
-      username: req.user?.username,
-      action: `${req.method} ${req.path}`,
-      resourceType: 'API_ENDPOINT',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      success: res.statusCode < 400,
-      details: {
-        method: req.method,
-        path: req.path,
-        query: req.query,
-        statusCode: res.statusCode,
-        duration: duration
-      },
-      sessionId: req.sessionID,
-      correlationId: correlationId
-    });
-    
-    return originalJson.call(this, data);
-  };
-  
-  next();
-});
+    # Logging
+    LogLevel INFO
 ```
 
-### Security Monitoring
+## 🖥️ Remote Desktop Security
+
+### Guacamole Hardening
+
+```xml
+<!-- guacamole.properties -->
+# Verschlüsselung erzwingen
+require-ssl: true
+
+# Session Timeout
+api-session-timeout: 30
+
+# Brute Force Protection
+max-failed-login-attempts: 3
+login-attempt-lockout-minutes: 15
+
+# Disable File Transfer by Default
+disable-file-transfer: true
+
+# Logging
+enable-environment-logging: true
+```
+
+### VNC Security
 
 ```javascript
-// Anomalie-Erkennung
-class SecurityMonitor {
-  constructor() {
-    this.failedLogins = new Map();
-    this.suspiciousPatterns = new Map();
+// VNC Verbindung mit Verschlüsselung
+const createSecureVNCConnection = async (params) => {
+  return {
+    protocol: 'vnc',
+    parameters: {
+      hostname: params.hostname,
+      port: params.port,
+      password: await encryptPassword(params.password),
+      
+      // Security settings
+      'enable-sftp': false,
+      'enable-audio': false,
+      'read-only': params.readOnly || false,
+      
+      // Encryption
+      'security': 'tls',
+      'ignore-cert': false,
+      'cert-fingerprint': params.certFingerprint,
+      
+      // Connection limits
+      'connection-timeout': '30000',
+      'clipboard-encoding': 'UTF-8'
+    }
+  };
+};
+```
+
+## 📊 Audit & Monitoring
+
+### Security Event Logging
+
+```javascript
+// Erweiterte Audit-Funktionalität
+class SecurityAudit {
+  constructor(pool) {
+    this.pool = pool;
   }
   
-  async checkLoginAnomaly(username, ipAddress) {
-    const key = `${username}:${ipAddress}`;
-    const attempts = this.failedLogins.get(key) || 0;
+  async logSecurityEvent(event) {
+    const query = `
+      INSERT INTO security_audit_log 
+      (timestamp, event_type, severity, user_id, ip_address, 
+       user_agent, resource, action, result, details)
+      VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
     
-    if (attempts >= 5) {
-      await this.blockUser(username, ipAddress);
-      return false;
+    await this.pool.execute(query, [
+      event.type,
+      event.severity,
+      event.userId,
+      event.ipAddress,
+      event.userAgent,
+      event.resource,
+      event.action,
+      event.result,
+      JSON.stringify(event.details)
+    ]);
+    
+    // Alert bei kritischen Events
+    if (event.severity === 'CRITICAL') {
+      await this.sendSecurityAlert(event);
     }
-    
-    this.failedLogins.set(key, attempts + 1);
-    
-    // Reset nach 15 Minuten
-    setTimeout(() => {
-      this.failedLogins.delete(key);
-    }, 15 * 60 * 1000);
-    
-    return true;
   }
   
-  async detectSuspiciousActivity(userId, action, metadata) {
-    const patterns = [
-      {
-        name: 'RAPID_API_CALLS',
-        check: () => this.checkRapidAPICalls(userId),
-        threshold: 100,
-        window: 60000 // 1 Minute
-      },
-      {
-        name: 'UNUSUAL_ACCESS_TIME',
-        check: () => this.checkUnusualAccessTime(userId, metadata.timestamp),
-        threshold: 1
-      },
-      {
-        name: 'SUSPICIOUS_SSH_PATTERN',
-        check: () => this.checkSSHPattern(userId, action),
-        threshold: 10,
-        window: 300000 // 5 Minuten
-      }
-    ];
+  async detectAnomalies(userId) {
+    // Ungewöhnliche Login-Zeiten
+    const loginPattern = await this.analyzeLoginPattern(userId);
     
-    for (const pattern of patterns) {
-      if (await pattern.check()) {
-        await this.alertSuspiciousActivity(userId, pattern.name, metadata);
-      }
-    }
+    // Geografische Anomalien
+    const geoAnomalies = await this.detectGeoAnomalies(userId);
+    
+    // Verhaltensanomalien
+    const behaviorAnomalies = await this.detectBehaviorAnomalies(userId);
+    
+    return {
+      riskScore: this.calculateRiskScore(loginPattern, geoAnomalies, behaviorAnomalies),
+      anomalies: [...loginPattern, ...geoAnomalies, ...behaviorAnomalies]
+    };
   }
 }
+```
+
+### Monitoring Setup
+
+```yaml
+# prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'appliance-dashboard'
+    static_configs:
+      - targets: ['backend:3000']
+    metrics_path: '/metrics'
+    
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+      
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+# Alert rules
+rule_files:
+  - 'security_rules.yml'
+```
+
+### Security Alerts
+
+```yaml
+# security_rules.yml
+groups:
+  - name: security
+    interval: 30s
+    rules:
+      - alert: HighFailedLoginRate
+        expr: rate(login_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High failed login rate"
+          description: "Failed login rate is {{ $value }} per second"
+          
+      - alert: SuspiciousAPIUsage
+        expr: rate(api_requests_total{status=~"4.."}[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Suspicious API usage pattern"
+          
+      - alert: UnauthorizedAccessAttempt
+        expr: increase(unauthorized_access_total[1h]) > 10
+        labels:
+          severity: critical
+        annotations:
+          summary: "Multiple unauthorized access attempts"
 ```
 
 ## 🚨 Incident Response
@@ -629,116 +684,42 @@ class SecurityMonitor {
 ### Incident Response Plan
 
 ```javascript
-// Incident Response Automation
+// Automatisierte Incident Response
 class IncidentResponse {
-  constructor() {
-    this.incidents = new Map();
-  }
-  
-  async handleSecurityIncident(type, severity, details) {
-    const incident = {
-      id: uuidv4(),
-      type,
-      severity,
-      details,
+  async handleSecurityIncident(incident) {
+    const response = {
+      incidentId: uuidv4(),
       timestamp: new Date(),
-      status: 'OPEN',
+      type: incident.type,
+      severity: incident.severity,
       actions: []
     };
     
-    this.incidents.set(incident.id, incident);
-    
-    // Immediate actions based on type
-    switch (type) {
-      case 'BRUTE_FORCE_ATTACK':
-        await this.handleBruteForce(incident);
+    switch (incident.type) {
+      case 'BRUTE_FORCE':
+        response.actions.push(await this.blockIP(incident.sourceIP));
+        response.actions.push(await this.lockAccount(incident.targetUser));
+        response.actions.push(await this.notifyAdmins(incident));
         break;
-      
-      case 'SQL_INJECTION_ATTEMPT':
-        await this.handleSQLInjection(incident);
-        break;
-      
-      case 'UNAUTHORIZED_ACCESS':
-        await this.handleUnauthorizedAccess(incident);
-        break;
-      
+        
       case 'DATA_BREACH':
-        await this.handleDataBreach(incident);
+        response.actions.push(await this.isolateSystem());
+        response.actions.push(await this.revokeAllTokens());
+        response.actions.push(await this.enableMaintenanceMode());
+        response.actions.push(await this.notifyDataProtectionOfficer(incident));
+        break;
+        
+      case 'PRIVILEGE_ESCALATION':
+        response.actions.push(await this.revokeUserPermissions(incident.userId));
+        response.actions.push(await this.auditUserActions(incident.userId));
+        response.actions.push(await this.notifySecurityTeam(incident));
         break;
     }
     
-    // Notify security team
-    await this.notifySecurityTeam(incident);
-    
-    return incident.id;
-  }
-  
-  async handleBruteForce(incident) {
-    const { ipAddress, username } = incident.details;
-    
-    // Block IP immediately
-    await this.blockIP(ipAddress);
-    incident.actions.push('IP_BLOCKED');
-    
-    // Lock user account
-    if (username) {
-      await this.lockUserAccount(username);
-      incident.actions.push('ACCOUNT_LOCKED');
-    }
-    
-    // Add to blacklist
-    await this.addToBlacklist(ipAddress);
-    incident.actions.push('ADDED_TO_BLACKLIST');
-  }
-  
-  async handleDataBreach(incident) {
-    // Immediate containment
-    await this.enableReadOnlyMode();
-    incident.actions.push('ENABLED_READONLY_MODE');
-    
-    // Revoke all tokens
-    await this.revokeAllTokens();
-    incident.actions.push('REVOKED_ALL_TOKENS');
-    
-    // Force password reset
-    await this.forceGlobalPasswordReset();
-    incident.actions.push('FORCED_PASSWORD_RESET');
-    
-    // Backup current state
-    await this.createForensicBackup();
-    incident.actions.push('FORENSIC_BACKUP_CREATED');
+    await this.logIncidentResponse(response);
+    return response;
   }
 }
-```
-
-### Security Backup & Recovery
-
-```bash
-#!/bin/bash
-# security-backup.sh
-
-# Erstelle verschlüsseltes Backup
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/secure/backups"
-BACKUP_FILE="$BACKUP_DIR/security_backup_$DATE.tar.gz.enc"
-
-# Backup erstellen
-tar -czf - \
-  /app/config \
-  /app/logs \
-  /app/ssl \
-  /app/ssh_keys \
-  | openssl enc -aes-256-cbc -salt -k "$BACKUP_PASSWORD" > "$BACKUP_FILE"
-
-# Hash für Integrität
-sha256sum "$BACKUP_FILE" > "$BACKUP_FILE.sha256"
-
-# Zu Remote Storage kopieren
-aws s3 cp "$BACKUP_FILE" "s3://backup-bucket/security/" --sse
-aws s3 cp "$BACKUP_FILE.sha256" "s3://backup-bucket/security/" --sse
-
-# Alte Backups löschen (30 Tage Retention)
-find "$BACKUP_DIR" -name "security_backup_*.tar.gz.enc" -mtime +30 -delete
 ```
 
 ## 📋 Compliance
@@ -746,128 +727,85 @@ find "$BACKUP_DIR" -name "security_backup_*.tar.gz.enc" -mtime +30 -delete
 ### GDPR Compliance
 
 ```javascript
-// GDPR Data Management
+// Datenschutz-Funktionen
 class GDPRCompliance {
   // Recht auf Auskunft
   async exportUserData(userId) {
     const userData = {
       profile: await this.getUserProfile(userId),
-      appliances: await this.getUserAppliances(userId),
-      auditLogs: await this.getUserAuditLogs(userId),
-      sshKeys: await this.getUserSSHKeys(userId),
-      sessions: await this.getUserSessions(userId)
+      activities: await this.getUserActivities(userId),
+      connections: await this.getUserConnections(userId),
+      auditLog: await this.getUserAuditLog(userId)
     };
     
-    return this.sanitizeForExport(userData);
+    return this.generateDataExport(userData);
   }
   
   // Recht auf Löschung
   async deleteUserData(userId) {
-    // Soft delete first
-    await db.query('UPDATE users SET deleted_at = NOW() WHERE id = ?', [userId]);
+    // Anonymisierung statt Löschung für Audit-Trail
+    await this.anonymizeUser(userId);
+    await this.deletePersonalData(userId);
+    await this.deleteUserSessions(userId);
+    await this.deleteUserKeys(userId);
     
-    // Anonymize personal data
-    await db.query(`
-      UPDATE users 
-      SET email = CONCAT('deleted_', id, '@example.com'),
-          username = CONCAT('deleted_user_', id),
-          password_hash = '',
-          last_login = NULL
-      WHERE id = ?
-    `, [userId]);
-    
-    // Delete SSH keys
-    await db.query('DELETE FROM ssh_keys WHERE user_id = ?', [userId]);
-    
-    // Anonymize audit logs
-    await db.query(`
-      UPDATE audit_logs 
-      SET username = 'deleted_user',
-          ip_address = '0.0.0.0'
-      WHERE user_id = ?
-    `, [userId]);
-    
-    return true;
+    return {
+      deleted: true,
+      timestamp: new Date(),
+      retainedData: ['anonymized_audit_logs']
+    };
   }
   
-  // Cookie Consent
-  configureCookieConsent() {
+  // Datenschutz durch Technikgestaltung
+  async pseudonymizeData(data) {
+    const key = await this.getPseudonymizationKey();
     return {
-      necessary: {
-        sessionid: {
-          description: 'Session Management',
-          retention: 'session'
-        }
-      },
-      functional: {
-        theme: {
-          description: 'UI Theme Preference',
-          retention: '1 year'
-        },
-        language: {
-          description: 'Language Preference',
-          retention: '1 year'
-        }
-      },
-      analytics: {
-        enabled: false // Disabled by default
-      }
+      id: this.generatePseudonym(data.id, key),
+      data: this.encryptSensitiveFields(data)
     };
   }
 }
 ```
 
-## ✅ Sicherheits-Checkliste
+### Security Checklist
 
-### Initial Setup
-- [ ] Alle Standard-Passwörter geändert
-- [ ] Starke Secrets generiert (min. 32 Zeichen)
-- [ ] SSL/TLS Zertifikate installiert
-- [ ] Firewall konfiguriert
-- [ ] SELinux/AppArmor aktiviert
+```markdown
+## Deployment Security Checklist
 
-### Authentifizierung
-- [ ] JWT Secret rotiert
-- [ ] Session Timeout konfiguriert
-- [ ] Passwort-Policy aktiviert
-- [ ] 2FA/MFA verfügbar
-- [ ] Account Lockout Policy
+### Vor dem Deployment
+- [ ] Alle Abhängigkeiten auf Sicherheitslücken geprüft (npm audit)
+- [ ] Docker Images gescannt (Trivy, Clair)
+- [ ] Secrets rotiert und sicher gespeichert
+- [ ] Firewall-Regeln konfiguriert
+- [ ] SSL-Zertifikate installiert und gültig
 
-### Netzwerk
-- [ ] HTTPS erzwungen
-- [ ] HSTS aktiviert
-- [ ] Rate Limiting konfiguriert
-- [ ] CORS richtig konfiguriert
-- [ ] Security Headers gesetzt
+### Konfiguration
+- [ ] Produktions-Environment-Variablen gesetzt
+- [ ] Debug-Modus deaktiviert
+- [ ] Logging konfiguriert (ohne sensitive Daten)
+- [ ] Rate Limiting aktiviert
+- [ ] CORS korrekt konfiguriert
 
-### Container
-- [ ] Non-root User
-- [ ] Read-only Filesystem
-- [ ] Capabilities minimiert
-- [ ] Security Scanning
-- [ ] Resource Limits
-
-### Datenbank
-- [ ] Root-Zugang deaktiviert
-- [ ] SSL/TLS erzwungen
-- [ ] Minimale Berechtigungen
-- [ ] Verschlüsselung aktiviert
-- [ ] Regelmäßige Backups
+### Zugriffskontrolle
+- [ ] Standard-Passwörter geändert
+- [ ] Admin-Accounts überprüft
+- [ ] MFA für Admin-Accounts aktiviert
+- [ ] Service-Accounts mit minimalen Rechten
 
 ### Monitoring
-- [ ] Audit Logging aktiviert
-- [ ] Security Monitoring
-- [ ] Anomalie-Erkennung
-- [ ] Incident Response Plan
-- [ ] Log Retention Policy
+- [ ] Security-Monitoring aktiviert
+- [ ] Alerting konfiguriert
+- [ ] Backup-Strategie implementiert
+- [ ] Incident-Response-Plan dokumentiert
+```
 
-### Compliance
-- [ ] GDPR konform
-- [ ] Datenschutzerklärung
-- [ ] Cookie Consent
-- [ ] Datenaufbewahrung
-- [ ] Verschlüsselung
+## 📚 Weiterführende Ressourcen
+
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [CIS Docker Benchmark](https://www.cisecurity.org/benchmark/docker)
+- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
+- [BSI IT-Grundschutz](https://www.bsi.bund.de/DE/Themen/Unternehmen-und-Organisationen/Standards-und-Zertifizierung/IT-Grundschutz/it-grundschutz_node.html)
 
 ---
 
-**Version:** 1.1.0 | **Letzte Aktualisierung:** 24. Juli 2025
+**Version:** 1.1.1 | **Letzte Aktualisierung:** 27. Januar 2025

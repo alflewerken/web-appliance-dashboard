@@ -33,6 +33,7 @@ A modern, containerized dashboard for centralized management and monitoring of w
 - **🌐 Multi-User** - User management with granular permission system
 - **🔍 Full-text Search** - Fast search across all appliances
 - **💡 Smart UI** - Tooltips, toggle panels, resizable sidebars
+
 ## 🆕 Latest Updates (v1.1.1)
 
 ### Security Improvements
@@ -643,6 +644,30 @@ Contributions are welcome! Please note:
 - [ ] Advanced Analytics Dashboard
 - [ ] AI-Powered Anomaly Detection
 - [ ] Multi-Tenancy Support
+
+## 📚 Documentation
+
+### User Documentation
+- [User Manual](docs/user-manual/) - Comprehensive user guide
+- [Installation Guide](docs/user-manual/installation.md) - Step-by-step installation
+- [Quick Start](docs/user-manual/quick-start.md) - Quick start for new users
+
+### Developer Documentation
+- [Developer Guide](docs/developer.html) - Architecture and Mermaid diagrams
+- [API Reference](docs/api-reference.md) - Complete API documentation
+- [Integration Guide](docs/integration-guide.md) - Integration with existing systems
+- [API Client SDKs](docs/api-client-sdks.md) - Client libraries for various languages
+
+### Setup & Configuration
+- [Remote Desktop Setup](docs/remote-desktop-setup-guide.md) - Guacamole configuration
+- [Security Best Practices](docs/security-best-practices-guide.md) - Security guidelines
+- [Performance Tuning](docs/performance-tuning-guide.md) - Production optimization
+- [Docker Environment Setup](docs/docker-env-setup.md) - Container configuration
+
+### API & Development
+- [OpenAPI Specification](docs/openapi.yaml) - OpenAPI 3.0 specification
+- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION.md) - Proxy architecture
+- [Development Setup](docs/DEVELOPMENT_SETUP.md) - Setting up development environment
 
 ## 📊 Performance
 

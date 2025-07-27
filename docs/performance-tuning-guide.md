@@ -1,6 +1,6 @@
 # Performance Tuning Guide
 
-## Web Appliance Dashboard v1.1.0
+## Web Appliance Dashboard v1.1.1
 
 Dieser Guide bietet detaillierte Anleitungen zur Performance-Optimierung des Web Appliance Dashboards für verschiedene Einsatzszenarien.
 
