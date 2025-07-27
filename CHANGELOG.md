@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed api-client-sdks-eng.tmp.bak backup file
   - Moved to translation-fixes directory
 
-## [1.1.1] - 2025-01-27
+## [1.1.1] - 2025-07-27
 
 ### Added
 - **Encryption Key Dialog** - Shows encryption key after backup creation
@@ -126,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clear instructions for secure key storage
   - Better synchronization between main and backend .env files
 
-## [1.1.1] - 2025-01-27
+## [1.1.1] - 2025-07-27
 
 ### Added
 - **Encryption Key Dialog** - Shows encryption key after backup creation

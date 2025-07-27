@@ -1,6 +1,6 @@
 ===== CHANGES LOG =====
 
-[2025-01-27 - Webpack Performance Warnings deaktiviert]
+[2025-07-27 - Webpack Performance Warnings deaktiviert]
 Zweck: Verhinderung der Webpack-Performance-Warnings beim Build-Prozess
 Datei: frontend/webpack.config.js
 
@@ -27,7 +27,7 @@ Beschreibung:
 - This prevents the warnings about bundle size exceeding 244 KiB limit
 
 =======================================
-[2025-01-27 - GUACAMOLE_PROXY_URL Warning behoben]
+[2025-07-27 - GUACAMOLE_PROXY_URL Warning behoben]
 Zweck: Docker Compose Warning bezüglich fehlender GUACAMOLE_PROXY_URL Variable beheben
 Dateien: .env.example, .env
 
@@ -59,7 +59,7 @@ Beschreibung:
 - This prevents the Docker Compose warning about missing variable
 - Variable is used in docker-compose.yml for backend service environment
 
-=======================================[2025-01-27 - ProxyService Migration]
+=======================================[2025-07-27 - ProxyService Migration]
 Zweck: ProxyService von api/ nach services/ Verzeichnis verschoben
 Dateien: frontend/src/api/proxyService.js -> frontend/src/services/proxyService.js
 
@@ -92,7 +92,7 @@ WICHTIG: Die neue proxyService.js hat eine andere API-Struktur:
 - Neu: getProxyUrl(serviceId, path) für Services
 - Möglicherweise müssen die importierenden Komponenten angepasst werden
 
-=======================================[2025-01-27 - ProxyService Migration ROLLBACK]
+=======================================[2025-07-27 - ProxyService Migration ROLLBACK]
 Zweck: Rückgängigmachung der ProxyService Migration wegen Inkompatibilität
 Dateien: services/proxyService.js
 
@@ -117,7 +117,7 @@ TODO: Für eine erfolgreiche Migration müssen folgende Komponenten angepasst we
 - components/TerminalModal.js
 - components/ServiceViewer.jsx
 
-=======================================[2025-01-27 - ProxyService neue Version gelöscht]
+=======================================[2025-07-27 - ProxyService neue Version gelöscht]
 Zweck: Entfernung der inkompatiblen neuen proxyService Version
 Datei: frontend/src/services/proxyService.new.js
 
@@ -134,7 +134,7 @@ Aktuelle Situation:
 - Das ursprünglich leere api/ Verzeichnis bleibt gelöscht
 - Keine weiteren Änderungen erforderlich
 
-=======================================[2025-01-27 - Ungenutzte CSS-Datei gelöscht]
+=======================================[2025-07-27 - Ungenutzte CSS-Datei gelöscht]
 Zweck: Entfernung ungenutzter CSS-Datei
 Datei: frontend/src/components/ApplianceCard_heimdall.css
 
@@ -152,7 +152,7 @@ Begründung:
 
 Keine weiteren Änderungen erforderlich, da die Datei nicht verwendet wurde.
 
-=======================================[2025-01-27 - Ungenutzte RemoteDesktopButton Varianten gelöscht]
+=======================================[2025-07-27 - Ungenutzte RemoteDesktopButton Varianten gelöscht]
 Zweck: Entfernung ungenutzter RemoteDesktopButton-Komponenten
 Dateien: 
 - frontend/src/components/RemoteDesktopButtonDirect.jsx
@@ -174,7 +174,7 @@ Verbleibende Dateien:
 - RemoteDesktopButton.jsx (die verwendete Hauptversion)
 - RemoteDesktopButton.css (zugehörige Styles)
 
-=======================================[2025-01-27 - authDebug.js entfernt]
+=======================================[2025-07-27 - authDebug.js entfernt]
 Zweck: Entfernung der temporären Debug-Authentifizierungs-Middleware
 Dateien: 
 - backend/middleware/authDebug.js (gelöscht)
@@ -210,7 +210,7 @@ Begründung:
 - Die normale auth.js bietet bereits ausreichend Logging
 - Reduziert Code-Duplikation und vereinfacht die Wartung
 
-=======================================[2025-01-27 - Debug-Routes entfernt]
+=======================================[2025-07-27 - Debug-Routes entfernt]
 Zweck: Entfernung temporärer Debug-Routes aus Sicherheitsgründen
 Dateien/Verzeichnisse: 
 - backend/routes/debug/ (gesamtes Verzeichnis gelöscht)
@@ -250,7 +250,7 @@ Sicherheitsverbesserung:
 - Verhindert potentielle Informationslecks über Token und Sessions
 - Reduziert die Angriffsfläche der API
 
-=======================================[2025-01-27 - Ungenutzte Wartungsverzeichnisse gelöscht]
+=======================================[2025-07-27 - Ungenutzte Wartungsverzeichnisse gelöscht]
 Zweck: Entfernung ungenutzter Wartungs- und Patch-Verzeichnisse
 Verzeichnisse/Dateien: 
 - backend/utils/fixes/ (gesamtes Verzeichnis gelöscht)
@@ -280,7 +280,7 @@ Beschreibung der gelöschten Dateien:
    - Nicht aktiv verwendet, nur als Alternative/Patch vorhanden
    - Funktionalität könnte bei Bedarf in den Haupt-statusChecker integriert werden
 
-=======================================[2025-01-27 14:10:00] Fix SSH File Upload hanging at 10%
+=======================================[2025-07-27 14:10:00] Fix SSH File Upload hanging at 10%
 Zweck: Fix SSH file upload functionality that was hanging at 10% due to SSH config mismatch
 Dateien:
 - backend/routes/ssh.js
@@ -375,7 +375,7 @@ ERGEBNIS:
 
 =======================================
 
-=======================================[2025-01-27 16:15:00] Version Update to 1.1.1
+=======================================[2025-07-27 16:15:00] Version Update to 1.1.1
 Zweck: Versions-Update auf 1.1.1 und Aktualisierung des CHANGELOG.md
 Dateien:
 - VERSION
@@ -430,7 +430,7 @@ BESCHREIBUNG:
 - Folgt dem Keep a Changelog Format
 
 =======================================
-=======================================[2025-01-27 16:30:00] SSH Host Update - Hostname Duplicate Check Fix
+=======================================[2025-07-27 16:30:00] SSH Host Update - Hostname Duplicate Check Fix
 Zweck: Fix für Fehlermeldung beim Update von SSH-Hosts mit existierendem Hostnamen
 Datei: backend/routes/ssh.js
 
@@ -496,7 +496,7 @@ ERGEBNIS:
 - Passwort-Updates ohne Hostname-Änderung funktionieren jetzt korrekt
 
 =======================================
-=======================================[2025-01-27 16:45:00] SSH Setup - Update Existing Host Support
+=======================================[2025-07-27 16:45:00] SSH Setup - Update Existing Host Support
 Zweck: Fix für SSH-Setup beim Update eines existierenden Hosts
 Datei: backend/routes/ssh.js
 
@@ -559,7 +559,7 @@ ERGEBNIS:
 - Keine Fehlermeldung mehr über bereits existierende Hosts
 
 =======================================
-=======================================[2025-01-27 17:00:00] Backup Encryption Key Dialog
+=======================================[2025-07-27 17:00:00] Backup Encryption Key Dialog
 Zweck: Dialog zur Anzeige des Verschlüsselungsschlüssels nach Backup-Erstellung
 Dateien:
 - frontend/src/components/EncryptionKeyDialog.js (neu)
@@ -667,7 +667,7 @@ SICHERHEITSHINWEISE IM DIALOG:
 - Hinweis den Schlüssel nicht mit Unbefugten zu teilen
 
 =======================================
-=======================================[2025-01-27 17:30:00] Setup Script - Encryption Key Input
+=======================================[2025-07-27 17:30:00] Setup Script - Encryption Key Input
 Zweck: Benutzer nach Verschlüsselungsschlüssel fragen oder sicheren Schlüssel generieren
 Datei: scripts/setup-env.sh
 
@@ -2706,7 +2706,7 @@ BESCHREIBUNG:
 
 
 =======================================
-[2025-01-27 19:00:00] - Dokumentation auf Version 1.1.1 aktualisiert
+[2025-07-27 19:00:00] - Dokumentation auf Version 1.1.1 aktualisiert
 Zweck: Alle Dokumentationen mit der aktuellen Versionsnummer 1.1.1 aktualisieren
 Dateien:
 - docs/api-reference.md (neu erstellt)
@@ -2790,7 +2790,7 @@ ZUSAMMENFASSUNG:
 =======================================
 
 =======================================
-[2025-01-27 19:30:00] - README Dateien aufgeräumt und konsolidiert
+[2025-07-27 19:30:00] - README Dateien aufgeräumt und konsolidiert
 Zweck: Entfernung nicht funktionierender Links, Konsolidierung der Dokumentation und Screenshots
 Dateien:
 - README.md
@@ -2851,7 +2851,7 @@ ERGEBNIS:
 =======================================
 
 =======================================
-[2025-01-27 19:45:00] - README Dokumentationslinks korrigiert
+[2025-07-27 19:45:00] - README Dokumentationslinks korrigiert
 Zweck: Korrektur nicht existierender Links in der Dokumentationssektion
 Dateien:
 - README.md
@@ -2885,7 +2885,7 @@ ERGEBNIS:
 - Vollständige Dokumentation verlinkt
 
 =======================================
-=======================================[2025-01-27 20:00:00] Dokumentation zweisprachig gemacht
+=======================================[2025-07-27 20:00:00] Dokumentation zweisprachig gemacht
 Zweck: Alle Dokumentationen in Deutsch und Englisch verfügbar machen
 Dateien: 
 - Alle .md Dateien in docs/ umbenannt zu -eng.md und -ger.md
@@ -2920,7 +2920,7 @@ TODO:
 
 =======================================
 
-=======================================[2025-01-27 20:30:00] Dokumentation zweisprachig - Fortsetzung
+=======================================[2025-07-27 20:30:00] Dokumentation zweisprachig - Fortsetzung
 Zweck: Korrektur und Vervollständigung der zweisprachigen Dokumentation
 Dateien: 
 - Englische Versionen korrigiert und übersetzt
@@ -2965,7 +2965,7 @@ NÄCHSTE SCHRITTE:
 
 =======================================
 
-=======================================[2025-01-27 21:00:00] Dokumentation zweisprachig - Fertigstellung
+=======================================[2025-07-27 21:00:00] Dokumentation zweisprachig - Fertigstellung
 Zweck: Vervollständigung aller Übersetzungen für die zweisprachige Dokumentation
 Dateien: 
 - Alle englischen Versionen (-eng) ins Englische übersetzt
@@ -3011,7 +3011,7 @@ HINWEISE:
 =======================================
 
 =======================================
-[2025-01-27 19:30:00] Dokumentation auf unvollständige Übersetzungen überprüft
+[2025-07-27 19:30:00] Dokumentation auf unvollständige Übersetzungen überprüft
 Zweck: Analyse der Dokumentation auf unvollständige Übersetzungen und Erstellung eines Berichts
 Dateien:
 - docs/translation-fixes/ÜBERSETZUNGSPROBLEME.md (neu erstellt)
@@ -3049,7 +3049,7 @@ KEINE CODE-ÄNDERUNGEN - nur Dokumentationsanalyse und Berichtserstellung.
 ======================================= 
 
 =======================================
-[2025-01-27 20:00:00] Übersetzungsverbesserungen für deutsche Dokumentation
+[2025-07-27 20:00:00] Übersetzungsverbesserungen für deutsche Dokumentation
 Zweck: Systematische Übersetzung englischer Begriffe in deutschen Dokumentationsdateien
 Dateien:
 - docs/GLOSSAR.md (neu erstellt)
@@ -3119,7 +3119,7 @@ Ressourcen ermöglichen aber eine systematische Fortsetzung.
 =======================================
 
 =======================================
-[2025-01-27 23:15:00] Systematische Übersetzung aller deutschen Dokumentationsdateien
+[2025-07-27 23:15:00] Systematische Übersetzung aller deutschen Dokumentationsdateien
 Zweck: Durchführung der Schritte 1-3 der Übersetzungsempfehlungen
 Dateien: Alle 11 deutschen Dokumentationsdateien (-ger.md)
 
@@ -3186,7 +3186,7 @@ Review durch deutschsprachige Teammitglieder für finale Qualitätskontrolle
 =======================================
 
 =======================================
-[2025-01-27 23:30:00] README-Dateien überarbeitet und Bilddateien umbenannt
+[2025-07-27 23:30:00] README-Dateien überarbeitet und Bilddateien umbenannt
 Zweck: Konsistente Übersetzungen in README-Dateien und Umbenennung deutscher Bildnamen
 Dateien:
 - README.md (deutsche Version)
@@ -3244,5 +3244,101 @@ ERGEBNIS:
 HINWEIS: 
 - docs/user-manual/index.html sollte auch auf neue Bildnamen geprüft werden
 - Backup der Original-Bilddateien verfügbar für Rollback
+
+=======================================
+
+
+=======================================
+[2025-07-27 18:50:00] - README Passwort-Korrektur
+Zweck: Korrektur des falschen Standard-Passworts in README-Dateien
+Dateien: README.md, README.en.md
+
+PROBLEM: In beiden README-Dateien war das Standard-Passwort falsch als "changeme123" angegeben.
+Das korrekte Standard-Passwort lautet "admin123".
+
+ÄNDERUNGEN:
+
+1. README.md - Deutsches README
+--- a/README.md
++++ b/README.md
+@@ -148,7 +148,7 @@ http://localhost:9080
+ 
+ Standard-Login:
+ - **Benutzer**: admin
+-- **Passwort**: changeme123
++- **Passwort**: admin123
+
+2. README.en.md - Englisches README
+--- a/README.en.md
++++ b/README.en.md
+@@ -148,7 +148,7 @@ http://localhost:9080
+ 
+ Default login:
+ - **Username**: admin
+-- **Password**: changeme123
++- **Password**: admin123
+
+ERGEBNIS:
+- Beide README-Dateien zeigen nun das korrekte Standard-Passwort
+- Neue Benutzer können sich erfolgreich mit admin/admin123 einloggen
+
+=======================================
+
+
+=======================================
+[2025-07-27 19:00:00] - Timestamp-Korrektur in changes.txt
+Zweck: Korrektur aller fehlerhaften Timestamps vom heutigen Tag
+Datei: changes/changes.txt
+
+PROBLEM: Alle Einträge vom 27.07.2025 hatten fälschlicherweise "2025-01-27" (Januar) 
+statt "2025-07-27" (Juli) als Datum.
+
+DURCHGEFÜHRTE AKTION:
+- Globale Ersetzung aller Vorkommen von "[2025-01-27" durch "[2025-07-27"
+- Verwendet: sed -i.bak 's/\[2025-01-27/[2025-07-27/g' changes.txt
+- Backup-Datei erstellt: changes.txt.bak
+
+ERGEBNIS:
+- Alle heutigen Timestamps zeigen nun korrekt Juli (07) statt Januar (01)
+- Chronologische Reihenfolge der Einträge bleibt erhalten
+- Backup der Original-Datei verfügbar
+
+=======================================
+
+
+=======================================
+[2025-07-27 19:10:00] - Dokumentation Datums-Korrektur
+Zweck: Korrektur aller falschen Datumsangaben in der Dokumentation
+Dateien: 
+- CHANGELOG.md
+- docs/developer.html
+
+PROBLEM: Release-Datum für Version 1.1.1 war überall als Januar 2025 statt Juli 2025 angegeben.
+
+DURCHGEFÜHRTE AKTIONEN:
+
+1. CHANGELOG.md - Korrektur der Release-Daten
+   - Globale Ersetzung: 2025-01-27 → 2025-07-27
+   - Betrifft zwei Einträge für Version 1.1.1 (Duplikat vorhanden)
+   - Backup erstellt: CHANGELOG.md.bak
+
+2. docs/developer.html - Last Updated korrigiert
+--- a/docs/developer.html
++++ b/docs/developer.html
+@@ -601,7 +601,7 @@
+     <div class="info-box">
+         <p><strong>Version:</strong> 1.1.1<br>
+-        <strong>Last Updated:</strong> January 2025<br>
++        <strong>Last Updated:</strong> July 2025<br>
+         <strong>License:</strong> MIT</p>
+     </div>
+
+ERGEBNIS:
+- Alle Dokumentationen zeigen nun das korrekte Release-Datum (Juli 2025)
+- Backups der Original-Dateien wurden erstellt
+- Konsistente Datumsangaben in allen Projektdateien
+
+HINWEIS: Die README-Dateien zeigen nur die Versionsnummer, nicht das Release-Datum,
+daher war dort keine Änderung erforderlich.
 
 =======================================

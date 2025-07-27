@@ -148,7 +148,7 @@ http://localhost:9080
 
 Standard-Login:
 - **Benutzer**: admin
-- **Passwort**: changeme123
+- **Passwort**: admin123
 
 ⚠️ **Wichtig**: Ändern Sie das Standard-Passwort sofort nach dem ersten Login!
 
