@@ -66,23 +66,23 @@ Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwach
 <summary><b>Alle Screenshots anzeigen</b></summary>
 
 ### Dashboard & Navigation
-![Dashboard Desktop](docs/user-manual/images/Desktop%20Ansicht.png)
+![Dashboard Desktop](docs/user-manual/images/Desktop%20View.png)
 *Desktop Dashboard Übersicht*
 
 ![Mobile Dashboard](docs/user-manual/images/Mobile.jpeg)
 *Mobile Ansicht*
 
-![iPad View](docs/user-manual/images/iPad%20Ansicht.png)
+![iPad View](docs/user-manual/images/iPad%20View.png)
 *Tablet/iPad Ansicht*
 
 ### Service Management
-![Service Card Running](docs/user-manual/images/Service-Card%20Detailansicht%20(grüner%20Statusbar%20für%20Service%20läuft).png)
+![Service Card Running](docs/user-manual/images/Service%20Card%20Detail%20View%20(green%20statusbar%20service%20running).png)
 *Service Card - Service läuft (grün)*
 
-![Service Card Stopped](docs/user-manual/images/Service-Card%20ohne%20Details%20(roter%20Statusbar%20für%20Service%20läuft%20nicht).png)
+![Service Card Stopped](docs/user-manual/images/Service%20Card%20without%20Details%20(red%20statusbar%20service%20not%20running).png)
 *Service Card - Service gestoppt (rot)*
 
-![Create Service](docs/user-manual/images/Service%20anlegen.png)
+![Create Service](docs/user-manual/images/Create%20Service.png)
 *Neuen Service anlegen*
 
 ### Terminal & Remote Access
@@ -93,20 +93,20 @@ Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwach
 *Custom SSH Commands*
 
 ### Administration
-![User Management](docs/user-manual/images/Benutzerverwaltung.png)
+![User Management](docs/user-manual/images/User%20Management.png)
 *Benutzerverwaltung*
 
 ![Audit Log](docs/user-manual/images/Audit%20Log.png)
 *Audit Log Übersicht*
 
 ### Einstellungen
-![Settings Categories](docs/user-manual/images/Einstellungen%20Kategorien.png)
+![Settings Categories](docs/user-manual/images/Settings%20Categories.png)
 *Kategorien verwalten*
 
-![Settings Background](docs/user-manual/images/Einstellungen%20Hintergrundbild.png)
+![Settings Background](docs/user-manual/images/Settings%20Background.png)
 *Hintergrundbild anpassen*
 
-![Backup Restore](docs/user-manual/images/Einstellungen%20Backup%20Restore.png)
+![Backup Restore](docs/user-manual/images/Settings%20Backup%20Restore.png)
 *Backup & Restore*
 
 </details>
@@ -158,31 +158,31 @@ Standard-Login:
 - [Benutzerhandbuch](docs/user-manual/index.html) - Web-basierte Anleitung
 
 ### Entwickler-Dokumentation
-- [Developer Guide](docs/developer.html) - Architektur mit Diagrammen
-- [API Reference](docs/api-reference.md) - API-Dokumentation
-- [API Client SDKs](docs/api-client-sdks.md) - Client-Beispiele
-- [Integration Guide](docs/integration-guide.md) - Integration in bestehende Systeme
-- [Development Setup](docs/DEVELOPMENT_SETUP.md) - Entwicklungsumgebung einrichten
+- [Entwicklerleitfaden](docs/developer.html) - Architektur mit Diagrammen
+- [API-Referenz](docs/api-reference-ger.md) - API-Dokumentation
+- [API Client SDKs](docs/api-client-sdks-ger.md) - Client-Beispiele
+- [Integrationsleitfaden](docs/integration-guide-ger.md) - Integration in bestehende Systeme
+- [Entwicklungsumgebung](docs/DEVELOPMENT_SETUP-ger.md) - Entwicklungsumgebung einrichten
 
 ### Setup & Konfiguration
-- [Remote Desktop Setup](docs/remote-desktop-setup-guide.md) - Guacamole einrichten
-- [Security Guide](docs/security-best-practices-guide.md) - Sicherheitsrichtlinien
-- [Performance Tuning](docs/performance-tuning-guide.md) - Optimierung
-- [Docker Environment](docs/docker-env-setup.md) - Docker Konfiguration
+- [Remote-Desktop-Einrichtung](docs/remote-desktop-setup-guide-ger.md) - Guacamole einrichten
+- [Sicherheitsleitfaden](docs/security-best-practices-guide-ger.md) - Sicherheitsrichtlinien
+- [Leistungsoptimierung](docs/performance-tuning-guide-ger.md) - Optimierung
+- [Docker-Umgebung](docs/docker-env-setup-ger.md) - Docker Konfiguration
 
 ### Technische Dokumentation
-- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION.md) - Proxy-Architektur
-- [OpenAPI Specification](docs/openapi.yaml) - API Spezifikation
+- [Backend-Proxy-Implementierung](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy-Architektur
+- [OpenAPI-Spezifikation](docs/openapi.yaml) - API Spezifikation
 
 ## 🔒 Sicherheit
 
-### Integrierte Sicherheitsfeatures
-- **JWT Authentication** - Sichere Token-basierte Authentifizierung
-- **Verschlüsselte Passwörter** - AES-256 für Remote-Host Passwörter
-- **Rate Limiting** - Schutz vor Brute-Force
-- **CORS Protection** - Konfigurierbare Policies
-- **SQL Injection Schutz** - Prepared Statements
-- **XSS Prevention** - Input Sanitization
+### Integrierte Sicherheitsfunktionen
+- **JWT-Authentifizierung** - Sichere Token-basierte Authentifizierung
+- **Verschlüsselte Passwörter** - AES-256 für Remote-Host-Passwörter
+- **Rate-Limiting** - Schutz vor Brute-Force-Angriffen
+- **CORS-Schutz** - Konfigurierbare Richtlinien
+- **SQL-Injection-Schutz** - Prepared Statements
+- **XSS-Prävention** - Eingabebereinigung
 
 ### Wichtige Sicherheitshinweise
 
@@ -295,20 +295,20 @@ docker compose build
 docker compose up -d
 ```
 
-## 📊 Performance
+## 📊 Leistung
 
 ### System-Anforderungen
 - **CPU**: 2 Cores (4 empfohlen)
 - **RAM**: 2GB minimum (4GB empfohlen)
-- **Disk**: 10GB (20GB empfohlen)
+- **Festplatte**: 10GB (20GB empfohlen)
 
 ### Optimierungen
-- Redis Cache (optional)
-- CDN für Static Assets
-- Database Query Optimization
-- Connection Pooling
+- Redis-Cache (optional)
+- CDN für statische Ressourcen
+- Datenbankabfrage-Optimierung
+- Verbindungspooling
 
-## 🐛 Troubleshooting
+## 🐛 Fehlerbehebung
 
 ### Häufige Probleme
 
@@ -323,11 +323,11 @@ docker compose up -d
 docker exec appliance_backend npm run reset-admin-password
 ```
 
-**SSL Zertifikat Fehler:**
-- Prüfen Sie die Nginx Konfiguration
+**SSL-Zertifikat-Fehler:**
+- Prüfen Sie die Nginx-Konfiguration
 - Stellen Sie sicher, dass Port 443 verfügbar ist
 
-### Debug Mode
+### Debug-Modus
 
 Für detaillierte Logs:
 ```bash

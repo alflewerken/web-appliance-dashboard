@@ -66,23 +66,23 @@ A modern, containerized dashboard for centralized management and monitoring of w
 <summary><b>View all screenshots</b></summary>
 
 ### Dashboard & Navigation
-![Dashboard Desktop](docs/user-manual/images/Desktop%20Ansicht.png)
+![Dashboard Desktop](docs/user-manual/images/Desktop%20View.png)
 *Desktop Dashboard Overview*
 
 ![Mobile Dashboard](docs/user-manual/images/Mobile.jpeg)
 *Mobile View*
 
-![iPad View](docs/user-manual/images/iPad%20Ansicht.png)
+![iPad View](docs/user-manual/images/iPad%20View.png)
 *Tablet/iPad View*
 
 ### Service Management
-![Service Card Running](docs/user-manual/images/Service-Card%20Detailansicht%20(grüner%20Statusbar%20für%20Service%20läuft).png)
+![Service Card Running](docs/user-manual/images/Service%20Card%20Detail%20View%20(green%20statusbar%20service%20running).png)
 *Service Card - Service Running (Green)*
 
-![Service Card Stopped](docs/user-manual/images/Service-Card%20ohne%20Details%20(roter%20Statusbar%20für%20Service%20läuft%20nicht).png)
+![Service Card Stopped](docs/user-manual/images/Service%20Card%20without%20Details%20(red%20statusbar%20service%20not%20running).png)
 *Service Card - Service Stopped (Red)*
 
-![Create Service](docs/user-manual/images/Service%20anlegen.png)
+![Create Service](docs/user-manual/images/Create%20Service.png)
 *Create New Service*
 
 ### Terminal & Remote Access
@@ -93,20 +93,20 @@ A modern, containerized dashboard for centralized management and monitoring of w
 *Custom SSH Commands*
 
 ### Administration
-![User Management](docs/user-manual/images/Benutzerverwaltung.png)
+![User Management](docs/user-manual/images/User%20Management.png)
 *User Management*
 
 ![Audit Log](docs/user-manual/images/Audit%20Log.png)
 *Audit Log Overview*
 
 ### Settings
-![Settings Categories](docs/user-manual/images/Einstellungen%20Kategorien.png)
+![Settings Categories](docs/user-manual/images/Settings%20Categories.png)
 *Manage Categories*
 
-![Settings Background](docs/user-manual/images/Einstellungen%20Hintergrundbild.png)
+![Settings Background](docs/user-manual/images/Settings%20Background.png)
 *Customize Background*
 
-![Backup Restore](docs/user-manual/images/Einstellungen%20Backup%20Restore.png)
+![Backup Restore](docs/user-manual/images/Settings%20Backup%20Restore.png)
 *Backup & Restore*
 
 </details>
@@ -159,19 +159,19 @@ Default login:
 
 ### Developer Documentation
 - [Developer Guide](docs/developer.html) - Architecture with diagrams
-- [API Reference](docs/api-reference.md) - API documentation
-- [API Client SDKs](docs/api-client-sdks.md) - Client examples
-- [Integration Guide](docs/integration-guide.md) - Integration with existing systems
-- [Development Setup](docs/DEVELOPMENT_SETUP.md) - Setting up development environment
+- [API Reference](docs/api-reference-eng.md) - API documentation
+- [API Client SDKs](docs/api-client-sdks-eng.md) - Client examples
+- [Integration Guide](docs/integration-guide-eng.md) - Integration with existing systems
+- [Development Setup](docs/DEVELOPMENT_SETUP-eng.md) - Setting up development environment
 
 ### Setup & Configuration
-- [Remote Desktop Setup](docs/remote-desktop-setup-guide.md) - Configure Guacamole
-- [Security Guide](docs/security-best-practices-guide.md) - Security guidelines
-- [Performance Tuning](docs/performance-tuning-guide.md) - Optimization
-- [Docker Environment](docs/docker-env-setup.md) - Docker configuration
+- [Remote Desktop Setup](docs/remote-desktop-setup-guide-eng.md) - Configure Guacamole
+- [Security Guide](docs/security-best-practices-guide-eng.md) - Security guidelines
+- [Performance Tuning](docs/performance-tuning-guide-eng.md) - Optimization
+- [Docker Environment](docs/docker-env-setup-eng.md) - Docker configuration
 
 ### Technical Documentation
-- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION.md) - Proxy architecture
+- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION-eng.md) - Proxy architecture
 - [OpenAPI Specification](docs/openapi.yaml) - API specification
 
 ## 🔒 Security

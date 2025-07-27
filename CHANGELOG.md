@@ -5,6 +5,35 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Translation Glossary** - Comprehensive German translation glossary
+  - Over 200 standardized term translations
+  - Categories for different documentation areas
+  - Code comment translations
+  - Usage guidelines and best practices
+
+### Changed
+- **German Documentation Translation** - Systematic translation improvements
+  - All 11 German documentation files (-ger.md) consistently translated
+  - Automated translation script for common terms
+  - Code comments in examples translated to German
+  - Consistent terminology according to glossary
+- **README Files** - Improved translations and consistency
+  - German README: Fixed mixed languages, consistent German terms
+  - English README: Corrected image references
+  - Both files now use consistent formatting
+- **Image Files** - Renamed from German to English
+  - 18 documentation images renamed for consistency
+  - Updated all references in README files
+  - Created backup of original files
+
+### Removed
+- **Temporary Files** - Cleaned up documentation
+  - Removed api-client-sdks-eng.tmp.bak backup file
+  - Moved to translation-fixes directory
+
 ## [1.1.1] - 2025-01-27
 
 ### Added

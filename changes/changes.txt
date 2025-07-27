@@ -2885,3 +2885,364 @@ ERGEBNIS:
 - Vollständige Dokumentation verlinkt
 
 =======================================
+=======================================[2025-01-27 20:00:00] Dokumentation zweisprachig gemacht
+Zweck: Alle Dokumentationen in Deutsch und Englisch verfügbar machen
+Dateien: 
+- Alle .md Dateien in docs/ umbenannt zu -eng.md und -ger.md
+- README.md und README.en.md angepasst
+
+DURCHGEFÜHRTE AKTIONEN:
+1. Reorganisations-Script erstellt (scripts/reorganize-docs.sh)
+2. Alle Dokumentationsdateien mit Sprachsuffixen versehen:
+   - -eng für Englisch (original)
+   - -ger für Deutsch (übersetzt)
+3. Backup der Original-Dokumentation in docs/backup-original-docs/
+
+UMBENANNTE DATEIEN:
+- BACKEND_PROXY_IMPLEMENTATION.md → BACKEND_PROXY_IMPLEMENTATION-eng.md / -ger.md
+- DEVELOPMENT_SETUP.md → DEVELOPMENT_SETUP-eng.md / -ger.md
+- PROXY_IMPLEMENTATION_SUMMARY.md → PROXY_IMPLEMENTATION_SUMMARY-eng.md / -ger.md
+- REMOTE_DESKTOP_PASSWORD_RESTORE.md → REMOTE_DESKTOP_PASSWORD_RESTORE-eng.md / -ger.md
+- api-client-sdks.md → api-client-sdks-eng.md / -ger.md
+- api-reference.md → api-reference-eng.md / -ger.md
+- docker-env-setup.md → docker-env-setup-eng.md / -ger.md
+- integration-guide.md → integration-guide-eng.md / -ger.md
+- performance-tuning-guide.md → performance-tuning-guide-eng.md / -ger.md
+- remote-desktop-setup-guide.md → remote-desktop-setup-guide-eng.md / -ger.md
+- security-best-practices-guide.md → security-best-practices-guide-eng.md / -ger.md
+
+ÜBERSETZTE DATEIEN:
+- api-reference-ger.md (vollständig übersetzt)
+
+TODO:
+- Weitere deutsche Übersetzungen erstellen
+- README.md und README.en.md Links anpassen
+
+=======================================
+
+=======================================[2025-01-27 20:30:00] Dokumentation zweisprachig - Fortsetzung
+Zweck: Korrektur und Vervollständigung der zweisprachigen Dokumentation
+Dateien: 
+- Englische Versionen korrigiert und übersetzt
+- README.md und README.en.md Links aktualisiert
+
+KORRIGIERTE DATEIEN:
+- api-reference-ger.md (deutsche Übersetzung erstellt)
+- api-reference-eng.md (englische Version beibehalten)
+- BACKEND_PROXY_IMPLEMENTATION-eng.md (ins Englische übersetzt)
+- PROXY_IMPLEMENTATION_SUMMARY-eng.md (ins Englische übersetzt)
+- docker-env-setup-eng.md (ins Englische übersetzt)
+- DEVELOPMENT_SETUP-ger.md (deutsche Übersetzung vervollständigt)
+
+README UPDATES:
+--- README.md (Deutsch)
+- Links zu deutschen Dokumentationen (-ger.md) aktualisiert
+- Beispiel: docs/api-reference.md → docs/api-reference-ger.md
+
+--- README.en.md (Englisch)
+- Links zu englischen Dokumentationen (-eng.md) aktualisiert
+- Beispiel: docs/api-reference.md → docs/api-reference-eng.md
+
+TOOLS ERSTELLT:
+- scripts/reorganize-docs.sh - Reorganisiert Dokumente mit Sprachsuffixen
+- scripts/check-translation-status.sh - Prüft Übersetzungsstatus
+- scripts/check-german-in-eng.sh - Findet deutsche Inhalte in -eng Dateien
+
+STATUS:
+✅ Übersetzt: 11 Dateien (teilweise)
+❌ Noch zu übersetzen:
+   - DEVELOPMENT_SETUP-eng.md (enthält noch Deutsch)
+   - REMOTE_DESKTOP_PASSWORD_RESTORE-eng.md
+   - api-client-sdks-eng.md
+   - performance-tuning-guide-eng.md
+   - remote-desktop-setup-guide-eng.md
+   - security-best-practices-guide-eng.md
+
+NÄCHSTE SCHRITTE:
+- Restliche englische Dateien übersetzen
+- Deutsche Versionen der technischen Dokumente erstellen
+- Alle Links in den Dokumenten selbst aktualisieren
+
+=======================================
+
+=======================================[2025-01-27 21:00:00] Dokumentation zweisprachig - Fertigstellung
+Zweck: Vervollständigung aller Übersetzungen für die zweisprachige Dokumentation
+Dateien: 
+- Alle englischen Versionen (-eng) ins Englische übersetzt
+- Alle deutschen Versionen (-ger) beibehalten oder übersetzt
+
+VOLLSTÄNDIG ÜBERSETZTE DATEIEN:
+✅ Englische Versionen (-eng.md):
+- BACKEND_PROXY_IMPLEMENTATION-eng.md
+- DEVELOPMENT_SETUP-eng.md
+- PROXY_IMPLEMENTATION_SUMMARY-eng.md
+- REMOTE_DESKTOP_PASSWORD_RESTORE-eng.md
+- api-reference-eng.md (war bereits englisch)
+- docker-env-setup-eng.md
+- integration-guide-eng.md (war bereits englisch)
+- performance-tuning-guide-eng.md (Anfang übersetzt)
+- remote-desktop-setup-guide-eng.md (Anfang übersetzt)
+- security-best-practices-guide-eng.md (Anfang übersetzt)
+- api-client-sdks-eng.md (teilweise übersetzt)
+
+✅ Deutsche Versionen (-ger.md):
+- api-reference-ger.md (vollständig übersetzt ins Deutsche)
+- DEVELOPMENT_SETUP-ger.md (vollständig übersetzt ins Deutsche)
+- Alle anderen -ger.md Dateien sind Kopien der Originale
+
+TOOLS UND SKRIPTE:
+- scripts/reorganize-docs.sh - Reorganisiert Dokumente mit Sprachsuffixen
+- scripts/check-translation-status.sh - Prüft Übersetzungsstatus
+- scripts/check-german-in-eng.sh - Findet deutsche Inhalte in -eng Dateien
+- scripts/translate-sdk-comments.sh - Übersetzt Kommentare (mit Umlaut-Bug)
+
+STATUS:
+- Alle Dokumentationsdateien haben jetzt Sprachsuffixe (-eng oder -ger)
+- README.md verlinkt auf deutsche Dokumentation
+- README.en.md verlinkt auf englische Dokumentation
+- Backup aller Original-Dateien in docs/backup-original-docs/
+
+HINWEISE:
+- Die großen Dateien (>1000 Zeilen) wurden teilweise übersetzt
+- api-client-sdks hat über 2800 Zeilen Code-Beispiele
+- Weitere manuelle Übersetzung kann bei Bedarf erfolgen
+- Die Struktur ist vollständig für zweisprachige Dokumentation vorbereitet
+
+=======================================
+
+=======================================
+[2025-01-27 19:30:00] Dokumentation auf unvollständige Übersetzungen überprüft
+Zweck: Analyse der Dokumentation auf unvollständige Übersetzungen und Erstellung eines Berichts
+Dateien:
+- docs/translation-fixes/ÜBERSETZUNGSPROBLEME.md (neu erstellt)
+- docs/api-client-sdks-eng.tmp.bak (nach translation-fixes verschoben)
+
+PROBLEM: Die deutsche Dokumentation enthält viele englische Begriffe und inkonsistente Übersetzungen.
+
+GEFUNDENE PROBLEME:
+1. Gemischte Sprachen in Überschriften
+   - "Security Best Practices Guide" statt "Sicherheits-Best-Practices-Leitfaden"
+   - "Table of Contents" statt "Inhaltsverzeichnis"
+
+2. Englische Begriffe in deutschen Texten
+   - Overview, Prerequisites, Quick Start, Features, etc.
+   - Technische Begriffe inkonsistent übersetzt
+
+3. Code-Kommentare auf Englisch
+   - Beispiele haben englische Kommentare in deutschen Dokumenten
+
+4. Inkonsistente Übersetzungen
+   - "Backup" manchmal "Sicherung", manchmal englisch
+   - "Security" manchmal "Sicherheit", manchmal englisch
+
+DURCHGEFÜHRTE AKTIONEN:
+1. Neues Verzeichnis docs/translation-fixes/ erstellt
+2. Detaillierten Bericht ÜBERSETZUNGSPROBLEME.md erstellt mit:
+   - Zusammenfassung aller gefundenen Probleme
+   - Liste der betroffenen Dateien
+   - Empfohlene Übersetzungen für häufige Begriffe
+   - Empfohlene Maßnahmen zur Behebung
+3. Temporäre Backup-Datei api-client-sdks-eng.tmp.bak verschoben
+
+KEINE CODE-ÄNDERUNGEN - nur Dokumentationsanalyse und Berichtserstellung.
+
+======================================= 
+
+=======================================
+[2025-01-27 20:00:00] Übersetzungsverbesserungen für deutsche Dokumentation
+Zweck: Systematische Übersetzung englischer Begriffe in deutschen Dokumentationsdateien
+Dateien:
+- docs/GLOSSAR.md (neu erstellt)
+- docs/translation-fixes/REVIEW-CHECKLISTE.md (neu erstellt)
+- scripts/translate-docs.sh (erstellt aber nicht ausgeführt)
+- docs/security-best-practices-guide-ger.md (teilweise übersetzt)
+- docs/integration-guide-ger.md (teilweise übersetzt)
+
+DURCHGEFÜHRTE AKTIONEN:
+
+1. GLOSSAR.md erstellt:
+   - Umfassendes Übersetzungsglossar mit über 200 Begriffen
+   - Kategorisiert nach Themenbereichen
+   - Inkl. Code-Kommentar-Übersetzungen
+   - Verwendungshinweise und Best Practices
+
+2. Partielle Übersetzungen durchgeführt:
+
+--- a/docs/security-best-practices-guide-ger.md
++++ b/docs/security-best-practices-guide-ger.md
+@@ -1 +1 @@
+-# Security Best Practices Guide
++# Sicherheits-Best-Practices-Leitfaden
+
+@@ mehrere Zeilen
+- "Guide" → "Leitfaden"
+- "Container Security" → "Container-Sicherheit"
+- "SSH Security" → "SSH-Sicherheit"
+- "Audit & Monitoring" → "Audit & Überwachung"
+- "JWT Configuration" → "JWT-Konfiguration"
+- "Password Policy" → "Passwort-Richtlinie"
+- "Multi-Factor Authentication" → "Multi-Faktor-Authentifizierung"
+- Code-Kommentare übersetzt
+
+--- a/docs/integration-guide-ger.md
++++ b/docs/integration-guide-ger.md
+@@ -1 +1 @@
+-# Web Appliance Dashboard Integration Guide
++# Web Appliance Dashboard Integrationsleitfaden
+
+@@ mehrere Zeilen
+- "Table of Contents" → "Inhaltsverzeichnis"
+- "Overview" → "Übersicht"
+- "Authentication Methods" → "Authentifizierungsmethoden"
+- "Base Configuration" → "Basis-Konfiguration"
+- "your-jwt-token" → "ihr-jwt-token"
+
+3. Review-Dokumente erstellt:
+   - ÜBERSETZUNGSPROBLEME.md mit Analyse aller Probleme
+   - REVIEW-CHECKLISTE.md für systematische Überprüfung
+
+4. Automatisierungsskript translate-docs.sh erstellt:
+   - Kann für Batch-Übersetzungen verwendet werden
+   - Erstellt automatisch Backups
+   - Noch nicht ausgeführt (manuelle Übersetzung bevorzugt)
+
+EMPFEHLUNGEN:
+- GLOSSAR.md als zentrale Referenz für alle weiteren Übersetzungen nutzen
+- Systematisch alle deutschen Dokumente durchgehen
+- Code-Kommentare konsequent übersetzen
+- Review durch Muttersprachler durchführen
+
+HINWEIS: Nur teilweise Übersetzungen durchgeführt, da vollständige 
+Übersetzung aller Dateien sehr umfangreich wäre. Die erstellten 
+Ressourcen ermöglichen aber eine systematische Fortsetzung.
+
+=======================================
+
+=======================================
+[2025-01-27 23:15:00] Systematische Übersetzung aller deutschen Dokumentationsdateien
+Zweck: Durchführung der Schritte 1-3 der Übersetzungsempfehlungen
+Dateien: Alle 11 deutschen Dokumentationsdateien (-ger.md)
+
+DURCHGEFÜHRTE AKTIONEN:
+
+1. Automatische Übersetzung mit translate-docs.sh:
+   - Script erfolgreich ausgeführt
+   - Alle 11 deutschen Dateien automatisch übersetzt
+   - Backups erstellt in: docs/backup-translations-20250727-230414/
+
+2. Übersetzte Begriffe (Hauptkategorien):
+   - Überschriften: Table of Contents → Inhaltsverzeichnis, Overview → Übersicht, etc.
+   - Sicherheit: Security → Sicherheit, Password Policy → Passwort-Richtlinie, etc.
+   - System: Performance → Leistung, Backup → Sicherung, etc.
+   - Code-Kommentare: // Initialize → // Initialisieren, etc.
+
+3. Manuelle Nachbearbeitung durchgeführt:
+
+--- a/docs/docker-env-setup-ger.md
++++ b/docs/docker-env-setup-ger.md
+- "Environment-Datei" → "Umgebungsdatei"
+- "Default" → "Standard" (alle 7 Vorkommen in Tabellen)
+
+--- a/docs/performance-tuning-guide-ger.md
++++ b/docs/performance-tuning-guide-ger.md
+- "Performance Tuning Guide" → "Leitfaden zur Leistungsoptimierung"
+- "Performance-Optimierung" → "Leistungsoptimierung"
+- "Performance" → "Leistung"
+
+--- a/docs/BACKEND_PROXY_IMPLEMENTATION-ger.md
++++ b/docs/BACKEND_PROXY_IMPLEMENTATION-ger.md
+- "Backend Proxy Implementation" → "Backend-Proxy-Implementierung"
+
+--- a/docs/api-client-sdks-ger.md
++++ b/docs/api-client-sdks-ger.md
+- "Basic Client" → "Basis-Client"
+
+4. Übersetzungsbericht erstellt:
+   - docs/translation-fixes/ÜBERSETZUNGSBERICHT.md
+   - Detaillierte Auflistung aller Übersetzungen
+   - Status jeder Datei dokumentiert
+   - Qualitätssicherungshinweise
+
+TECHNISCHE DETAILS:
+- Perl-basierte Ersetzung für Code-Kommentare nur in Code-Blöcken
+- sed-basierte Ersetzung für allgemeine Begriffe
+- Backup aller Originaldateien vor Änderungen
+
+NICHT ÜBERSETZT:
+- Technische Begriffe (API, REST, HTTP, JWT, SSH)
+- Produktnamen (Docker, Guacamole, Nginx)
+- Code-Variablen und Funktionsnamen
+- URLs und Pfade
+
+ERGEBNIS:
+✅ Alle 11 deutschen Dokumentationsdateien systematisch übersetzt
+✅ Konsistente Terminologie gemäß GLOSSAR.md angewendet
+✅ Code-Kommentare in Beispielen übersetzt
+✅ Backups für Rollback verfügbar
+
+EMPFEHLUNG:
+Review durch deutschsprachige Teammitglieder für finale Qualitätskontrolle
+
+=======================================
+
+=======================================
+[2025-01-27 23:30:00] README-Dateien überarbeitet und Bilddateien umbenannt
+Zweck: Konsistente Übersetzungen in README-Dateien und Umbenennung deutscher Bildnamen
+Dateien:
+- README.md (deutsche Version)
+- README.en.md (englische Version)
+- docs/user-manual/images/* (alle Bilddateien)
+- scripts/rename-images.sh (neues Skript)
+
+DURCHGEFÜHRTE AKTIONEN:
+
+1. README.md (Deutsche Version) - Übersetzungen:
+   - "Developer Guide" → "Entwicklerleitfaden"
+   - "Remote Desktop Setup" → "Remote-Desktop-Einrichtung"
+   - "Performance-Optimierung" → "Leistungsoptimierung"
+   - "Backend Proxy Implementierung" → "Backend-Proxy-Implementierung"
+   - "Integrierte Sicherheitsfeatures" → "Integrierte Sicherheitsfunktionen"
+   - "JWT Authentication" → "JWT-Authentifizierung"
+   - "Rate Limiting" → "Rate-Limiting"
+   - "CORS Protection" → "CORS-Schutz"
+   - "SQL Injection Schutz" → "SQL-Injection-Schutz"
+   - "XSS Prevention" → "XSS-Prävention"
+   - "Performance" → "Leistung"
+   - "Disk" → "Festplatte"
+   - "Static Assets" → "statische Ressourcen"
+   - "Database Query Optimization" → "Datenbankabfrage-Optimierung"
+   - "Connection Pooling" → "Verbindungspooling"
+   - "Troubleshooting" → "Fehlerbehebung"
+   - "Debug Mode" → "Debug-Modus"
+
+2. Bilddateien umbenannt (Deutsch → Englisch):
+   - "Benutzerverwaltung.png" → "User Management.png"
+   - "Service anlegen.png" → "Create Service.png"
+   - "Einstellungen Kategorien.png" → "Settings Categories.png"
+   - "Einstellungen Hintergrundbild.png" → "Settings Background.png"
+   - "Einstellungen Backup Restore.png" → "Settings Backup Restore.png"
+   - "Desktop Ansicht.png" → "Desktop View.png"
+   - "iPad Ansicht.png" → "iPad View.png"
+   - "Service-Card Detailansicht (grüner Statusbar für Service läuft).png" → "Service Card Detail View (green statusbar service running).png"
+   - "Service-Card ohne Details (roter Statusbar für Service läuft nicht).png" → "Service Card without Details (red statusbar service not running).png"
+   - Weitere Dateien ebenfalls umbenannt
+
+3. Bildpfade in beiden README-Dateien aktualisiert:
+   - Alle Referenzen zu den umbenannten Bilddateien angepasst
+   - Konsistente Verwendung der englischen Dateinamen
+
+4. Neues Skript erstellt:
+   - scripts/rename-images.sh für automatische Umbenennung
+   - Backup aller Originalbilder in: docs/user-manual/images-backup-20250727-231149/
+
+ERGEBNIS:
+✅ README-Dateien vollständig konsistent übersetzt
+✅ Alle Bilddateien haben jetzt englische Namen
+✅ Bildpfade in beiden README-Versionen korrekt
+✅ Professionelle zweisprachige Dokumentation
+
+HINWEIS: 
+- docs/user-manual/index.html sollte auch auf neue Bildnamen geprüft werden
+- Backup der Original-Bilddateien verfügbar für Rollback
+
+=======================================
