@@ -5,35 +5,6 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-- **Translation Glossary** - Comprehensive German translation glossary
-  - Over 200 standardized term translations
-  - Categories for different documentation areas
-  - Code comment translations
-  - Usage guidelines and best practices
-
-### Changed
-- **German Documentation Translation** - Systematic translation improvements
-  - All 11 German documentation files (-ger.md) consistently translated
-  - Automated translation script for common terms
-  - Code comments in examples translated to German
-  - Consistent terminology according to glossary
-- **README Files** - Improved translations and consistency
-  - German README: Fixed mixed languages, consistent German terms
-  - English README: Corrected image references
-  - Both files now use consistent formatting
-- **Image Files** - Renamed from German to English
-  - 18 documentation images renamed for consistency
-  - Updated all references in README files
-  - Created backup of original files
-
-### Removed
-- **Temporary Files** - Cleaned up documentation
-  - Removed api-client-sdks-eng.tmp.bak backup file
-  - Moved to translation-fixes directory
-
 ## [1.1.1] - 2025-07-27
 
 ### Added
@@ -41,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Dialog displays the key needed to decrypt remote passwords after restore
   - Copy-to-clipboard functionality
   - Security warnings and best practices
+  - Explains the purpose of the key with clear warnings
+  - Includes security recommendations for safe storage
 - **Sidebar Tooltips** - Interactive tooltips for collapsed sidebar on desktop
   - React Portal-based implementation for proper rendering outside sidebar
   - Automatic tooltip generation from nav-text content
@@ -58,6 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prompts user to enter custom encryption key or generate secure one
   - Shows generated key with instructions to save it
   - Synchronizes key to both .env files
+  - Asks user for encryption key during setup with detailed explanation
+  - Generates secure 32-character key if none provided
+  - Shows generated key prominently with storage instructions
+  - Added quick setup script for users with existing keys
+- **Environment Variables**
+  - Added GUACAMOLE_PROXY_URL to .env files to prevent Docker Compose warnings
+  - Added ENCRYPTION_SECRET as alias for SSH_KEY_ENCRYPTION_SECRET
+- **Translation Glossary** - Comprehensive German translation glossary
+  - Over 200 standardized term translations
+  - Categories for different documentation areas
+  - Code comment translations
+  - Usage guidelines and best practices
 
 ### Fixed
 - **SSH File Upload** - Fixed file upload hanging at 10% due to SSH config mismatch
@@ -68,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Only checks for duplicate hostnames when hostname actually changes
   - Better error messages indicating which hostname already exists
   - SSH setup endpoint now updates existing hosts instead of failing
+  - Better error messages for duplicate key violations
 - **Health Check Issues** - Fixed unhealthy container states
   - Webserver health check now uses IPv4 (127.0.0.1) instead of localhost
   - ttyd health check simplified to process check (pidof ttyd)
@@ -87,14 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added overflow controls to all sidebar containers
   - Text now truncates with ellipsis instead of causing scroll
   - Improved responsive behavior at narrow widths
+- **Documentation Errors** - Fixed incorrect dates and passwords
+  - Corrected all timestamps from January to July 2025
+  - Fixed default password in README files (changeme123 → admin123)
+  - Updated architecture diagrams with correct component names and ports
 
-### Removed
-- **Security Improvements**
-  - Removed temporary debug routes that didn't require authentication
-  - Removed unused authDebug middleware
-  - Cleaned up debug directory with potential security risks
-  - Removed unused maintenance scripts in fixes/ and patches/ directories
-  
 ### Changed
 - **Code Cleanup**
   - Removed unused CSS files (ApplianceCard_heimdall.css)
@@ -102,11 +85,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Disabled Webpack performance warnings for cleaner build output
   - Moved ProxyService and cleaned up unused versions
   - Better code organization and reduced attack surface
-  
-### Added
-- **Environment Variables**
-  - Added GUACAMOLE_PROXY_URL to .env files to prevent Docker Compose warnings
-  - Added ENCRYPTION_SECRET as alias for SSH_KEY_ENCRYPTION_SECRET
+- **German Documentation Translation** - Systematic translation improvements
+  - All 11 German documentation files (-ger.md) consistently translated
+  - Automated translation script for common terms
+  - Code comments in examples translated to German
+  - Consistent terminology according to glossary
+- **README Files** - Improved translations and consistency
+  - German README: Fixed mixed languages, consistent German terms
+  - English README: Corrected image references
+  - Both files now use consistent formatting
+  - Architecture diagrams corrected (React Frontend, correct ports)
+- **Image Files** - Renamed from German to English
+  - 18 documentation images renamed for consistency
+  - Updated all references in README files
+  - Created backup of original files
+
+### Removed
+- **Security Improvements**
+  - Removed temporary debug routes that didn't require authentication
+  - Removed unused authDebug middleware
+  - Cleaned up debug directory with potential security risks
+  - Removed unused maintenance scripts in fixes/ and patches/ directories
+- **Temporary Files** - Cleaned up documentation
+  - Removed api-client-sdks-eng.tmp.bak backup file
+  - Moved to translation-fixes directory
 
 ### Documentation
 - **Updated Documentation** - All docs updated to version 1.1.1
@@ -117,53 +119,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated performance tuning and security best practices guides
   - Added extensive API client SDK examples for 9 languages
   - Updated both German and English README files
-
-## [Unreleased]
+  - Corrected Last Updated date to July 2025
 
 ### Security
 - **Environment Variable Handling** - Improved encryption key management
   - Setup script now prominently displays generated encryption keys
   - Clear instructions for secure key storage
   - Better synchronization between main and backend .env files
-
-## [1.1.1] - 2025-07-27
-
-### Added
-- **Encryption Key Dialog** - Shows encryption key after backup creation
-  - Displays the encryption key needed for decrypting remote host passwords
-  - Explains the purpose of the key with clear warnings
-  - Provides copy-to-clipboard functionality
-  - Includes security recommendations for safe storage
-- **Environment Variables**
-  - Added GUACAMOLE_PROXY_URL to .env files to prevent Docker Compose warnings
-- **Setup Script Enhancement** - Interactive encryption key configuration
-  - Asks user for encryption key during setup with detailed explanation
-  - Generates secure 32-character key if none provided
-  - Shows generated key prominently with storage instructions
-  - Added quick setup script for users with existing keys
-
-### Fixed
-- **SSH File Upload** - Fixed file upload hanging at 10% due to SSH config mismatch
-  - Added dual Host entries in SSH config generation (hostname and host_id)
-  - Fixed password authentication detection logic in upload handler
-  - Updated SSH config regeneration script for compatibility
-- **SSH Host Update** - Fixed hostname duplicate check when updating hosts
-  - Only checks for duplicate hostnames when hostname actually changes
-  - Setup endpoint now updates existing hosts instead of failing
-  - Better error messages for duplicate key violations
-
-### Removed
-- **Security Improvements**
-  - Removed temporary debug routes that didn't require authentication
-  - Removed unused authDebug middleware
-  - Cleaned up debug directory with potential security risks
-  
-### Changed
-- **Code Cleanup**
-  - Removed unused CSS files (ApplianceCard_heimdall.css)
-  - Removed unused RemoteDesktopButton component variants
-  - Removed unused maintenance scripts in fixes/ and patches/ directories
-  - Disabled Webpack performance warnings for cleaner build output
 
 ## [1.1.0] - 2025-07-24
 

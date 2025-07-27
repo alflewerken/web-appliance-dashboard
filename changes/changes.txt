@@ -3381,3 +3381,45 @@ ERGEBNIS:
 - Konsistente Darstellung in beiden Sprachversionen
 
 =======================================
+
+
+=======================================
+[2025-07-27 19:30:00] - CHANGELOG.md Konsolidierung
+Zweck: Konsolidierung der doppelten Version 1.1.1 Einträge und des Unreleased Blocks
+Datei: CHANGELOG.md
+
+PROBLEM: Die CHANGELOG.md enthielt:
+- Einen "Unreleased" Block mit Änderungen, die zu 1.1.1 gehören
+- Zwei separate 1.1.1 Blöcke mit teilweise doppelten Einträgen
+- Unübersichtliche Struktur durch die Duplikate
+
+DURCHGEFÜHRTE AKTIONEN:
+1. Alle Einträge aus dem "Unreleased" Block in den 1.1.1 Block verschoben:
+   - Translation Glossary
+   - German Documentation Translation
+   - README Files Verbesserungen
+   - Image Files Umbenennung
+   
+2. Die zwei 1.1.1 Blöcke zu einem konsolidierten Block zusammengeführt
+
+3. Doppelte Einträge entfernt und ähnliche Einträge kombiniert:
+   - Encryption Key Dialog Einträge zusammengeführt
+   - Setup Script Improvements konsolidiert
+   - SSH-bezogene Fixes gruppiert
+
+4. Neue Einträge hinzugefügt für heutige Fixes:
+   - Documentation Errors Fix (Timestamps und Passwort-Korrektur)
+   - Architecture diagrams Korrektur
+
+STRUKTUR NACH KONSOLIDIERUNG:
+- Ein sauberer 1.1.1 Block mit allen Änderungen seit 1.1.0
+- Kategorien: Added, Fixed, Changed, Removed, Documentation, Security
+- Chronologisch und thematisch sortierte Einträge
+- Keine Duplikate mehr
+
+ERGEBNIS:
+- Übersichtliche, konsolidierte CHANGELOG.md
+- Alle Änderungen der Version 1.1.1 an einem Ort
+- Bessere Lesbarkeit und Wartbarkeit
+
+=======================================
