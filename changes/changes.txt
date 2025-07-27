@@ -2380,3 +2380,108 @@ INSGESAMT GELÖSCHT:
 - Erhebliche Verbesserung der Produktionssicherheit
 
 =======================================
+
+=======================================
+TIMESTAMP: 2025-01-27 21:15:00
+PURPOSE: README.md aktualisiert mit neuesten Änderungen
+CHANGES:
+
+PATCH 1: README.md - Version Badge aktualisiert
+--- a/README.md
++++ b/README.md
+@@ -8,7 +8,8 @@
+ [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
+ [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+-[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen.svg)](package.json)
++[![Version](https://img.shields.io/badge/Version-1.1.1-brightgreen.svg)](package.json)
++[![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
+
+PATCH 2: README.md - Neuer Abschnitt für v1.1.1 Updates
++## 🆕 Neueste Updates (v1.1.1)
++
++### Sicherheitsverbesserungen
++- ✅ Alle Debug-Dateien und -Ordner entfernt
++- ✅ Keine öffentlich zugänglichen Debug-Endpoints mehr
++- ✅ Saubere Browser-Konsole ohne Debug-Ausgaben
++- ✅ Reduzierte Angriffsfläche für Production
++
++### UI/UX Verbesserungen
++- ✅ Interaktive Tooltips für kollabierte Sidebar
++- ✅ Toggle-Funktionalität für Sidepanels
++- ✅ Verbesserte Resize-Funktionalität für Panels
++- ✅ Kein horizontales Scrolling in der Sidebar
++
++### Neue Features
++- ✅ Verschlüsselungsschlüssel-Dialog nach Backup
++- ✅ Guacamole Cache-Clear API Endpoint
++- ✅ Verbesserte SSH-Host Update-Funktionalität
++- ✅ Terminal Error Suppressor für saubere Konsole
++
++### Bug Fixes
++- ✅ Health Check Probleme behoben (ttyd, webserver)
++- ✅ SSH File Upload bei 10% hängen behoben
++- ✅ Hostname-Duplikat Check beim Update korrigiert
++- ✅ Remote Desktop nach Logout funktioniert wieder
++
++### Code-Qualität
++- ✅ 109 console.log Statements entfernt
++- ✅ 31 Debug-Dateien gelöscht
++- ✅ 3 temporäre Backup-Verzeichnisse entfernt
++- ✅ Verbesserte Code-Organisation
++
+-## 🆕 Neueste Updates (v1.1.0)
++## 🆕 Frühere Updates (v1.1.0)
+
+PATCH 3: README.md - Features Abschnitt erweitert
+ ### Erweiterte Features
+-- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung
++- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung und Key-Dialog
+ - **📝 Audit Logging** - Nachvollziehbare Aktionsprotokolle mit Export
+ - **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
+-- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP
++- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP, keine Debug-Endpoints
+ - **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem
+ - **🚨 Health Monitoring** - Automatische Gesundheitsprüfungen mit Alerting
+ - **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
+ - **🔍 Volltextsuche** - Schnelle Suche über alle Appliances
++- **💡 Smart UI** - Tooltips, Toggle-Panels, Resize-fähige Sidebars
+
+PATCH 4: README.md - Neuer Sicherheitsabschnitt
++## 🛡️ Sicherheit
++
++### Production-Ready Security
++- **Keine Debug-Endpoints** - Alle Debug-Dateien und -Ordner wurden entfernt
++- **JWT-Authentifizierung** - Sichere Token-basierte Authentifizierung
++- **Verschlüsselte Passwörter** - AES-256 Verschlüsselung für Remote-Host Passwörter
++- **Rate Limiting** - Schutz vor Brute-Force Angriffen
++- **CORS Protection** - Konfigurierbare Cross-Origin Policies
++- **CSP Headers** - Content Security Policy aktiviert
++- **SQL Injection Schutz** - Prepared Statements für alle Queries
++- **XSS Prevention** - Input Sanitization und Output Encoding
++
++### Wichtige Sicherheitshinweise
++
++⚠️ **Verschlüsselungsschlüssel**: 
++- Der Verschlüsselungsschlüssel wird beim Setup generiert
++- Bewahren Sie ihn sicher auf (z.B. in einem Passwort-Manager)
++- Ohne diesen Schlüssel können Remote-Passwörter nach einem Restore nicht entschlüsselt werden
++
++⚠️ **Standard-Passwörter**:
++- Ändern Sie ALLE Standard-Passwörter in der .env Datei
++- Verwenden Sie starke, einzigartige Passwörter
++- Nutzen Sie das setup-env.sh Script für sichere Zufallspasswörter
++
++⚠️ **Netzwerk-Sicherheit**:
++- Betreiben Sie das Dashboard hinter einem Reverse-Proxy mit HTTPS
++- Beschränken Sie den Zugriff über Firewall-Regeln
++- Verwenden Sie VPN für Remote-Zugriff
+
+BESCHREIBUNG:
+- Version Badge auf 1.1.1 aktualisiert
+- Neuer Security Badge hinzugefügt
+- Umfangreicher Abschnitt für v1.1.1 Updates
+- Features-Abschnitt erweitert mit neuen Funktionen
+- Neuer Sicherheitsabschnitt mit wichtigen Hinweisen
+- Dokumentiert alle Verbesserungen seit v1.1.0
+
+=======================================

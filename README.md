@@ -6,7 +6,8 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.1-brightgreen.svg)](package.json)
+[![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
 Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwachung von Web-Appliances, Services und Servern mit integrierter SSH-Funktionalität, Web-Terminal und Remote Desktop Support.
 
@@ -25,16 +26,49 @@ Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwach
 - **📱 Responsive** - Optimiert für Desktop, Tablet und Mobile (PWA-ready)
 
 ### Erweiterte Features
-- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung
+- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung und Key-Dialog
 - **📝 Audit Logging** - Nachvollziehbare Aktionsprotokolle mit Export
 - **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
-- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP
+- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP, keine Debug-Endpoints
 - **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem
 - **🚨 Health Monitoring** - Automatische Gesundheitsprüfungen mit Alerting
 - **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
 - **🔍 Volltextsuche** - Schnelle Suche über alle Appliances
+- **💡 Smart UI** - Tooltips, Toggle-Panels, Resize-fähige Sidebars
 
-## 🆕 Neueste Updates (v1.1.0)
+## 🆕 Neueste Updates (v1.1.1)
+
+### Sicherheitsverbesserungen
+- ✅ Alle Debug-Dateien und -Ordner entfernt
+- ✅ Keine öffentlich zugänglichen Debug-Endpoints mehr
+- ✅ Saubere Browser-Konsole ohne Debug-Ausgaben
+- ✅ Reduzierte Angriffsfläche für Production
+
+### UI/UX Verbesserungen
+- ✅ Interaktive Tooltips für kollabierte Sidebar
+- ✅ Toggle-Funktionalität für Sidepanels
+- ✅ Verbesserte Resize-Funktionalität für Panels
+- ✅ Kein horizontales Scrolling in der Sidebar
+
+### Neue Features
+- ✅ Verschlüsselungsschlüssel-Dialog nach Backup
+- ✅ Guacamole Cache-Clear API Endpoint
+- ✅ Verbesserte SSH-Host Update-Funktionalität
+- ✅ Terminal Error Suppressor für saubere Konsole
+
+### Bug Fixes
+- ✅ Health Check Probleme behoben (ttyd, webserver)
+- ✅ SSH File Upload bei 10% hängen behoben
+- ✅ Hostname-Duplikat Check beim Update korrigiert
+- ✅ Remote Desktop nach Logout funktioniert wieder
+
+### Code-Qualität
+- ✅ 109 console.log Statements entfernt
+- ✅ 31 Debug-Dateien gelöscht
+- ✅ 3 temporäre Backup-Verzeichnisse entfernt
+- ✅ Verbesserte Code-Organisation
+
+## 🆕 Frühere Updates (v1.1.0)
 
 ### Remote Desktop Integration
 - ✅ Apache Guacamole für VNC/RDP Zugriff
@@ -260,6 +294,35 @@ docker compose stop guacamole-postgres guacd guacamole
 
 # Guacamole-Verbindungen prüfendocker exec appliance_backend node utils/guacamole/test-connection.js
 ```
+
+## 🛡️ Sicherheit
+
+### Production-Ready Security
+- **Keine Debug-Endpoints** - Alle Debug-Dateien und -Ordner wurden entfernt
+- **JWT-Authentifizierung** - Sichere Token-basierte Authentifizierung
+- **Verschlüsselte Passwörter** - AES-256 Verschlüsselung für Remote-Host Passwörter
+- **Rate Limiting** - Schutz vor Brute-Force Angriffen
+- **CORS Protection** - Konfigurierbare Cross-Origin Policies
+- **CSP Headers** - Content Security Policy aktiviert
+- **SQL Injection Schutz** - Prepared Statements für alle Queries
+- **XSS Prevention** - Input Sanitization und Output Encoding
+
+### Wichtige Sicherheitshinweise
+
+⚠️ **Verschlüsselungsschlüssel**: 
+- Der Verschlüsselungsschlüssel wird beim Setup generiert
+- Bewahren Sie ihn sicher auf (z.B. in einem Passwort-Manager)
+- Ohne diesen Schlüssel können Remote-Passwörter nach einem Restore nicht entschlüsselt werden
+
+⚠️ **Standard-Passwörter**:
+- Ändern Sie ALLE Standard-Passwörter in der .env Datei
+- Verwenden Sie starke, einzigartige Passwörter
+- Nutzen Sie das setup-env.sh Script für sichere Zufallspasswörter
+
+⚠️ **Netzwerk-Sicherheit**:
+- Betreiben Sie das Dashboard hinter einem Reverse-Proxy mit HTTPS
+- Beschränken Sie den Zugriff über Firewall-Regeln
+- Verwenden Sie VPN für Remote-Zugriff
 
 ## 🏗️ Architektur
 
