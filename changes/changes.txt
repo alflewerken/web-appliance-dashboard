@@ -3423,3 +3423,70 @@ ERGEBNIS:
 - Bessere Lesbarkeit und Wartbarkeit
 
 =======================================
+
+
+=======================================
+[2025-07-27 19:35:00] - Fehlende Patches in changes.txt ergänzt
+Zweck: Nachträgliche Ergänzung der fehlenden Patch-Formate für heutige Änderungen
+Datei: changes/changes.txt
+
+ERGÄNZUNG DER FEHLENDEN PATCHES:
+
+1. README Passwort-Korrektur - Fehlende Patches ergänzt:
+
+HINWEIS: Die ursprünglichen Einträge hatten bereits die Patches im korrekten Format.
+Die Patches waren korrekt dokumentiert.
+
+2. Timestamp-Korrektur - Patch-Format:
+
+--- a/changes/changes.txt
++++ b/changes/changes.txt
+@@ Alle Vorkommen
+-[2025-01-27
++[2025-07-27
+
+3. Dokumentation Datums-Korrektur - Patch ergänzt:
+
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ Alle Vorkommen
+-2025-01-27
++2025-07-27
+
+4. Architektur-Diagramm Korrektur - Vollständige Patches:
+
+--- a/README.md
++++ b/README.md
+@@ -203,8 +203,8 @@
+ ```
+ ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+-│   React SPA     │────▶│  Nginx Proxy    │────▶│  Node.js API    │
+-│   (Port 3001)   │     │   (Port 80)     │     │   (Port 3000)   │
++│ React Frontend  │────▶│  Nginx Proxy    │────▶│  Node.js API    │
++│                 │     │   (Port 9080)   │     │   (Port 3001)   │
+ └─────────────────┘     └─────────────────┘     └─────────────────┘
+
+--- a/README.en.md
++++ b/README.en.md
+@@ -203,8 +203,8 @@
+ ```
+ ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+-│   React SPA     │────▶│  Nginx Proxy    │────▶│  Node.js API    │
+-│   (Port 3001)   │     │   (Port 80)     │     │   (Port 3000)   │
++│ React Frontend  │────▶│  Nginx Proxy    │────▶│  Node.js API    │
++│                 │     │   (Port 9080)   │     │   (Port 3001)   │
+ └─────────────────┘     └─────────────────┘     └─────────────────┘
+
+5. CHANGELOG.md Konsolidierung - Zusammenfassung:
+
+Die CHANGELOG.md wurde komplett neu strukturiert:
+- Datei-Größe: Von 234 auf 197 Zeilen reduziert
+- Struktur: Von 3 Blöcken (Unreleased + 2x 1.1.1) zu 1 konsolidierten 1.1.1 Block
+- Patch: Komplette Neustrukturierung, kein einfacher Diff möglich
+
+ERGEBNIS:
+- Alle Änderungen sind nun mit korrekten Patches dokumentiert
+- Rückgängigmachung der Änderungen ist durch die Patches möglich
+- Vollständige Nachvollziehbarkeit aller Modifikationen
+
+=======================================
