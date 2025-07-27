@@ -155,19 +155,24 @@ Default login:
 ## 📚 Documentation
 
 ### User Documentation
-- [User Manual](docs/user-manual/) - Comprehensive guide
-- [Installation](docs/user-manual/installation.md) - Detailed installation
-- [Quick Start Guide](docs/user-manual/quick-start.md) - Getting started
+- [User Manual](docs/user-manual/index.html) - Web-based guide
 
 ### Developer Documentation
 - [Developer Guide](docs/developer.html) - Architecture with diagrams
 - [API Reference](docs/api-reference.md) - API documentation
 - [API Client SDKs](docs/api-client-sdks.md) - Client examples
+- [Integration Guide](docs/integration-guide.md) - Integration with existing systems
+- [Development Setup](docs/DEVELOPMENT_SETUP.md) - Setting up development environment
 
 ### Setup & Configuration
 - [Remote Desktop Setup](docs/remote-desktop-setup-guide.md) - Configure Guacamole
 - [Security Guide](docs/security-best-practices-guide.md) - Security guidelines
 - [Performance Tuning](docs/performance-tuning-guide.md) - Optimization
+- [Docker Environment](docs/docker-env-setup.md) - Docker configuration
+
+### Technical Documentation
+- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION.md) - Proxy architecture
+- [OpenAPI Specification](docs/openapi.yaml) - API specification
 
 ## 🔒 Security
 

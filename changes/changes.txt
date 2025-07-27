@@ -2849,3 +2849,39 @@ ERGEBNIS:
 - Bessere Navigation durch ausklappbare Bereiche
 
 =======================================
+
+=======================================
+[2025-01-27 19:45:00] - README Dokumentationslinks korrigiert
+Zweck: Korrektur nicht existierender Links in der Dokumentationssektion
+Dateien:
+- README.md
+- README.en.md
+
+ÄNDERUNGEN:
+
+1. README.md - Dokumentationslinks aktualisiert:
+   - Entfernt: docs/user-manual/ (Verzeichnis-Link)
+   - Korrigiert zu: docs/user-manual/index.html
+   - Entfernt: docs/user-manual/installation.md (existiert nicht)
+   - Entfernt: docs/user-manual/quick-start.md (existiert nicht)
+   - Hinzugefügt: docs/integration-guide.md
+   - Hinzugefügt: docs/DEVELOPMENT_SETUP.md
+   - Hinzugefügt: docs/docker-env-setup.md
+   - Hinzugefügt: docs/BACKEND_PROXY_IMPLEMENTATION.md
+   - Hinzugefügt: docs/openapi.yaml
+
+2. README.en.md - Documentation links updated:
+   - Identische Änderungen wie in der deutschen Version
+   - Alle Links zeigen jetzt auf tatsächlich existierende Dateien
+
+3. Dokumentationsstruktur verbessert:
+   - Neue Sektion "Technische Dokumentation" hinzugefügt
+   - Bessere Gruppierung der Dokumentationslinks
+   - Alle Links überprüft und verifiziert
+
+ERGEBNIS:
+- Alle Dokumentationslinks funktionieren jetzt
+- Keine toten Links mehr
+- Vollständige Dokumentation verlinkt
+
+=======================================
