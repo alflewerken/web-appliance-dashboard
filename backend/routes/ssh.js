@@ -10,6 +10,7 @@ const { createAuditLog } = require('../utils/auditLogger');
 const sseManager = require('../utils/sseManager');
 const { getClientIp } = require('../utils/getClientIp');
 const multer = require('multer');
+const { execAsync } = require('../utils/ssh');
 
 // SSH Key Management Class
 class SSHManager {
@@ -165,7 +166,20 @@ class SSHManager {
       for (const host of hosts) {
         const keyFile = path.join(this.sshDir, `id_rsa_${host.key_name}`);
 
+        // Add both hostname and host_id entries for compatibility
         configContent += `Host ${host.hostname}\n`;
+        configContent += `    HostName ${host.host}\n`;
+        configContent += `    User ${host.username}\n`;
+        configContent += `    Port ${host.port}\n`;
+        configContent += `    IdentityFile ${keyFile}\n`;
+        configContent += `    StrictHostKeyChecking no\n`;
+        configContent += `    UserKnownHostsFile /dev/null\n`;
+        configContent += `    ServerAliveInterval 30\n`;
+        configContent += `    ServerAliveCountMax 3\n`;
+        configContent += `    ConnectTimeout 10\n\n`;
+        
+        // Add host_id entry for upload handler compatibility
+        configContent += `Host host_${host.id}\n`;
         configContent += `    HostName ${host.host}\n`;
         configContent += `    User ${host.username}\n`;
         configContent += `    Port ${host.port}\n`;
@@ -2376,10 +2390,24 @@ router.delete('/keys/:keyId', async (req, res) => {
 });
 
 // Configure multer for file uploads
+const multerStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = '/tmp/uploads';
+    // Ensure directory exists
+    require('fs').mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multerStorage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit
+    fileSize: 50 * 1024 * 1024 * 1024, // 50GB limit
   },
 });
 
@@ -2396,222 +2424,112 @@ router.post('/upload-test', (req, res) => {
 });
 
 // Upload file via SSH
-router.post('/upload', upload.single('file'), async (req, res) => {
-  console.log('DEBUG: SSH Upload Route Handler Called');
-  console.log('DEBUG: Request body:', req.body);
-  console.log('DEBUG: Request file:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+const handleSSHUpload = require('../utils/sshUploadHandler');
+router.post('/upload', upload.single('file'), handleSSHUpload);
+
+
+// Create terminal session for ttyd
+router.post('/terminal-session', async (req, res) => {
+  console.log('🚀 Terminal session endpoint called');
+  console.log('Request body:', req.body);
   
   try {
-    const { hostId, targetPath, hostname, username, password, port } = req.body;
-    const file = req.file;
-
-    if (!file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No file provided',
-      });
-    }
-
-    if (!targetPath) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing targetPath',
-      });
-    }
-
-    let sshConfig = {};
-
-    // Option 1: Use hostId to get SSH host from database
-    if (hostId && hostId !== 'direct') {
-      console.log('DEBUG: Looking for SSH host with ID:', hostId);
-      const [hosts] = await pool.execute(
+    const { hostId, sshConnection } = req.body;
+    
+    let host = null;
+    
+    // Option 1: Get host by ID
+    if (hostId) {
+      const [[hostResult]] = await pool.execute(
         'SELECT * FROM ssh_hosts WHERE id = ? AND is_active = 1',
         [hostId]
       );
-
-      console.log('DEBUG: Found hosts:', hosts.length);
-      if (hosts.length > 0) {
-        console.log('DEBUG: Host data:', JSON.stringify(hosts[0], null, 2));
-      }
-
-      if (hosts.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'SSH host not found',
-        });
-      }
-
-      const host = hosts[0];
-      // Prefer host (IP address) over hostname for better connectivity
-      sshConfig.hostname = host.host || host.hostname;
-      sshConfig.username = host.username;
-      sshConfig.port = host.port || 22;
-      console.log('DEBUG: SSH Config:', { 
-        hostname: sshConfig.hostname, 
-        username: sshConfig.username, 
-        port: sshConfig.port 
-      });
-
-      // Decrypt password if encrypted
-      if (host.password_encrypted) {
-        const crypto = require('crypto');
-        const algorithm = 'aes-256-cbc';
-        const secretKey = Buffer.from(process.env.SSH_KEY_ENCRYPTION_SECRET || 'default-secret-key-32-chars-long!!', 'utf8').slice(0, 32);
-        const iv = Buffer.alloc(16, 0);
-        
-        try {
-          const decipher = crypto.createDecipheriv(algorithm, secretKey, iv);
-          sshConfig.password = decipher.update(host.password_encrypted, 'hex', 'utf8') + decipher.final('utf8');
-        } catch (decryptError) {
-          console.error('Failed to decrypt SSH password:', decryptError);
-        }
-      }
-
-      // Get SSH key if available
-      if (host.ssh_key_id || host.key_name) {
-        console.log('DEBUG: Host has SSH key configured:', { 
-          ssh_key_id: host.ssh_key_id, 
-          key_name: host.key_name 
-        });
-        
-        // First try with key_name directly
-        if (host.key_name) {
-          const keyPath = path.join(sshManager.sshDir, `id_rsa_${host.key_name}`);
-          console.log('DEBUG: Trying to read SSH key from:', keyPath);
-          try {
-            sshConfig.privateKey = await fs.readFile(keyPath, 'utf8');
-            console.log('DEBUG: SSH key loaded successfully');
-          } catch (error) {
-            console.error('DEBUG: Failed to read SSH key:', error.message);
-          }
-        } else if (host.ssh_key_id) {
-          const [keys] = await pool.execute(
-            'SELECT * FROM ssh_keys WHERE id = ?',
-            [host.ssh_key_id]
-          );
-          
-          if (keys.length > 0) {
-            const keyPath = path.join(sshManager.sshDir, `id_rsa_${keys[0].key_name}`);
-            console.log('DEBUG: Trying to read SSH key from:', keyPath);
-            try {
-              sshConfig.privateKey = await fs.readFile(keyPath, 'utf8');
-              console.log('DEBUG: SSH key loaded successfully');
-            } catch (error) {
-              console.error('DEBUG: Failed to read SSH key:', error.message);
-            }
-          }
-        }
-      }
-    } else {
-      // Option 2: Use direct SSH credentials from request
-      if (!hostname || !username) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing SSH connection details',
-        });
-      }
-
-      sshConfig = {
-        hostname,
-        username,
-        password,
-      };
+      host = hostResult;
     }
-
-    // Connect via SSH and upload file
-    const { NodeSSH } = require('node-ssh');
-    const ssh = new NodeSSH();
-
-    try {
-      // Connection config
-      const connectionConfig = {
-        host: sshConfig.hostname,
-        port: sshConfig.port || 22,
-        username: sshConfig.username,
-      };
-
-      if (sshConfig.privateKey) {
-        connectionConfig.privateKey = sshConfig.privateKey;
-      } else if (sshConfig.password) {
-        connectionConfig.password = sshConfig.password;
-      } else {
-        throw new Error('No authentication method available');
-      }
-
-      await ssh.connect(connectionConfig);
-
-      // Ensure target directory exists
-      const targetDir = path.dirname(targetPath);
-      await ssh.execCommand(`mkdir -p "${targetDir}"`);
-
-      // Upload file
-      const targetFile = path.join(targetPath, file.originalname);
-      console.log('DEBUG: Uploading file to:', targetFile);
-      
-      // Create a temporary file first
-      const tempPath = `/tmp/${Date.now()}_${file.originalname}`;
-      await fs.writeFile(tempPath, file.buffer);
-      
-      try {
-        // Use putFile to upload the temp file
-        await ssh.putFile(tempPath, targetFile);
-        console.log('DEBUG: File uploaded successfully');
+    
+    // Option 2: Parse SSH connection string
+    if (!host && sshConnection) {
+      const match = sshConnection.match(/^(.+)@(.+):(\d+)$/);
+      if (match) {
+        console.log('Parsed SSH connection:', { user: match[1], host: match[2], port: match[3] });
         
-        // Remove temp file
-        await fs.unlink(tempPath);
-      } catch (uploadError) {
-        // Clean up temp file on error
-        try {
-          await fs.unlink(tempPath);
-        } catch (e) {}
-        throw uploadError;
+        // Try to find host by connection details
+        const [[hostResult]] = await pool.execute(
+          'SELECT * FROM ssh_hosts WHERE host = ? AND username = ? AND port = ? AND is_active = 1',
+          [match[2], match[1], parseInt(match[3])]
+        );
+        
+        if (hostResult) {
+          host = hostResult;
+          console.log('Found matching SSH host:', host.hostname);
+        } else {
+          // Create temporary host object
+          host = {
+            host: match[2],
+            username: match[1],
+            port: parseInt(match[3]),
+            hostname: match[2],
+            id: 'temp'
+          };
+          console.log('Using temporary host from connection string');
+        }
       }
-
-      // Set permissions
-      await ssh.execCommand(`chmod 644 "${targetFile}"`);
-
-      await ssh.dispose();
-
-      // Create audit log
-      await createAuditLog(
-        req.user?.id || null,
-        'ssh_file_upload',
-        'ssh_host',
-        hostId || 'direct',
-        {
-          hostname: sshConfig.hostname,
-          username: sshConfig.username,
-          file_name: file.originalname,
-          file_size: file.size,
-          target_path: targetFile,
-          uploaded_by: req.user?.username || 'unknown',
-        },
-        getClientIp(req)
-      );
-
-      res.json({
-        success: true,
-        message: 'File uploaded successfully',
-        path: targetFile,
-      });
-    } catch (sshError) {
-      console.error('SSH upload error:', sshError);
-      res.status(500).json({
+    }
+    
+    if (!host) {
+      return res.status(404).json({
         success: false,
-        error: 'Failed to upload file via SSH',
-        details: sshError.message,
+        error: 'SSH host not found'
       });
-    } finally {
-      if (ssh && ssh.isConnected()) {
-        ssh.dispose();
-      }
     }
+
+    // Ensure session directory exists
+    const sessionDir = '/tmp/terminal-sessions';
+    try {
+      await fs.mkdir(sessionDir, { recursive: true });
+    } catch (err) {
+      // Directory might already exist
+    }
+
+    // Create session data
+    const sessionData = `# SSH Session Configuration
+SSH_HOST="${host.host}"
+SSH_USER="${host.username}"
+SSH_PORT="${host.port || 22}"
+SSH_HOST_ID="${host.id}"
+SSH_HOSTNAME="${host.hostname}"
+`;
+
+    // Write as latest-session marker file
+    const markerFile = path.join(sessionDir, 'latest-session.conf');
+    await fs.writeFile(markerFile, sessionData, 'utf8');
+    
+    // Also create a unique session file for debugging
+    const sessionId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    const sessionFile = path.join(sessionDir, `ttyd-session-${sessionId}.conf`);
+    await fs.writeFile(sessionFile, sessionData, 'utf8');
+    
+    // Clean up old session files after 60 seconds
+    setTimeout(async () => {
+      try {
+        await fs.unlink(sessionFile);
+      } catch (err) {
+        // File might already be deleted
+      }
+    }, 60000);
+
+    res.json({
+      success: true,
+      sessionId: sessionId,
+      message: 'Terminal session created'
+    });
+    
   } catch (error) {
-    console.error('Error uploading file:', error);
+    console.error('Error creating terminal session:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to process upload',
-      details: error.message,
+      error: 'Failed to create terminal session',
+      details: error.message
     });
   }
 });

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Konfiguration</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 440px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #1976d2;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #1976d2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1565c0;
+        }
+
+        .btn-secondary {
+            background-color: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .status.success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .status.info {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #1976d2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Konfiguration</h1>
+        <p class="subtitle">Konfigurieren Sie die Verbindung zum Backend-Server</p>
+        
+        <form id="configForm">
+            <div class="form-group">
+                <label for="protocol">Protokoll</label>
+                <select id="protocol" name="apiProtocol">
+                    <option value="http">HTTP</option>
+                    <option value="https">HTTPS</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="host">Host / IP-Adresse</label>
+                <input 
+                    type="text" 
+                    id="host" 
+                    name="apiHost" 
+                    placeholder="z.B. localhost oder 192.168.1.100"
+                    value="localhost"
+                    required
+                />
+            </div>
+            
+            <div class="form-group">
+                <label for="port">Port</label>
+                <input 
+                    type="number" 
+                    id="port" 
+                    name="apiPort" 
+                    placeholder="z.B. 9080"
+                    value="9080"
+                    min="1"
+                    max="65535"
+                    required
+                />
+            </div>
+            
+            <div id="status" class="status" style="display: none;"></div>
+            
+            <div class="button-group">
+                <button type="button" id="testBtn" class="btn-secondary">
+                    Verbindung testen
+                </button>
+                <button type="submit" id="saveBtn" class="btn-primary">
+                    Speichern
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+    // Inline JavaScript für den Konfigurationsdialog
+    document.addEventListener('DOMContentLoaded', async () => {
+        const form = document.getElementById('configForm');
+        const testBtn = document.getElementById('testBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const statusDiv = document.getElementById('status');
+
+        // Lade bestehende Konfiguration
+        try {
+            const config = await window.electronAPI.getConfig();
+            if (config) {
+                document.getElementById('protocol').value = config.apiProtocol || 'http';
+                document.getElementById('host').value = config.apiHost || 'localhost';
+                document.getElementById('port').value = config.apiPort || '9080';
+            }
+        } catch (error) {
+            console.error('Fehler beim Laden der Konfiguration:', error);
+        }
+
+        // Status anzeigen
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+        }
+
+        // Formular-Daten sammeln
+        function getFormData() {
+            return {
+                apiProtocol: document.getElementById('protocol').value,
+                apiHost: document.getElementById('host').value,
+                apiPort: document.getElementById('port').value
+            };
+        }
+
+        // Verbindung testen
+        testBtn.addEventListener('click', async () => {
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<span class="loading"></span>Teste...';
+            
+            try {
+                const config = getFormData();
+                const result = await window.electronAPI.testConnection(config);
+                
+                if (result.success) {
+                    showStatus('Verbindung erfolgreich!', 'success');
+                } else {
+                    showStatus('Fehler: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showStatus('Fehler: ' + error.message, 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = 'Verbindung testen';
+            }
+        });
+
+        // Konfiguration speichern
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="loading"></span>Speichern...';
+            
+            try {
+                const config = getFormData();
+                const success = await window.electronAPI.saveConfig(config);
+                
+                if (success) {
+                    showStatus('Konfiguration gespeichert!', 'success');
+                    // Fenster wird automatisch geschlossen
+                } else {
+                    showStatus('Fehler beim Speichern', 'error');
+                }
+            } catch (error) {
+                showStatus('Fehler: ' + error.message, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Speichern';
+            }
+        });
+
+        // Enter-Taste im Host-Feld löst Test aus
+        document.getElementById('host').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                testBtn.click();
+            }
+        });
+
+        // Port-Validierung
+        document.getElementById('port').addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            if (value < 1) e.target.value = 1;
+            if (value > 65535) e.target.value = 65535;
+        });
+    });
+    </script>
+</body>
+</html>

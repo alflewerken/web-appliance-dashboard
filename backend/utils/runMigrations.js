@@ -1,7 +1,7 @@
 const pool = require('../utils/database');
 const fs = require('fs').promises;
 const path = require('path');
-const logger = require('./logger');
+const { logger } = require('./logger');
 
 async function runMigrations() {
   logger.info('Running database migrations...');

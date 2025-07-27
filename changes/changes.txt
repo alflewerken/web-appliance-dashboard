@@ -1,0 +1,376 @@
+===== CHANGES LOG =====
+
+[2025-01-27 - Webpack Performance Warnings deaktiviert]
+Zweck: Verhinderung der Webpack-Performance-Warnings beim Build-Prozess
+Datei: frontend/webpack.config.js
+
+--- a/frontend/webpack.config.js
++++ b/frontend/webpack.config.js
+@@ -80,5 +80,10 @@ module.exports = {
+       "Access-Control-Allow-Origin": "*",
+       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+       "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
+     }
+-  }
++  },
++  performance: {
++    hints: false,
++    maxEntrypointSize: 512000,
++    maxAssetSize: 512000
++  }
+ };
+
+Beschreibung: 
+- Added performance configuration to webpack.config.js
+- Set hints: false to disable performance warnings
+- Set maxEntrypointSize and maxAssetSize to 512KB (500 KiB)
+- This prevents the warnings about bundle size exceeding 244 KiB limit
+
+=======================================
+[2025-01-27 - GUACAMOLE_PROXY_URL Warning behoben]
+Zweck: Docker Compose Warning bezüglich fehlender GUACAMOLE_PROXY_URL Variable beheben
+Dateien: .env.example, .env
+
+--- a/.env.example
++++ b/.env.example
+@@ -70,6 +70,7 @@ GUACAMOLE_DB_USER=guacamole_user
+ GUACAMOLE_DB_PASSWORD=guacamole_pass123
+ GUACAMOLE_PORT=9070
+ GUACAMOLE_URL=http://localhost:9070/guacamole
++GUACAMOLE_PROXY_URL=
+ GUACD_LOG_LEVEL=info
+ 
+ # Logging
+
+--- a/.env
++++ b/.env
+@@ -70,6 +70,7 @@ GUACAMOLE_DB_USER=guacamole_user
+ GUACAMOLE_DB_PASSWORD=guacamole_pass123
+ GUACAMOLE_PORT=9070
+ GUACAMOLE_URL=http://localhost:9070/guacamole
++GUACAMOLE_PROXY_URL=
+ GUACD_LOG_LEVEL=info
+ 
+ # Logging
+
+Beschreibung:
+- Added GUACAMOLE_PROXY_URL variable to .env.example and .env files
+- Set to empty string by default (blank value)
+- This prevents the Docker Compose warning about missing variable
+- Variable is used in docker-compose.yml for backend service environment
+
+=======================================[2025-01-27 - ProxyService Migration]
+Zweck: ProxyService von api/ nach services/ Verzeichnis verschoben
+Dateien: frontend/src/api/proxyService.js -> frontend/src/services/proxyService.js
+
+Durchgeführte Aktionen:
+1. Alte proxyService.js in services/ zu proxyService.old.js umbenannt (Backup)
+2. Neue proxyService.js von api/ nach services/ verschoben
+3. Leeres api/ Verzeichnis gelöscht
+
+--- Dateistruktur vorher:
+frontend/src/
+├── api/
+│   └── proxyService.js (neue Version)
+└── services/
+    └── proxyService.js (alte Version)
+
++++ Dateistruktur nachher:
+frontend/src/
+└── services/
+    ├── proxyService.js (neue Version)
+    └── proxyService.old.js (alte Version als Backup)
+
+Beschreibung:
+- Die neue proxyService.js aus dem api/ Verzeichnis bietet erweiterte Funktionalität
+- Alle bestehenden Imports zeigen bereits auf services/proxyService
+- Die alte Version wurde als Backup gespeichert für den Fall von Kompatibilitätsproblemen
+- Das api/ Verzeichnis wurde entfernt, da es nun leer war
+
+WICHTIG: Die neue proxyService.js hat eine andere API-Struktur:
+- Alt: getProxyUrl(applianceId, path) für Appliances
+- Neu: getProxyUrl(serviceId, path) für Services
+- Möglicherweise müssen die importierenden Komponenten angepasst werden
+
+=======================================[2025-01-27 - ProxyService Migration ROLLBACK]
+Zweck: Rückgängigmachung der ProxyService Migration wegen Inkompatibilität
+Dateien: services/proxyService.js
+
+Durchgeführte Aktionen:
+1. Neue Version zu proxyService.new.js umbenannt (für spätere Analyse)
+2. Alte Version von proxyService.old.js zurück zu proxyService.js
+
+Grund für Rollback:
+- Die neue proxyService.js hat eine andere API-Struktur
+- Bestehende Komponenten nutzen Methoden wie openInNewTab(appliance)
+- Die neue Version würde umfangreiche Änderungen an allen Komponenten erfordern
+
+Aktuelle Dateistruktur:
+frontend/src/services/
+├── proxyService.js (alte funktionierende Version)
+└── proxyService.new.js (neue Version für spätere Migration)
+
+TODO: Für eine erfolgreiche Migration müssen folgende Komponenten angepasst werden:
+- hooks/useAppliances.js
+- components/ApplianceCard.js
+- components/ServiceCard.js
+- components/TerminalModal.js
+- components/ServiceViewer.jsx
+
+=======================================[2025-01-27 - ProxyService neue Version gelöscht]
+Zweck: Entfernung der inkompatiblen neuen proxyService Version
+Datei: frontend/src/services/proxyService.new.js
+
+Durchgeführte Aktion:
+- proxyService.new.js gelöscht
+
+Begründung:
+- Die neue Version hatte eine fundamental andere API-Struktur (service-basiert statt appliance-basiert)
+- Eine Migration würde umfangreiche Änderungen an vielen Komponenten erfordern
+- Die alte Version funktioniert einwandfrei mit der bestehenden Codebasis
+
+Aktuelle Situation:
+- Nur noch die funktionierende proxyService.js vorhanden
+- Das ursprünglich leere api/ Verzeichnis bleibt gelöscht
+- Keine weiteren Änderungen erforderlich
+
+=======================================[2025-01-27 - Ungenutzte CSS-Datei gelöscht]
+Zweck: Entfernung ungenutzter CSS-Datei
+Datei: frontend/src/components/ApplianceCard_heimdall.css
+
+Durchgeführte Aktion:
+- ApplianceCard_heimdall.css gelöscht
+
+Begründung:
+- Die Datei wurde nirgendwo im Code importiert oder referenziert
+- Enthielt spezifische Styles für Heimdall-Services (Dashboard-Tool)
+- Heimdall-spezifische Styles sind bereits in anderen aktiven CSS-Dateien vorhanden:
+  - MobileButtonFix.css
+  - ApplianceCard_button_sizes.css
+  - mobile-button-override.css
+- Die Datei war vermutlich ein altes Überbleibsel oder Experiment
+
+Keine weiteren Änderungen erforderlich, da die Datei nicht verwendet wurde.
+
+=======================================[2025-01-27 - Ungenutzte RemoteDesktopButton Varianten gelöscht]
+Zweck: Entfernung ungenutzter RemoteDesktopButton-Komponenten
+Dateien: 
+- frontend/src/components/RemoteDesktopButtonDirect.jsx
+- frontend/src/components/RemoteDesktopButtonSimple.jsx
+
+Durchgeführte Aktionen:
+- RemoteDesktopButtonDirect.jsx gelöscht
+- RemoteDesktopButtonSimple.jsx gelöscht
+
+Begründung:
+- Nur RemoteDesktopButton.jsx (ohne Suffix) wird in ApplianceCard.js importiert
+- Die anderen Versionen werden nirgendwo im Code verwendet
+- Alle drei exportierten eine Komponente mit demselben Namen "RemoteDesktopButton"
+- Die Haupt-Version verwendet API-Token-Authentifizierung
+- Direct-Version nutzte Basis-Auth mit hartcodierten Credentials
+- Simple-Version öffnete nur Guacamole ohne Auth
+
+Verbleibende Dateien:
+- RemoteDesktopButton.jsx (die verwendete Hauptversion)
+- RemoteDesktopButton.css (zugehörige Styles)
+
+=======================================[2025-01-27 - authDebug.js entfernt]
+Zweck: Entfernung der temporären Debug-Authentifizierungs-Middleware
+Dateien: 
+- backend/middleware/authDebug.js (gelöscht)
+- backend/routes/applianceProxy.js (modifiziert)
+
+Durchgeführte Aktionen:
+1. Import von authDebug.js in applianceProxy.js entfernt
+2. authenticateTokenWithDebug durch authenticateToken ersetzt
+3. authDebug.js gelöscht
+
+--- a/backend/routes/applianceProxy.js
++++ b/backend/routes/applianceProxy.js
+@@ -16,8 +16,6 @@
+ 
+ const { authenticateToken } = require('../middleware/auth');
+-// Temporär: Enhanced authentication debugging
+-const authenticateTokenWithDebug = require('../middleware/authDebug');
+ const pool = require('../utils/database');
+ const logger = require('../utils/logger');
+ 
+@@ -88,7 +86,7 @@
+  * HAUPTPROXY-ROUTE - Alle HTTP/HTTPS Anfragen
+  */
+ router.all('/:id/proxy/*', 
+-    authenticateTokenWithDebug,  // Temporär: Mit Debug-Logging
++    authenticateToken,  
+     checkApplianceAccessFixed,   // Temporär: Korrigierte Access-Check
+     applianceRateLimiter,
+     auditProxyAccess,
+
+Begründung:
+- authDebug.js war als temporäre Debug-Lösung markiert
+- Die normale auth.js bietet bereits ausreichend Logging
+- Reduziert Code-Duplikation und vereinfacht die Wartung
+
+=======================================[2025-01-27 - Debug-Routes entfernt]
+Zweck: Entfernung temporärer Debug-Routes aus Sicherheitsgründen
+Dateien/Verzeichnisse: 
+- backend/routes/debug/ (gesamtes Verzeichnis gelöscht)
+  - auditDebug.js
+  - debug.js
+  - debugAudit.js
+  - tokenDebug.js
+- backend/server.js (modifiziert)
+
+Durchgeführte Aktionen:
+1. Debug-Route-Import und -Registrierung aus server.js entfernt
+2. Gesamtes debug-Verzeichnis mit allen Dateien gelöscht
+
+--- a/backend/server.js
++++ b/backend/server.js
+@@ -130,10 +130,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+ // Auth routes (no authentication required)
+ app.use('/api/auth', authRouter);
+ 
+-// Debug routes (temporary - no authentication)
+-const tokenDebugRouter = require('./routes/debug/tokenDebug');
+-app.use('/api/debug', tokenDebugRouter);
+-
+ // Guacamole auth validation (special case for nginx auth_request)
+ const authGuacamoleRouter = require('./routes/auth-guacamole');
+ app.use('/api/auth', authGuacamoleRouter);
+
+Begründung:
+- Die Debug-Routes waren als "temporary" markiert
+- Sie erforderten keine Authentifizierung (Sicherheitsrisiko)
+- Debug-Endpoints wie /api/debug/check-token könnten sensible Informationen preisgeben
+- Für Produktionsumgebungen ungeeignet
+- Debug-Funktionalität kann bei Bedarf über normale, authentifizierte Routes implementiert werden
+
+Sicherheitsverbesserung:
+- Entfernt unauthentifizierte Endpoints
+- Verhindert potentielle Informationslecks über Token und Sessions
+- Reduziert die Angriffsfläche der API
+
+=======================================[2025-01-27 - Ungenutzte Wartungsverzeichnisse gelöscht]
+Zweck: Entfernung ungenutzter Wartungs- und Patch-Verzeichnisse
+Verzeichnisse/Dateien: 
+- backend/utils/fixes/ (gesamtes Verzeichnis gelöscht)
+  - fix-duplicate-ssh-hosts.js
+- backend/utils/patches/ (gesamtes Verzeichnis gelöscht)
+  - enhancedStatusChecker.js
+
+Durchgeführte Aktionen:
+- Verzeichnis fixes/ mit allen Inhalten gelöscht
+- Verzeichnis patches/ mit allen Inhalten gelöscht
+
+Begründung:
+- Beide Verzeichnisse enthielten Standalone-Scripts, die nicht im normalen Code importiert wurden
+- fixes/fix-duplicate-ssh-hosts.js: Einmaliges Wartungsskript für Datenbankbereinigung
+- patches/enhancedStatusChecker.js: Alternative Version eines bestehenden Moduls
+- Die Scripts waren für manuelle Wartungsaufgaben gedacht, nicht für den Produktivbetrieb
+- Keine Referenzen oder Imports im aktiven Code gefunden
+
+Beschreibung der gelöschten Dateien:
+1. fix-duplicate-ssh-hosts.js:
+   - Standalone-Script zur Bereinigung doppelter SSH-Host-Einträge
+   - Musste manuell mit `node` ausgeführt werden
+   - Für einmalige Datenbankwartung
+
+2. enhancedStatusChecker.js:
+   - Erweiterte Version des statusChecker.js mit Host-Verfügbarkeitsprüfung
+   - Nicht aktiv verwendet, nur als Alternative/Patch vorhanden
+   - Funktionalität könnte bei Bedarf in den Haupt-statusChecker integriert werden
+
+=======================================[2025-01-27 14:10:00] Fix SSH File Upload hanging at 10%
+Zweck: Fix SSH file upload functionality that was hanging at 10% due to SSH config mismatch
+Dateien:
+- backend/routes/ssh.js
+- backend/utils/sshUploadHandler.js
+- backend/regenerate-ssh-config.js
+
+PROBLEM: SSH-Datei-Upload blieb bei 10% hängen, da der Upload-Handler versuchte, 
+sich mit "host_${id}" zu verbinden, aber die SSH-Konfiguration nur Hostname-Einträge hatte.
+
+ÄNDERUNGEN:
+
+1. backend/routes/ssh.js - SSH Config Generation Fix
+   - Added dual Host entries in SSH config generation
+   - Now creates both `Host hostname` and `Host host_id` entries
+   - Ensures compatibility with upload handler that uses host_id format
+
+--- a/backend/routes/ssh.js
++++ b/backend/routes/ssh.js
+@@ -165,6 +165,7 @@ class SSHManager {
+       for (const host of hosts) {
+         const keyFile = path.join(this.sshDir, `id_rsa_${host.key_name}`);
+ 
++        // Add both hostname and host_id entries for compatibility
+         configContent += `Host ${host.hostname}\n`;
+         configContent += `    HostName ${host.host}\n`;
+         configContent += `    User ${host.username}\n`;
+@@ -175,6 +176,17 @@ class SSHManager {
+         configContent += `    ServerAliveInterval 30\n`;
+         configContent += `    ServerAliveCountMax 3\n`;
+         configContent += `    ConnectTimeout 10\n\n`;
++        
++        // Add host_id entry for upload handler compatibility
++        configContent += `Host host_${host.id}\n`;
++        configContent += `    HostName ${host.host}\n`;
++        configContent += `    User ${host.username}\n`;
++        configContent += `    Port ${host.port}\n`;
++        configContent += `    IdentityFile ${keyFile}\n`;
++        configContent += `    StrictHostKeyChecking no\n`;
++        configContent += `    UserKnownHostsFile /dev/null\n`;
++        configContent += `    ServerAliveInterval 30\n`;
++        configContent += `    ServerAliveCountMax 3\n`;
++        configContent += `    ConnectTimeout 10\n\n`;
+       }
+
+2. backend/utils/sshUploadHandler.js - Password Authentication Logic Fix
+   - Fixed password authentication detection logic
+   - Now checks for both ssh_key_id and key_name fields
+   - Added support for requiresPassword flag
+
+--- a/backend/utils/sshUploadHandler.js
++++ b/backend/utils/sshUploadHandler.js
+@@ -77,7 +77,7 @@ const handleSSHUpload = async (req, res) => {
+ 
+     // Check if we need password authentication
+     const password = req.body.password;
+-    const usePassword = !host.ssh_key_id && password;
++    const usePassword = (!host.ssh_key_id && !host.key_name) || (host.requiresPassword && password);
+     
+@@ -128,7 +128,7 @@ const handleSSHUpload = async (req, res) => {
+     
+     console.log('DEBUG: Starting file transfer...');
+     console.log('DEBUG: Use password:', usePassword);
+-    console.log('DEBUG: Host has SSH key:', !!host.ssh_key_id);
++    console.log('DEBUG: Host has SSH key:', !!(host.ssh_key_id || host.key_name));
+
+3. backend/regenerate-ssh-config.js - Added host_id entries
+   - Now generates `Host host_${id}` entries in addition to hostname entries
+   - Ensures compatibility with upload handler after system restarts
+
+--- a/backend/regenerate-ssh-config.js
++++ b/backend/regenerate-ssh-config.js
+@@ -60,6 +60,12 @@ async function regenerateSSHConfig() {
+       configContent += `    Port ${host.port}\n`;
+       configContent += `    IdentityFile ${keyFile}\n\n`;
+ 
++      // Entry for host_id (used by upload handler)
++      configContent += `Host host_${host.id}\n`;
++      configContent += `    HostName ${host.host}\n`;
++      configContent += `    User ${host.username}\n`;
++      configContent += `    Port ${host.port}\n`;
++      configContent += `    IdentityFile ${keyFile}\n\n`;
+
+DURCHGEFÜHRTE AKTIONEN:
+- Backend-Container neu gestartet: docker compose restart backend
+- SSH-Config regeneriert: docker compose exec backend node regenerate-ssh-config.js
+- Verifiziert, dass SSH-Config nun beide Eintragstypen enthält
+
+ERGEBNIS:
+- SSH file uploads funktionieren jetzt korrekt
+- Upload-Progress läuft vollständig durch (nicht mehr bei 10% hängend)
+- Sowohl Key-basierte als auch Passwort-Authentifizierung funktioniert
+
+=======================================

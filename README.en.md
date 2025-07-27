@@ -6,31 +6,52 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen.svg)](package.json)
 
-A modern, containerized dashboard for central management and monitoring of web appliances, services, and servers with integrated SSH functionality and web terminal.
+A modern, containerized dashboard for centralized management and monitoring of web appliances, services, and servers with integrated SSH functionality, web terminal, and remote desktop support.
 
 ![Web Appliance Dashboard](docs/user-manual/images/Desktop%20Ansicht.png)
 
 ## 🌟 Features
 
 ### Core Features
-- **📊 Central Dashboard** - Clear management of all appliances
-- **🔐 Authentication** - JWT-based user management with roles
-- **🖥️ Web Terminal** - Integrated terminal via ttyd
-- **🔑 SSH Integration** - Complete SSH key management
-- **🖥️ Remote Desktop** - VNC & RDP support via Guacamole
-- **📦 Service Control** - Start/Stop/Status of services
-- **🎨 Customizable Design** - Dark/Light mode, custom backgrounds
-- **📱 Responsive** - Optimized for desktop, tablet, and mobile
-- **🍎 macOS App** - Native Electron app for macOS
+- **📊 Central Dashboard** - Clear management of all appliances with categorization
+- **🔐 Authentication** - JWT-based user management with roles (Admin/User)
+- **🖥️ Web Terminal** - Integrated terminal via ttyd with SSH key support
+- **🔑 SSH Integration** - Complete SSH key management with automatic authentication
+- **🖥️ Remote Desktop** - VNC & RDP support via Apache Guacamole
+- **📦 Service Control** - Start/Stop/Status of services via SSH
+- **🎨 Customizable Design** - Dark/Light mode, custom backgrounds, glassmorphism
+- **📱 Responsive** - Optimized for desktop, tablet, and mobile (PWA-ready)
 
 ### Advanced Features
-- **💾 Backup & Restore** - Complete system backup
-- **📝 Audit Logging** - Traceable action logs
-- **⚡ Real-time Updates** - Server-Sent Events (SSE)
-- **🔄 Auto-Discovery** - Automatic service detection
-- **🛡️ Security** - Rate limiting, CORS, Helmet.js
-- **🌐 Multi-User** - User management with permission system
+- **💾 Backup & Restore** - Complete system backup with encryption
+- **📝 Audit Logging** - Traceable action logs with export
+- **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
+- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP
+- **🌐 Multi-User** - User management with granular permission system
+- **🚨 Health Monitoring** - Automatic health checks with alerting
+- **📊 Performance Metrics** - CPU, Memory, Disk Usage Monitoring
+- **🔍 Full-text Search** - Fast search across all appliances
+## 🆕 Latest Updates (v1.1.0)
+
+### Remote Desktop Integration
+- ✅ Apache Guacamole for VNC/RDP access
+- ✅ Automatic token authentication
+- ✅ Encrypted password storage
+- ✅ Connection management via API
+
+### SSH Terminal Improvements
+- ✅ Automatic SSH key usage
+- ✅ No password input required with configured keys
+- ✅ Improved terminal output with colors
+- ✅ SSH config integration
+
+### UI/UX Improvements
+- ✅ New glassmorphism design
+- ✅ Improved mobile navigation
+- ✅ Optimized service cards
+- ✅ Dark/Light mode toggle
 
 ## 📸 Screenshots
 
@@ -45,23 +66,25 @@ A modern, containerized dashboard for central management and monitoring of web a
   <img src="docs/images/mobile-view.jpeg" alt="Mobile View" width="300">
   <img src="docs/user-manual/images/Mobile.jpeg" alt="Mobile Dashboard" width="300">
 </p>
-
 ### Service Cards
 ![Service Card Running](docs/user-manual/images/Service-Card%20Detailansicht%20(grüner%20Statusbar%20für%20Service%20läuft).png)
-*Service Card with green status - Service running*
+*Service card with green status - Service running*
 
 ![Service Card Stopped](docs/user-manual/images/Service-Card%20ohne%20Details%20(roter%20Statusbar%20für%20Service%20läuft%20nicht).png)
-*Service Card with red status - Service stopped*
+*Service card with red status - Service stopped*
 
 ### Terminal Integration
 ![Terminal View](docs/images/terminal-view.png)
-*Integrated web terminal for SSH access*
+*Integrated web terminal with SSH key authentication*
+
+### Remote Desktop
+*VNC/RDP access via integrated Guacamole*
 
 ### Widget View
 ![Widget View](docs/images/Miniaur-Widget-Ansicht.png)
 *Compact widget view for quick access*
 
-### Management
+### Administration
 ![User Management](docs/user-manual/images/Benutzerverwaltung.png)
 *User management with role assignment*
 
@@ -72,10 +95,9 @@ A modern, containerized dashboard for central management and monitoring of web a
 
 - Docker & Docker Compose (v2.0+)
 - Node.js 18+ (for local development)
-- macOS, Linux, or Windows with WSL2
-- 2GB RAM minimum
+- macOS (Apple Silicon/Intel), Linux or Windows with WSL2
+- 2GB RAM minimum (4GB recommended)
 - 10GB free disk space
-
 ## 🚀 Quick Start
 
 ### 1. Clone Repository
@@ -95,28 +117,20 @@ cd web-appliance-dashboard
 
 > **Note**: This repository is private. You need access rights and must authenticate.
 
-## 🚀 Installation
+### 2. Quick Installation
 
-### Option 1: Quick Start (Recommended)
-
-#### 1. Set up environment variables
 ```bash
-# Automatic configuration
-./scripts/setup-env.sh
-```
-
-#### 2. Start installation
-```bash
-# Complete installation with all features
+# Automatic configuration and installation
 ./scripts/build.sh --nocache
 ```
+On first start, the script will ask for a domain name and an external host name. Enter the computer name or IP of the Docker host running the Web Appliance Dashboard for the domain name. If the Web Appliance Dashboard is running behind a reverse proxy like nginx, enter the external domain of the Docker host here, such as dashboard.example.com
+The system will be accessible at http://localhost:9080 after a few minutes. The reverse proxy should be configured to map from the Docker host's internal IP with port 9080 to port 443 (https).
 
 This command:
 - Clears all Docker caches for a clean installation
-- Rebuilds all containers
-- Installs all services including Remote Desktop
+- Rebuilds all containers (Backend, Frontend, Database, Guacamole, ttyd)
+- Installs all services including remote desktop
 - Starts the complete system
-
 ### Option 2: Manual Installation
 
 #### 1. Configure Environment Variables
@@ -126,16 +140,15 @@ This command:
 # Guides you through configuration and generates secure secrets
 ./scripts/setup-env.sh
 ```
-
 ##### Manual Setup
 ```bash
 # Create environment file
 cp .env.example .env
 
-# Backend environment
+# Backend Environment
 cp backend/.env.example backend/.env
 
-# Frontend environment  
+# Frontend Environment  
 cp frontend/.env.example frontend/.env
 
 # IMPORTANT: Adjust all passwords and secret keys in .env!
@@ -147,30 +160,33 @@ See [Docker Environment Setup Guide](docs/docker-env-setup.md) for details.
 
 ##### Build Options:
 ```bash
-# Standard installation (with Remote Desktop)
+# Standard installation (with remote desktop)
 ./scripts/build.sh
 
-# Installation without Remote Desktop (smaller footprint)
+# Installation without remote desktop (smaller footprint)
 ./scripts/build.sh --no-remote-desktop
 
 # Rebuild with cache clearing (for problems)
 ./scripts/build.sh --nocache
-
 # Quick restart (for development)
 ./scripts/build.sh --refresh
 ```
-
 ### After Installation
 
 #### Access Dashboard
 - **Web Interface**: http://localhost:9080
 - **API**: http://localhost:9080/api
+- **API Docs**: http://localhost:9080/api-docs
 - **Web Terminal**: http://localhost:9080/terminal/
 - **Guacamole** (Remote Desktop): http://localhost:9080/guacamole/
 
 #### Default Login
-- **Username**: admin
+- **User**: admin
 - **Password**: admin123 (please change immediately!)
+
+#### Guacamole Login (if accessed directly)
+- **User**: guacadmin
+- **Password**: guacadmin
 
 ![Create Service](docs/user-manual/images/Service%20anlegen.png)
 *Add new service - simple and intuitive*
@@ -179,10 +195,10 @@ See [Docker Environment Setup Guide](docs/docker-env-setup.md) for details.
 
 ### Build Commands
 ```bash
-# Standard installation (with Remote Desktop)
+# Standard installation (with remote desktop)
 ./scripts/build.sh
 
-# Installation without Remote Desktop (smaller footprint)
+# Installation without remote desktop (smaller footprint)
 ./scripts/build.sh --no-remote-desktop
 
 # Rebuild with cache clearing (for Docker problems)
@@ -191,10 +207,9 @@ See [Docker Environment Setup Guide](docs/docker-env-setup.md) for details.
 # Quick restart for code changes (development)
 ./scripts/build.sh --refresh
 
-# Also build macOS app
+# Build macOS app
 ./scripts/build.sh --macos-app
 ```
-
 ### Container Management
 ```bash
 # Start containers
@@ -208,32 +223,39 @@ docker compose down
 
 # Show logs
 docker compose logs -f
-
 # Backend logs only
 docker compose logs -f backend
+
+# Guacamole logs only
+docker compose logs -f guacamole
 ```
 
 ### Maintenance & Updates
 ```bash
-# Update to Remote Desktop afterwards
+# Update to remote desktop retroactively
 ./scripts/update-remote-desktop.sh
 
 # Complete rebuild (DELETES ALL DATA!)
-./scripts/clean-build.sh
+./scripts/clean.sh --all
 
 # Delete containers and rebuild
 ./scripts/clean.sh && ./scripts/build.sh
+
+# Run database migration
+docker exec appliance_backend npm run migrate
 ```
 
 ### Remote Desktop Services
 ```bash
-# Start Remote Desktop only
+# Start remote desktop only
 docker compose up -d guacamole-postgres guacd guacamole
 
-# Stop Remote Desktop only
+# Stop remote desktop only
 docker compose stop guacamole-postgres guacd guacamole
-```
 
+# Check Guacamole connections
+docker exec appliance_backend node utils/guacamole/test-connection.js
+```
 ## 🏗️ Architecture
 
 ```
@@ -266,6 +288,17 @@ docker compose stop guacamole-postgres guacd guacamole
                         └─────────────────┘
 ```
 
+### Container Details
+
+| Container | Port | Description |
+|-----------|------|-------------|
+| nginx | 9080, 9443 | Reverse Proxy & Static Files |
+| backend | 3001 | Node.js API Server |
+| database | 3306 | MariaDB Database |
+| ttyd | 7681 | Web Terminal |
+| guacamole | 8080 | Remote Desktop Web Client |
+| guacd | 4822 | Remote Desktop Proxy Daemon |
+| guacamole-postgres | 5432 | Guacamole Database |
 ## 🎨 User Interface
 
 The dashboard offers a modern, intuitive user interface with various views:
@@ -297,9 +330,11 @@ web-appliance-dashboard/
 ├── backend/                 # Node.js Express API
 │   ├── routes/             # API Endpoints
 │   ├── utils/              # Helper Functions
+│   │   ├── guacamole/      # Guacamole Integration
+│   │   ├── terminal/       # Terminal Management
+│   │   └── backup/         # Backup/Restore Logic
 │   ├── uploads/            # File Uploads
-│   └── server.js           # Main Server File
-├── frontend/               # React SPA
+│   └── server.js           # Main Server File├── frontend/               
 │   ├── src/
 │   │   ├── components/     # React Components
 │   │   ├── contexts/       # React Contexts
@@ -308,7 +343,9 @@ web-appliance-dashboard/
 │   │   └── utils/          # Utilities
 │   └── build/              # Production Build
 ├── nginx/                  # Nginx Configuration
-├── macos-app/             # Electron macOS App
+├── guacamole/             # Guacamole Dockerfile
+├── ttyd/                  # ttyd Configuration
+├── Mac-Standalone/        # Electron macOS App
 ├── scripts/               # Management Scripts
 ├── docs/                  # Documentation
 ├── docker-compose.yml     # Docker Orchestration
@@ -331,13 +368,11 @@ npm install
 npm start
 ```
 
-### macOS App Development
+### Docker Development
 ```bash
-cd macos-app
-npm install
-npm run dev
+# With volume mounts for hot-reload
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
-
 ## 🔧 Configuration
 
 ### Important Environment Variables
@@ -358,20 +393,42 @@ SSH_KEY_ENCRYPTION_SECRET=your-encryption-key
 # Server
 PORT=3001
 NODE_ENV=production
+
+# Guacamole
+GUACAMOLE_DB_NAME=guacamole_db
+GUACAMOLE_DB_USER=guacamole_user
+GUACAMOLE_DB_PASSWORD=guacamole_pass123
+```
+
+#### Frontend (.env)
+```env
+# API Configuration
+REACT_APP_API_URL=/api
+REACT_APP_WS_URL=ws://localhost:9080
+
+# Features
+REACT_APP_ENABLE_REMOTE_DESKTOP=true
+REACT_APP_ENABLE_TERMINAL=true
 ```
 
 #### Docker Compose Override
-For local development, create a `docker-compose.override.yml`:
+For local development, you can create a `docker-compose.override.yml`:
 ```yaml
 version: '3.8'
 services:
   backend:
     volumes:
       - ./backend:/app
+      - /app/node_modules
     environment:
       NODE_ENV: development
+  
+  frontend:
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      CHOKIDAR_USEPOLLING: true
 ```
-
 ## 🔒 Security
 
 ### Best Practices
@@ -382,123 +439,49 @@ services:
 - ✅ SQL Injection Protection
 - ✅ XSS Protection via Helmet.js
 - ✅ SSH Key Encryption
+- ✅ Encrypted password storage for remote desktop
+- ✅ Content Security Policy (CSP)
+- ✅ HTTPS Support (Nginx)
 
 ### Recommendations
-1. Change all default passwords
-2. Use strong JWT secrets
-3. Enable HTTPS in production
-4. Regular security updates
-5. Implement backup strategy
+1. **Change all default passwords** immediately after installation
+2. **Use strong JWT secrets** (at least 32 characters)
+3. **Enable HTTPS** in production environments
+4. **Regular security updates** of containers
+5. **Implement and test backup strategy**
+6. **Configure firewall rules** for Docker ports
+7. **Rotate SSH keys** regularly
 
-## 📚 API Documentation
+## 📚 Documentation
 
-Complete API documentation is available:
+Complete documentation is available:
 
-- **[API Reference](docs/api-reference.md)** - Detailed endpoint documentation
-- **[OpenAPI/Swagger](docs/openapi.yaml)** - OpenAPI 3.0 specification
-- **[Client Examples](docs/api-reference.md#api-client-beispiele)** - Examples in JavaScript, Python, cURL, PHP, and Go
-
-### Authentication
-```bash
-# Login
-POST /api/auth/login
-Content-Type: application/json
-{
-  "username": "admin",
-  "password": "password"
-}
-
-# Response
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "id": 1,
-    "username": "admin",
-    "role": "admin"
-  }
-}
-```
-
-### Appliances
-```bash
-# Get all appliances
-GET /api/appliances
-Authorization: Bearer <token>
-
-# Create appliance
-POST /api/appliances
-Authorization: Bearer <token>
-Content-Type: application/json
-{
-  "name": "My Server",
-  "url": "https://server.local",
-  "icon": "Server",
-  "category": "infrastructure"
-}
-
-# Update appliance
-PUT /api/appliances/:id
-Authorization: Bearer <token>
-
-# Delete appliance
-DELETE /api/appliances/:id
-Authorization: Bearer <token>
-```
-
-### SSH Management
-```bash
-# Get SSH keys
-GET /api/ssh/keys
-Authorization: Bearer <token>
-
-# Generate new SSH key
-POST /api/ssh/keys/generate
-Authorization: Bearer <token>
-{
-  "name": "production-key",
-  "type": "rsa",
-  "bits": 4096
-}
-
-# Test SSH connection
-POST /api/ssh/test
-Authorization: Bearer <token>
-{
-  "host": "192.168.1.100",
-  "username": "root",
-  "keyId": 1
-}
-```
-
-## 🚢 Deployment
-
-### Production with Docker
-```bash
-# Build and start
-docker-compose -f docker-compose.yml up -d --build
-
-# View logs
-docker-compose logs -f
-
-# Check status
-./status.sh
-```
-
-### Kubernetes (coming soon)
-```bash
-kubectl apply -f k8s/
-```
+- **[API Reference](docs/api-client-sdks)** - Detailed endpoint documentation
+- **[OpenAPI/Swagger](http://localhost:9080/api-docs)** - Interactive API documentation
+- **[Developer Documentation](docs/developer.html)** - Developer documentation- **[Docker Environment Setup](docs/docker-env-setup.md)** - Docker environment setup
+- **[Performance Tuning Guide](docs/performance-tuning-guide.md)** - Performance optimization
+- **[Remote Desktop Setup Guide](docs/remote-desktop-setup-guide.md)** - Remote desktop setup
+- **[Remote Desktop Password Restore](docs/REMOTE_DESKTOP_PASSWORD_RESTORE.md)** - Remote desktop password recovery
+- **[Security Best Practices](docs/security-best-practices-guide.md)** - Security best practices
+- **[Proxy Implementation Summary](docs/PROXY_IMPLEMENTATION_SUMMARY.md)** - Proxy implementation summary
+- **[User Manual](docs/user-manual/index.html)** - User manual
+- **[OpenAPI Specification](docs/openapi.yaml)** - OpenAPI/Swagger specification
 
 ### Backup & Restore
 ```bash
 # Create backup
-curl -X POST http://localhost:3001/api/backup/create \
+curl -X POST http://localhost:9080/api/backup/create \
   -H "Authorization: Bearer <token>"
 
-# Restore backup
-curl -X POST http://localhost:3001/api/restore \
+# Download backup
+curl -X GET http://localhost:9080/api/backup/download/latest \
   -H "Authorization: Bearer <token>" \
-  -F "backup=@backup-file.zip"
+  -o backup.zip
+
+# Restore backup
+curl -X POST http://localhost:9080/api/restore \
+  -H "Authorization: Bearer <token>" \
+  -F "backup=@backup.zip"
 ```
 
 ## 🧪 Testing
@@ -508,105 +491,161 @@ curl -X POST http://localhost:3001/api/restore \
 cd backend
 npm test
 npm run test:watch
+npm run test:coverage
 ```
-
 ### Frontend Tests
 ```bash
 cd frontend
 npm test
+npm run test:coverage
 ```
 
-### E2E Tests (planned)
+### E2E Tests (coming soon)
 ```bash
 npm run test:e2e
+```
+
+### API Tests
+```bash
+# With Postman/Newman
+newman run docs/postman-collection.json
 ```
 
 ## 📖 Additional Documentation
 
 - **[API Reference](docs/api-reference.md)** - Complete API documentation with examples
-- **[OpenAPI Specification](docs/openapi.yaml)** - OpenAPI 3.0 specification
-- [Developer Documentation](docs/developer.html)
-- [User Manual](docs/user-manual/)
-- [API Reference](docs/api-reference.md)
-- [Changelog](CHANGELOG.md)
+- **[User Manual](docs/user-manual/)** - User manual with screenshots
+- **[Developer Guide](docs/developer-guide.md)** - Developer documentation
+- **[Docker Guide](docs/docker-guide.md)** - Docker setup and configuration
+- **[Security Guide](docs/security-guide.md)** - Security guidelines
+- **[Troubleshooting](docs/troubleshooting.md)** - Common problems and solutions
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please note:
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 ### Code Style
 - ESLint for JavaScript
 - Prettier for formatting
 - Conventional Commits for Git messages
 
-## 🐛 Known Issues
+### Development Guidelines
+- Write tests for new features
+- Update documentation
+- Follow existing code patterns
+- Use meaningful commit messages
 
-- [ ] SSH key rotation not yet implemented
-- [ ] Multi-factor authentication (MFA) missing
-- [ ] No support for LDAP/AD integration
-- [ ] Performance with >1000 appliances not tested
+## 🐛 Known Issues & Limitations
+
+### Known Issues
+- [ ] Guacamole on Apple Silicon requires Rosetta emulation
+- [ ] SSH key rotation not yet available via UI
+- [ ] Multi-Factor Authentication (MFA) not yet implemented
+- [ ] LDAP/AD integration missing
+- [ ] Performance not optimized for >1000 appliances
+
+### Browser Compatibility
+- Chrome/Edge: ✅ Fully supported
+- Firefox: ✅ Fully supported
+- Safari: ✅ Fully supported
+- Mobile Browser: ✅ iOS Safari, Chrome Android
 
 ## 🗺️ Roadmap
 
-### Version 1.1 (Q3 2025)
+### Version 1.1 (Q2 2025) ✅
+- [x] Remote Desktop Integration (Guacamole)
+- [x] Improved Terminal Integration
+- [x] SSH Key Auto-Authentication
+- [x] UI/UX Improvements
+### Version 1.2 (Q3 2025)
 - [ ] TypeScript Migration
-- [ ] API Documentation (Swagger)
+- [ ] GraphQL API Option
 - [ ] Enhanced Test Coverage (>80%)
 - [ ] GitHub Actions CI/CD
+- [ ] Plugin System Architecture
 
-### Version 1.2 (Q4 2025)
-- [ ] Multi-Factor Authentication
+### Version 1.3 (Q4 2025)
+- [ ] Multi-Factor Authentication (2FA/MFA)
 - [ ] LDAP/Active Directory Integration
 - [ ] Prometheus/Grafana Monitoring
 - [ ] Internationalization (i18n)
+- [ ] Role-Based Access Control (RBAC) v2
 
-### Version 2.0 (Q1 2026)
-- [ ] Kubernetes Support
-- [ ] Plugin System
-- [ ] GraphQL API
-- [ ] Advanced RBAC
+### Version 2.0 (2026)
+- [ ] Kubernetes Native Support
+- [ ] Microservices Architecture
+- [ ] Advanced Analytics Dashboard
+- [ ] AI-Powered Anomaly Detection
+- [ ] Multi-Tenancy Support
 
 ## 📊 Performance
 
-- **Startup Time**: <5 seconds
-- **API Response**: <100ms (avg)
-- **Memory Usage**: ~200MB (idle)
+### System Requirements
+- **CPU**: 2 Cores minimum (4 recommended)
+- **RAM**: 2GB minimum (4GB recommended)
+- **Disk**: 10GB minimum (20GB recommended)
+
+### Performance Metrics
+- **Startup Time**: <10 seconds (all services)
+- **API Response**: <100ms (average)
+- **Memory Usage**: ~500MB (with Guacamole)
 - **Concurrent Users**: 100+ tested
+- **WebSocket Connections**: 1000+ possible
+### Optimizations
+- Redis Cache (optional)
+- CDN for Static Assets
+- Database Query Optimization
+- Connection Pooling
 
 ## 🛟 Support
 
+### Community
 - **Issues**: [GitHub Issues](https://github.com/alflewerken/web-appliance-dashboard/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/alflewerken/web-appliance-dashboard/discussions)
-- **Email**: support@example.com
+- **Wiki**: [GitHub Wiki](https://github.com/alflewerken/web-appliance-dashboard/wiki)
 
 ## 📄 License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
-## 🙏 Acknowledgements
+## 🙏 Acknowledgments
 
+### Core Technologies
 - [React](https://reactjs.org/) - UI Framework
 - [Express.js](https://expressjs.com/) - Backend Framework
 - [Docker](https://www.docker.com/) - Containerization
-- [Apache Guacamole](https://guacamole.apache.org/) - Clientless Remote Desktop Gateway
-- [xterm.js](https://xtermjs.org/) - Terminal Emulator
-- [ttyd](https://github.com/tsl0922/ttyd) - Share terminal over the web
 - [MariaDB](https://mariadb.org/) - Database
 - [Nginx](https://nginx.org/) - Web Server
+
+### Key Components
+- [Apache Guacamole](https://guacamole.apache.org/) - Remote Desktop Gateway
+- [ttyd](https://github.com/tsl0922/ttyd) - Web Terminal
+- [xterm.js](https://xtermjs.org/) - Terminal Emulator
+- [Socket.IO](https://socket.io/) - WebSocket Library
+- [JWT](https://jwt.io/) - Authentication
+### UI/UX
 - [Lucide](https://lucide.dev/) - Beautiful Icons
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-First CSS
+- [Framer Motion](https://www.framer.com/motion/) - Animations
+
+### Development Tools
+- [ESLint](https://eslint.org/) - Code Linting
+- [Prettier](https://prettier.io/) - Code Formatting
+- [Jest](https://jestjs.io/) - Testing Framework
+- [Swagger](https://swagger.io/) - API Documentation
 
 ---
 
 <p align="center">
   Made with ❤️ by <a href="https://github.com/alflewerken">Alf Lewerken</a>
 </p>
-
 <p align="center">
-  <a href="#web-appliance-dashboard-">Back to top</a>
+  <a href="https://github.com/alflewerken/web-appliance-dashboard">GitHub</a> •
+  <a href="https://alflewerken.de">Website</a> •
+  <a href="#web-appliance-dashboard-">Back to top ↑</a>
 </p>

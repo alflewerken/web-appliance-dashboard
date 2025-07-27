@@ -64,6 +64,13 @@ async function regenerateSSHConfig() {
       configContent += `    Port ${host.port}\n`;
       configContent += `    IdentityFile ${keyFile}\n\n`;
 
+      // Entry for host_id (used by upload handler)
+      configContent += `Host host_${host.id}\n`;
+      configContent += `    HostName ${host.host}\n`;
+      configContent += `    User ${host.username}\n`;
+      configContent += `    Port ${host.port}\n`;
+      configContent += `    IdentityFile ${keyFile}\n\n`;
+
       // Also create entry for IP/hostname if different
       if (host.hostname !== host.host) {
         configContent += `Host ${host.host}\n`;

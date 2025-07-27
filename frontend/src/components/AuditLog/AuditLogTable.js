@@ -1723,21 +1723,50 @@ const AuditLogTable = ({
                       ? JSON.parse(log.details)
                       : log.details;
 
-                  // For deleted appliances, check the appliance object
-                  if (details.appliance && details.appliance.name) {
-                    resourceDisplay = details.appliance.name;
+                  // For appliances/services
+                  if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+                    // Check for service object (used in create operations)
+                    if (details.service && details.service.name) {
+                      resourceDisplay = details.service.name;
+                    }
+                    // For deleted appliances, check the appliance object
+                    else if (details.appliance && details.appliance.name) {
+                      resourceDisplay = details.appliance.name;
+                    }
+                    // Check for old_data/new_data (used in update operations)
+                    else if (details.old_data && details.old_data.name) {
+                      resourceDisplay = details.old_data.name;
+                    }
+                    else if (details.new_data && details.new_data.name) {
+                      resourceDisplay = details.new_data.name;
+                    }
+                    // Check for direct appliance_name field (used in access logs)
+                    else if (details.appliance_name) {
+                      resourceDisplay = details.appliance_name;
+                    }
+                    // For updates, check the name field directly
+                    else if (details.name) {
+                      resourceDisplay = details.name;
+                    }
                   }
-                  // For updates, check the name field directly
-                  else if (details.name) {
-                    resourceDisplay = details.name;
-                  }
-                  // For changes object with new value
-                  else if (
-                    details.changes &&
-                    details.changes.name &&
-                    details.changes.name.new
-                  ) {
-                    resourceDisplay = details.changes.name.new;
+                  // For other resource types, keep existing logic
+                  else {
+                    // For deleted items, check the nested object
+                    if (details.appliance && details.appliance.name) {
+                      resourceDisplay = details.appliance.name;
+                    }
+                    // For updates, check the name field directly
+                    else if (details.name) {
+                      resourceDisplay = details.name;
+                    }
+                    // For changes object with new value
+                    else if (
+                      details.changes &&
+                      details.changes.name &&
+                      details.changes.name.new
+                    ) {
+                      resourceDisplay = details.changes.name.new;
+                    }
                   }
                 } catch (e) {
                   console.error('Error extracting resource name:', e);

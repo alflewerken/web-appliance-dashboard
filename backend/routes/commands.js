@@ -432,7 +432,7 @@ router.post('/execute-direct', verifyToken, async (req, res) => {
     await createAuditLog(
       req.user?.id || null,
       'terminal_command_execute',
-      'appliance',
+      'appliances',
       applianceId,
       {
         name: appliance.name,

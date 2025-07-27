@@ -68,16 +68,22 @@ services:
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-combined}
+      # Docker host access
+      DOCKER_HOST_INTERNAL: 'true'
     depends_on:
       database:
         condition: service_healthy
     networks:
       - ${NETWORK_NAME:-appliance_network}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
       - /app/node_modules
       - ssh_keys:/root/.ssh
       - uploads:/app/uploads
+      # Shared temp directory für Terminal-Sessions
+      - terminal_sessions:/tmp/terminal-sessions
       # Optional: Mount lokales SSH-Keys Verzeichnis für Entwicklung
       # - ./ssh-keys:/root/.ssh
     healthcheck:
@@ -127,8 +133,7 @@ services:
       --terminal-type xterm-256color
       /scripts/ttyd-ssh-wrapper.sh
     environment:
-      SSH_HOST: ${TTYD_DEFAULT_HOST:-192.168.178.70}
-      SSH_USER: ${TTYD_DEFAULT_USER:-alflewerken}
+      # Nur Port als Standard, keine Host/User Defaults mehr
       SSH_PORT: ${TTYD_DEFAULT_PORT:-22}
     networks:
       - ${NETWORK_NAME:-appliance_network}
@@ -137,6 +142,8 @@ services:
       - ssh_keys:/root/.ssh:ro
       # Optional: Shared scripts
       - ./scripts:/scripts:ro
+      # Shared temp directory für Session-Dateien
+      - terminal_sessions:/tmp/terminal-sessions
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7681/"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
@@ -260,6 +267,13 @@ volumes:
     labels:
       - "backup=${BACKUP_ENABLED:-true}"
       - "purpose=uploads"
+      - "project=web-appliance-dashboard"
+      
+  terminal_sessions:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-false}"
+      - "purpose=terminal-sessions"
       - "project=web-appliance-dashboard"
 
   # Guacamole volumes

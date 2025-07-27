@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ApplianceService } from '../services/applianceService';
 import { useSSE } from './useSSE';
+import proxyService from '../services/proxyService';
 
 export const useAppliances = () => {
   const [appliances, setAppliances] = useState([]);
@@ -161,27 +162,24 @@ export const useAppliances = () => {
     // Handle both old format (url, applianceId) and new format (appliance object)
     let url, applianceId;
 
-    if (typeof appliance === 'object' && appliance.url) {
+    if (typeof appliance === 'object' && appliance.id) {
       // New format: appliance object
       applianceId = appliance.id;
 
-      // Get the full URL from the appliance
-      if (!appliance.url) return;
-
-      // Check if URL has protocol
-      if (appliance.url.match(/^https?:\/\//)) {
-        url = appliance.url;
-      } else if (appliance.url.match(/^\d+\.\d+\.\d+\.\d+(:\d+)?/)) {
-        // IP with port
-        url = `http://${appliance.url}`;
-      } else {
-        // Default to https
-        url = `https://${appliance.url}`;
-      }
+      // Verwende Proxy-URL statt direkter URL
+      url = proxyService.convertToProxyUrl(appliance);
+      console.log('[DEBUG] Using proxy URL:', url);
     } else {
       // Old format: separate url and id (for backwards compatibility)
-      url = appliance;
-      applianceId = applianceIdParam;
+      // Für altes Format müssen wir die Appliance erst laden
+      applianceId = applianceIdParam || appliance;
+      const applianceObj = appliances.find(a => a.id === applianceId);
+      if (applianceObj) {
+        url = proxyService.convertToProxyUrl(applianceObj);
+      } else {
+        console.error('Appliance not found:', applianceId);
+        return;
+      }
     }
 
     // Check if in mini dashboard mode (width OR height < 300px)
@@ -298,6 +296,14 @@ export const useAppliances = () => {
           statusCommand: data.status_command || data.statusCommand || '',
           serviceStatus: data.service_status || data.serviceStatus || 'unknown',
           sshConnection: data.ssh_connection || data.sshConnection || '',
+          vncEnabled: data.vncEnabled || 
+                     (data.remoteDesktopEnabled && data.remoteProtocol === 'vnc') ||
+                     false,
+          rdpEnabled: data.rdpEnabled || 
+                     (data.remoteDesktopEnabled && data.remoteProtocol === 'rdp') ||
+                     false,
+          remoteDesktopEnabled: data.remoteDesktopEnabled || false,
+          remoteProtocol: data.remoteProtocol || 'vnc',
         };
 
         // Prüfe ob die Appliance bereits existiert (durch optimistic update)
@@ -514,10 +520,9 @@ export const useAppliances = () => {
     let statusInterval;
 
     const refreshStatus = () => {
-      console.log('Auto-refreshing service status...');
       ApplianceService.checkAllServiceStatus()
         .then(() => {
-          console.log('Service status refresh triggered');
+          // Service status refreshed
         })
         .catch(error => {
           console.error('Error refreshing service status:', error);

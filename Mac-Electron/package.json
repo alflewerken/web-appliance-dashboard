@@ -1,0 +1,73 @@
+{
+  "name": "web-appliance-dashboard-electron",
+  "version": "1.0.4",
+  "description": "Web Appliance Dashboard - Electron App für macOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build-frontend": "cd ../frontend && npm run build && cp -r build ../Mac-Electron/frontend-build",
+    "build": "npm run build-frontend && electron-builder",
+    "dist": "npm run build-frontend && electron-builder --mac",
+    "dist-mas": "npm run build-frontend && electron-builder --mac mas",
+    "dist-mas-dev": "npm run build-frontend && electron-builder --mac mas-dev",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alflewerken/web-appliance-dashboard.git"
+  },
+  "keywords": [
+    "dashboard",
+    "web-appliance",
+    "electron",
+    "macos"
+  ],
+  "author": "alflewerken",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.alflewerken.webappliancedashboard",
+    "productName": "Web Appliance Dashboard",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist",
+      "target": [
+        {
+          "target": "default",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "mas": {
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": false,
+      "entitlements": "assets/entitlements.mas.plist",
+      "entitlementsInherit": "assets/entitlements.mas.inherit.plist",
+      "provisioningProfile": "embedded.provisionprofile"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "frontend-build/**/*",
+      "assets/**/*"
+    ]
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "express": "^5.1.0",
+    "http-proxy-middleware": "^3.0.5"
+  }
+}

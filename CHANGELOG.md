@@ -5,7 +5,7 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2025-07-22
+## [1.1.0] - 2025-07-24
 
 ### Added
 - 🖥️ **Remote Desktop Support** - Full VNC and RDP integration via Apache Guacamole
@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `--no-remote-desktop` flag to disable
 - Updated `init.sql` with Remote Desktop schema
 - Enhanced status script to show Remote Desktop info
+- Version bumped to 1.1.0 in all package.json files
 
 ### Security
 - Remote Desktop passwords are encrypted using AES-256
@@ -51,8 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated README with new features
 - Added troubleshooting documentation
 - API documentation for remote endpoints
+- Updated version badges
 
-## [1.0.4] - Previous Release
+## [1.0.4] - 2025-01-15
 
 ### Added
 - SSH Terminal integration

@@ -135,9 +135,10 @@ router.post('/token/:applianceId', async (req, res) => {
       await createAuditLog(
         userId,
         'remote_desktop_access',
-        'appliance',
+        'appliances',
         applianceId,
         { 
+          appliance_name: appliance.name,
           protocol: appliance.remote_protocol,
           host: appliance.remote_host,
           connectionName: connectionInfo.connectionName,

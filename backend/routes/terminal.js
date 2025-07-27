@@ -164,13 +164,14 @@ function handleTerminalWebSocket(ws, req) {
               await createAuditLog(
                 userId,
                 'terminal_command',
-                'appliance',
+                'appliances',
                 parseInt(applianceId),
                 {
                   name: applianceData.name,
                   sessionId,
                   command: message.command,
                   applianceName: applianceData.name,
+                  appliance_name: applianceData.name,
                 },
                 ipAddress
               );
@@ -213,12 +214,13 @@ function handleTerminalWebSocket(ws, req) {
         await createAuditLog(
           userId,
           'terminal_disconnect',
-          'appliance',
+          'appliances',
           parseInt(applianceId),
           {
             name: applianceData?.name || 'Unknown',
             sessionId,
             applianceName: applianceData?.name || 'Unknown',
+            appliance_name: applianceData?.name || 'Unknown',
           },
           ipAddress
         );

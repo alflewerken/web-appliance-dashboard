@@ -46,7 +46,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSSE } from '../hooks/useSSE';
-import API_BASE_URL from '../config';
 import './unified/UserPanelPatch.css';
 import './unified/UserPanelMobileFix.css';
 import './unified/UserPanelEmergencyFix.css';
@@ -186,7 +185,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         return;
       }
       
-      const response = await fetch(`${API_BASE_URL}/api/auth/users`, {
+      const response = await fetch(`/api/auth/users`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -260,7 +259,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
 
   const handleCreateUser = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/users`, {
+      const response = await fetch(`/api/auth/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -291,7 +290,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/api/auth/users/${selectedUser.id}`,
+        `/api/auth/users/${selectedUser.id}`,
         {
           method: 'PUT',
           headers: {
@@ -319,7 +318,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     if (window.confirm('Möchten Sie diesen Benutzer wirklich löschen?')) {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/auth/users/${userId}`,
+          `/api/auth/users/${userId}`,
           {
             method: 'DELETE',
             headers: {
@@ -343,7 +342,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   const handleToggleActive = async (userId, currentStatus) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/auth/users/${userId}/toggle-active`,
+        `/api/auth/users/${userId}/toggle-active`,
         {
           method: 'PUT',
           headers: {

@@ -76,9 +76,9 @@ done
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR/.." || exit 1
 
-# Ensure we have the macos-app directory
-if [ ! -d "macos-app" ]; then
-    print_status "error" "macos-app directory not found!"
+# Ensure we have the Mac-Standalone directory
+if [ ! -d "Mac-Standalone" ]; then
+    print_status "error" "Mac-Standalone directory not found!"
     exit 1
 fi
 
@@ -100,7 +100,7 @@ fi
 cd ..
 
 # Now work on macOS app
-cd macos-app
+cd Mac-Standalone
 
 # Clean build if requested
 if [ "$CLEAN_BUILD" = true ]; then
@@ -277,7 +277,7 @@ echo "   2. Launch 'Web Appliance Dashboard' from Applications"
 echo "   3. The app will manage Docker containers automatically"
 echo ""
 print_status "info" "Development commands:"
-echo "   📱 Start in dev mode: cd macos-app && npm start"
-echo "   🔄 Rebuild only app: cd macos-app && npm run dist"
-echo "   🐳 Container logs: cd macos-app && docker compose -f docker-compose.app.yml logs -f"
+echo "   📱 Start in dev mode: cd Mac-Standalone && npm start"
+echo "   🔄 Rebuild only app: cd Mac-Standalone && npm run dist"
+echo "   🐳 Container logs: cd Mac-Standalone && docker compose -f docker-compose.app.yml logs -f"
 echo ""

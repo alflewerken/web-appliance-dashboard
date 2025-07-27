@@ -77,6 +77,9 @@ coverage/
 # Background images  
 backend/uploads/
 
+# Testdaten
+my-data/
+
 # Cache
 .cache/
 .npm/

@@ -295,6 +295,30 @@ const AuditLogTableMUI = ({
         }
       }
       
+      // Appliance/Service specific handling
+      if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+        // Check for service object (used in create operations)
+        if (details.service && details.service.name) {
+          return details.service.name;
+        }
+        // Check for appliance object (used in delete operations)
+        if (details.appliance && details.appliance.name) {
+          return details.appliance.name;
+        }
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.name) {
+          return details.old_data.name;
+        }
+        if (details.new_data && details.new_data.name) {
+          return details.new_data.name;
+        }
+        // Check for direct appliance_name field (used in access logs)
+        if (details.appliance_name) {
+          return details.appliance_name;
+        }
+        return details.name || null;
+      }
+      
       // SSH Host specific handling
       if (log.resource_type === 'ssh_host') {
         // Check for nested deleted_host object (used in delete operations)

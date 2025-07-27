@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { X, Maximize2, Minimize2, RefreshCw, ExternalLink } from 'lucide-react';
 import './TTYDTerminal.css';
 import { moveTerminalToNewWindow } from '../utils/terminalWindow';
+import axios from '../utils/axiosConfig';
 
 const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = null, title = 'Terminal' }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
@@ -16,9 +17,10 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   if (host) {
     sshData = {
       hostId: host.id || hostId,
-      host: host.hostname || host.host || '',
-      user: host.username || host.user || '',
-      port: host.port || 22
+      host: host.host || '',  // host.host ist die tatsächliche IP-Adresse
+      user: host.username || '',
+      port: host.port || 22,
+      sessionId: host.sessionId || null  // Session-ID wenn vorhanden
     };
   }
   // Priorität 2: Appliance-Daten
@@ -70,9 +72,16 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   // Füge die SSH-Parameter zur URL hinzu
   const params = new URLSearchParams();
   
-  // Priorisiere hostId wenn verfügbar
-  if (hostId) {
-    params.append('hostId', hostId);
+  // Session-ID hat höchste Priorität
+  if (host && host.sessionId) {
+    params.append('session', host.sessionId);
+  } else if (sshData.sessionId) {
+    params.append('session', sshData.sessionId);
+  }
+  
+  // Füge alle SSH-Daten hinzu, auch hostId aus sshData
+  if (sshData.hostId || hostId) {
+    params.append('hostId', sshData.hostId || hostId);
   }
   
   // Füge SSH-Daten hinzu
@@ -82,7 +91,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   if (sshData.user) {
     params.append('user', sshData.user);
   }
-  if (sshData.port && sshData.port !== 22) {
+  if (sshData.port) {
     params.append('port', sshData.port);
   }
   
@@ -110,7 +119,28 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
     }
   };
 
-  const handleOpenInNewWindow = () => {
+  const handleOpenInNewWindow = async () => {
+    // Create session before opening new window
+    if (sshData.hostId || (sshData.host && sshData.user)) {
+      try {
+        const sessionData = {};
+        if (sshData.hostId) {
+          sessionData.hostId = sshData.hostId;
+        } else if (sshData.host && sshData.user) {
+          sessionData.sshConnection = `${sshData.user}@${sshData.host}:${sshData.port || 22}`;
+        }
+        
+        const response = await axios.post('/api/ssh/terminal-session', sessionData);
+        console.log('Terminal session created for new window:', response.data);
+        
+        // Wait for session file to be written
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error('Failed to create terminal session:', error);
+      }
+    }
+    
+    // Now open the window
     moveTerminalToNewWindow(sshData, onHide);
   };
 

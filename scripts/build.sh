@@ -173,6 +173,57 @@ check_service_running() {
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR/.." || exit 1
 
+# Check if .env exists, if not run setup-env.sh
+if [ ! -f .env ]; then
+    print_status "warning" "No .env file found!"
+    echo ""
+    echo "The application needs environment configuration to run."
+    echo "Starting automatic setup..."
+    echo ""
+    
+    # Check if setup-env.sh exists
+    if [ -f ./scripts/setup-env.sh ]; then
+        # Make it executable
+        chmod +x ./scripts/setup-env.sh
+        
+        # Run setup script
+        if ./scripts/setup-env.sh; then
+            print_status "success" ".env file created successfully"
+            echo ""
+            echo "Continuing with build..."
+            echo ""
+            sleep 2
+        else
+            print_status "error" "Failed to create .env file"
+            echo "Please run ./scripts/setup-env.sh manually"
+            exit 1
+        fi
+    else
+        print_status "error" "setup-env.sh not found!"
+        echo "Please copy .env.example to .env and configure it manually:"
+        echo "  cp .env.example .env"
+        echo "  nano .env"
+        exit 1
+    fi
+fi
+
+# Also check for backend/.env and frontend/.env
+if [ ! -f backend/.env ]; then
+    print_status "warning" "backend/.env is missing"
+    echo "Running setup-env.sh to create it..."
+    if [ -f ./scripts/setup-env.sh ]; then
+        ./scripts/setup-env.sh
+    fi
+fi
+
+if [ ! -f frontend/.env ]; then
+    print_status "warning" "frontend/.env is missing"
+    echo "Running setup-env.sh to create it..."
+    if [ -f ./scripts/setup-env.sh ]; then
+        ./scripts/setup-env.sh
+    fi
+fi
+
 # Parse command line arguments
 ENABLE_REMOTE_DESKTOP=true  # Remote Desktop ist jetzt Standard!
 CLEAR_CACHE=false
@@ -559,8 +610,8 @@ if [ "$BUILD_MACOS_APP" = true ]; then
     echo "🍎 Building macOS App Containers"
     echo "======================================================================="
     
-    # Change to macos-app directory
-    cd macos-app
+    # Change to Mac-Standalone directory
+    cd Mac-Standalone
     
     # Use the app-specific compose file
     print_status "info" "Using docker-compose.app.yml for macOS app..."

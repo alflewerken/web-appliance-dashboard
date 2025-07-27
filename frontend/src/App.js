@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Activity } from 'lucide-react';
+import axios from './utils/axiosConfig';
 
 // Initialize background state early
 import './utils/backgroundInitializer';
@@ -285,12 +286,26 @@ function Dashboard() {
   }, []);
 
   // Make handleTerminalOpen available globally for SSH Manager
-  const handleTerminalOpen = useCallback((target) => {
+  const handleTerminalOpen = useCallback(async (target) => {
     console.log('handleTerminalOpen called with:', target);
     
     // Check if it's an SSH host or an appliance
     if (target.hostname && target.username) {
       // It's an SSH host
+      
+      // Create terminal session via API first
+      try {
+        const response = await axios.post('/api/ssh/terminal-session', {
+          hostId: target.id
+        });
+        console.log('Terminal session created:', response.data);
+        
+        // Add a small delay to ensure the session file is written
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error('Failed to create terminal session:', error);
+      }
+      
       // Prüfe ob bereits ein Terminal zu diesem Host offen ist
       const existingSSHTerminal = activeTerminals.find(
         t => t.host && t.host.id === target.id && t.isOpen
@@ -300,7 +315,7 @@ function Dashboard() {
         // Öffne in neuem Fenster statt im Modal
         openTerminalInNewWindow({
           hostId: target.id,
-          host: target.hostname,
+          host: target.host,  // Verwende 'host' statt 'hostname' für die tatsächliche IP/Host
           user: target.username,
           port: target.port || 22
         });
@@ -317,6 +332,51 @@ function Dashboard() {
       }
     } else {
       // It's an appliance
+      
+      // Check if appliance has SSH connection info
+      let sshHostId = null;
+      if (target.ssh_host_id) {
+        sshHostId = target.ssh_host_id;
+      } else if (target.sshConnection) {
+        // Parse SSH connection string (e.g., "alflewerken@mac:22")
+        const match = target.sshConnection.match(/^(.+)@(.+):(\d+)$/);
+        if (match) {
+          console.log('Parsed SSH connection:', { user: match[1], host: match[2], port: match[3] });
+          // For now, we can't create a session without a host ID
+          console.warn('Appliance has SSH connection but no ssh_host_id');
+        }
+      }
+      
+      // If appliance has SSH host, create session
+      if (sshHostId) {
+        try {
+          const response = await axios.post('/api/ssh/terminal-session', {
+            hostId: sshHostId
+          });
+          console.log('Terminal session created for appliance:', response.data);
+          
+          // Add a small delay to ensure the session file is written
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error('Failed to create terminal session:', error);
+        }
+      } else if (target.sshConnection) {
+        // Try with SSH connection string
+        try {
+          const response = await axios.post('/api/ssh/terminal-session', {
+            sshConnection: target.sshConnection
+          });
+          console.log('Terminal session created from SSH connection:', response.data);
+          
+          // Add a small delay to ensure the session file is written
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error('Failed to create terminal session:', error);
+        }
+      } else {
+        console.log('No SSH host ID or connection found for appliance, opening terminal without session');
+      }
+      
       const existingTerminal = activeTerminals.find(
         t => t.appliance && t.appliance.id === target.id && t.isOpen
       );

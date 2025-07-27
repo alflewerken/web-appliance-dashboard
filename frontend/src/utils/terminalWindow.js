@@ -1,10 +1,12 @@
 /**
  * Terminal Window Utilities
  * Hilfsunktionen zum Öffnen des Terminals in einem neuen PWA-Fenster
- * Version: 1.1 - Fixed HTTP/HTTPS handling
+ * Version: 1.2 - Added session creation for new windows
  */
 
-export const openTerminalInNewWindow = (terminalData = {}) => {
+import axios from '../utils/axiosConfig';
+
+export const openTerminalInNewWindow = async (terminalData = {}) => {
   // Prüfe ob wir in Electron sind
   const isElectron = window.electronAPI !== undefined;
   
@@ -30,6 +32,28 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
   }
   
   // Fallback für Browser
+  
+  // Create terminal session first if we have SSH data
+  if (terminalData.hostId || (terminalData.host && terminalData.user)) {
+    try {
+      const sessionData = {};
+      if (terminalData.hostId) {
+        sessionData.hostId = terminalData.hostId;
+      } else if (terminalData.host && terminalData.user) {
+        // Create SSH connection string
+        sessionData.sshConnection = `${terminalData.user}@${terminalData.host}:${terminalData.port || 22}`;
+      }
+      
+      const response = await axios.post('/api/ssh/terminal-session', sessionData);
+      console.log('Terminal session created for new window:', response.data);
+      
+      // Wait a bit for session file to be written
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      console.error('Failed to create terminal session for new window:', error);
+    }
+  }
+  
   const params = new URLSearchParams();
   
   if (terminalData.hostId) {
@@ -122,7 +146,7 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
  * Öffnet das aktuelle Terminal Modal in einem neuen Fenster
  * und schließt das Modal
  */
-export const moveTerminalToNewWindow = (terminalData, onCloseModal) => {
+export const moveTerminalToNewWindow = async (terminalData, onCloseModal) => {
   // Schließe das Modal IMMER, auch wenn das Fenster nicht geöffnet werden kann
   if (onCloseModal) {
     // Schließe das Modal sofort
@@ -130,7 +154,7 @@ export const moveTerminalToNewWindow = (terminalData, onCloseModal) => {
   }
   
   // Öffne das neue Fenster
-  const newWindow = openTerminalInNewWindow(terminalData);
+  const newWindow = await openTerminalInNewWindow(terminalData);
   
   if (!newWindow) {
     console.warn('Terminal window could not be opened, but modal was closed');

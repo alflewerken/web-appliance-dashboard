@@ -897,7 +897,26 @@
 .appliance-card-container[style*='--card-size: 7'] .card-info,
 .appliance-card-container[style*='--card-size: 8'] .card-info,
 .appliance-card-container[style*='--card-size: 9'] .card-info {
-  display: none;
+  /* Zeige card-info bei kleinen Karten an, aber kompakter */
+  display: flex;
+  padding: 8px;
+  gap: 2px;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-title,
+.appliance-card-container[style*='--card-size: 7'] .card-title,
+.appliance-card-container[style*='--card-size: 8'] .card-title,
+.appliance-card-container[style*='--card-size: 9'] .card-title {
+  font-size: 12px;
+  -webkit-line-clamp: 1;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-description,
+.appliance-card-container[style*='--card-size: 7'] .card-description,
+.appliance-card-container[style*='--card-size: 8'] .card-description,
+.appliance-card-container[style*='--card-size: 9'] .card-description {
+  font-size: 10px;
+  -webkit-line-clamp: 1;
 }
 
 .appliance-card-container[style*='--card-size: 6'] .card-front,

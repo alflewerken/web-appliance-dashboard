@@ -1,10 +1,11 @@
 // Main server file - modular structure
 require('dotenv').config();
 const express = require('express');
+const expressWs = require('express-ws'); // Add WebSocket support
 const path = require('path');
 const { configureCORS, securityHeaders } = require('./utils/security');
 
-const logger = require('./utils/logger');
+const { logger } = require('./utils/logger');
 
 // Import utilities
 const pool = require('./utils/database');
@@ -24,10 +25,11 @@ const settingsRouter = require('./routes/settings');
 const backgroundRouter = require('./routes/background');
 const backupRouter = require('./routes/backup');
 const backupEnhancedRouter = require('./routes/backup-enhanced');
-const servicesRouter = require('./routes/services');
+// const servicesRouter = require('./routes/services'); // Removed - using applianceProxy instead
 const sshRouter = require('./routes/ssh');
 const sshDiagnosticRouter = require('./routes/ssh-diagnostic');
 const sshHostTerminalRouter = require('./routes/sshHostTerminal');
+const terminalTokenRouter = require('./routes/terminal-token');
 const { router: terminalRouter } = require('./routes/terminal');
 const terminalRedirectRouter = require('./routes/terminal-redirect');
 const { router: sseRouter } = require('./routes/sse');
@@ -46,6 +48,9 @@ const { swaggerUi, swaggerSpec } = require('./swagger/swaggerConfig');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Enable WebSocket support
+expressWs(app);
 
 // Trust proxy - important for SSE and WebSocket behind nginx
 // Use environment variable or default to 1 (nginx only)
@@ -81,13 +86,13 @@ app.use((req, res, next) => {
 
 app.use(
   express.json({
-    limit: '100mb', // Increased limit for large backup files with Base64 images
+    limit: '10gb', // Increased limit for large files like Linux distributions
     extended: true,
   })
 );
 app.use(
   express.urlencoded({
-    limit: '100mb', // Increased urlencoded limit too
+    limit: '10gb', // Increased urlencoded limit too
     extended: true,
   })
 );
@@ -125,34 +130,54 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Auth routes (no authentication required)
 app.use('/api/auth', authRouter);
 
-// Debug routes (temporary - no authentication)
-const tokenDebugRouter = require('./routes/debug/tokenDebug');
-app.use('/api/debug', tokenDebugRouter);
-
 // Guacamole auth validation (special case for nginx auth_request)
 const authGuacamoleRouter = require('./routes/auth-guacamole');
 app.use('/api/auth', authGuacamoleRouter);
 
 // All other routes require authentication
-app.use('/api/appliances', verifyToken, appliancesRouter);
+
+// Appliance Proxy Routes MUST come BEFORE basic routes to handle /proxy/* paths
+const nativeProxyRouter = require('./routes/nativeProxy'); // Native HTTP Proxy
+console.log('[SERVER] Mounting nativeProxyRouter on /api/appliances');
+app.use('/api/appliances', nativeProxyRouter);
+
+// Basic appliance routes after proxy routes - use conditional verifyToken
+const skipVerifyTokenForProxy = require('./middleware/skipVerifyTokenForProxy');
+console.log('[SERVER] Mounting appliancesRouter with conditional verifyToken on /api/appliances');
+app.use('/api/appliances', skipVerifyTokenForProxy, appliancesRouter);
 app.use('/api/categories', verifyToken, categoriesRouter);
 app.use('/api/settings', verifyToken, settingsRouter);
 app.use('/api/background', verifyToken, backgroundRouter);
+// Services compatibility routes
+const servicesRouter = require('./routes/services');
 app.use('/api/services', verifyToken, servicesRouter);
 app.use('/api/status-check', verifyToken, statusCheckRouter);
+
+// SSE route MUST be before general API routes to avoid conflicts
+app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware because it uses query param
+
+// Configuration Routes
+const configRouter = require('./routes/config');
+app.use('/api/config', verifyToken, configRouter);
+
 app.use('/api/ssh', verifyToken, sshRouter);
 app.use('/api/ssh-diagnostic', verifyToken, sshDiagnosticRouter);
 app.use('/api/ssh-host-terminal', verifyToken, sshHostTerminalRouter);
 app.use('/api/terminal', verifyToken, terminalRouter);
+app.use('/terminal', terminalTokenRouter); // Terminal token endpoint without /api prefix
 app.use('/terminal', terminalRedirectRouter); // Terminal redirect without /api prefix
 app.use('/api/browser', verifyToken, browserRouter);
 app.use('/api/commands', verifyToken, commandsRouter);
 app.use('/api/audit-logs', verifyToken, auditLogsRouter);
 app.use('/api/audit-restore', verifyToken, auditRestoreRouter);
+
 app.use('/api/restore', verifyToken, restoreRouter);
 app.use('/api/roles', verifyToken, rolesRouter); // Neue Rollen-Routen
 app.use('/api/guacamole', verifyToken, guacamoleRouter); // Guacamole Integration
-app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware because it uses query param
+
+// Network Proxy Routes (transparent proxy) - MUST be after specific routes
+const networkProxyRouter = require('./routes/networkProxy');
+app.use('/api', verifyToken, networkProxyRouter);
 
 // Mount backup routes (both backup and restore) - also require auth
 app.use('/api', verifyToken, backupRouter);

@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Upload } from 'lucide-react';
+import { 
+  IconButton, 
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Box,
+  LinearProgress,
+  Alert
+} from '@mui/material';
+import { Upload, X, Folder, Server, CheckCircle, Info, FolderOpen } from 'lucide-react';
 import SSHFileUpload from './SSHFileUpload';
-import './FileTransferButton.css';
 
 const FileTransferButton = ({ appliance }) => {
   const [showUpload, setShowUpload] = useState(false);
@@ -17,18 +29,19 @@ const FileTransferButton = ({ appliance }) => {
       const sshConnection = appliance.sshConnection || appliance.ssh_connection;
       const sshHostId = appliance.sshHostId || appliance.ssh_host_id;
       
-      if (sshConnection || sshHostId) {
+      if (sshConnection) {
         setLoading(true);
         try {
           // Parse SSH connection string if available
-          if (sshConnection) {
-            // Format: "user@host:port"
-            const match = sshConnection.match(/^(.+)@(.+):(\d+)$/);
-            if (match) {
-              const [, username, hostname, port] = match;
-              
-              // First, try to find a configured SSH host with key
-              const token = localStorage.getItem('token');
+          // Format: "user@host:port"
+          const match = sshConnection.match(/^(.+)@(.+):(\d+)$/);
+          if (match) {
+            const [, username, hostname, port] = match;
+            
+            // First, try to find a configured SSH host with key
+            const token = localStorage.getItem('token');
+            
+            try {
               const hostsResponse = await fetch('/api/ssh/hosts', {
                 headers: {
                   'Authorization': token ? `Bearer ${token}` : '',
@@ -37,61 +50,57 @@ const FileTransferButton = ({ appliance }) => {
               
               if (hostsResponse.ok) {
                 const hostsData = await hostsResponse.json();
+                
                 if (hostsData.success && hostsData.hosts) {
                   // Find matching host by hostname or IP
                   const configuredHost = hostsData.hosts.find(h => 
-                    h.hostname === hostname || 
-                    h.host === hostname ||
-                    (h.hostname === 'mac' && hostname === '192.168.178.70')
+                    h.hostname === hostname || h.ip === hostname || h.host === hostname
                   );
                   
-                  if (configuredHost && configuredHost.key_name) {
+                  if (configuredHost) {
                     // Use the configured host with SSH key
                     setSSHHost({
-                      id: configuredHost.id,
-                      username: configuredHost.username,
-                      hostname: configuredHost.host || configuredHost.hostname,
-                      port: configuredHost.port || 22,
-                      key_name: configuredHost.key_name,
-                      hasKey: true
+                      ...configuredHost,
+                      username: username || configuredHost.username,
+                      port: parseInt(port) || configuredHost.port || 22
                     });
-                    setTargetPath(`/Users/${configuredHost.username}`);
-                    return;
+                  } else {
+                    // Create a temporary host object for password-based connection
+                    setSSHHost({
+                      hostname,
+                      username,
+                      port: parseInt(port) || 22,
+                      requiresPassword: true // This will prompt for password
+                    });
                   }
                 }
+              } else {
+                // If API call fails, still create a temporary host
+                setSSHHost({
+                  hostname,
+                  username,
+                  port: parseInt(port) || 22,
+                  requiresPassword: true
+                });
               }
-              
-              // Fallback to parsed connection without key
+            } catch (fetchError) {
+              console.error('[FileTransferButton] Error fetching SSH hosts:', fetchError);
+              // Create temporary host on error
               setSSHHost({
-                id: appliance.id,
-                username,
                 hostname,
-                port: parseInt(port, 10),
-                hasKey: false
+                username,
+                port: parseInt(port) || 22,
+                requiresPassword: true
               });
-              // Set default target path
-              setTargetPath(`/home/${username}`);
-            }
-          } else if (sshHostId) {
-            // Fallback to ssh_host_id if available
-            const token = localStorage.getItem('token');
-            const response = await fetch(`/api/ssh/hosts/${sshHostId}`, {
-              headers: {
-                'Authorization': token ? `Bearer ${token}` : '',
-              },
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              if (data.success && data.host) {
-                setSSHHost(data.host);
-                // Set default target path
-                setTargetPath(`/home/${data.host.username}`);
-              }
             }
           }
+          
+          // Load target path if configured
+          const path = appliance.fileTransferPath || appliance.file_transfer_path || '~';
+          setTargetPath(path);
+          
         } catch (error) {
-          console.error('Failed to load SSH host:', error);
+          console.error('[FileTransferButton] Error in loadSSHHost:', error);
         } finally {
           setLoading(false);
         }
@@ -99,63 +108,58 @@ const FileTransferButton = ({ appliance }) => {
     };
 
     loadSSHHost();
-  }, [appliance.sshConnection, appliance.ssh_connection, appliance.sshHostId, appliance.ssh_host_id]);
+  }, [appliance]);
+  const handleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowUpload(true);
+  };
 
-  const sshConnection = appliance.sshConnection || appliance.ssh_connection;
-  const sshHostId = appliance.sshHostId || appliance.ssh_host_id;
+  const handleClose = () => {
+    setShowUpload(false);
+  };
+
+  // Don't show button if no SSH connection is configured
+  const hasSshConnection = !!(appliance.sshConnection || appliance.ssh_connection || appliance.sshHostId || appliance.ssh_host_id);
   
-  if (!sshConnection && !sshHostId || loading) {
+  if (!hasSshConnection) {
     return null;
   }
 
   return (
     <>
-      <button
-        className="file-transfer-button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setShowUpload(!showUpload);
-        }}
-        title="Datei-Übertragung"
-      >
-        <Upload size={16} />
-      </button>
+      <Tooltip title="Datei-Upload">
+        <IconButton
+          onClick={handleClick}
+          disabled={loading}
+          size="small"
+          className="file-transfer-button"
+          sx={{
+            backgroundColor: 'rgba(76, 175, 80, 0.3)',
+            border: '1px solid rgba(76, 175, 80, 0.5)',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: 'rgba(76, 175, 80, 0.5)',
+            },
+            '&:disabled': {
+              opacity: 0.5,
+            },
+            width: 28,
+            height: 28,
+            padding: 0,
+          }}
+        >
+          <Upload size={16} />
+        </IconButton>
+      </Tooltip>
 
       {showUpload && sshHost && ReactDOM.createPortal(
-        <div className="file-transfer-modal-overlay" onClick={() => setShowUpload(false)}>
-          <div className="file-transfer-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="file-transfer-content">
-              <div className="file-transfer-header">
-                <h3>Datei-Übertragung zu {appliance.name}</h3>
-                <button 
-                  className="close-button"
-                  onClick={() => setShowUpload(false)}
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="file-transfer-path-input">
-                <label htmlFor="targetPath">Zielpfad:</label>
-                <input
-                  id="targetPath"
-                  type="text"
-                  value={targetPath}
-                  onChange={(e) => setTargetPath(e.target.value)}
-                  placeholder={`/home/${sshHost.username}`}
-                  className="path-input"
-                />
-              </div>
-              
-              <SSHFileUpload 
-                sshHost={sshHost}
-                targetPath={targetPath || `/home/${sshHost.username}`}
-                requirePassword={!sshHost.hasKey}
-              />
-            </div>
-          </div>
-        </div>,
+        <SSHFileUpload
+          sshHost={sshHost}
+          targetPath={targetPath}
+          applianceName={appliance.name}
+          onClose={handleClose}
+        />,
         document.body
       )}
     </>

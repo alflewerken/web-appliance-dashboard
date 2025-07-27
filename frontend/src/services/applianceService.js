@@ -8,33 +8,54 @@ export class ApplianceService {
       const { data } = response;
 
       // The backend now returns properly mapped data, so we just ensure defaults
-      const enhancedData = data.map(app => ({
-        ...app,
-        // Ensure all fields have proper defaults
-        description: app.description || '',
-        category: app.category || 'productivity',
-        lastUsed:
-          app.lastUsed ||
-          new Date(
-            Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-        isFavorite: app.isFavorite || false,
-        color: app.color || '#007AFF',
-        icon: app.icon || 'Server',
-        transparency: app.transparency !== undefined ? app.transparency : 0.7,
-        blur:
-          app.blur !== undefined
-            ? app.blur
-            : app.blurAmount !== undefined
-              ? app.blurAmount
-              : 8,
-        blurAmount: app.blurAmount !== undefined ? app.blurAmount : 8,
-        startCommand: app.startCommand || '',
-        stopCommand: app.stopCommand || '',
-        statusCommand: app.statusCommand || '',
-        serviceStatus: app.serviceStatus || 'unknown',
-        sshConnection: app.sshConnection || '',
-      }));
+      const enhancedData = data.map(app => {
+        const enhanced = {
+          ...app,
+          // Ensure all fields have proper defaults
+          description: app.description || '',
+          category: app.category || 'productivity',
+          lastUsed:
+            app.lastUsed ||
+            new Date(
+              Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          isFavorite: app.isFavorite || false,
+          color: app.color || '#007AFF',
+          icon: app.icon || 'Server',
+          transparency: app.transparency !== undefined ? app.transparency : 0.7,
+          blur:
+            app.blur !== undefined
+              ? app.blur
+              : app.blurAmount !== undefined
+                ? app.blurAmount
+                : 8,
+          blurAmount: app.blurAmount !== undefined ? app.blurAmount : 8,
+          startCommand: app.startCommand || '',
+          stopCommand: app.stopCommand || '',
+          statusCommand: app.statusCommand || '',
+          serviceStatus: app.serviceStatus || 'unknown',
+          sshConnection: app.sshConnection || '',
+          // Remote Desktop Felder - Mapping von DB-Feldern
+          vncEnabled: app.vncEnabled || 
+                     (app.remoteDesktopEnabled && app.remoteProtocol === 'vnc') || 
+                     false,
+          rdpEnabled: app.rdpEnabled || 
+                     (app.remoteDesktopEnabled && app.remoteProtocol === 'rdp') || 
+                     false,
+          remoteDesktopEnabled: app.remoteDesktopEnabled || false,
+          remoteProtocol: app.remoteProtocol || 'vnc',
+        };
+        
+        // Debug logging für Nextcloud
+        if (app.name && app.name.includes('Nextcloud')) {
+          console.log(`[ApplianceService] Mapping ${app.name}:`, {
+            input: { remoteDesktopEnabled: app.remoteDesktopEnabled, remoteProtocol: app.remoteProtocol },
+            output: { vncEnabled: enhanced.vncEnabled, rdpEnabled: enhanced.rdpEnabled }
+          });
+        }
+        
+        return enhanced;
+      });
 
       return enhancedData;
     } catch (error) {

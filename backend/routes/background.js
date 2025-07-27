@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const sharp = require('sharp');
+// const sharp = require('sharp'); // Temporarily disabled for ARM64 compatibility
 const path = require('path');
 const fs = require('fs').promises;
 const pool = require('../utils/database');

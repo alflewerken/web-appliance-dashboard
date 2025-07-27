@@ -9,6 +9,10 @@ const JWT_SECRET =
 
 // Middleware für Token-Verifikation
 const verifyToken = async (req, res, next) => {
+  console.log('[VERIFY_TOKEN] Called for:', req.method, req.url);
+  console.log('[VERIFY_TOKEN] Headers:', req.headers.authorization);
+  console.log('[VERIFY_TOKEN] Query:', req.query);
+  
   try {
     const token = req.headers.authorization?.split(' ')[1];
 

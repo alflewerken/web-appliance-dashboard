@@ -327,6 +327,7 @@ router.post('/', verifyToken, async (req, res) => {
         'appliances',
         result.insertId,
         {
+          appliance_name: name,
           service: mappedAppliance,
           created_by: req.user.username,
         },
@@ -457,6 +458,7 @@ router.put('/:id', verifyToken, async (req, res) => {
         'appliances',
         id,
         {
+          appliance_name: mappedAppliance.name || originalData.name,
           original_data: originalData,
           new_data: mappedAppliance,
           updated_by: req.user.username,
@@ -529,9 +531,38 @@ router.put('/:id', verifyToken, async (req, res) => {
 // Update last used timestamp
 router.patch('/:id/lastUsed', verifyToken, async (req, res) => {
   try {
+    const applianceId = req.params.id;
+    
+    // Get appliance details for audit log
+    const [applianceRows] = await pool.execute(
+      'SELECT name FROM appliances WHERE id = ?',
+      [applianceId]
+    );
+    
+    if (applianceRows.length === 0) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+    
+    const appliance = applianceRows[0];
+    
+    // Update last used timestamp
     await pool.execute(
       'UPDATE appliances SET lastUsed = CURRENT_TIMESTAMP WHERE id = ?',
-      [req.params.id]
+      [applianceId]
+    );
+    
+    // Create audit log entry
+    await createAuditLog(
+      req.user.id,
+      'appliance_accessed',
+      'appliances',
+      applianceId,
+      {
+        appliance_name: appliance.name,
+        access_time: new Date().toISOString(),
+        method: 'web_interface'
+      },
+      getClientIp(req)
     );
 
     res.json({ success: true });
@@ -666,6 +697,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
         'appliances',
         id,
         {
+          appliance_name: originalData.name,
           original_data: originalChangedData,
           new_data: updateData,
           fields_updated: Object.keys(updateData),
@@ -735,6 +767,7 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
         'appliances',
         req.params.id,
         {
+          appliance_name: mappedAppliance.name,
           field_updated: 'isFavorite',
           old_value: current[0].isFavorite,
           new_value: newStatus,
@@ -813,6 +846,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
         'appliances',
         id,
         {
+          appliance_name: deletedService.name,
           appliance: deletedService,
           customCommands,
           backgroundImageData,
@@ -844,6 +878,47 @@ router.delete('/:id', verifyToken, async (req, res) => {
       details:
         process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
+  }
+});
+
+/**
+ * @swagger
+ * /api/appliances/{id}/access:
+ *   post:
+ *     summary: Log appliance access
+ *     tags: [Appliances]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The appliance ID
+ *     responses:
+ *       200:
+ *         description: Access logged successfully
+ *       404:
+ *         description: Appliance not found
+ */
+router.post('/:id/access', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Update last accessed time
+    await pool.execute(
+      'UPDATE appliances SET lastUsed = NOW() WHERE id = ?',
+      [id]
+    );
+    
+    // Don't create audit log here - it's already created by the /lastUsed endpoint
+    // which is called by the frontend's useAppliances hook
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error logging appliance access:', error);
+    res.status(500).json({ error: 'Failed to log access' });
   }
 });
 

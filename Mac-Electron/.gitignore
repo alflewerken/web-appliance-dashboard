@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Built frontend
+frontend-build/
+
+# Electron build output
+dist/
+
+# Mac specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Provisioning profiles (sensitive)
+*.provisionprofile
+*.p12
+*.cer
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp

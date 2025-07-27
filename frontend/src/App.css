@@ -347,7 +347,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, var(--card-size));
   grid-auto-rows: calc(
-    var(--card-size) + 80px
+    var(--card-size) + 100px
   ); /* Mehr Platz für Kartennamen und Beschreibung */
   gap: 20px;
   row-gap: max(

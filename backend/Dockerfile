@@ -16,6 +16,7 @@ RUN apk update && \
     mysql-client \
     bash \
     curl \
+    rsync \
     && rm -rf /var/cache/apk/*
 
 # Erstelle SSH-Verzeichnis mit korrekten Berechtigungen
@@ -36,11 +37,8 @@ RUN echo "Host *" > /root/.ssh/config && \
 # Kopiere package.json zuerst für besseres Caching
 COPY package*.json ./
 
-# Temporär: Entferne node-pty aus dependencies
-RUN sed -i '/"node-pty":/d' package.json
-
-# Installiere Node.js Dependencies
-RUN npm install --only=production && \
+# Installiere Node.js Dependencies (ohne node-pty)
+RUN npm install --only=production --omit=dev && \
     npm cache clean --force
 
 # Kopiere Anwendungs-Code

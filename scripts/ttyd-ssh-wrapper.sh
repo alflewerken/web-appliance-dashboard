@@ -1,90 +1,77 @@
 #!/bin/bash
-# Dynamic SSH-Wrapper für ttyd
-# Liest Parameter aus der URL Query-String
+# SSH-Wrapper for ttyd - SSH Key Only Version
 
-# Hole Query-Parameter aus der Umgebungsvariable QUERY_STRING
-# ttyd setzt diese Variable automatisch
-QUERY_STRING="${QUERY_STRING:-}"
-
-# Standard-Werte aus Umgebungsvariablen
-DEFAULT_HOST="${SSH_HOST:-}"
-DEFAULT_USER="${SSH_USER:-}"
-DEFAULT_PORT="${SSH_PORT:-22}"
-
-# Funktion zum Parsen von Query-Parametern
-get_query_param() {
-    local param=$1
-    echo "$QUERY_STRING" | grep -oE "(^|&)$param=([^&]*)" | cut -d= -f2 | sed 's/%20/ /g' | sed 's/%40/@/g'
-}
-
-# Parse URL-Parameter oder verwende Umgebungsvariablen als Fallback
-URL_HOST=$(get_query_param "host")
-URL_USER=$(get_query_param "user")
-URL_PORT=$(get_query_param "port")
-URL_HOST_ID=$(get_query_param "hostId")
-
-# Verwende URL-Parameter, dann Umgebungsvariablen, dann Defaults
-HOST="${URL_HOST:-${DEFAULT_HOST}}"
-USER="${URL_USER:-${DEFAULT_USER}}"
-PORT="${URL_PORT:-${DEFAULT_PORT}}"
-HOST_ID="${URL_HOST_ID:-}"
-
-# Verwende die SSH-Keys aus dem Volume
-export HOME=/root
-
-# Clear screen
-clear
-
-# Zeige Verbindungsinformationen
 echo "=================================================================================="
-echo "Web Appliance Dashboard Terminal"
+echo "Web Appliance Dashboard Terminal" 
 echo "=================================================================================="
 echo ""
 
-# Wenn Host-Informationen vorhanden sind, verbinde direkt
-if [ -n "$HOST" ] && [ -n "$USER" ]; then
-    echo "Verbinde mit: $USER@$HOST:$PORT"
-    if [ -n "$HOST_ID" ]; then
-        echo "Host ID: $HOST_ID"
+# Parse arguments
+for arg in "$@"; do
+    case "$arg" in
+        host=*) SSH_HOST="${arg#host=}" ;;
+        user=*) SSH_USER="${arg#user=}" ;;
+        port=*) SSH_PORT="${arg#port=}" ;;
+        hostId=*) HOST_ID="${arg#hostId=}" ;;
+    esac
+done
+
+# Check session file if no arguments
+if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ]; then
+    SESSION_FILE="/tmp/terminal-sessions/latest-session.conf"
+    if [ -f "$SESSION_FILE" ]; then
+        source "$SESSION_FILE"
     fi
+fi
+
+SSH_PORT="${SSH_PORT:-22}"
+
+if [ -n "$SSH_HOST" ] && [ -n "$SSH_USER" ]; then
+    echo "Verbinde mit: $SSH_USER@$SSH_HOST:$SSH_PORT"
+    
+    # Determine SSH key to use
+    SSH_KEY="/root/.ssh/id_rsa_dashboard"  # Default key
+    
+    # Check if we have a hostname-specific key
+    if [ -n "$SSH_HOSTNAME" ]; then
+        SPECIFIC_KEY="/root/.ssh/id_rsa_${SSH_HOSTNAME,,}"
+        if [ -f "$SPECIFIC_KEY" ]; then
+            SSH_KEY="$SPECIFIC_KEY"
+        fi
+    fi
+    
+    if [ ! -f "$SSH_KEY" ]; then
+        echo "❌ FEHLER: SSH-Schlüssel nicht gefunden: $SSH_KEY"
+        echo ""
+        echo "Verfügbare Schlüssel:"
+        ls -la /root/.ssh/id_rsa* 2>/dev/null
+        exit 1
+    fi
+    
+    echo "Verwende SSH-Schlüssel: $SSH_KEY"
     echo ""
     
-    # Prüfe ob es einen SSH-Config-Eintrag für diesen Host gibt
-    if [ -n "$HOST_ID" ] && grep -q "^Host appliance-$HOST_ID$" /root/.ssh/config 2>/dev/null; then
-        echo "Verwende SSH-Konfiguration für: appliance-$HOST_ID"
-        echo ""
-        # Verwende die SSH-Config mit Host-ID
-        exec ssh -o LogLevel=ERROR "appliance-$HOST_ID"
-    elif grep -q "^Host $HOST$" /root/.ssh/config 2>/dev/null; then
-        echo "Verwende SSH-Konfiguration für Host: $HOST"
-        echo ""
-        # Verwende die SSH-Config
-        exec ssh -o LogLevel=ERROR "$HOST"
-    else
-        echo "Verwende direkte SSH-Verbindung"
-        echo ""
-        # Direkte SSH-Verbindung
-        exec ssh -o StrictHostKeyChecking=no \
-                 -o UserKnownHostsFile=/dev/null \
-                 -o LogLevel=ERROR \
-                 -p "$PORT" \
-                 "$USER@$HOST"
-    fi
+    # Connect using SSH key only - no password authentication
+    exec ssh -tt \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -o LogLevel=ERROR \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
+        -o ConnectTimeout=10 \
+        -o PasswordAuthentication=no \
+        -o PubkeyAuthentication=yes \
+        -o IdentitiesOnly=yes \
+        -i "$SSH_KEY" \
+        -p "$SSH_PORT" \
+        "$SSH_USER@$SSH_HOST"
 else
-    # Keine Host-Informationen - zeige Hilfe
-    echo "HINWEIS: Keine Host-Informationen übermittelt."
-    echo ""
-    echo "Sie können manuell eine SSH-Verbindung herstellen mit:"
-    echo "  ssh benutzername@hostname"
-    echo ""
-    echo "Oder öffnen Sie das Terminal über einen konfigurierten Service"
-    echo "in der Web Appliance Dashboard Oberfläche."
+    echo "❌ FEHLER: Keine SSH-Verbindungsdaten gefunden!"
     echo ""
     echo "Debug-Info:"
-    echo "  QUERY_STRING: $QUERY_STRING"
-    echo "  SSH_HOST: $SSH_HOST"
-    echo "  SSH_USER: $SSH_USER"
+    echo "- SESSION_FILE: /tmp/terminal-sessions/latest-session.conf"
+    ls -la /tmp/terminal-sessions/ 2>/dev/null
     echo ""
-    # Starte eine interaktive Shell
+    # Fallback to bash
     exec /bin/bash
 fi

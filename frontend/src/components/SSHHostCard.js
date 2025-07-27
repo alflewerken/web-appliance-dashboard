@@ -15,6 +15,7 @@ import {
   Trash2,
   RotateCcw,
 } from 'lucide-react';
+import axios from '../utils/axiosConfig';
 import './SSHHostCard.css';
 
 const SSHHostCard = ({
@@ -195,7 +196,12 @@ const SSHHostCard = ({
               {/* Terminal Button - Violett */}
               <Button
                 variant="contained"
-                onClick={() => onConnect && onConnect(host)}
+                onClick={() => {
+                  if (onConnect) {
+                    // Rufe direkt onConnect auf - der API-Call wird in der Parent-Komponente gemacht
+                    onConnect(host);
+                  }
+                }}
                 sx={{
                   backgroundColor: 'rgba(147, 51, 234, 0.3) !important',
                   color: 'white',
