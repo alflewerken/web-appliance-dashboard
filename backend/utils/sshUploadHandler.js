@@ -3,11 +3,13 @@ const fs = require('fs').promises;
 const path = require('path');
 const { spawn } = require('child_process');
 const pool = require('./database');
+const { createAuditLog } = require('./auditLogger');
 
 const handleSSHUpload = async (req, res) => {
   console.log('DEBUG: SSH Upload Route Handler Called');
   
   let tempFilePath = null;
+  let tempKeyPath = null;
   
   try {
     const { hostId, targetPath } = req.body;
@@ -45,9 +47,9 @@ const handleSSHUpload = async (req, res) => {
     
     tempFilePath = file.path;
 
-    // Get SSH host details from database
-    const [[host]] = await pool.execute(
-      'SELECT * FROM ssh_hosts WHERE id = ? AND is_active = 1',
+    // Get host details from database
+    let [[host]] = await pool.execute(
+      'SELECT id, name, hostname, port, username, password, private_key, ssh_key_name FROM hosts WHERE id = ?',
       [hostId]
     );
 
@@ -57,11 +59,11 @@ const handleSSHUpload = async (req, res) => {
       
       return res.status(404).json({
         success: false,
-        error: 'SSH host not found or inactive',
+        error: 'Host not found',
       });
     }
 
-    console.log('DEBUG: Found SSH host:', host.hostname, `${host.username}@${host.host}:${host.port}`);
+    console.log('DEBUG: Found SSH host:', host.hostname, `${host.username}@${host.hostname}:${host.port}`);
 
     // Set SSE headers for progress streaming
     res.writeHead(200, {
@@ -74,9 +76,47 @@ const handleSSHUpload = async (req, res) => {
     // Send initial progress
     res.write(`data: ${JSON.stringify({ phase: 'preparing', progress: 0 })}\n\n`);
 
+    console.log('DEBUG: Host details:', {
+      id: host.id,
+      hostname: host.hostname,
+      username: host.username,
+      has_private_key: !!host.private_key,
+      private_key_length: host.private_key ? host.private_key.length : 0,
+      has_ssh_key_id: !!host.ssh_key_id,
+      has_password: !!host.password
+    });
+
     // Check if we need password authentication
-    const password = req.body.password;
-    const usePassword = (!host.ssh_key_id && !host.key_name) || (host.requiresPassword && password);
+    const password = req.body.password || host.password;
+    const hasKeyReference = host.ssh_key_id || host.key_name; // References an external key
+    const hasPrivateKey = !!host.private_key; // Has key in database
+    const hasPassword = !!password;
+    
+    // If host references an external key but we don't have it, we need password auth
+    const usePassword = (!hasPrivateKey && !hasPassword && hasKeyReference) ? 
+                       false : // This will fail, but we'll handle it with a better error
+                       (!hasKeyReference && !hasPrivateKey) || hasPassword;
+    
+    console.log('DEBUG: Authentication analysis:', {
+      hasKeyReference,
+      hasPrivateKey,
+      hasPassword,
+      usePassword,
+      willUseTempKey: hasPrivateKey && !usePassword,
+      willUseSSHConfig: hasKeyReference && !hasPrivateKey && !usePassword
+    });
+    
+    console.log('DEBUG: Authentication method:', usePassword ? 'password' : 'key');
+    console.log('DEBUG: Has private_key:', !!host.private_key);
+    console.log('DEBUG: Has ssh_key_id:', !!host.ssh_key_id);
+    
+    // Create temporary key file if private_key is in database
+    if (host.private_key && !usePassword) {
+      const crypto = require('crypto');
+      tempKeyPath = `/tmp/ssh_key_${crypto.randomBytes(16).toString('hex')}`;
+      await fs.writeFile(tempKeyPath, host.private_key, { mode: 0o600 });
+      console.log('DEBUG: Created temporary key file:', tempKeyPath);
+    }
     
     // Prepare SSH command based on authentication method
     let mkdirCommand;
@@ -85,14 +125,52 @@ const handleSSHUpload = async (req, res) => {
       mkdirCommand = ['sshpass', '-p', password, 'ssh', 
                       '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
                       '-o', 'ConnectTimeout=10',
-                      `${host.username}@${host.host}`, '-p', host.port || '22', 
+                      `${host.username}@${host.hostname}`, '-p', host.port || '22', 
+                      `mkdir -p '${targetPath}'`];
+    } else if (tempKeyPath) {
+      // Use temporary key file
+      mkdirCommand = ['ssh', '-i', tempKeyPath,
+                      '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
+                      '-o', 'ConnectTimeout=10',
+                      `${host.username}@${host.hostname}`, '-p', host.port || '22', 
                       `mkdir -p '${targetPath}'`];
     } else {
-      // Use key-based authentication with SSH config
-      // SSH config contains the host configuration with the correct key
-      mkdirCommand = ['ssh', '-F', '/root/.ssh/config',
-                      `host_${host.id}`, 
-                      `mkdir -p '${targetPath}'`];
+      // Try to use SSH config - check if host entry exists
+      const fs = require('fs');
+      const configPath = '/root/.ssh/config';
+      let useDirectConnection = false;
+      
+      if (fs.existsSync(configPath)) {
+        const configContent = fs.readFileSync(configPath, 'utf8');
+        // Check if there's a direct IP entry in SSH config
+        if (configContent.includes(`Host ${host.hostname}`) || configContent.includes(`HostName ${host.hostname}`)) {
+          console.log(`DEBUG: Found SSH config entry for ${host.hostname}`);
+          mkdirCommand = ['ssh', '-F', '/root/.ssh/config',
+                          host.hostname,
+                          `mkdir -p '${targetPath}'`];
+        } else {
+          console.log(`DEBUG: No SSH config entry found for ${host.hostname}`);
+          useDirectConnection = true;
+        }
+      } else {
+        useDirectConnection = true;
+      }
+      
+      if (useDirectConnection) {
+        // No SSH config entry found - this host needs SSH setup
+        console.error('DEBUG: SSH not configured for this host. Please run SSH setup first.');
+        
+        // Clean up temp file
+        await fs.unlink(tempFilePath).catch(e => console.error('Failed to clean up temp file:', e));
+        
+        res.write(`data: ${JSON.stringify({ 
+          phase: 'error', 
+          error: 'SSH nicht eingerichtet. Bitte führen Sie zuerst "SSH einrichten" aus.',
+          needsSetup: true
+        })}\n\n`);
+        res.end();
+        return;
+      }
     }
     
     console.log('DEBUG: Creating remote directory...');
@@ -120,10 +198,68 @@ const handleSSHUpload = async (req, res) => {
       });
     });
 
+    // Check if directory exists after mkdir
+    console.log('DEBUG: Checking if target directory exists...');
+    let checkDirCommand;
+    if (usePassword) {
+      checkDirCommand = ['sshpass', '-p', password, 'ssh',
+                        '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
+                        '-o', 'ConnectTimeout=10',
+                        `${host.username}@${host.hostname}`, '-p', host.port || '22',
+                        `test -d '${targetPath}' && echo 'EXISTS' || echo 'NOT_EXISTS'`];
+    } else if (tempKeyPath) {
+      checkDirCommand = ['ssh', '-i', tempKeyPath,
+                        '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
+                        '-o', 'ConnectTimeout=10',
+                        `${host.username}@${host.hostname}`, '-p', host.port || '22',
+                        `test -d '${targetPath}' && echo 'EXISTS' || echo 'NOT_EXISTS'`];
+    } else {
+      checkDirCommand = ['ssh', '-F', '/root/.ssh/config',
+                        host.hostname,
+                        `test -d '${targetPath}' && echo 'EXISTS' || echo 'NOT_EXISTS'`];
+    }
+    
+    const checkDirProcess = spawn(checkDirCommand[0], checkDirCommand.slice(1));
+    let dirCheckResult = '';
+    
+    checkDirProcess.stdout.on('data', (data) => {
+      dirCheckResult += data.toString().trim();
+    });
+    
+    await new Promise((resolve) => {
+      checkDirProcess.on('close', resolve);
+    });
+    
+    if (dirCheckResult !== 'EXISTS') {
+      console.error('DEBUG: Target directory does not exist:', targetPath);
+      
+      // Clean up temp files
+      await fs.unlink(tempFilePath).catch(e => console.error('Failed to clean up temp file:', e));
+      if (tempKeyPath) {
+        await fs.unlink(tempKeyPath).catch(e => console.error('Failed to clean up temp key file:', e));
+      }
+      
+      res.write(`data: ${JSON.stringify({ 
+        phase: 'error', 
+        error: `Das Zielverzeichnis "${targetPath}" existiert nicht auf dem Remote-Host.`,
+        details: 'Bitte prüfen Sie den Pfad und versuchen Sie es erneut.'
+      })}\n\n`);
+      res.end();
+      return;
+    }
+
     res.write(`data: ${JSON.stringify({ phase: 'transferring', progress: 10 })}\n\n`);
 
-    // Build remote path
-    const remotePath = path.join(targetPath, file.originalname);
+    // Build remote path - handle ~ properly
+    let remotePath;
+    if (targetPath.startsWith('~')) {
+      // Don't use path.join for paths starting with ~
+      remotePath = targetPath.endsWith('/') ? 
+        `${targetPath}${file.originalname}` : 
+        `${targetPath}/${file.originalname}`;
+    } else {
+      remotePath = path.join(targetPath, file.originalname);
+    }
     console.log('DEBUG: Remote path:', remotePath);
     
     console.log('DEBUG: Starting file transfer...');
@@ -155,23 +291,35 @@ const handleSSHUpload = async (req, res) => {
       rsyncArgs = ['-p', password, 'rsync', '-avz', '--progress', '-e',
                    `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${host.port || 22}`,
                    tempFilePath,
-                   `${host.username}@${host.host}:${remotePath}`];
+                   `${host.username}@${host.hostname}:${remotePath}`];
       
       var transferProcess = spawn('sshpass', rsyncArgs);
       console.log('DEBUG: Started sshpass rsync process');
+    } else if (tempKeyPath) {
+      // Use temporary key file
+      rsyncArgs = ['-avz', '--progress', '-e',
+                   `ssh -i ${tempKeyPath} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${host.port || 22}`,
+                   tempFilePath,
+                   `${host.username}@${host.hostname}:${remotePath}`];
+      
+      var transferProcess = spawn('rsync', rsyncArgs);
+      console.log('DEBUG: Started rsync with temporary key');
+      console.log('DEBUG: rsync command:', 'rsync', rsyncArgs.join(' '));
     } else {
-      // Use key-based authentication with SSH config
+      // Use SSH config - we already checked it exists in mkdir section
+      // Use the host IP directly since it should be in the config
       rsyncArgs = ['-avz', '--progress', '-e',
                    `ssh -F /root/.ssh/config`,
                    tempFilePath,
-                   `host_${host.id}:${remotePath}`];
+                   `${host.hostname}:${remotePath}`];  // Use IP directly
       
       var transferProcess = spawn('rsync', rsyncArgs);
-      console.log('DEBUG: Started rsync with SSH config');
+      console.log('DEBUG: Started rsync with SSH config using IP:', host.host);
       console.log('DEBUG: rsync command:', 'rsync', rsyncArgs.join(' '));
     }
     
     let lastProgress = 10;
+    let rsyncError = '';
     
     transferProcess.stdout.on('data', (data) => {
       const output = data.toString();
@@ -191,6 +339,7 @@ const handleSSHUpload = async (req, res) => {
     });
 
     transferProcess.stderr.on('data', (data) => {
+      rsyncError += data.toString();
       console.error('DEBUG: rsync stderr:', data.toString());
     });
 
@@ -199,7 +348,9 @@ const handleSSHUpload = async (req, res) => {
         if (code === 0) {
           resolve({ success: true });
         } else {
-          reject(new Error(`rsync exited with code ${code}`));
+          console.error('DEBUG: rsync failed with exit code:', code);
+          console.error('DEBUG: rsync error output:', rsyncError);
+          reject(new Error(`rsync exited with code ${code}: ${rsyncError}`));
         }
       });
       
@@ -216,12 +367,20 @@ const handleSSHUpload = async (req, res) => {
       verifyCommand = ['sshpass', '-p', password, 'ssh',
                       '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
                       '-o', 'ConnectTimeout=10',
-                      `${host.username}@${host.host}`, '-p', host.port || '22',
+                      `${host.username}@${host.hostname}`, '-p', host.port || '22',
+                      `ls -la '${remotePath}'`];
+    } else if (tempKeyPath) {
+      // Use temporary key file
+      verifyCommand = ['ssh', '-i', tempKeyPath,
+                      '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
+                      '-o', 'ConnectTimeout=10',
+                      `${host.username}@${host.hostname}`, '-p', host.port || '22',
                       `ls -la '${remotePath}'`];
     } else {
       // Use SSH config for key-based authentication
+      // Use the host IP directly since it should be in the config
       verifyCommand = ['ssh', '-F', '/root/.ssh/config',
-                      `host_${host.id}`,
+                      host.host,  // Use IP directly
                       `ls -la '${remotePath}'`];
     }
     
@@ -238,14 +397,43 @@ const handleSSHUpload = async (req, res) => {
 
     console.log('DEBUG: File verified on remote host:', verifyOutput.trim());
 
-    // Clean up temp file
+    // Clean up temp files
     await fs.unlink(tempFilePath).catch(e => console.error('Failed to clean up temp file:', e));
+    if (tempKeyPath) {
+      await fs.unlink(tempKeyPath).catch(e => console.error('Failed to clean up temp key file:', e));
+    }
     
     // Log successful upload
     await pool.execute(
       'INSERT INTO ssh_upload_log (host_id, filename, file_size, target_path, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
       [hostId, file.originalname, file.size, remotePath, 'success']
     );
+
+    // Create audit log with file details
+    const userId = req.user ? req.user.id : null;
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    
+    try {
+      await createAuditLog(
+        userId,
+        'ssh_file_upload',
+        'hosts',
+        hostId,
+        {
+          hostname: host.name || host.hostname,
+          host_ip: host.host,
+          target_path: remotePath,
+          files: [{
+            name: file.originalname,
+            bytes: file.size
+          }]
+        },
+        ipAddress
+      );
+    } catch (auditError) {
+      console.error('Failed to create audit log:', auditError);
+      // Don't fail the upload because of audit log error
+    }
 
     // Send final success response
     res.write(`data: ${JSON.stringify({ 
@@ -254,7 +442,7 @@ const handleSSHUpload = async (req, res) => {
       success: true,
       message: 'File uploaded and transferred successfully',
       path: remotePath,
-      host: host.hostname,
+      host: host.name || host.hostname,
       size: file.size
     })}\n\n`);
     
@@ -263,9 +451,12 @@ const handleSSHUpload = async (req, res) => {
   } catch (error) {
     console.error('ERROR in SSH upload handler:', error);
     
-    // Clean up temp file if it exists
+    // Clean up temp files if they exist
     if (tempFilePath) {
       await fs.unlink(tempFilePath).catch(e => console.error('Failed to clean up temp file:', e));
+    }
+    if (tempKeyPath) {
+      await fs.unlink(tempKeyPath).catch(e => console.error('Failed to clean up temp key file:', e));
     }
     
     // Log failed upload if we have hostId

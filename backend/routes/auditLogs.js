@@ -3,8 +3,14 @@ const router = express.Router();
 const pool = require('../utils/database');
 const { requireAdmin } = require('../utils/auth');
 const { broadcast } = require('./sse');
-const logger = require('../utils/logger');
+const { logger } = require('../utils/logger');
 const { Parser } = require('json2csv');
+const {
+  mapAuditLogDbToJs,
+  mapAuditLogJsToDb,
+  getAuditLogSelectColumns,
+  getActionDisplayName
+} = require('../utils/dbFieldMappingAuditLogs');
 
 // Export audit logs as CSV
 router.get('/export', requireAdmin, async (req, res) => {
@@ -18,6 +24,7 @@ router.get('/export', requireAdmin, async (req, res) => {
         al.action,
         al.resource_type,
         al.resource_id,
+        al.resource_name,
         al.details,
         al.ip_address,
         al.created_at,
@@ -66,12 +73,13 @@ router.get('/export', requireAdmin, async (req, res) => {
       Action: log.action,
       'Resource Type': log.resource_type,
       'Resource ID': log.resource_id,
+      'Resource Name': log.resource_name || '-',
       Details: typeof log.details === 'object' ? JSON.stringify(log.details) : log.details,
       'IP Address': log.ip_address || 'N/A'
     }));
     
     // Create CSV
-    const fields = ['ID', 'Date', 'User', 'Action', 'Resource Type', 'Resource ID', 'Details', 'IP Address'];
+    const fields = ['ID', 'Date', 'User', 'Action', 'Resource Type', 'Resource ID', 'Resource Name', 'Details', 'IP Address'];
     const json2csvParser = new Parser({ fields });
     const csv = json2csvParser.parse(csvData);
     
@@ -96,7 +104,8 @@ router.get('/', requireAdmin, async (req, res) => {
         al.action,
         al.resource_type,
         al.resource_id,
-        al.details,
+        al.resource_name,
+        al.details as metadata,
         al.ip_address,
         al.created_at,
         u.username
@@ -107,7 +116,15 @@ router.get('/', requireAdmin, async (req, res) => {
     `;
 
     const [logs] = await pool.execute(query);
-    res.json(logs);
+    
+    // Map logs to camelCase format
+    const mappedLogs = logs.map(log => ({
+      ...mapAuditLogDbToJs(log),
+      username: log.username, // Add username from JOIN
+      actionDisplay: getActionDisplayName(log.action)
+    }));
+    
+    res.json(mappedLogs);
   } catch (error) {
     logger.error('Error fetching audit logs:', error);
     res.status(500).json({ error: 'Failed to fetch audit logs' });
@@ -125,6 +142,7 @@ router.get('/:resourceType/:resourceId', requireAdmin, async (req, res) => {
         al.action,
         al.resource_type,
         al.resource_id,
+        al.resource_name,
         al.details,
         al.ip_address,
         al.created_at,
@@ -182,8 +200,8 @@ async function getOldSettingsValues(details) {
   return oldValues;
 }
 
-// Neue Route zum Abrufen des Verlaufs für SSH-Hosts
-router.get('/ssh-host/:hostId/history', requireAdmin, async (req, res) => {
+// Host history endpoint moved to use hosts table
+router.get('/host/:hostId/history', requireAdmin, async (req, res) => {
   const { hostId } = req.params;
   
   try {
@@ -191,6 +209,7 @@ router.get('/ssh-host/:hostId/history', requireAdmin, async (req, res) => {
       SELECT 
         al.id,
         al.action,
+        al.resource_name,
         al.details,
         al.created_at,
         u.username
@@ -219,6 +238,7 @@ router.get('/history/:resourceType/:resourceId', requireAdmin, async (req, res) 
       SELECT 
         al.id,
         al.action,
+        al.resource_name,
         al.details,
         al.created_at,
         u.username

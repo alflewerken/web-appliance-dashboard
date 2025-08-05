@@ -3,17 +3,8 @@ import ReactDOM from 'react-dom';
 import { 
   IconButton, 
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  LinearProgress,
-  Alert
 } from '@mui/material';
-import { Upload, X, Folder, Server, CheckCircle, Info, FolderOpen } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import SSHFileUpload from './SSHFileUpload';
 
 const FileTransferButton = ({ appliance }) => {
@@ -27,7 +18,7 @@ const FileTransferButton = ({ appliance }) => {
     const loadSSHHost = async () => {
       // Check if appliance has SSH connection configured (handle both snake_case and camelCase)
       const sshConnection = appliance.sshConnection || appliance.ssh_connection;
-      const sshHostId = appliance.sshHostId || appliance.ssh_host_id;
+      const sshHostId = appliance.sshHostId || appliance.sshHostId;
       
       if (sshConnection) {
         setLoading(true);
@@ -42,7 +33,7 @@ const FileTransferButton = ({ appliance }) => {
             const token = localStorage.getItem('token');
             
             try {
-              const hostsResponse = await fetch('/api/ssh/hosts', {
+              const hostsResponse = await fetch('/api/hosts', {
                 headers: {
                   'Authorization': token ? `Bearer ${token}` : '',
                 },
@@ -109,6 +100,7 @@ const FileTransferButton = ({ appliance }) => {
 
     loadSSHHost();
   }, [appliance]);
+
   const handleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -120,7 +112,7 @@ const FileTransferButton = ({ appliance }) => {
   };
 
   // Don't show button if no SSH connection is configured
-  const hasSshConnection = !!(appliance.sshConnection || appliance.ssh_connection || appliance.sshHostId || appliance.ssh_host_id);
+  const hasSshConnection = !!(appliance.sshConnection || appliance.ssh_connection || appliance.sshHostId || appliance.sshHostId);
   
   if (!hasSshConnection) {
     return null;
@@ -157,8 +149,9 @@ const FileTransferButton = ({ appliance }) => {
         <SSHFileUpload
           sshHost={sshHost}
           targetPath={targetPath}
-          applianceName={appliance.name}
+          requirePassword={sshHost.requiresPassword}
           onClose={handleClose}
+          applianceName={appliance.name}
         />,
         document.body
       )}

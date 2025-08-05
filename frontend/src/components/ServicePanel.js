@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import SwipeableViews from 'react-swipeable-views';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
+import RustDeskInstaller from './RustDeskInstaller';
+import RustDeskSetupDialog from './RustDeskSetupDialog';
 import {
   Box,
   Typography,
@@ -19,6 +20,10 @@ import {
   CircularProgress,
   Slider,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   X,
@@ -36,6 +41,7 @@ import {
   Play,
   Server,
   Search,
+  Monitor,
 } from 'lucide-react';
 import SimpleIcon from './SimpleIcon';
 import IconSelector from './IconSelector';
@@ -43,6 +49,7 @@ import { COLOR_PRESETS } from '../utils/constants';
 import { getAvailableIcons } from '../utils/iconMap';
 import AnsiToHtml from 'ansi-to-html';
 import TTYDTerminal from './TTYDTerminal';
+import axios from '../utils/axiosConfig';
 import './unified/ServicePanelPatch.css';
 import '../styles/ServicePanelSwipeable.css';
 
@@ -104,11 +111,15 @@ const ServicePanel = ({
     openModeMobile: 'browser_tab',
     openModeDesktop: 'browser_tab',
     remoteDesktopEnabled: false,
+    remoteDesktopType: 'guacamole',
     remoteProtocol: 'vnc',
     remoteHost: '',
     remotePort: null,
     remoteUsername: '',
     remotePassword: '',
+    guacamolePerformanceMode: 'balanced',
+    rustdeskId: '',
+    rustdeskPassword: '',
   });
 
   // Visual settings state
@@ -143,7 +154,7 @@ const ServicePanel = ({
   const [newCommand, setNewCommand] = useState({
     description: '',
     command: '',
-    ssh_host_id: null,
+    hostId: null,
   });
   const [executingCommandId, setExecutingCommandId] = useState(null);
   const [commandOutput, setCommandOutput] = useState({});
@@ -158,6 +169,11 @@ const ServicePanel = ({
   const [templateSearchTerm, setTemplateSearchTerm] = useState('');
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  // RustDesk state
+  const [showRustDeskDialog, setShowRustDeskDialog] = useState(false);
+  const [rustDeskStatus, setRustDeskStatus] = useState(null);
+  const [checkingRustDeskStatus, setCheckingRustDeskStatus] = useState(false);
 
   // Panel width state
   const [panelWidth, setPanelWidth] = useState(() => {
@@ -210,11 +226,16 @@ const ServicePanel = ({
         openModeMobile: appliance.openModeMobile || 'browser_tab',
         openModeDesktop: appliance.openModeDesktop || 'browser_tab',
         remoteDesktopEnabled: appliance.remoteDesktopEnabled || false,
+        remoteDesktopType: appliance.remoteDesktopType || 'guacamole',
         remoteProtocol: appliance.remoteProtocol || 'vnc',
         remoteHost: appliance.remoteHost || extractHostFromUrl(appliance.url) || '',
         remotePort: appliance.remotePort || null,
         remoteUsername: appliance.remoteUsername || '',
         remotePassword: '', // Passwort wird nicht vom Server zurückgegeben
+        guacamolePerformanceMode: appliance.guacamolePerformanceMode || appliance.guacamole_performance_mode || 'balanced',
+        rustdeskId: appliance.rustdeskId || appliance.rustdesk_id || '',
+        rustdeskPassword: '', // RustDesk Passwort wird nicht vom Server zurückgegeben
+        rustdeskInstalled: appliance.rustdeskInstalled || appliance.rustdesk_installed || false,
       });
 
       // Convert transparency from 0-1 range to 0-100 percentage
@@ -232,13 +253,13 @@ const ServicePanel = ({
       // Set default SSH host based on appliance's SSH connection
       if (appliance.sshConnection && sshHosts.length > 0) {
         const matchingHost = sshHosts.find(host => {
-          const hostValue = `${host.username || 'root'}@${host.host}:${host.port || 22}`;
+          const hostValue = `${host.username || 'root'}@${host.hostname}:${host.port || 22}`;
           return hostValue === appliance.sshConnection;
         });
         if (matchingHost) {
           setDefaultHostId(matchingHost.id);
-          if (!newCommand.ssh_host_id) {
-            setNewCommand(prev => ({ ...prev, ssh_host_id: matchingHost.id }));
+          if (!newCommand.hostId) {
+            setNewCommand(prev => ({ ...prev, hostId: matchingHost.id }));
           }
         }
       }
@@ -380,6 +401,21 @@ const ServicePanel = ({
       const { ...dataToSave } = formData;
       // Remove visual settings that should not be saved from Service tab
       // (transparency and blur are handled in the Visual tab)
+      
+      // If RustDesk ID is provided, mark as installed
+      if (dataToSave.rustdeskId) {
+        dataToSave.rustdeskInstalled = true;
+      }
+      
+      console.log('Saving Service Data:', {
+        remoteDesktopType: dataToSave.remoteDesktopType,
+        remoteDesktopEnabled: dataToSave.remoteDesktopEnabled,
+        rustdesk_id: dataToSave.rustdeskId,
+        rustdeskId: dataToSave.rustdeskId,
+        rustdeskInstalled: dataToSave.rustdeskInstalled,
+        rustdeskPassword: dataToSave.rustdeskPassword,
+        fullData: dataToSave
+      });
 
       await onSave(appliance?.id, dataToSave);
 
@@ -438,6 +474,160 @@ const ServicePanel = ({
     }
   };
 
+  // Check RustDesk installation status
+  const handleCheckRustDeskStatus = async () => {
+    if (!appliance || appliance.isNew) {
+      setError('Service muss zuerst gespeichert werden');
+      return;
+    }
+
+    console.log('Checking RustDesk status for appliance:', appliance.id);
+    console.log('Current rustdeskId in form:', formData.rustdeskId);
+    
+    // If we already have a RustDesk ID in the form, show it directly
+    if (formData.rustdeskId) {
+      alert(`RustDesk ist bereits installiert!\nID: ${formData.rustdeskId}`);
+      return;
+    }
+    
+    setCheckingRustDeskStatus(true);
+    try {
+      // Get SSH connection details
+      let sshConnectionId = null;
+      
+      if (formData.sshConnection) {
+        // Find matching SSH host
+        const matchingHost = sshHosts.find(host => {
+          const hostValue = `${host.username || 'root'}@${host.hostname}:${host.port || 22}`;
+          return hostValue === formData.sshConnection;
+        });
+        if (matchingHost) {
+          sshConnectionId = matchingHost.id;
+        }
+      }
+      
+      if (!sshConnectionId) {
+        setError('Keine SSH-Verbindung konfiguriert. Bitte wählen Sie zuerst eine SSH-Verbindung aus.');
+        return;
+      }
+
+      const response = await axios.get(`/api/rustdeskInstall/${sshConnectionId}/status`);
+      
+      console.log('RustDesk status response:', response.data);
+      
+      if (response.data) {
+        const status = response.data;
+        
+        if (status.installed) {
+          // RustDesk is installed
+          if (status.rustdeskId || status.rustdesk_id) {
+            // Show status with ID
+            setSuccess(true);
+            setError(null);
+            const rustdeskId = status.rustdeskId || status.rustdesk_id;
+            alert(`RustDesk ist installiert!\nID: ${rustdeskId}`);
+            
+            // Update the form with the ID
+            handleFieldChange('rustdeskId', rustdeskId);
+          } else {
+            // Installed but no ID - show setup dialog for manual entry
+            setShowRustDeskDialog(true);
+          }
+        } else {
+          // Not installed - show installer dialog
+          console.log('RustDesk not installed, showing dialog');
+          setShowRustDeskDialog(true);
+        }
+      }
+    } catch (err) {
+      console.error('Error checking RustDesk status:', err);
+      setError('Fehler beim Prüfen des RustDesk-Status');
+    } finally {
+      setCheckingRustDeskStatus(false);
+    }
+  };
+
+  // Handle RustDesk installation
+  const handleRustDeskInstall = async () => {
+    try {
+      // Get SSH connection details
+      let sshConnectionId = null;
+      
+      if (formData.sshConnection) {
+        const matchingHost = sshHosts.find(host => {
+          const hostValue = `${host.username || 'root'}@${host.hostname}:${host.port || 22}`;
+          return hostValue === formData.sshConnection;
+        });
+        if (matchingHost) {
+          sshConnectionId = matchingHost.id;
+        }
+      }
+      
+      if (!sshConnectionId) {
+        throw new Error('Keine SSH-Verbindung konfiguriert');
+      }
+
+      const response = await axios.post(`/api/rustdeskInstall/${sshConnectionId}`, {});
+      
+      if (response.data.success) {
+        if (response.data.rustdeskId || response.data.rustdesk_id) {
+          const rustdeskId = response.data.rustdeskId || response.data.rustdesk_id;
+          handleFieldChange('rustdeskId', rustdeskId);
+          setSuccess(true);
+          return true;
+        } else if (response.data.manual_id_required) {
+          // Manual ID entry required
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error('RustDesk installation error:', err);
+      throw err;
+    }
+  };
+
+  // Handle manual RustDesk ID save
+  const handleRustDeskManualSave = async (id, password) => {
+    try {
+      handleFieldChange('rustdeskId', id);
+      if (password) {
+        handleFieldChange('rustdeskPassword', password);
+      }
+      
+      // Get SSH connection details
+      let sshConnectionId = null;
+      
+      if (formData.sshConnection) {
+        const matchingHost = sshHosts.find(host => {
+          const hostValue = `${host.username || 'root'}@${host.hostname}:${host.port || 22}`;
+          return hostValue === formData.sshConnection;
+        });
+        if (matchingHost) {
+          sshConnectionId = matchingHost.id;
+        }
+      }
+      
+      if (!sshConnectionId) {
+        throw new Error('Keine SSH-Verbindung konfiguriert');
+      }
+
+      // Save to backend
+      const response = await axios.put(`/api/rustdeskInstall/${sshConnectionId}/id`, {
+        rustdeskId: id
+      });
+      
+      if (response.data) {
+        setSuccess(true);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error saving RustDesk ID:', err);
+      throw err;
+    }
+  };
+
   // Get available icons
   const availableIcons = getAvailableIcons();
 
@@ -476,7 +666,7 @@ const ServicePanel = ({
         body: JSON.stringify({
           description: newCommand.description,
           command: newCommand.command,
-          ssh_host_id: newCommand.ssh_host_id,
+          host_id: newCommand.hostId,
         }),
       });
 
@@ -486,7 +676,7 @@ const ServicePanel = ({
         setNewCommand({
           description: '',
           command: '',
-          ssh_host_id: defaultHostId,
+          host_id: defaultHostId,
         });
         setSuccess('Kommando erfolgreich erstellt');
         setTimeout(() => setSuccess(''), 3000);
@@ -556,8 +746,17 @@ const ServicePanel = ({
     try {
       setExecutingCommandId(command.id);
       const token = localStorage.getItem('token');
+      const executeUrl = `/api/commands/${appliance.id}/${command.id}/execute`;
+      
+      console.log('Executing command:', {
+        applianceId: appliance.id,
+        commandId: command.id,
+        url: executeUrl,
+        fullUrl: window.location.origin + executeUrl
+      });
+      
       const response = await fetch(
-        `/api/commands/${appliance.id}/${command.id}/execute`,
+        executeUrl,
         {
           method: 'POST',
           headers: {
@@ -565,6 +764,18 @@ const ServicePanel = ({
           },
         }
       );
+
+      if (!response.ok) {
+        console.error('Command execution failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url
+        });
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        
+        throw new Error(`Command execution failed: ${response.statusText}`);
+      }
 
       const result = await response.json();
 
@@ -625,10 +836,10 @@ const ServicePanel = ({
       };
 
       // If command has a specific SSH host, update the connection
-      if (command.ssh_host_id) {
-        const sshHost = sshHosts.find(h => h.id === command.ssh_host_id);
+      if (command.host_id) {
+        const sshHost = sshHosts.find(h => h.id === command.host_id);
         if (sshHost) {
-          applianceWithCommand.sshConnection = `${sshHost.username}@${sshHost.host}:${sshHost.port}`;
+          applianceWithCommand.sshConnection = `${sshHost.username}@${sshHost.hostname}:${sshHost.port}`;
         }
       }
 
@@ -672,7 +883,7 @@ const ServicePanel = ({
     setNewCommand({
       description: template.description,
       command: template.command,
-      ssh_host_id: template.ssh_host_id || defaultHostId,
+      host_id: template.host_id || defaultHostId,
     });
     setSelectedTemplate(template);
     setShowCommandSelection(false);
@@ -828,20 +1039,23 @@ const ServicePanel = ({
         })}
       </Box>
 
-      {/* Content with react-swipeable-views */}
-      <Box sx={{ flex: 1, overflow: 'hidden' }}>
-        <SwipeableViews
-          index={activeTabIndex}
-          onChangeIndex={setActiveTabIndex}
-          disabled={appliance?.isNew}
-          enableMouseEvents
-          resistance
-          style={{ height: '100%' }}
-          containerStyle={{ height: '100%' }}
-          slideStyle={{ height: '100%' }}
+      {/* Tab Content Container */}
+      <Box sx={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            width: '100%',
+            height: '100%',
+          }}
         >
           {/* Commands Tab - Index 0 */}
-          <Box key="commands-tab" sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+          <Box key="commands-tab" sx={{ 
+            width: '100%', 
+            height: '100%', 
+            overflow: 'auto', 
+            p: 3,
+            display: activeTabIndex === 0 ? 'block' : 'none'
+          }}>
             {showCommandSelection ? (
               <Box>
                 {/* Back button and title */}
@@ -1030,7 +1244,7 @@ const ServicePanel = ({
                                     variant="body2"
                                     sx={{ color: 'var(--text-secondary)' }}
                                   >
-                                    {command.ssh_host_id
+                                    {command.host_id
                                       ? `${command.ssh_hostname || 'SSH Host'} (${command.ssh_connection_string})`
                                       : 'Lokal'}
                                   </Typography>
@@ -1169,11 +1383,11 @@ const ServicePanel = ({
                         SSH-Host
                       </InputLabel>
                       <Select
-                        value={newCommand.ssh_host_id || ''}
+                        value={newCommand.host_id || ''}
                         onChange={e =>
                           setNewCommand({
                             ...newCommand,
-                            ssh_host_id: e.target.value
+                            host_id: e.target.value
                               ? parseInt(e.target.value)
                               : null,
                           })
@@ -1213,12 +1427,11 @@ const ServicePanel = ({
                         <MenuItem value="">Lokal ausführen</MenuItem>
                         {sshHosts.map((host, index) => (
                           <MenuItem
-                            key={`${host.host}-${index}`}
+                            key={`${host.hostname}-${index}`}
                             value={host.id}
                           >
-                            {host.hostname ||
-                              host.name ||
-                              `${host.username || 'root'}@${host.host}:${host.port || 22}`}
+                            {host.name ||
+                              `${host.username || 'root'}@${host.hostname}:${host.port || 22}`}
                           </MenuItem>
                         ))}
                       </Select>
@@ -1453,14 +1666,14 @@ const ServicePanel = ({
                                 />
                                 <FormControl fullWidth>
                                   <Select
-                                    value={command.ssh_host_id || ''}
+                                    value={command.host_id || ''}
                                     onChange={e =>
                                       setCommands(
                                         commands.map(cmd =>
                                           cmd.id === command.id
                                             ? {
                                                 ...cmd,
-                                                ssh_host_id: e.target.value
+                                                host_id: e.target.value
                                                   ? parseInt(e.target.value)
                                                   : null,
                                               }
@@ -1485,12 +1698,11 @@ const ServicePanel = ({
                                     </MenuItem>
                                     {sshHosts.map((host, index) => (
                                       <MenuItem
-                                        key={`${host.host}-${index}`}
+                                        key={`${host.hostname}-${index}`}
                                         value={host.id}
                                       >
-                                        {host.hostname ||
-                                          host.name ||
-                                          `${host.username || 'root'}@${host.host}:${host.port || 22}`}
+                                        {host.name ||
+                                          `${host.username || 'root'}@${host.hostname}:${host.port || 22}`}
                                       </MenuItem>
                                     ))}
                                   </Select>
@@ -1757,7 +1969,13 @@ const ServicePanel = ({
           </Box>
 
           {/* Visual Tab - Index 1 */}
-          <Box key="visual-tab" sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+          <Box key="visual-tab" sx={{ 
+            width: '100%', 
+            height: '100%', 
+            overflow: 'auto', 
+            p: 3,
+            display: activeTabIndex === 1 ? 'block' : 'none'
+          }}>
             <Typography
               variant="h6"
               sx={{ mb: 3, color: 'var(--text-primary)' }}
@@ -1899,7 +2117,13 @@ const ServicePanel = ({
           </Box>
 
           {/* Service Tab - Index 2 */}
-          <Box key="service-tab" sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+          <Box key="service-tab" sx={{ 
+            width: '100%', 
+            height: '100%', 
+            overflow: 'auto', 
+            p: 3,
+            display: activeTabIndex === 2 ? 'block' : 'none'
+          }}>
             {/* Basic Information */}
             <Typography
               variant="h6"
@@ -2343,13 +2567,13 @@ const ServicePanel = ({
                   >
                     <MenuItem value="">Keine SSH-Verbindung</MenuItem>
                     {sshHosts.map((host, index) => {
-                      const hostValue = `${host.username || 'root'}@${host.host}:${host.port || 22}`;
+                      const hostValue = `${host.username || 'root'}@${host.hostname}:${host.port || 22}`;
                       return (
                         <MenuItem
-                          key={`${host.host}-${index}`}
+                          key={`${host.hostname}-${index}`}
                           value={hostValue}
                         >
-                          {host.hostname || host.name || hostValue}
+                          {host.name || host.hostname || hostValue}
                         </MenuItem>
                       );
                     })}
@@ -2485,12 +2709,12 @@ const ServicePanel = ({
               <>
                 <FormControl fullWidth margin="normal">
                   <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                    Protokoll
+                    Remote Desktop Typ
                   </InputLabel>
                   <Select
-                    value={formData.remoteProtocol || 'vnc'}
-                    onChange={e => handleFieldChange('remoteProtocol', e.target.value)}
-                    label="Protokoll"
+                    value={formData.remoteDesktopType || 'guacamole'}
+                    onChange={e => handleFieldChange('remoteDesktopType', e.target.value)}
+                    label="Remote Desktop Typ"
                     sx={{
                       color: 'var(--text-primary)',
                       backgroundColor: 'var(--container-bg)',
@@ -2499,81 +2723,202 @@ const ServicePanel = ({
                       },
                     }}
                   >
-                    <MenuItem value="vnc">VNC</MenuItem>
-                    <MenuItem value="rdp">RDP (Windows)</MenuItem>
+                    <MenuItem value="guacamole">Guacamole (Classic)</MenuItem>
+                    <MenuItem value="rustdesk">RustDesk (Schneller)</MenuItem>
                   </Select>
                 </FormControl>
 
-                <TextField
-                  fullWidth
-                  label="Host-Adresse"
-                  value={formData.remoteHost || ''}
-                  onChange={e => handleFieldChange('remoteHost', e.target.value)}
-                  margin="normal"
-                  placeholder={extractHostFromUrl(formData.url) || '192.168.1.100'}
-                  helperText="IP-Adresse oder Hostname des Remote Desktop Servers"
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
-                  }}
-                />
+                {/* Guacamole Performance Mode Selector */}
+                {formData.remoteDesktopType === 'guacamole' && (
+                  <Box sx={{ my: 2 }}>
+                    <FormControl fullWidth margin="normal">
+                      <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                        Performance Mode
+                      </InputLabel>
+                      <Select
+                        value={formData.guacamolePerformanceMode || 'balanced'}
+                        onChange={e => handleFieldChange('guacamolePerformanceMode', e.target.value)}
+                        label="Performance Mode"
+                        sx={{
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'var(--container-bg)',
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                          },
+                        }}
+                      >
+                        <MenuItem value="high-quality">High Quality - Beste visuelle Qualität</MenuItem>
+                        <MenuItem value="balanced">Balanced - Gute Balance zwischen Qualität und Performance</MenuItem>
+                        <MenuItem value="performance">Performance - Niedrigere Qualität, schnellere Reaktion</MenuItem>
+                        <MenuItem value="low-bandwidth">Low Bandwidth - Minimale Bandbreite</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                )}
 
-                <TextField
-                  fullWidth
-                  label="Port"
-                  type="number"
-                  value={formData.remotePort || (formData.remoteProtocol === 'rdp' ? 3389 : 5900)}
-                  onChange={e => handleFieldChange('remotePort', parseInt(e.target.value) || '')}
-                  margin="normal"
-                  placeholder={formData.remoteProtocol === 'rdp' ? '3389' : '5900'}
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                  }}
-                />
+                {/* Protokoll nur für Guacamole anzeigen */}
+                {formData.remoteDesktopType !== 'rustdesk' && (
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                      Protokoll
+                    </InputLabel>
+                    <Select
+                      value={formData.remoteProtocol || 'vnc'}
+                      onChange={e => handleFieldChange('remoteProtocol', e.target.value)}
+                      label="Protokoll"
+                      sx={{
+                        color: 'var(--text-primary)',
+                        backgroundColor: 'var(--container-bg)',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgba(255, 255, 255, 0.2)',
+                        },
+                      }}
+                    >
+                      <MenuItem value="vnc">VNC</MenuItem>
+                      <MenuItem value="rdp">RDP (Windows)</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
 
-                <TextField
-                  fullWidth
-                  label="Benutzername"
-                  value={formData.remoteUsername || ''}
-                  onChange={e => handleFieldChange('remoteUsername', e.target.value)}
-                  margin="normal"
-                  placeholder={formData.remoteProtocol === 'rdp' ? 'Administrator' : 'alflewerken'}
-                  helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC (z.B. für macOS)' : 'Erforderlich für RDP'}
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
-                  }}
-                />
+                {/* Verbindungsdetails nur für Guacamole anzeigen */}
+                {formData.remoteDesktopType !== 'rustdesk' && (
+                  <>
+                    <TextField
+                      fullWidth
+                      label="Host-Adresse"
+                      value={formData.remoteHost || ''}
+                      onChange={e => handleFieldChange('remoteHost', e.target.value)}
+                      margin="normal"
+                      placeholder={extractHostFromUrl(formData.url) || '192.168.1.100'}
+                      helperText="IP-Adresse oder Hostname des Remote Desktop Servers"
+                      sx={{
+                        '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                        '& .MuiInputBase-root': {
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'var(--container-bg)',
+                        },
+                        '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                      }}
+                    />
 
-                <TextField
-                  fullWidth
-                  label="Passwort"
-                  type="password"
-                  value={formData.remotePassword || ''}
-                  onChange={e => handleFieldChange('remotePassword', e.target.value)}
-                  margin="normal"
-                  helperText="Wird verschlüsselt gespeichert"
-                  sx={{
-                    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                    '& .MuiInputBase-root': {
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                    },
-                    '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
-                  }}
-                />
+                    <TextField
+                      fullWidth
+                      label="Port"
+                      type="number"
+                      value={formData.remotePort || (formData.remoteProtocol === 'rdp' ? 3389 : 5900)}
+                      onChange={e => handleFieldChange('remotePort', parseInt(e.target.value) || '')}
+                      margin="normal"
+                      placeholder={formData.remoteProtocol === 'rdp' ? '3389' : '5900'}
+                      sx={{
+                        '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                        '& .MuiInputBase-root': {
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'var(--container-bg)',
+                        },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      label="Benutzername"
+                      value={formData.remoteUsername || ''}
+                      onChange={e => handleFieldChange('remoteUsername', e.target.value)}
+                      margin="normal"
+                      placeholder={formData.remoteProtocol === 'rdp' ? 'Administrator' : 'alflewerken'}
+                      helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC (z.B. für macOS)' : 'Erforderlich für RDP'}
+                      sx={{
+                        '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                        '& .MuiInputBase-root': {
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'var(--container-bg)',
+                        },
+                        '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      label="Passwort"
+                      type="password"
+                      value={formData.remotePassword || ''}
+                      onChange={e => handleFieldChange('remotePassword', e.target.value)}
+                      margin="normal"
+                      helperText="Wird verschlüsselt gespeichert"
+                      sx={{
+                        '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                        '& .MuiInputBase-root': {
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'var(--container-bg)',
+                        },
+                        '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* RustDesk-spezifische Felder */}
+                {formData.remoteDesktopType === 'rustdesk' && (
+                  <>
+                    <TextField
+                      fullWidth
+                      label="RustDesk ID"
+                      value={formData.rustdeskId || ''}
+                      onChange={e => handleFieldChange('rustdeskId', e.target.value)}
+                      margin="normal"
+                      placeholder="z.B. 196611"
+                      helperText="Die RustDesk ID des Remote-Geräts (wird automatisch erkannt oder kann manuell eingegeben werden)"
+                      sx={{
+                        '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                        '& .MuiInputBase-root': {
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'var(--container-bg)',
+                        },
+                        '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      label="RustDesk Passwort"
+                      type="password"
+                      value={formData.rustdeskPassword || ''}
+                      onChange={e => handleFieldChange('rustdeskPassword', e.target.value)}
+                      margin="normal"
+                      helperText="Das Passwort für die RustDesk-Verbindung (wird verschlüsselt gespeichert)"
+                      sx={{
+                        '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                        '& .MuiInputBase-root': {
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'var(--container-bg)',
+                        },
+                        '& .MuiFormHelperText-root': { color: 'var(--text-tertiary)' },
+                      }}
+                    />
+
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      RustDesk nutzt eine ID-basierte Verbindung. Falls noch nicht installiert, wird RustDesk automatisch beim ersten Klick auf den Remote Desktop Button installiert.
+                    </Alert>
+
+                    {/* RustDesk Installation Status Button */}
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={checkingRustDeskStatus ? <CircularProgress size={20} /> : <Monitor />}
+                      onClick={handleCheckRustDeskStatus}
+                      disabled={checkingRustDeskStatus || !formData.sshConnection}
+                      fullWidth
+                      sx={{ mt: 2 }}
+                    >
+                      {checkingRustDeskStatus ? 'Prüfe Status...' : 'RustDesk Installations Status'}
+                    </Button>
+
+                    {!formData.sshConnection && (
+                      <Alert severity="warning" sx={{ mt: 2 }}>
+                        Bitte wählen Sie zuerst eine SSH-Verbindung aus, um den RustDesk-Status zu prüfen.
+                      </Alert>
+                    )}
+                  </>
+                )}
               </>
             )}
 
@@ -2616,7 +2961,7 @@ const ServicePanel = ({
               )}
             </Box>
           </Box>
-        </SwipeableViews>
+        </Box>
       </Box>
 
       {/* Icon Selector Modal */}
@@ -2672,6 +3017,23 @@ const ServicePanel = ({
           Möchten Sie diesen Service wirklich löschen?
         </Alert>
       </Snackbar>
+
+      {/* RustDesk Setup Dialog */}
+      {showRustDeskDialog && (
+        <RustDeskSetupDialog
+          isOpen={showRustDeskDialog}
+          onClose={() => setShowRustDeskDialog(false)}
+          applianceName={appliance?.name || formData.name}
+          applianceId={appliance?.id}
+          sshHost={sshHosts.find(host => {
+            const hostValue = `${host.username || 'root'}@${host.hostname}:${host.port || 22}`;
+            return hostValue === formData.sshConnection;
+          })}
+          onInstall={handleRustDeskInstall}
+          onManualSave={handleRustDeskManualSave}
+          currentRustDeskId={formData.rustdeskId}
+        />
+      )}
 
       {/* Success/Error Snackbar */}
       <Snackbar

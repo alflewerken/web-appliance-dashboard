@@ -1,0 +1,8 @@
+{
+    "guacamoleVersion" : "1.5.5",
+    "name" : "Dashboard Authentication Extension",
+    "namespace" : "dashboard-auth",
+    "authProviders" : [
+        "com.dashboard.guacamole.auth.DashboardAuthenticationProvider"
+    ]
+}

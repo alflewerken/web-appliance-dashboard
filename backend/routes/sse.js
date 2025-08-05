@@ -141,5 +141,12 @@ router.get('/test-token', (req, res) => {
   }
 });
 
-// Export router and broadcast function
-module.exports = { router, broadcast };
+// SSE Manager for sending events
+const sseManager = {
+  sendEvent: (eventType, data) => {
+    broadcast(eventType, data);
+  }
+};
+
+// Export router, broadcast function and sseManager
+module.exports = { router, broadcast, sseManager };

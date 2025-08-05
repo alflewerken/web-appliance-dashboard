@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import SwipeableViews from 'react-swipeable-views';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
 import {
   Box,
@@ -913,19 +912,23 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         </Tabs>
       </Box>
 
-      {/* Swipeable Content */}
-      <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-        <SwipeableViews
-          index={tabValue}
-          onChangeIndex={handleSwipeChange}
-          enableMouseEvents
-          resistance
-          style={{ height: '100%' }}
-          containerStyle={{ height: '100%' }}
-          slideStyle={{ height: '100%', overflow: 'hidden' }}
+      {/* Tab Content Container */}
+      <Box sx={{ flexGrow: 1, overflow: 'hidden', position: 'relative' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            width: '100%',
+            height: '100%',
+          }}
         >
           {/* Users Tab */}
-          <Box sx={{ p: { xs: 1, sm: 2 }, height: '100%', overflow: 'auto' }}>
+          <Box sx={{ 
+            width: '100%', 
+            p: { xs: 1, sm: 2 }, 
+            height: '100%', 
+            overflow: 'auto',
+            display: tabValue === 0 ? 'block' : 'none'
+          }}>
             <Box sx={{ mb: 2, px: { xs: 1, sm: 0 } }}>
               {isAdmin() && (
                 <Button
@@ -952,7 +955,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           </Box>
 
           {/* Roles Tab */}
-          <Box sx={{ p: { xs: 1, sm: 2 }, height: '100%', overflow: 'auto' }}>
+          <Box sx={{ 
+            width: '100%', 
+            p: { xs: 1, sm: 2 }, 
+            height: '100%', 
+            overflow: 'auto',
+            display: tabValue === 1 ? 'block' : 'none'
+          }}>
             <Grid container spacing={2}>
               {roles.map(role => (
                 <Grid item xs={12} md={6} key={role.role}>
@@ -992,7 +1001,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           </Box>
 
           {/* Statistics Tab */}
-          <Box sx={{ p: { xs: 1, sm: 2 }, height: '100%', overflow: 'auto' }}>
+          <Box sx={{ 
+            width: '100%', 
+            p: { xs: 1, sm: 2 }, 
+            height: '100%', 
+            overflow: 'auto',
+            display: tabValue === 2 ? 'block' : 'none'
+          }}>
             <Grid container spacing={3}>
               <Grid item xs={12} md={4}>
                 <Paper
@@ -1102,7 +1117,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
               </Grid>
             </Grid>
           </Box>
-        </SwipeableViews>
+        </Box>
       </Box>
 
       {/* Create User Dialog */}

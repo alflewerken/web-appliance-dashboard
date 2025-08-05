@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
-const { requireAdmin, createAuditLog } = require('../utils/auth');
+const { requireAdmin } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 const { broadcast } = require('./sse');
 const { getClientIp } = require('../utils/getClientIp');
 const { restoreBackgroundImageFromAuditLog } = require('../utils/backgroundImageHelper');
@@ -52,6 +53,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
         'service_deleted',
         'appliance_deleted',
         'ssh_host_deleted',
+        'host_deleted',
       ].includes(log.action)
     ) {
       canRestore = true;
@@ -87,6 +89,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
         'appliance_update',
         'appliance_updated',
         'appliance_reverted',
+        'host_updated',
       ].includes(log.action) &&
       details.original_data
     ) {
@@ -606,10 +609,13 @@ router.post('/restore/appliances/:logId', async (req, res) => {
     const [result] = await connection.execute(
       `INSERT INTO appliances (
         name, url, description, icon, color, category, isFavorite,
-        start_command, stop_command, status_command, auto_start, ssh_connection,
+        start_command, stop_command, status_command, restart_command, auto_start, ssh_connection,
         transparency, blur_amount, open_mode_mini, open_mode_mobile, open_mode_desktop,
-        service_status, background_image
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        service_status, background_image,
+        remote_desktop_enabled, remote_desktop_type, remote_protocol, remote_host, remote_port, remote_username, remote_password_encrypted,
+        rustdeskId, rustdesk_password_encrypted, rustdesk_installed, rustdesk_installation_date,
+        guacamolePerformanceMode, order_index
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         serviceName,  // Use the new name here
         serviceData.url,
@@ -621,6 +627,7 @@ router.post('/restore/appliances/:logId', async (req, res) => {
         serviceData.startCommand || serviceData.start_command || null,
         serviceData.stopCommand || serviceData.stop_command || null,
         serviceData.statusCommand || serviceData.status_command || null,
+        serviceData.restartCommand || serviceData.restart_command || null,
         serviceData.autoStart || serviceData.auto_start || 0,
         serviceData.sshConnection || serviceData.ssh_connection || null,
         serviceData.transparency || 0.7,
@@ -630,6 +637,19 @@ router.post('/restore/appliances/:logId', async (req, res) => {
         serviceData.openModeDesktop || serviceData.open_mode_desktop || 'browser_tab',
         'unknown',
         restoredBackgroundImage || null,
+        serviceData.remoteDesktopEnabled || serviceData.remote_desktop_enabled || 0,
+        serviceData.remoteDesktopType || serviceData.remote_desktop_type || 'guacamole',
+        serviceData.remoteProtocol || serviceData.remote_protocol || 'vnc',
+        serviceData.remoteHost || serviceData.remote_host || null,
+        serviceData.remotePort || serviceData.remote_port || null,
+        serviceData.remoteUsername || serviceData.remote_username || null,
+        serviceData.remotePasswordEncrypted || serviceData.remote_password_encrypted || null,
+        serviceData.rustdeskId || serviceData.rustdeskId || null,
+        serviceData.rustdeskPasswordEncrypted || serviceData.rustdesk_password_encrypted || null,
+        serviceData.rustdeskInstalled || serviceData.rustdesk_installed || 0,
+        serviceData.rustdeskInstallationDate || serviceData.rustdesk_installation_date || null,
+        serviceData.guacamolePerformanceMode || serviceData.guacamolePerformanceMode || 'balanced',
+        serviceData.orderIndex || serviceData.order_index || 999
       ]
     );
 
@@ -640,13 +660,14 @@ router.post('/restore/appliances/:logId', async (req, res) => {
       for (const cmd of details.customCommands) {
         try {
           await connection.execute(
-            `INSERT INTO appliance_commands (appliance_id, description, command, ssh_host_id)
-            VALUES (?, ?, ?, ?)`,
+            `INSERT INTO appliance_commands (appliance_id, description, command, host_id, order_index)
+            VALUES (?, ?, ?, ?, ?)`,
             [
               restoredServiceId,
               cmd.description,
               cmd.command,
-              cmd.ssh_host_id || null,
+              cmd.host_id || null,
+              cmd.order_index || 0
             ]
           );
         } catch (cmdError) {
@@ -765,9 +786,13 @@ router.post('/revert/appliances/:logId', async (req, res) => {
       `UPDATE appliances SET 
         name = ?, url = ?, description = ?, icon = ?, color = ?, 
         category = ?, isFavorite = ?, start_command = ?, stop_command = ?, 
-        status_command = ?, auto_start = ?, ssh_connection = ?,
+        status_command = ?, restart_command = ?, auto_start = ?, ssh_connection = ?,
         transparency = ?, blur_amount = ?, open_mode_mini = ?, 
-        open_mode_mobile = ?, open_mode_desktop = ?, background_image = ?
+        open_mode_mobile = ?, open_mode_desktop = ?, background_image = ?,
+        remote_desktop_enabled = ?, remote_desktop_type = ?, remote_protocol = ?, 
+        remote_host = ?, remote_port = ?, remote_username = ?, remote_password_encrypted = ?,
+        rustdeskId = ?, rustdesk_password_encrypted = ?, rustdesk_installed = ?, rustdesk_installation_date = ?,
+        guacamolePerformanceMode = ?, order_index = ?
       WHERE id = ?`,
       [
         originalData.name,
@@ -780,6 +805,7 @@ router.post('/revert/appliances/:logId', async (req, res) => {
         originalData.start_command || null,
         originalData.stop_command || null,
         originalData.status_command || null,
+        originalData.restart_command || null,
         originalData.auto_start || 0,
         originalData.ssh_connection || null,
         originalData.transparency || 0.7,
@@ -787,6 +813,20 @@ router.post('/revert/appliances/:logId', async (req, res) => {
         originalData.open_mode_mini || 'browser_tab',
         originalData.open_mode_mobile || 'browser_tab',
         originalData.open_mode_desktop || 'browser_tab',
+        originalData.background_image || null,
+        originalData.remote_desktop_enabled || 0,
+        originalData.remote_desktop_type || 'guacamole',
+        originalData.remote_protocol || 'vnc',
+        originalData.remote_host || null,
+        originalData.remote_port || null,
+        originalData.remote_username || null,
+        originalData.remote_password_encrypted || null,
+        originalData.rustdeskId || null,
+        originalData.rustdesk_password_encrypted || null,
+        originalData.rustdesk_installed || 0,
+        originalData.rustdesk_installation_date || null,
+        originalData.guacamolePerformanceMode || 'balanced',
+        originalData.order_index || 999,
         originalData.background_image || null,
         log.resource_id,
       ]
@@ -1059,15 +1099,24 @@ router.post('/revert/users/:logId', requireAdmin, async (req, res) => {
   }
 });
 
-// Revert SSH host to original state
-router.post('/revert/ssh_hosts/:logId', requireAdmin, async (req, res) => {
-  console.log('SSH Host Revert Request received for logId:', req.params.logId);
+// SSH host endpoints removed - functionality moved to hosts table
+
+
+
+
+
+module.exports = router;
+
+
+// Restore deleted host
+router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
+  console.log('Host Restore Request received for logId:', req.params.logId);
   const connection = await pool.getConnection();
 
   try {
     // Get the audit log entry
     const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("ssh_host_update", "ssh_host_updated")',
+      'SELECT * FROM audit_logs WHERE id = ? AND action = "host_deleted"',
       [req.params.logId]
     );
 
@@ -1078,210 +1127,105 @@ router.post('/revert/ssh_hosts/:logId', requireAdmin, async (req, res) => {
     const log = logs[0];
     const details = JSON.parse(log.details);
 
-    if (!details.old_data) {
-      return res
-        .status(400)
-        .json({ error: 'No previous state available for revert' });
-    }
-
     await connection.beginTransaction();
 
-    // Revert SSH host to old state
-    await connection.execute(
-      `
-      UPDATE ssh_hosts 
-      SET hostname = ?, host = ?, username = ?, port = ?, key_name = ?
-      WHERE id = ?
-    `,
-      [
-        details.old_data.hostname,
-        details.old_data.host,
-        details.old_data.username,
-        details.old_data.port,
-        details.old_data.key_name,
-        log.resource_id,
-      ]
-    );
-
-    // Create audit log for revert
-    await createAuditLog(
-      req.user?.id || null,
-      'ssh_host_reverted',
-      'ssh_host',
-      log.resource_id,
-      {
-        action_type: 'revert',
-        reverted_from_log_id: log.id,
-        old_data: details.new_data,
-        new_data: details.old_data,
-        reverted_by: req.user?.username || 'unknown',
-      },
-      req.clientIp
-    );
-
-    await connection.commit();
-
-    // Regenerate SSH config
-    try {
-      const { generateSSHConfig } = require('../utils/sshManager');
-      await generateSSHConfig();
-    } catch (error) {
-      console.log('SSH config regeneration skipped:', error.message);
-    }
-
-    res.json({
-      success: true,
-      message: 'SSH host successfully reverted to previous state',
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error reverting SSH host:', error);
-    res.status(500).json({ error: 'Failed to revert SSH host' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Restore deleted SSH host
-router.post('/restore/ssh_hosts/:logId', requireAdmin, async (req, res) => {
-  console.log('SSH Host Restore Request received for logId:', req.params.logId);
-  const connection = await pool.getConnection();
-
-  try {
-    // Get the audit log entry
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("ssh_host_delete", "ssh_host_deleted")',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res.status(404).json({ error: 'Audit log not found' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details);
-
-    if (!details.deleted_host) {
-      return res
-        .status(400)
-        .json({ error: 'No deleted host data available for restore' });
-    }
-
-    await connection.beginTransaction();
-
-    // Check if host still exists (marked as inactive)
+    // Check if host with same name already exists
     const [existing] = await connection.execute(
-      'SELECT id FROM ssh_hosts WHERE id = ? AND is_active = FALSE',
-      [log.resource_id]
+      'SELECT id FROM hosts WHERE name = ?',
+      [details.name]
     );
 
     if (existing.length > 0) {
-      // Restore soft-deleted host by setting is_active to TRUE
-      await connection.execute(
-        'UPDATE ssh_hosts SET is_active = TRUE WHERE id = ?',
-        [log.resource_id]
-      );
-    } else {
-      // Check if a host with same connection details already exists
-      const [duplicate] = await connection.execute(
-        'SELECT id FROM ssh_hosts WHERE host = ? AND username = ? AND port = ? AND is_active = TRUE',
-        [details.deleted_host.host, details.deleted_host.username, details.deleted_host.port]
-      );
-      
-      if (duplicate.length > 0) {
-        await connection.rollback();
-        return res.status(409).json({ 
-          error: 'SSH host with this connection already exists',
-          details: `A host with ${details.deleted_host.username}@${details.deleted_host.host}:${details.deleted_host.port} already exists`
-        });
-      }
-      
-      // Re-create if hard deleted
-      const [result] = await connection.execute(
-        `
-        INSERT INTO ssh_hosts (hostname, host, username, port, key_name, is_active)
-        VALUES (?, ?, ?, ?, ?, TRUE)
-      `,
-        [
-          details.deleted_host.hostname,
-          details.deleted_host.host,
-          details.deleted_host.username,
-          details.deleted_host.port,
-          details.deleted_host.key_name || 'dashboard',
-        ]
-      );
-
-      // Update resource_id in case it's different
-      log.resource_id = result.insertId;
+      await connection.rollback();
+      return res.status(409).json({ 
+        error: 'Host with this name already exists',
+        details: `A host with name "${details.name}" already exists`
+      });
     }
 
-    // Create audit log for restore
+    // Restore the host
+    const [result] = await connection.execute(`
+      INSERT INTO hosts (
+        name, description, hostname, port, username, password, private_key, sshKeyName,
+        icon, color, transparency, blur,
+        remote_desktop_enabled, remote_desktop_type, remote_protocol,
+        remote_port, remote_username, remote_password,
+        guacamole_performance_mode, rustdesk_id, rustdeskPassword,
+        created_by, updated_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      details.name,
+      details.description || null,
+      details.hostname,
+      details.port,
+      details.username,
+      details.password, // Already encrypted
+      details.private_key,
+      details.sshKeyName,
+      details.icon,
+      details.color,
+      details.transparency,
+      details.blur,
+      details.remote_desktop_enabled,
+      details.remote_desktop_type,
+      details.remote_protocol,
+      details.remote_port,
+      details.remote_username,
+      details.remote_password, // Already encrypted
+      details.guacamolePerformanceMode,
+      details.rustdeskId,
+      details.rustdeskPassword, // Already encrypted
+      req.user.id,
+      req.user.id
+    ]);
+
+    // Create audit log for restoration
     await createAuditLog(
       req.user?.id || null,
-      'ssh_host_restored',
-      'ssh_host',
-      log.resource_id,
+      'host_restored',
+      'host',
+      result.insertId,
       {
-        action_type: 'restore',
-        restored_from_log_id: log.id,
-        restored_data: details.deleted_host,
-        restored_by: req.user?.username || 'unknown',
+        name: details.name,
+        original_host_id: log.resource_id,
+        restored_from_audit_log_id: req.params.logId,
+        restored_by: req.user?.username || 'unknown'
       },
       req.clientIp
     );
 
     await connection.commit();
 
-    // Regenerate SSH config
-    try {
-      const sshManager = require('../routes/ssh');
-      if (sshManager && sshManager.generateSSHConfig) {
-        await sshManager.generateSSHConfig();
-      }
-    } catch (error) {
-      console.log('SSH config regeneration skipped:', error.message);
-    }
-
-    // Send SSE events
-    // First send the restored event for audit log
-    broadcast('ssh_host_restored', {
-      id: log.resource_id,
-      hostname: details.deleted_host.hostname,
-      restored_by: req.user?.username || 'unknown',
-    });
-
-    // Then send created event to trigger UI refresh
-    broadcast('ssh_host_created', {
-      id: log.resource_id,
-      hostname: details.deleted_host.hostname,
-      host: details.deleted_host.host,
-      username: details.deleted_host.username,
-      port: details.deleted_host.port,
-      key_name: details.deleted_host.key_name,
+    // Send SSE event for host restoration
+    broadcast('host_restored', {
+      id: result.insertId,
+      name: details.name,
+      restored_by: req.user?.username || 'unknown'
     });
 
     res.json({
       success: true,
-      message: 'SSH host successfully restored',
+      message: 'Host restored successfully',
+      host_id: result.insertId
     });
   } catch (error) {
     await connection.rollback();
-    console.error('Error restoring SSH host:', error);
-    res.status(500).json({ error: 'Failed to restore SSH host' });
+    console.error('Error restoring host:', error);
+    res.status(500).json({ error: 'Failed to restore host' });
   } finally {
     connection.release();
   }
 });
 
-// Revert SSH host to original state
-router.post('/revert/ssh_hosts/:logId', requireAdmin, async (req, res) => {
-  console.log('SSH Host Revert Request received for logId:', req.params.logId);
+// Revert host changes
+router.post('/revert/hosts/:logId', requireAdmin, async (req, res) => {
+  console.log('Host Revert Request received for logId:', req.params.logId);
   const connection = await pool.getConnection();
 
   try {
     // Get the audit log entry
     const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("ssh_host_update", "ssh_host_updated", "ssh_host_reverted")',
+      'SELECT * FROM audit_logs WHERE id = ? AND action = "host_updated"',
       [req.params.logId]
     );
 
@@ -1292,83 +1236,89 @@ router.post('/revert/ssh_hosts/:logId', requireAdmin, async (req, res) => {
     const log = logs[0];
     const details = JSON.parse(log.details);
 
-    if (!details.old_data) {
-      return res
-        .status(400)
-        .json({ error: 'No previous state available for revert' });
+    if (!details.oldValues) {
+      return res.status(400).json({ error: 'No old values available for revert' });
     }
 
     await connection.beginTransaction();
 
-    // Revert SSH host to old state
-    await connection.execute(
-      `
-      UPDATE ssh_hosts 
-      SET hostname = ?, host = ?, username = ?, port = ?, key_name = ?
-      WHERE id = ?
-    `,
-      [
-        details.old_data.hostname,
-        details.old_data.host,
-        details.old_data.username,
-        details.old_data.port,
-        details.old_data.key_name,
-        log.resource_id,
-      ]
-    );
+    // Build update query to revert changes
+    const updates = [];
+    const values = [];
 
-    // Create audit log for revert
+    for (const [field, oldValue] of Object.entries(details.oldValues)) {
+      if (field === 'password' || field === 'remotePassword' || field === 'rustdeskPassword') {
+        // Skip password fields as we can't revert them (they were hidden)
+        continue;
+      }
+
+      let dbField = field;
+      // Map camelCase to snake_case
+      if (field === 'privateKey') dbField = 'private_key';
+      else if (field === 'sshKeyName') dbField = 'sshKeyName';
+      else if (field === 'remoteDesktopEnabled') dbField = 'remote_desktop_enabled';
+      else if (field === 'remoteDesktopType') dbField = 'remote_desktop_type';
+      else if (field === 'remoteProtocol') dbField = 'remote_protocol';
+      else if (field === 'remotePort') dbField = 'remote_port';
+      else if (field === 'remoteUsername') dbField = 'remote_username';
+
+      updates.push(`${dbField} = ?`);
+      values.push(oldValue);
+    }
+
+    if (updates.length === 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        error: 'No fields to revert (password changes cannot be reverted)'
+      });
+    }
+
+    // Add updated_by
+    updates.push('updated_by = ?');
+    values.push(req.user.id);
+
+    // Add id for WHERE clause
+    values.push(log.resource_id);
+
+    // Execute the revert
+    await connection.execute(`
+      UPDATE hosts
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `, values);
+
+    // Create audit log for reversion
     await createAuditLog(
       req.user?.id || null,
-      'ssh_host_reverted',
-      'ssh_host',
+      'host_reverted',
+      'host',
       log.resource_id,
       {
-        action_type: 'revert',
-        reverted_from_log_id: log.id,
-        old_data: details.new_data || details.old_data,
-        new_data: details.old_data,
-        reverted_by: req.user?.username || 'unknown',
+        name: details.name,
+        reverted_from_audit_log_id: req.params.logId,
+        reverted_fields: Object.keys(details.oldValues),
+        reverted_by: req.user?.username || 'unknown'
       },
       req.clientIp
     );
 
     await connection.commit();
 
-    // Regenerate SSH config
-    try {
-      const { generateSSHConfig } = require('../utils/sshManager');
-      await generateSSHConfig();
-    } catch (error) {
-      console.log('SSH config regeneration skipped:', error.message);
-    }
-
-    // Send SSE events
-    // First send the reverted event for audit log
-    broadcast('ssh_host_reverted', {
+    // Send SSE event for host reversion
+    broadcast('host_reverted', {
       id: log.resource_id,
-      hostname: details.old_data.hostname,
-      reverted_by: req.user?.username || 'unknown',
-    });
-
-    // Then send updated event to trigger UI refresh
-    broadcast('ssh_host_updated', {
-      id: log.resource_id,
-      hostname: details.old_data.hostname,
-      host: details.old_data.host,
-      username: details.old_data.username,
-      port: details.old_data.port,
-      key_name: details.old_data.key_name,
+      name: details.name,
+      reverted_by: req.user?.username || 'unknown'
     });
 
     res.json({
       success: true,
-      message: 'SSH host successfully reverted to previous state',
+      message: 'Host changes reverted successfully'
     });
   } catch (error) {
     await connection.rollback();
-    console.error('Error reverting SSH host:', error);
-    res.status(500).json({ error: 'Failed to revert SSH host' });
+    console.error('Error reverting host changes:', error);
+    res.status(500).json({ error: 'Failed to revert host changes' });
   } finally {
     connection.release();
   }

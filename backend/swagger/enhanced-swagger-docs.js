@@ -1466,7 +1466,7 @@ ungsdauer in Tagen"
 
 /**
  * @swagger
- * /api/status-check:
+ * /api/statusCheck:
  *   post:
  *     summary: Bulk-Statusprüfung
  *     tags: [Status Monitoring]

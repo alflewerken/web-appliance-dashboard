@@ -14,6 +14,19 @@ const formatBytes = (bytes, decimals = 2) => {
 
 const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianceName }) => {
   // Version: 2025-07-27 - SSE Progress Tracking
+  
+  // Early return if no sshHost provided
+  if (!sshHost) {
+    console.error('SSHFileUpload: No SSH host provided');
+    if (onClose) onClose();
+    return null;
+  }
+
+  // Extract hostname and display name safely
+  const hostname = sshHost.hostname || sshHost.host || 'Unknown Host';
+  const displayName = sshHost.name || hostname;
+  const username = sshHost.username || 'Unknown User';
+  
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -96,6 +109,12 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
                     results.push({ file: file.name, success: true, ...data });
                   } else if (data.phase === 'error') {
                     results.push({ file: file.name, success: false, error: data.error || 'Upload failed' });
+                    // Show error immediately
+                    setUploadStatus({
+                      type: 'error',
+                      message: data.error || 'Upload fehlgeschlagen'
+                    });
+                    break; // Stop processing this file
                   }
                 } catch (e) {
                   console.error('Failed to parse SSE data:', e);
@@ -304,7 +323,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
       >
         <div className="ssh-file-upload-header">
           <h3 className="ssh-file-upload-title">
-            Datei-Upload zu {applianceName || sshHost.hostname}
+            Datei-Upload zu {applianceName || displayName}
           </h3>
           <button className="ssh-file-upload-close" onClick={onClose}>
             <X size={20} />
@@ -319,10 +338,13 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
               type="text"
               value={currentTargetPath}
               onChange={(e) => setCurrentTargetPath(e.target.value)}
-              placeholder="z.B. ~ oder /home/user/uploads"
+              placeholder="z.B. ~/Downloads oder /home/user/uploads"
               disabled={uploading}
             />
-            <span className="ssh-file-upload-host-info">auf {sshHost.hostname || sshHost.host}</span>
+            <span className="ssh-file-upload-host-info">auf {displayName}</span>
+            <div className="path-info">
+              <small>Tipp: Verzeichnis wird erstellt, falls es nicht existiert. Achten Sie auf korrekte Schreibweise!</small>
+            </div>
           </div>
 
           {uploadStatus && (
@@ -338,7 +360,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
           {showPasswordPrompt && (
             <form onSubmit={handlePasswordSubmit} className="password-prompt">
               <label>
-                SSH-Passwort für {sshHost.username}@{sshHost.hostname}:
+                SSH-Passwort für {username}@{hostname}:
                 <input
                   type="password"
                   value={password}

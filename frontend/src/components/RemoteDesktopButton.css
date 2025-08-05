@@ -60,3 +60,91 @@
   min-width: 10px;
   min-height: 10px;
 }
+/* Existing styles */
+.remote-desktop-icon {
+  font-size: 20px;
+}
+
+/* Performance Mode Additions */
+.remote-desktop-button-wrapper {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.remote-desktop-button {
+  transition: all 0.3s ease;
+}
+
+.remote-desktop-button:hover {
+  transform: scale(1.1);
+}
+
+.performance-mode-button {
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.performance-mode-button:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Backdrop for better visibility */
+.MuiMenu-paper {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom menu item styling */
+.MuiMenuItem-root {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  margin: 2px 4px;
+}
+
+.MuiMenuItem-root:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.MuiMenuItem-root.Mui-selected {
+  background-color: rgba(33, 150, 243, 0.2) !important;
+}
+
+/* Icon coloring */
+.MuiListItemIcon-root {
+  min-width: 36px !important;
+}
+
+/* Description text */
+.MuiListItemText-secondary {
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+}
+
+/* Loading state */
+.remote-desktop-button.Mui-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 600px) {
+  .performance-mode-button {
+    display: none;
+  }
+  
+  .remote-desktop-button-wrapper {
+    position: relative;
+  }
+}

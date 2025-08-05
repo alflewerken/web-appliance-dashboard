@@ -44,7 +44,7 @@ export const openTerminalInNewWindow = async (terminalData = {}) => {
         sessionData.sshConnection = `${terminalData.user}@${terminalData.host}:${terminalData.port || 22}`;
       }
       
-      const response = await axios.post('/api/ssh/terminal-session', sessionData);
+      const response = await axios.post('/api/terminal/session', sessionData);
 
       // Wait a bit for session file to be written
       await new Promise(resolve => setTimeout(resolve, 500));

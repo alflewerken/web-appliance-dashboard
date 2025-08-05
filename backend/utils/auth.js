@@ -61,7 +61,11 @@ const verifyToken = async (req, res, next) => {
 
 // Middleware für Admin-Rechte
 const requireAdmin = (req, res, next) => {
-  if (req.user?.role !== 'Administrator') {
+  console.log('[requireAdmin] User role:', req.user?.role);
+  console.log('[requireAdmin] User:', req.user);
+  
+  // Akzeptiere sowohl 'Administrator' als auch 'admin'
+  if (req.user?.role !== 'Administrator' && req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
@@ -163,8 +167,8 @@ const hashToken = token => {
 const generateToken = userId =>
   jwt.sign({ userId }, JWT_SECRET, { expiresIn: '24h' });
 
-// Audit log erstellen
-const createAuditLog = async (
+// Audit log erstellen - DEPRECATED: Use createAuditLog from auditLogger.js instead
+const createAuditLog_DEPRECATED = async (
   userId,
   action,
   resourceType = null,
@@ -173,6 +177,9 @@ const createAuditLog = async (
   ipAddress = null,
   req = null
 ) => {
+  console.log('=== createAuditLog_DEPRECATED called - SHOULD NOT BE USED ===');
+  console.log('Params:', { userId, action, resourceType, resourceId, details, ipAddress });
+  
   try {
     // If no IP address is provided but request object is available, extract it
     if (!ipAddress && req) {
@@ -190,6 +197,8 @@ const createAuditLog = async (
         ipAddress,
       ]
     );
+    
+    console.log('Audit log INSERT result:', result);
 
     // Get username for the audit log
     let username = 'System';
@@ -335,7 +344,7 @@ module.exports = {
   comparePassword,
   hashToken,
   generateToken,
-  createAuditLog,
+  // createAuditLog_DEPRECATED, // Don't export - use auditLogger.js instead
   canAccessAppliance,
   canExecuteOnAppliance,
   getAccessibleAppliances,

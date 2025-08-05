@@ -173,9 +173,23 @@ check_service_running() {
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR/.." || exit 1
 
-# Check if .env exists, if not run setup-env.sh
-if [ ! -f .env ]; then
-    print_status "warning" "No .env file found!"
+# Check if ANY .env file is missing
+if [ ! -f .env ] || [ ! -f backend/.env ] || [ ! -f frontend/.env ]; then
+    print_status "warning" "One or more .env files are missing or out of sync!"
+    
+    # Show which files are missing
+    [ ! -f .env ] && echo "  ❌ Missing: .env"
+    [ ! -f backend/.env ] && echo "  ❌ Missing: backend/.env"
+    [ ! -f frontend/.env ] && echo "  ❌ Missing: frontend/.env"
+    
+    echo ""
+    print_status "info" "To ensure consistency, ALL .env files will be recreated."
+    
+    # Remove existing .env files to ensure clean state
+    [ -f .env ] && rm -f .env && echo "  🗑️  Removed existing .env"
+    [ -f backend/.env ] && rm -f backend/.env && echo "  🗑️  Removed existing backend/.env"
+    [ -f frontend/.env ] && rm -f frontend/.env && echo "  🗑️  Removed existing frontend/.env"
+    
     echo ""
     echo "The application needs environment configuration to run."
     echo "Starting automatic setup..."
@@ -186,15 +200,30 @@ if [ ! -f .env ]; then
         # Make it executable
         chmod +x ./scripts/setup-env.sh
         
-        # Run setup script
+        # Run setup script ONCE for all .env files
         if ./scripts/setup-env.sh; then
-            print_status "success" ".env file created successfully"
+            print_status "success" "All .env files created successfully"
+            
+            # Verify all files were created
+            if [ -f .env ] && [ -f backend/.env ] && [ -f frontend/.env ]; then
+                print_status "success" "Environment setup complete"
+                echo "  ✅ .env"
+                echo "  ✅ backend/.env"
+                echo "  ✅ frontend/.env"
+            else
+                print_status "error" "Some .env files are still missing after setup"
+                [ ! -f .env ] && echo "  ❌ Still missing: .env"
+                [ ! -f backend/.env ] && echo "  ❌ Still missing: backend/.env"
+                [ ! -f frontend/.env ] && echo "  ❌ Still missing: frontend/.env"
+                exit 1
+            fi
+            
             echo ""
             echo "Continuing with build..."
             echo ""
             sleep 2
         else
-            print_status "error" "Failed to create .env file"
+            print_status "error" "Failed to create .env files"
             echo "Please run ./scripts/setup-env.sh manually"
             exit 1
         fi
@@ -205,22 +234,19 @@ if [ ! -f .env ]; then
         echo "  nano .env"
         exit 1
     fi
-fi
-
-# Also check for backend/.env and frontend/.env
-if [ ! -f backend/.env ]; then
-    print_status "warning" "backend/.env is missing"
-    echo "Running setup-env.sh to create it..."
-    if [ -f ./scripts/setup-env.sh ]; then
-        ./scripts/setup-env.sh
-    fi
-fi
-
-if [ ! -f frontend/.env ]; then
-    print_status "warning" "frontend/.env is missing"
-    echo "Running setup-env.sh to create it..."
-    if [ -f ./scripts/setup-env.sh ]; then
-        ./scripts/setup-env.sh
+else
+    # .env files exist, but we should sync them to ensure consistency
+    print_status "info" "Environment files exist, syncing to ensure consistency..."
+    
+    if [ -f ./scripts/sync-env.sh ]; then
+        chmod +x ./scripts/sync-env.sh
+        if ./scripts/sync-env.sh >/dev/null 2>&1; then
+            print_status "success" "Environment files synchronized"
+        else
+            print_status "warning" "Environment sync failed, continuing anyway..."
+        fi
+    else
+        print_status "warning" "sync-env.sh not found, skipping synchronization"
     fi
 fi
 
@@ -276,6 +302,35 @@ fi
 print_status "info" "Cleaning up existing containers..."
 docker compose down --remove-orphans 2>/dev/null || true
 
+# # Check for existing database volume
+DB_VOLUME="web-appliance-dashboard_db_data"
+if docker volume ls | grep -q "$DB_VOLUME"; then
+    print_status "warning" "Existing database volume found: $DB_VOLUME"
+    echo ""
+    echo "This volume might contain data from a previous installation with different credentials."
+    echo "If you're experiencing database connection issues, you may need to remove it."
+    echo ""
+    echo "Options:"
+    echo "1) Keep existing volume (data will be preserved)"
+    echo "2) Remove volume and start fresh (ALL DATA WILL BE LOST)"
+    echo ""
+    read -p "Your choice [1-2] (default: 1): " -n 1 -r VOLUME_CHOICE
+    echo ""
+    
+    if [[ "$VOLUME_CHOICE" == "2" ]]; then
+        print_status "warning" "Removing existing database volume..."
+        docker volume rm "$DB_VOLUME" 2>/dev/null || {
+            print_status "error" "Failed to remove volume. Make sure no containers are using it."
+            echo "Try running: docker compose down -v"
+            exit 1
+        }
+        print_status "success" "Database volume removed. Fresh database will be created."
+    else
+        print_status "info" "Keeping existing database volume."
+        echo "If you experience connection issues, run: docker compose down -v"
+    fi
+fi
+
 # Clear cache if requested
 if [ "$CLEAR_CACHE" = true ]; then
     print_status "info" "Clearing Docker build cache..."
@@ -321,9 +376,20 @@ print_status "info" "Setting up Node.js environment..."
 unset npm_config_prefix
 if [ -f ~/.nvm/nvm.sh ]; then
     source ~/.nvm/nvm.sh
-    nvm use 18 || nvm use node
+    
+    # Check if Node.js 20 is installed
+    if ! nvm list | grep -q "v20"; then
+        print_status "warning" "Node.js 20 not found, installing..."
+        nvm install 20
+        print_status "success" "Node.js 20 installed"
+    fi
+    
+    # Use Node.js 20
+    nvm use 20
+    print_status "success" "Using Node.js $(node --version)"
 else
     print_status "warning" "NVM not found, using system Node.js"
+    print_status "info" "Current Node.js version: $(node --version)"
 fi
 
 # Skip root npm install to avoid workspace issues
@@ -440,6 +506,12 @@ fi
 
 # Run database migrations
 print_status "info" "Running database migrations..."
+if [ -f "./scripts/migrate-db.sh" ]; then
+    print_status "info" "Applying database migrations..."
+    ./scripts/migrate-db.sh || {
+        print_status "warning" "Migration script failed, but continuing..."
+    }
+fi
 if [ -f "./scripts/migrate-remote-desktop.sh" ]; then
     print_status "info" "Applying Remote Desktop migration..."
     ./scripts/migrate-remote-desktop.sh || {
@@ -481,13 +553,58 @@ if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
     
     # Initialize Guacamole database
     print_status "info" "Initializing Guacamole database..."
-    docker exec appliance_guacamole sh -c '/opt/guacamole/bin/initdb.sh --postgresql' 2>/dev/null | \
-        docker exec -i appliance_guacamole_db psql -U guacamole_user guacamole_db 2>/dev/null || {
-        print_status "warning" "Guacamole database might already be initialized"
-    }
+    
+    # Wait for Guacamole PostgreSQL to be healthy
+    if ! wait_for_healthy "appliance_guacamole_db"; then
+        print_status "warning" "Guacamole database container not healthy, but continuing..."
+    fi
+    
+    # Check if database is already initialized
+    db_initialized=$(docker compose exec -T -e PGPASSWORD=guacamole_pass123 guacamole-postgres psql -U guacamole_user -d guacamole_db -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_user';" 2>/dev/null || echo "0")
+    
+    if [ "$db_initialized" = "0" ]; then
+        print_status "info" "Guacamole database not initialized, initializing now..."
+        
+        # Initialize the database schema
+        if docker compose exec -T -e PGPASSWORD=guacamole_pass123 guacamole sh -c 'cd /opt/guacamole/postgresql && cat schema/*.sql | psql -h guacamole-postgres -U guacamole_user -d guacamole_db' 2>/dev/null; then
+            print_status "success" "Guacamole database schema initialized"
+            
+            # Set default admin password (guacadmin/guacadmin)
+            docker compose exec -T -e PGPASSWORD=guacamole_pass123 guacamole-postgres psql -U guacamole_user -d guacamole_db -c "UPDATE guacamole_user SET password_hash = decode('CA458A7D494E3BE824F5E1E175A1556C0F8EEF2C2D7DF3633BEC4A29C4411960', 'hex'), password_salt = decode('FE24ADC5E11E2B25288D1704ABE67A79E342ECC26064CE69C5B3177795A82264', 'hex'), password_date = CURRENT_TIMESTAMP WHERE entity_id = (SELECT entity_id FROM guacamole_entity WHERE name = 'guacadmin' AND type = 'USER');" 2>/dev/null || {
+                print_status "info" "Admin password already set or user doesn't exist yet"
+            }
+        else
+            print_status "warning" "Failed to initialize Guacamole database schema, it might already be initialized"
+        fi
+    else
+        print_status "info" "Guacamole database already initialized (found $db_initialized tables)"
+    fi
     
     # Wait for Guacamole to be ready
     sleep 5
+    
+    # Verify Guacamole is accessible
+    print_status "info" "Verifying Guacamole accessibility..."
+    if curl -f -s -o /dev/null -w "%{http_code}" http://localhost:9080/guacamole/ | grep -q "200\|302"; then
+        print_status "success" "Guacamole is accessible"
+    else
+        print_status "warning" "Guacamole might need more time to start"
+    fi
+    
+    # Start RustDesk services
+    print_status "info" "Starting RustDesk services..."
+    docker compose up -d rustdesk-server rustdesk-relay
+    
+    # Wait for RustDesk to be ready (no health checks available)
+    print_status "info" "Waiting for RustDesk services to start..."
+    sleep 10
+    
+    # Check if RustDesk services are running
+    if docker ps | grep -q rustdesk-server && docker ps | grep -q rustdesk-relay; then
+        print_status "success" "RustDesk services are running"
+    else
+        print_status "warning" "RustDesk services might need more time to start"
+    fi
 fi
 
 # Give services time to fully initialize
@@ -516,6 +633,13 @@ if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
         print_status "success" "Guacamole services are running"
     else
         print_status "warning" "Some Guacamole services might not be running properly"
+    fi
+    
+    print_status "info" "Checking RustDesk services..."
+    if docker ps | grep -q rustdesk-server && docker ps | grep -q rustdesk-relay; then
+        print_status "success" "RustDesk services are running"
+    else
+        print_status "warning" "Some RustDesk services might not be running properly"
     fi
 fi
 
@@ -664,6 +788,8 @@ echo "   📌 Terminal: http://localhost:9080/terminal/"
 if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
     echo "   🖥️  Guacamole: http://localhost:9080/guacamole/"
     echo "      (Default: guacadmin/guacadmin)"
+    echo "   🖥️  RustDesk API: http://localhost:21119"
+    echo "   🖥️  RustDesk Web: http://localhost:21118 (if enabled)"
 fi
 echo ""
 print_status "info" "Container Configuration:"
@@ -680,12 +806,14 @@ echo "   🔍 Check status: docker compose ps"
 echo "   💻 Backend shell: docker compose exec backend sh"
 if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
     echo "   🖥️  Guacamole logs: docker compose logs -f guacamole"
+    echo "   🖥️  RustDesk logs: docker compose logs -f rustdesk-server rustdesk-relay"
 fi
 echo ""
 print_status "info" "Features:"
 echo "   ⚡ SSH Terminal: Click terminal button on service cards"
 if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
     echo "   🖥️  Remote Desktop: Configure VNC/RDP in service settings"
+    echo "   🖥️  RustDesk: Alternative remote desktop option (faster)"
 fi
 echo ""
 
@@ -704,8 +832,9 @@ if [ "$all_services_up" = true ] && [ "$ssh_tools_ok" = true ]; then
         echo ""
         print_status "info" "Remote Desktop Setup:"
         echo "   1. Configure Remote Desktop in service settings"
-        echo "   2. Enable VNC or RDP protocol"
-        echo "   3. Use the new desktop buttons to connect"
+        echo "   2. Choose between Guacamole (classic) or RustDesk (modern)"
+        echo "   3. Enable VNC or RDP protocol (Guacamole) or install RustDesk client"
+        echo "   4. Use the desktop buttons to connect"
     fi
 else
     print_status "warning" "System is running with some issues - check warnings above"

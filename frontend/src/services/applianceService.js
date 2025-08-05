@@ -195,7 +195,7 @@ export class ApplianceService {
   static async checkAllServiceStatus() {
     try {
       // Trigger a backend check for all services
-      const response = await axios.post(`/api/services/check-all`);
+      const response = await axios.post(`/api/services/checkAll`);
       return response.data;
     } catch (error) {
       console.error('Check all services status error:', error);

@@ -360,7 +360,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/audit-logs?limit=50&offset=0",
+              "raw": "{{baseUrl}}/api/auditLogs?limit=50&offset=0",
               "host": ["{{baseUrl}}"],
               "path": ["api", "audit-logs"],
               "query": [
@@ -401,7 +401,7 @@
               "raw": "{\n    \"applianceIds\": [1, 2, 3]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/status-check",
+              "raw": "{{baseUrl}}/api/statusCheck",
               "host": ["{{baseUrl}}"],
               "path": ["api", "status-check"]
             }
@@ -475,7 +475,7 @@
                   "raw": "{\n    \"applianceIds\": [1]\n}"
                 },
                 "url": {
-                  "raw": "{{baseUrl}}/api/status-check",
+                  "raw": "{{baseUrl}}/api/statusCheck",
                   "host": ["{{baseUrl}}"],
                   "path": ["api", "status-check"]
                 }

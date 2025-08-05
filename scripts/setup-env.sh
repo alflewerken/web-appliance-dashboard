@@ -115,6 +115,11 @@ rm -f .env.bak
 
 echo "✅ Secrets generiert und gespeichert"
 
+# Default SSH User (optional, kann später pro Verbindung gesetzt werden)
+# Wir setzen einfach einen leeren Wert - der Benutzer gibt das später im Dashboard ein
+safe_replace .env "DEFAULT_SSH_USER" ""
+safe_replace .env "DEFAULT_SSH_PASS" ""
+
 # Domain/CORS konfigurieren
 echo ""
 read -p "Geben Sie Ihre Domain ein (oder Enter für localhost): " DOMAIN

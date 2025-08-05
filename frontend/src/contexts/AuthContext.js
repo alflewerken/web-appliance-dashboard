@@ -155,7 +155,7 @@ export const AuthProvider = ({ children }) => {
 
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      await axios.post('/api/auth/change-password', {
+      await axios.post('/api/auth/changePassword', {
         currentPassword,
         newPassword,
       });

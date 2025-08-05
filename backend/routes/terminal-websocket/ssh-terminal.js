@@ -26,27 +26,24 @@ async function getSSHConnectionDetails(applianceId) {
     ) {
       const hostId = applianceId.replace('ssh_host_', '');
 
-      // Get SSH host details directly
-      const [sshHosts] = await pool.execute(
-        `
-        SELECT * FROM ssh_hosts WHERE id = ?
-      `,
+      // Get host details directly from hosts table
+      const [hosts] = await pool.execute(
+        `SELECT * FROM hosts WHERE id = ?`,
         [hostId]
       );
 
-      if (!sshHosts.length) {
-        throw new Error('SSH host not found');
+      if (!hosts.length) {
+        throw new Error('Host not found');
       }
 
-      const sshHost = sshHosts[0];
+      const host = hosts[0];
 
       return {
-        host: sshHost.host,
-        port: sshHost.port || 22,
-        username: sshHost.username,
-        keyName: sshHost.key_name,
-        applianceName:
-          sshHost.hostname || `${sshHost.username}@${sshHost.host}`,
+        host: host.hostname,
+        port: host.port || 22,
+        username: host.username,
+        keyName: host.sshKeyName,
+        applianceName: host.name || `${host.username}@${host.hostname}`,
       };
     }
 
@@ -73,27 +70,32 @@ async function getSSHConnectionDetails(applianceId) {
 
     const [, username, host, port] = match;
 
-    // Try to find matching SSH host to get the key name
-    const [sshHosts] = await pool.execute(
-      `
-      SELECT * FROM ssh_hosts 
-      WHERE host = ? AND username = ? AND port = ?
-      LIMIT 1
-    `,
-      [host, username, port]
+    // Try to find matching host to get the key name
+    const [hosts] = await pool.execute(
+      `SELECT * FROM hosts 
+       WHERE hostname = ? AND username = ? AND port = ?
+       LIMIT 1`,
+      [host, username, parseInt(port)]
     );
 
-    if (!sshHosts.length) {
-      throw new Error('SSH host configuration not found');
+    if (!hosts.length) {
+      // If no exact match found, return basic connection without key
+      return {
+        host: host,
+        port: parseInt(port) || 22,
+        username: username,
+        keyName: null,
+        applianceName: appliance.name,
+      };
     }
 
-    const sshHost = sshHosts[0];
+    const hostRecord = hosts[0];
 
     return {
-      host: sshHost.host,
-      port: sshHost.port || 22,
-      username: sshHost.username,
-      keyName: sshHost.key_name,
+      host: hostRecord.hostname,
+      port: hostRecord.port || 22,
+      username: hostRecord.username,
+      keyName: hostRecord.sshKeyName,
       applianceName: appliance.name,
     };
   } catch (error) {
@@ -108,15 +110,15 @@ async function getSSHConnectionDetails(applianceId) {
 function setupSSHTerminalWebSocket(server) {
   const wss = new WebSocket.Server({
     noServer: true,
-    path: '/api/terminal-session',
+    path: '/api/terminalSession',
   });
 
   // Handle WebSocket upgrade
   server.on('upgrade', (request, socket, head) => {
     console.log('WebSocket upgrade request:', request.url);
     if (
-      request.url === '/api/terminal-session' ||
-      request.url.startsWith('/api/terminal-session')
+      request.url === '/api/terminalSession' ||
+      request.url.startsWith('/api/terminalSession')
     ) {
       wss.handleUpgrade(request, socket, head, ws => {
         wss.emit('connection', ws, request);

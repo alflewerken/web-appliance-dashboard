@@ -1,7 +1,7 @@
 # Web Appliance Dashboard - Backend
 # Node.js with SSH Tools for remote management
 
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Setze Arbeitsverzeichnis
 WORKDIR /app

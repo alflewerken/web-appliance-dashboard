@@ -516,7 +516,7 @@
 
 /**
  * @swagger
- * /api/audit-logs:
+ * /api/auditLogs:
  *   get:
  *     summary: Get audit logs
  *     tags: [Audit]
@@ -554,7 +554,7 @@
  *       }
  *       
  *       response = requests.get(
- *           'http://localhost:9080/api/audit-logs',
+ *           'http://localhost:9080/api/auditLogs',
  *           headers={'Authorization': f'Bearer {token}'},
  *           params=params
  *       )
@@ -626,7 +626,7 @@
 
 /**
  * @swagger
- * /api/audit-logs/export:
+ * /api/auditLogs/export:
  *   get:
  *     summary: Export audit logs as CSV
  *     tags: [Audit]
@@ -665,7 +665,7 @@
 
 /**
  * @swagger
- * /api/audit-logs/{resourceType}/{resourceId}:
+ * /api/auditLogs/{resourceType}/{resourceId}:
  *   get:
  *     summary: Get audit logs for resource
  *     tags: [Audit]
@@ -701,7 +701,7 @@
 
 /**
  * @swagger
- * /api/audit-logs/history/{resourceType}/{resourceId}:
+ * /api/auditLogs/history/{resourceType}/{resourceId}:
  *   get:
  *     summary: Get resource history
  *     tags: [Audit]
@@ -730,7 +730,7 @@
 
 /**
  * @swagger
- * /api/audit-logs/ssh-hosts/{hostId}:
+ * /api/auditLogs/ssh-hosts/{hostId}:
  *   get:
  *     summary: Get SSH host audit logs
  *     tags: [Audit]
@@ -753,7 +753,7 @@
 
 /**
  * @swagger
- * /api/audit-logs:
+ * /api/auditLogs:
  *   delete:
  *     summary: Delete audit logs
  *     tags: [Audit]
@@ -785,7 +785,7 @@
 
 /**
  * @swagger
- * /api/audit-restore/{id}:
+ * /api/auditRestore/{id}:
  *   get:
  *     summary: Get audit log restore details
  *     tags: [Audit Restore]
@@ -823,7 +823,7 @@
 
 /**
  * @swagger
- * /api/audit-restore/restore/{type}/{logId}:
+ * /api/auditRestore/restore/{type}/{logId}:
  *   post:
  *     summary: Restore deleted resource
  *     tags: [Audit Restore]
@@ -868,7 +868,7 @@
 
 /**
  * @swagger
- * /api/audit-restore/revert/{type}/{logId}:
+ * /api/auditRestore/revert/{type}/{logId}:
  *   post:
  *     summary: Revert resource to previous state
  *     tags: [Audit Restore]
@@ -1115,7 +1115,7 @@
 
 /**
  * @swagger
- * /api/status-check:
+ * /api/statusCheck:
  *   post:
  *     summary: Check appliance status
  *     tags: [Status]
@@ -1132,7 +1132,7 @@
  *       
  *       **JavaScript Example**:
  *       ```javascript
- *       const response = await fetch('http://localhost:9080/api/status-check', {
+ *       const response = await fetch('http://localhost:9080/api/statusCheck', {
  *         method: 'POST',
  *         headers: {
  *           'Authorization': `Bearer ${token}`,
@@ -1174,7 +1174,7 @@
 
 /**
  * @swagger
- * /api/status-check/force:
+ * /api/statusCheck/force:
  *   post:
  *     summary: Force immediate status check
  *     tags: [Status]
@@ -1200,7 +1200,7 @@
 
 /**
  * @swagger
- * /api/status-check/info:
+ * /api/statusCheck/info:
  *   get:
  *     summary: Get status checker info
  *     tags: [Status]
@@ -1233,7 +1233,7 @@
 
 /**
  * @swagger
- * /api/status-check/cache/clear:
+ * /api/statusCheck/cache/clear:
  *   post:
  *     summary: Clear status cache
  *     tags: [Status]

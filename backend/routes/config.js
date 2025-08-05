@@ -5,7 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 /**
  * Check if user is accessing from external network
  */
-router.get('/access-mode', authenticateToken, (req, res) => {
+router.get('/accessMode', authenticateToken, (req, res) => {
   // Get the real client IP
   const clientIp = req.headers['x-real-ip'] || 
                    req.headers['x-forwarded-for']?.split(',')[0] || 
@@ -55,10 +55,10 @@ router.get('/proxy-settings', authenticateToken, (req, res) => {
   res.json({
     proxyEnabled: true,
     proxyBasePath: '/api/proxy',
-    wsProxyBasePath: '/api/ws-proxy',
+    wsProxyBasePath: '/api/wsProxy',
     instructions: {
       http: 'Use /api/proxy/{ip}:{port}/path for HTTP/HTTPS',
-      websocket: 'Use /api/ws-proxy/{ip}:{port}/path for WebSocket'
+      websocket: 'Use /api/wsProxy/{ip}:{port}/path for WebSocket'
     }
   });
 });

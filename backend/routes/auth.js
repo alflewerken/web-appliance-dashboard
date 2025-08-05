@@ -10,8 +10,14 @@ const {
   comparePassword,
   hashToken,
   generateToken,
-  createAuditLog,
 } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
+const {
+  mapUserDbToJs,
+  mapUserJsToDb,
+  getUserSelectColumns,
+  mapUserDbToJsWithPassword
+} = require('../utils/dbFieldMappingUsers');
 
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
@@ -316,6 +322,7 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
                 u.is_active, 
                 u.last_login, 
                 u.created_at,
+                u.updated_at,
                 MAX(s.last_activity) as last_activity,
                 CASE 
                     WHEN MAX(s.last_activity) > DATE_SUB(NOW(), INTERVAL 5 MINUTE) 
@@ -325,14 +332,17 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
                 END as is_online
             FROM users u
             LEFT JOIN active_sessions s ON u.id = s.user_id
-            GROUP BY u.id, u.username, u.email, u.role, u.is_active, u.last_login, u.created_at
+            GROUP BY u.id, u.username, u.email, u.role, u.is_active, u.last_login, u.created_at, u.updated_at
             ORDER BY u.created_at DESC
         `);
 
     console.log('Found users:', users.length);
-    console.log('User list:', users.map(u => ({ id: u.id, username: u.username, role: u.role })));
+    
+    // Map users to camelCase
+    const mappedUsers = users.map(mapUserDbToJs);
+    console.log('User list:', mappedUsers.map(u => ({ id: u.id, username: u.username, role: u.role })));
 
-    res.json(users);
+    res.json(mappedUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
@@ -703,7 +713,7 @@ router.delete('/users/:id', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // Change password (for logged in user)
-router.post('/change-password', verifyToken, async (req, res) => {
+router.post('/changePassword', verifyToken, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const ipAddress = req.clientIp;
 

@@ -9,7 +9,8 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'build'),
     filename: 'static/js/bundle.[contenthash].js',
-    publicPath: '/'
+    publicPath: '/',
+    hashSalt: 'fix-' + Date.now()
   },
   module: {
     rules: [
@@ -60,8 +61,7 @@ module.exports = {
       ]
     }),
     new Dotenv({
-      systemvars: true,
-      defaults: true
+      systemvars: true
     })
   ],
   resolve: {

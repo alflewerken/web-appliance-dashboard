@@ -50,18 +50,34 @@ public class JWTValidator {
             }
             
             // Extrahiere relevante Claims
-            String username = claims.getSubject();
-            String userId = claims.get("userId", String.class);
-            String applianceId = claims.get("applianceId", String.class);
-            String connectionId = claims.get("connectionId", String.class);
+            String username = claims.get("username", String.class);
+            if (username == null) {
+                username = claims.getSubject();
+            }
             
-            // Validiere erforderliche Felder
-            if (username == null || applianceId == null) {
-                logger.warn("Missing required claims in token");
+            String userId = String.valueOf(claims.get("userId"));
+            String applianceId = claims.get("applianceId", String.class);
+            String hostId = claims.get("hostId", String.class);
+            String connectionId = String.valueOf(claims.get("connectionId"));
+            String type = claims.get("type", String.class);
+            
+            // Validiere erforderliche Felder basierend auf Typ
+            if (username == null) {
+                logger.warn("Missing username in token");
                 return null;
             }
             
-            return new JWTClaims(username, userId, applianceId, connectionId);
+            // Host-Token oder Appliance-Token
+            if ("host-remote-desktop".equals(type) && hostId != null) {
+                // Host-basierter Token
+                return new JWTClaims(username, userId, null, hostId, connectionId, type);
+            } else if (applianceId != null) {
+                // Appliance-basierter Token
+                return new JWTClaims(username, userId, applianceId, null, connectionId, "appliance");
+            }
+            
+            logger.warn("Neither hostId nor applianceId found in token");
+            return null;
             
         } catch (Exception e) {
             logger.error("Token validation failed", e);
@@ -76,18 +92,26 @@ public class JWTValidator {
         private final String username;
         private final String userId;
         private final String applianceId;
+        private final String hostId;
         private final String connectionId;
+        private final String type;
         
-        public JWTClaims(String username, String userId, String applianceId, String connectionId) {
+        public JWTClaims(String username, String userId, String applianceId, 
+                        String hostId, String connectionId, String type) {
             this.username = username;
             this.userId = userId;
             this.applianceId = applianceId;
+            this.hostId = hostId;
             this.connectionId = connectionId;
+            this.type = type;
         }
         
         public String getUsername() { return username; }
         public String getUserId() { return userId; }
         public String getApplianceId() { return applianceId; }
+        public String getHostId() { return hostId; }
         public String getConnectionId() { return connectionId; }
+        public String getType() { return type; }
+        public boolean isHostToken() { return "host-remote-desktop".equals(type); }
     }
 }

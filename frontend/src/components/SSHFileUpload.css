@@ -878,3 +878,19 @@
   font-size: 14px;
   white-space: nowrap;
 }
+.ssh-file-upload-host-info {
+  color: #999999;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.path-info {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.path-info small {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-style: italic;
+}

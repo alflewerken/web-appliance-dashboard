@@ -5,8 +5,10 @@ const {
   getSelectColumns,
   mapDbToJs,
   mapJsToDb,
+  mapDbToJsWithPasswords,
 } = require('../utils/dbFieldMapping');
-const { verifyToken, createAuditLog } = require('../utils/auth');
+const { verifyToken } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 const { broadcast } = require('./sse');
 const { getClientIp } = require('../utils/getClientIp');
 const { saveBackgroundImageToAuditLog } = require('../utils/backgroundImageHelper');
@@ -59,7 +61,9 @@ router.get('/', async (req, res) => {
       console.log('DEBUG: Raw appliance with SSH:', {
         id: debugAppliance.id,
         name: debugAppliance.name,
-        ssh_connection: debugAppliance.ssh_connection
+        ssh_connection: debugAppliance.ssh_connection,
+        remote_desktop_type: debugAppliance.remote_desktop_type,
+        remote_desktop_enabled: debugAppliance.remote_desktop_enabled
       });
     }
 
@@ -72,7 +76,10 @@ router.get('/', async (req, res) => {
       console.log('DEBUG: Mapped appliance with SSH:', {
         id: debugMapped.id,
         name: debugMapped.name,
-        sshConnection: debugMapped.sshConnection
+        sshConnection: debugMapped.sshConnection,
+        remoteDesktopEnabled: debugMapped.remoteDesktopEnabled,
+        remoteDesktopType: debugMapped.remoteDesktopType,
+        remoteProtocol: debugMapped.remoteProtocol
       });
     }
 
@@ -273,6 +280,12 @@ router.post('/', verifyToken, async (req, res) => {
   if (req.body.remotePassword) {
     encryptedPassword = encrypt(req.body.remotePassword);
   }
+  
+  // Encrypt RustDesk password if provided
+  let encryptedRustDeskPassword = null;
+  if (req.body.rustdeskPassword) {
+    encryptedRustDeskPassword = encrypt(req.body.rustdeskPassword);
+  }
 
   try {
     const [result] = await pool.execute(
@@ -280,8 +293,9 @@ router.post('/', verifyToken, async (req, res) => {
         name, url, description, icon, color, category, isFavorite,
         start_command, stop_command, status_command, auto_start, ssh_connection,
         transparency, blur_amount, open_mode_mini, open_mode_mobile, open_mode_desktop,
-        remote_desktop_enabled, remote_protocol, remote_host, remote_port, remote_username, remote_password_encrypted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        remote_desktop_enabled, remote_desktop_type, remote_protocol, remote_host, remote_port, remote_username, remote_password_encrypted,
+        rustdeskId, rustdesk_installed, rustdesk_password_encrypted
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         dbData.name,
         dbData.url,
@@ -300,12 +314,16 @@ router.post('/', verifyToken, async (req, res) => {
         dbData.open_mode_mini || 'browser_tab',
         dbData.open_mode_mobile || 'browser_tab',
         dbData.open_mode_desktop || 'browser_tab',
-        req.body.remoteDesktopEnabled ? 1 : 0,
-        req.body.remoteProtocol || 'vnc',
-        req.body.remoteHost || null,
-        req.body.remotePort || null,
-        req.body.remoteUsername || null,
+        dbData.remote_desktop_enabled ? 1 : 0,
+        dbData.remote_desktop_type || 'guacamole',
+        dbData.remote_protocol || 'vnc',
+        dbData.remote_host || null,
+        dbData.remote_port || null,
+        dbData.remote_username || null,
         encryptedPassword,
+        dbData.rustdesk_id || null,
+        dbData.rustdesk_installed || 0,
+        encryptedRustDeskPassword
       ]
     );
 
@@ -336,15 +354,15 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Sync Guacamole connection if remote desktop is enabled
-    if (req.body.remoteDesktopEnabled) {
+    if (dbData.remote_desktop_enabled) {
       // Convert JS format back to DB format for Guacamole sync
       const dbAppliance = {
         id: result.insertId,
         remote_desktop_enabled: 1,
-        remote_protocol: req.body.remoteProtocol,
-        remote_host: req.body.remoteHost,
-        remote_port: req.body.remotePort,
-        remote_username: req.body.remoteUsername,
+        remote_protocol: dbData.remote_protocol,
+        remote_host: dbData.remote_host,
+        remote_port: dbData.remote_port,
+        remote_username: dbData.remote_username,
         remote_password_encrypted: encryptedPassword
       };
       syncGuacamoleConnection(dbAppliance).catch(err => 
@@ -397,6 +415,12 @@ router.put('/:id', verifyToken, async (req, res) => {
     if (req.body.remotePassword && req.body.remotePassword !== '') {
       encryptedPassword = encrypt(req.body.remotePassword);
     }
+    
+    // Handle RustDesk password encryption
+    let encryptedRustDeskPassword = currentData[0].rustdesk_password_encrypted; // Keep existing if not changed
+    if (req.body.rustdeskPassword && req.body.rustdeskPassword !== '') {
+      encryptedRustDeskPassword = encrypt(req.body.rustdeskPassword);
+    }
 
     await pool.execute(
       `UPDATE appliances SET 
@@ -405,8 +429,9 @@ router.put('/:id', verifyToken, async (req, res) => {
         status_command = ?, auto_start = ?, ssh_connection = ?,
         transparency = ?, blur_amount = ?, open_mode_mini = ?,
         open_mode_mobile = ?, open_mode_desktop = ?,
-        remote_desktop_enabled = ?, remote_protocol = ?, remote_host = ?, remote_port = ?,
-        remote_username = ?, remote_password_encrypted = ?
+        remote_desktop_enabled = ?, remote_desktop_type = ?, remote_protocol = ?, remote_host = ?, remote_port = ?,
+        remote_username = ?, remote_password_encrypted = ?,
+        rustdesk_id = ?, rustdesk_installed = ?, rustdesk_password_encrypted = ?
        WHERE id = ?`,
       [
         dbData.name,
@@ -426,12 +451,16 @@ router.put('/:id', verifyToken, async (req, res) => {
         dbData.open_mode_mini || 'browser_tab',
         dbData.open_mode_mobile || 'browser_tab',
         dbData.open_mode_desktop || 'browser_tab',
-        req.body.remoteDesktopEnabled ? 1 : 0,
-        req.body.remoteProtocol || 'vnc',
-        req.body.remoteHost || null,
-        req.body.remotePort || null,
-        req.body.remoteUsername || null,
+        dbData.remote_desktop_enabled ? 1 : 0,
+        dbData.remote_desktop_type || 'guacamole',
+        dbData.remote_protocol || 'vnc',
+        dbData.remote_host || null,
+        dbData.remote_port || null,
+        dbData.remote_username || null,
         encryptedPassword,
+        dbData.rustdesk_id || null,
+        dbData.rustdesk_installed !== undefined ? dbData.rustdesk_installed : 0,
+        encryptedRustDeskPassword,
         id,
       ]
     );
@@ -480,11 +509,11 @@ router.put('/:id', verifyToken, async (req, res) => {
       // Convert to DB format for Guacamole sync
       const dbAppliance = {
         id: parseInt(id),
-        remote_desktop_enabled: req.body.remoteDesktopEnabled ? 1 : 0,
-        remote_protocol: req.body.remoteProtocol,
-        remote_host: req.body.remoteHost,
-        remote_port: req.body.remotePort,
-        remote_username: req.body.remoteUsername,
+        remote_desktop_enabled: dbData.remote_desktop_enabled ? 1 : 0,
+        remote_protocol: dbData.remote_protocol,
+        remote_host: dbData.remote_host,
+        remote_port: dbData.remote_port,
+        remote_username: dbData.remote_username,
         remote_password_encrypted: encryptedPassword
       };
       syncGuacamoleConnection(dbAppliance).catch(err => 
@@ -494,12 +523,12 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     // Check if remote desktop fields were updated
     const remoteDesktopUpdated = 
-      'remoteDesktopEnabled' in updates ||
-      'remoteProtocol' in updates ||
-      'remoteHost' in updates ||
-      'remotePort' in updates ||
-      'remoteUsername' in updates ||
-      'remotePassword' in updates;
+      'remoteDesktopEnabled' in req.body ||
+      'remoteProtocol' in req.body ||
+      'remoteHost' in req.body ||
+      'remotePort' in req.body ||
+      'remoteUsername' in req.body ||
+      'remotePassword' in req.body;
 
     if (remoteDesktopUpdated) {
       // Sync Guacamole connection
@@ -626,6 +655,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
       open_mode_desktop: 'open_mode_desktop',
       // Remote Desktop fields
       remoteDesktopEnabled: 'remote_desktop_enabled',
+      remoteDesktopType: 'remote_desktop_type',
       remoteProtocol: 'remote_protocol',
       remoteHost: 'remote_host',
       remotePort: 'remote_port',
@@ -668,6 +698,29 @@ router.patch('/:id', verifyToken, async (req, res) => {
       `UPDATE appliances SET ${updateFields.join(', ')} WHERE id = ?`,
       updateValues
     );
+    
+    // If remote password was updated and RustDesk is installed, update RustDesk password too
+    if (updates.remotePassword && originalData.rustdesk_installed && originalData.rustdeskId) {
+      try {
+        const axios = require('axios');
+        const baseURL = `http://localhost:${process.env.BACKEND_PORT || 3001}`;
+        
+        // Call the RustDesk password update endpoint
+        await axios.put(
+          `${baseURL}/api/rustdesk-install/${id}/password`,
+          {},
+          {
+            headers: {
+              'Authorization': req.headers.authorization
+            }
+          }
+        );
+        console.log('RustDesk password updated successfully for appliance', id);
+      } catch (error) {
+        console.error('Failed to update RustDesk password:', error.message);
+        // Continue with the response even if RustDesk password update fails
+      }
+    }
 
     // Fetch the updated appliance
     const [updatedRows] = await pool.execute(
@@ -797,6 +850,109 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
   }
 });
 
+// Partial update appliance (PATCH)
+router.patch('/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  try {
+    // Get current data
+    const [currentData] = await pool.execute(
+      `SELECT * FROM appliances WHERE id = ?`,
+      [id]
+    );
+
+    if (currentData.length === 0) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
+
+    // Handle RustDesk specific fields
+    if (updates.rustdesk_installed !== undefined) {
+      updateFields.push('rustdesk_installed = ?');
+      updateValues.push(updates.rustdesk_installed ? 1 : 0);
+    }
+    if (updates.rustdeskId !== undefined) {
+      updateFields.push('rustdeskId = ?');
+      updateValues.push(updates.rustdeskId);
+    }
+    if (updates.rustdeskPassword !== undefined) {
+      updateFields.push('rustdesk_password_encrypted = ?');
+      const encryptedPassword = updates.rustdeskPassword ? encrypt(updates.rustdeskPassword) : null;
+      updateValues.push(encryptedPassword);
+    }
+    if (updates.rustdesk_installation_date !== undefined) {
+      updateFields.push('rustdesk_installation_date = ?');
+      updateValues.push(updates.rustdesk_installation_date);
+    }
+
+    // Handle other fields that might be updated
+    const mappableFields = [
+      'name', 'url', 'description', 'icon', 'color', 
+      'category', 'isFavorite', 'remote_desktop_type'
+    ];
+
+    mappableFields.forEach(field => {
+      if (updates[field] !== undefined) {
+        const dbField = mapJsToDb({ [field]: updates[field] });
+        const dbFieldName = Object.keys(dbField)[0];
+        if (dbFieldName) {
+          updateFields.push(`${dbFieldName} = ?`);
+          updateValues.push(dbField[dbFieldName]);
+        }
+      }
+    });
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    // Add ID to values
+    updateValues.push(id);
+
+    // Execute update
+    await pool.execute(
+      `UPDATE appliances SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+
+    // Get updated data
+    const [updatedRows] = await pool.execute(
+      `SELECT ${getSelectColumns()} FROM appliances WHERE id = ?`,
+      [id]
+    );
+
+    const mappedAppliance = mapDbToJs(updatedRows[0]);
+
+    // Create audit log
+    if (req.user) {
+      await createAuditLog(
+        req.user.id,
+        'appliance_update_partial',
+        'appliances',
+        id,
+        {
+          appliance_name: mappedAppliance.name,
+          updates: updates,
+          updated_by: req.user.username,
+        },
+        req.clientIp || req.ip
+      );
+    }
+
+    // Broadcast update
+    broadcast('appliance_updated', mappedAppliance);
+
+    res.json(mappedAppliance);
+  } catch (error) {
+    console.error('Error updating appliance:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete appliance
 router.delete('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
@@ -814,7 +970,8 @@ router.delete('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    const deletedService = mapDbToJs(appliances[0]);
+    // Use special mapping that includes passwords for audit log
+    const deletedService = mapDbToJsWithPasswords(appliances[0]);
 
     // Save background image data if exists
     let backgroundImageData = null;
@@ -824,7 +981,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     // Get custom commands for this appliance
     const [customCommands] = await pool.execute(
-      `SELECT id, description, command, ssh_host_id
+      `SELECT id, description, command, host_id
        FROM appliance_commands
        WHERE appliance_id = ?`,
       [id]

@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
 const terminalManager = require('../utils/terminal/terminal-manager');
-const { createAuditLog } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 
 // Hilfsfunktion zum Parsen der SSH-Konfiguration
 function parseSSHConfig(appliance) {
@@ -173,7 +173,8 @@ function handleTerminalWebSocket(ws, req) {
                   applianceName: applianceData.name,
                   appliance_name: applianceData.name,
                 },
-                ipAddress
+                null, // ipAddress
+                applianceData.name // resourceName
               );
               break;
 
@@ -222,7 +223,8 @@ function handleTerminalWebSocket(ws, req) {
             applianceName: applianceData?.name || 'Unknown',
             appliance_name: applianceData?.name || 'Unknown',
           },
-          ipAddress
+          null, // ipAddress
+          applianceData?.name || 'Terminal' // resourceName
         );
       });
     } catch (error) {

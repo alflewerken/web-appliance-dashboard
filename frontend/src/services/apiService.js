@@ -9,7 +9,7 @@ class ApiService {
 
   async checkAccessMode() {
     try {
-      const response = await fetch(`${API_BASE_URL}/config/access-mode`, {
+      const response = await fetch(`${API_BASE_URL}/config/accessMode`, {
         headers: {
           'Authorization': `Bearer ${this.token}`
         }

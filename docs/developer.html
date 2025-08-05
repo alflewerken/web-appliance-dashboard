@@ -135,12 +135,12 @@
             end
             
             subgraph "Proxy Layer"
-                Nginx[Nginx Reverse Proxy<br/>Port 80/443]
+                Nginx[Nginx Reverse Proxy<br/>Port 9080/9443]
             end
             
             subgraph "Application Layer"
-                Frontend[React Frontend<br/>Port 3001]
-                Backend[Node.js Backend<br/>Port 3000]
+                Frontend[React Frontend<br/>Static Files]
+                Backend[Node.js Backend<br/>Port 3001]
             end
             
             subgraph "Service Layer"
@@ -150,7 +150,7 @@
             end
             
             subgraph "Data Layer"
-                MySQL[(MySQL Database<br/>Port 3306)]
+                MySQL[(MariaDB Database<br/>MySQL Compatible)]
                 FileSystem[File System<br/>SSH Keys & Configs]
             end
             
@@ -252,13 +252,13 @@
             participant Frontend
             participant Nginx
             participant Backend
-            participant MySQL
+            participant MariaDB
             participant SSH Host
             
             User->>Frontend: Access Dashboard
             Frontend->>Backend: GET /api/appliances
-            Backend->>MySQL: Query appliances
-            MySQL-->>Backend: Return data
+            Backend->>MariaDB: Query appliances
+            MariaDB-->>Backend: Return data
             Backend-->>Frontend: JSON response
             Frontend-->>User: Display appliances
             
@@ -287,13 +287,13 @@
             participant User
             participant Frontend
             participant Backend
-            participant MySQL
+            participant MariaDB
             participant JWT
             
             User->>Frontend: Enter credentials
             Frontend->>Backend: POST /api/auth/login
-            Backend->>MySQL: Verify user
-            MySQL-->>Backend: User data
+            Backend->>MariaDB: Verify user
+            MariaDB-->>Backend: User data
             Backend->>JWT: Generate token
             JWT-->>Backend: Token
             Backend-->>Frontend: Token + User info
@@ -329,7 +329,7 @@
             subgraph "Storage"
                 KeyStore[SSH Keys<br/>/app/ssh-keys/]
                 ConfigFile[SSH Config<br/>/app/.ssh/config]
-                Database[(MySQL<br/>ssh_hosts table)]
+                Database[(MariaDB<br/>ssh_hosts table)]
             end
             
             subgraph "Execution"
@@ -409,9 +409,8 @@
                 
                 subgraph "Containers"
                     Web[webserver<br/>Nginx]
-                    Front[frontend<br/>React Dev Server]
                     Back[backend<br/>Node.js]
-                    DB[(database<br/>MySQL)]
+                    DB[(database<br/>MariaDB)]
                     Term[ttyd<br/>Web Terminal]
                     Guac[guacamole<br/>Tomcat]
                     GuacD[guacd<br/>RDP/VNC Proxy]
@@ -419,7 +418,7 @@
                 
                 subgraph "Volumes"
                     AppData[appliance_data]
-                    DBData[mysql_data]
+                    DBData[mariadb_data]
                     SSHKeys[ssh_keys]
                     GuacData[guacamole_data]
                     Sessions[terminal_sessions]
@@ -427,13 +426,12 @@
             end
             
             subgraph "Host System"
-                Ports[Exposed Ports<br/>80, 443, 3306]
+                Ports[Exposed Ports<br/>9080, 9443]
                 EnvFile[.env Configuration]
                 DockerEngine[Docker Engine]
             end
             
             Network --> Web
-            Network --> Front
             Network --> Back
             Network --> DB
             Network --> Term
@@ -513,29 +511,29 @@
     <div class="diagram-container">
         <div class="mermaid">
         graph LR
-            subgraph "API Routes"
-                Auth[/api/auth<br/>Authentication]
-                Appliances[/api/appliances<br/>Service Management]
-                SSH[/api/ssh<br/>SSH Operations]
-                Remote[/api/remote-desktop<br/>Remote Access]
-                Users[/api/users<br/>User Management]
-                Backup[/api/backup<br/>Backup/Restore]
-                Audit[/api/audit<br/>Audit Logging]
-                Health[/api/health<br/>Health Check]
+            subgraph API_Routes["API Routes"]
+                Auth["/api/auth<br/>Authentication"]
+                Appliances["/api/appliances<br/>Service Management"]
+                SSH["/api/ssh<br/>SSH Operations"]
+                Remote["/api/remote-desktop<br/>Remote Access"]
+                Users["/api/users<br/>User Management"]
+                Backup["/api/backup<br/>Backup/Restore"]
+                Audit["/api/audit<br/>Audit Logging"]
+                Health["/api/health<br/>Health Check"]
             end
             
-            subgraph "Middleware"
-                AuthMW[authenticateToken]
-                AdminMW[requireAdmin]
-                RateLimitMW[rateLimiter]
-                ValidateMW[validateInput]
+            subgraph Middleware
+                AuthMW["authenticateToken"]
+                AdminMW["requireAdmin"]
+                RateLimitMW["rateLimiter"]
+                ValidateMW["validateInput"]
             end
             
-            subgraph "Controllers"
-                AuthCtrl[authController]
-                AppCtrl[applianceController]
-                SSHCtrl[sshController]
-                UserCtrl[userController]
+            subgraph Controllers
+                AuthCtrl["authController"]
+                AppCtrl["applianceController"]
+                SSHCtrl["sshController"]
+                UserCtrl["userController"]
             end
             
             Auth --> AuthCtrl
@@ -557,7 +555,7 @@
         <h3>Key Technologies</h3>
         <ul>
             <li><strong>Frontend:</strong> React 18.2, Material-UI, Axios</li>
-            <li><strong>Backend:</strong> Node.js, Express, MySQL2, node-ssh</li>
+            <li><strong>Backend:</strong> Node.js, Express, MariaDB (MySQL2 driver), node-ssh</li>
             <li><strong>Security:</strong> JWT, bcrypt, Helmet.js, express-rate-limit</li>
             <li><strong>Infrastructure:</strong> Docker, Nginx, Apache Guacamole</li>
             <li><strong>Real-time:</strong> Server-Sent Events (SSE)</li>
@@ -570,7 +568,7 @@
             <li>Always use <code>docker compose</code> for development</li>
             <li>Frontend runs in development mode with hot reload</li>
             <li>Backend uses nodemon for auto-restart</li>
-            <li>MySQL data persists in Docker volumes</li>
+            <li>MariaDB data persists in Docker volumes</li>
             <li>SSH keys are stored encrypted in the filesystem</li>
         </ul>
     </div>
@@ -578,21 +576,28 @@
     <div class="code-block">
         <h3>Quick Start</h3>
         <pre>
-# Clone repository
-git clone https://github.com/your-repo/web-appliance-dashboard.git
+# 1. Clone Repository
+git clone https://github.com/alflewerken/web-appliance-dashboard.git
 cd web-appliance-dashboard
 
-# Setup environment
+# 2. Environment Setup
 ./scripts/setup-env.sh
+# The script will:
+# - Create secure passwords
+# - Configure the .env file
+# - Ask for encryption key
+# - Prepare the Docker environment
 
-# Start all services
-docker compose up -d
+# 3. Build Frontend and Start Containers
+./scripts/build.sh
+# The build script:
+# - Installs all dependencies
+# - Builds the React frontend
+# - Creates Docker images
+# - Starts all containers
 
-# Check status
-docker compose ps
-
-# View logs
-docker compose logs -f backend
+# 4. Open Dashboard
+# http://localhost:9080
         </pre>
     </div>
 

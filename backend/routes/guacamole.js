@@ -7,6 +7,7 @@ const { decrypt } = require('../utils/crypto');
 const { getClientIp } = require('../utils/getClientIp');
 const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
 const { getGuacamoleUrl } = require('../utils/guacamoleUrlHelper');
+const { getOptimizedConnectionParams } = require('../utils/guacamoleOptimizer');
 
 // Cache für Guacamole Auth Tokens
 const authTokenCache = new Map();
@@ -63,6 +64,7 @@ async function getGuacamoleAuthToken(forceNew = false) {
 router.post('/token/:applianceId', async (req, res) => {
   try {
     const { applianceId } = req.params;
+    const { performanceMode = 'balanced' } = req.body; // Neu: Performance Mode
     const userId = req.user.id;
     
     // Prüfe ob Appliance existiert
@@ -81,6 +83,14 @@ router.post('/token/:applianceId', async (req, res) => {
       return res.status(400).json({ error: 'Remote Desktop ist für diese Appliance nicht aktiviert' });
     }
     
+    // Check if RustDesk is configured instead of Guacamole
+    if (appliance.remote_desktop_type === 'rustdesk') {
+      return res.status(400).json({ 
+        error: 'Diese Appliance verwendet RustDesk. Bitte nutzen Sie den RustDesk Button.',
+        type: 'rustdesk'
+      });
+    }
+    
     try {
       // Entschlüssele Passwort
       let decryptedPassword = null;
@@ -94,12 +104,20 @@ router.post('/token/:applianceId', async (req, res) => {
       
       // Erstelle oder aktualisiere die Verbindung
       const dbManager = new GuacamoleDBManager();
+      
+      // Hole optimierte Connection Parameter
+      const optimizedParams = getOptimizedConnectionParams(
+        appliance.remote_protocol, 
+        performanceMode
+      );
+      
       const connectionInfo = await dbManager.createOrUpdateConnection(applianceId, {
         protocol: appliance.remote_protocol,
         hostname: appliance.remote_host,
         port: appliance.remote_port || (appliance.remote_protocol === 'vnc' ? 5900 : 3389),
         username: appliance.remote_username || '',
-        password: decryptedPassword || ''
+        password: decryptedPassword || '',
+        ...optimizedParams // Füge Performance-Optimierungen hinzu
       });
       
       // Hole die Connection ID aus der Datenbank

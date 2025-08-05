@@ -4,11 +4,12 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs').promises;
 const pool = require('../utils/database');
-const { createAuditLog } = require('../utils/auth');
+const { verifyToken } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 const { broadcast } = require('./sse');
 
 // Get backup statistics
-router.get('/backup/stats', async (req, res) => {
+router.get('/backup/stats', verifyToken, async (req, res) => {
   try {
     // Get last backup from audit logs
     const [lastBackupLogs] = await pool.execute(
@@ -37,8 +38,9 @@ router.get('/backup/stats', async (req, res) => {
     const [bgImageCount] = await pool.execute(
       'SELECT COUNT(*) as count, SUM(file_size) as total_size FROM background_images'
     );
-    const [sshHostCount] = await pool.execute(
-      'SELECT COUNT(*) as count FROM ssh_hosts'
+    // ssh_hosts table removed - counting hosts instead
+    const [hostsCount] = await pool.execute(
+      'SELECT COUNT(*) as count FROM hosts WHERE is_active = 1'
     );
     const [sshKeyCount] = await pool.execute(
       'SELECT COUNT(*) as count FROM ssh_keys'
@@ -49,7 +51,7 @@ router.get('/backup/stats', async (req, res) => {
       applianceCount[0].count * 1024 + // ~1KB per appliance
       categoryCount[0].count * 512 + // ~0.5KB per category
       settingsCount[0].count * 256 + // ~0.25KB per setting
-      sshHostCount[0].count * 512 + // ~0.5KB per SSH host
+      hostsCount[0].count * 1024 + // ~1KB per host (includes remote desktop settings)
       sshKeyCount[0].count * 4096 + // ~4KB per SSH key (includes key data)
       (bgImageCount[0].total_size || 0); // actual size of images
 
@@ -97,7 +99,7 @@ function formatBytes(bytes) {
 }
 
 // Backup endpoint - Export all data INCLUDING settings and background images
-router.get('/backup', async (req, res) => {
+router.get('/backup', verifyToken, async (req, res) => {
   try {
     // Fetch all appliances
     const [appliances] = await pool.execute(
@@ -177,6 +179,42 @@ router.get('/backup', async (req, res) => {
     let sshKeys = [];
     let sshConfig = [];
     let sshBackupSuccess = false;
+    
+    // Fetch hosts table (SSH Terminal hosts)
+    let hosts = [];
+    try {
+      const [hostsResult] = await pool.execute(
+        'SELECT * FROM hosts ORDER BY created_at'
+      );
+      hosts = hostsResult;
+      console.log(`✅ Fetched ${hosts.length} terminal hosts`);
+    } catch (error) {
+      console.error('Error fetching hosts for backup:', error.message);
+    }
+    
+    // Fetch services table
+    let services = [];
+    try {
+      const [servicesResult] = await pool.execute(
+        'SELECT * FROM services ORDER BY created_at'
+      );
+      services = servicesResult;
+      console.log(`✅ Fetched ${services.length} proxy services`);
+    } catch (error) {
+      console.error('Error fetching services for backup:', error.message);
+    }
+    
+    // Fetch SSH upload logs
+    let sshUploadLogs = [];
+    try {
+      const [uploadLogsResult] = await pool.execute(
+        'SELECT * FROM ssh_upload_log ORDER BY created_at DESC LIMIT 1000'
+      );
+      sshUploadLogs = uploadLogsResult;
+      console.log(`✅ Fetched ${sshUploadLogs.length} SSH upload log entries`);
+    } catch (error) {
+      console.error('Error fetching SSH upload logs for backup:', error.message);
+    }
 
     // Fetch users (INCLUDING password hashes for complete backup)
     let users = [];
@@ -206,21 +244,27 @@ router.get('/backup', async (req, res) => {
     }
 
     try {
-      console.log('🔍 Fetching SSH data from database...');
-      const [hostsResult] = await pool.execute(
-        'SELECT * FROM ssh_hosts ORDER BY hostname'
-      );
+      console.log('🔍 Fetching SSH keys from database...');
+      // ssh_hosts table removed - no longer backing up
       const [keysResult] = await pool.execute(
         'SELECT * FROM ssh_keys ORDER BY key_name'
       );
-      const [configResult] = await pool.execute(
-        'SELECT * FROM ssh_config ORDER BY host_id, config_key'
-      );
-      sshHosts = hostsResult;
-      sshConfig = configResult;
+      // ssh_config table removed
+      sshHosts = []; // No longer used
+      sshConfig = []; // No longer used
 
       console.log(`📊 Found ${keysResult.length} SSH keys in database`);
-      console.log(`📊 Found ${sshConfig.length} SSH config entries in database`);
+      
+      // Debug: Log first key if exists
+      if (keysResult.length > 0) {
+        console.log('First SSH key:', {
+          id: keysResult[0].id,
+          key_name: keysResult[0].key_name,
+          created_by: keysResult[0].created_by,
+          has_private_key: !!keysResult[0].private_key,
+          has_public_key: !!keysResult[0].public_key
+        });
+      }
 
       if (keysResult.length > 0) {
         // Enhance SSH keys with actual file content from filesystem
@@ -305,6 +349,9 @@ router.get('/backup', async (req, res) => {
               key_size_bytes: privateKeyContent.length,
               has_private_key: privateKeyContent.length > 0,
               has_public_key: publicKeyContent.length > 0,
+              // Ensure created_by is included
+              created_by: key.created_by || null,
+              fingerprint: key.fingerprint || null,
             });
           } catch (keyError) {
             console.warn(
@@ -319,6 +366,9 @@ router.get('/backup', async (req, res) => {
               backup_timestamp: new Date().toISOString(),
               has_private_key: (key.private_key || '').length > 0,
               has_public_key: (key.public_key || '').length > 0,
+              // Ensure created_by is included
+              created_by: key.created_by || null,
+              fingerprint: key.fingerprint || null,
             });
           }
         }
@@ -348,7 +398,7 @@ router.get('/backup', async (req, res) => {
         'SELECT * FROM appliance_commands ORDER BY appliance_id, created_at'
       );
       customCommands = commandsResult;
-      console.log(`✅ Fetched ${customCommands.length} custom commands`);
+      console.log(`✅ Fetched ${customCommands.length} appliance commands`);
     } catch (error) {
       console.error(
         'Error fetching custom commands for backup:',
@@ -378,7 +428,7 @@ router.get('/backup', async (req, res) => {
     let activeSessions = [];
     try {
       const [sessionsResult] = await pool.execute(
-        'SELECT * FROM sessions WHERE is_active = 1 ORDER BY created_at DESC'
+        'SELECT * FROM active_sessions ORDER BY created_at DESC'
       );
       activeSessions = sessionsResult;
       console.log(`✅ Fetched ${activeSessions.length} active sessions`);
@@ -437,54 +487,61 @@ router.get('/backup', async (req, res) => {
 
     // Create comprehensive backup object
     const backupData = {
-      version: '2.8.0',
+      version: '2.9.0',
       created_at: new Date().toISOString(),
-      created_by: 'Web Appliance Dashboard API (Full Backup with Passwords)',
+      created_by: 'Web Appliance Dashboard API (Full Backup with All Tables)',
       data: {
         appliances,
         categories,
-        settings,
+        user_settings: settings,
         background_images: backgroundImagesWithData,
-        ssh_hosts: sshHosts,
+        hosts,
+        services,
         ssh_keys: sshKeys,
-        ssh_config: sshConfig,
-        custom_commands: customCommands,
+        // ssh_hosts and ssh_config removed - functionality moved to hosts table
+        ssh_upload_logs: sshUploadLogs,
+        appliance_commands: customCommands,
         users,
         audit_logs: auditLogs,
         role_permissions: rolePermissions,
         user_appliance_permissions: userAppliancePermissions,
         service_command_logs: serviceCommandLogs,
-        sessions: activeSessions,
+        active_sessions: activeSessions,
       },
       metadata: {
         appliances_count: appliances.length,
         categories_count: categories.length,
-        settings_count: settings.length,
+        user_settings_count: settings.length,
         background_images_count: backgroundImagesWithData.length,
-        ssh_hosts_count: sshHosts.length,
+        hosts_count: hosts.length,
+        services_count: services.length,
         ssh_keys_count: sshKeys.length,
-        ssh_config_count: sshConfig.length,
-        custom_commands_count: customCommands.length,
+        // ssh_hosts_count and ssh_config_count removed
+        ssh_upload_logs_count: sshUploadLogs.length,
+        appliance_commands_count: customCommands.length,
         users_count: users.length,
         audit_logs_count: auditLogs.length,
         role_permissions_count: rolePermissions.length,
         user_appliance_permissions_count: userAppliancePermissions.length,
         service_command_logs_count: serviceCommandLogs.length,
-        sessions_count: activeSessions.length,
-        backup_type: 'full_with_passwords_and_all_data',
-        database_version: '2.8.0',
+        active_sessions_count: activeSessions.length,
+        backup_type: 'full_with_all_tables',
+        database_version: '2.9.0',
         includes_background_files: backgroundImagesWithData.some(
           bg => bg.file_data !== null
         ),
+        includes_hosts: hosts.length > 0,
+        includes_services: services.length > 0,
         includes_ssh_keys: sshKeys.length > 0 && sshBackupSuccess,
         includes_ssh_config: sshConfig.length > 0,
+        includes_ssh_upload_logs: sshUploadLogs.length > 0,
         includes_users: users.length > 0,
         includes_audit_logs: auditLogs.length > 0,
         includes_role_permissions: rolePermissions.length > 0,
         includes_user_appliance_permissions:
           userAppliancePermissions.length > 0,
         includes_service_command_logs: serviceCommandLogs.length > 0,
-        includes_sessions: activeSessions.length > 0,
+        includes_active_sessions: activeSessions.length > 0,
         total_background_size_kb: Math.round(
           backgroundImagesWithData.reduce(
             (sum, bg) => sum + (bg.data_size || 0),
@@ -511,9 +568,12 @@ router.get('/backup', async (req, res) => {
           categories.length +
           settings.length +
           backgroundImagesWithData.length +
+          hosts.length +
+          services.length +
           sshHosts.length +
           sshKeys.length +
           sshConfig.length +
+          sshUploadLogs.length +
           customCommands.length +
           users.length +
           auditLogs.length +
@@ -523,18 +583,20 @@ router.get('/backup', async (req, res) => {
           activeSessions.length,
         appliances_count: appliances.length,
         categories_count: categories.length,
-        settings_count: settings.length,
+        user_settings_count: settings.length,
         background_images_count: backgroundImagesWithData.length,
-        ssh_hosts_count: sshHosts.length,
+        hosts_count: hosts.length,
+        services_count: services.length,
         ssh_keys_count: sshKeys.length,
-        ssh_config_count: sshConfig.length,
-        custom_commands_count: customCommands.length,
+        // ssh_hosts_count and ssh_config_count removed
+        ssh_upload_logs_count: sshUploadLogs.length,
+        appliance_commands_count: customCommands.length,
         users_count: users.length,
         audit_logs_count: auditLogs.length,
         role_permissions_count: rolePermissions.length,
         user_appliance_permissions_count: userAppliancePermissions.length,
         service_command_logs_count: serviceCommandLogs.length,
-        sessions_count: activeSessions.length,
+        active_sessions_count: activeSessions.length,
         backup_size: backupSizeBytes,
         created_by: req.user?.username || 'unknown',
       },
@@ -580,7 +642,7 @@ router.get('/backup', async (req, res) => {
 });
 
 // Restore endpoint - Import data from backup INCLUDING settings and background images
-router.post('/restore', async (req, res) => {
+router.post('/restore', verifyToken, async (req, res) => {
   try {
     const backupData = req.body;
 
@@ -605,22 +667,34 @@ router.post('/restore', async (req, res) => {
       );
     }
 
+    // Destructure with support for both old and new table names
     const {
       appliances,
       categories,
-      settings,
+      settings,          // Old name
+      user_settings,     // New name
       background_images,
+      hosts,
+      services,
       ssh_hosts,
       ssh_keys,
       ssh_config,
-      custom_commands,
+      ssh_upload_logs,
+      custom_commands,   // Old name
+      appliance_commands, // New name
       users,
       audit_logs,
       role_permissions,
       user_appliance_permissions,
       service_command_logs,
-      sessions,
+      sessions,          // Old name
+      active_sessions,   // New name
     } = backupData.data;
+
+    // Use whichever is available (prefer new names)
+    const actualSettings = user_settings || settings || [];
+    const actualCommands = appliance_commands || custom_commands || [];
+    const actualSessions = active_sessions || sessions || [];
 
     // For legacy backups without SSH keys, initialize SSH system BEFORE starting transaction
     let legacySSHInitialized = false;
@@ -663,9 +737,12 @@ router.post('/restore', async (req, res) => {
       let restoredCategories = 0;
       let restoredSettings = 0;
       let restoredBackgrounds = 0;
+      let restoredHosts = 0;
+      let restoredServices = 0;
       let restoredSSHHosts = 0;
       let restoredSSHKeys = 0;
       let restoredSSHConfig = 0;
+      let restoredSSHUploadLogs = 0;
       let restoredCustomCommands = 0;
       let restoredUsers = 0;
       let restoredAuditLogs = 0;
@@ -834,6 +911,12 @@ router.post('/restore', async (req, res) => {
             'remote_port',
             'remote_username',
             'remote_password_encrypted',
+            'remote_desktop_type',
+            'rustdeskId',
+            'rustdesk_installed',
+            'rustdesk_installation_date',
+            'rustdesk_password_encrypted',
+            'guacamolePerformanceMode',
           ];
 
           const values = [
@@ -891,6 +974,24 @@ router.post('/restore', async (req, res) => {
             appliance.remote_port || appliance.remotePort || null,
             appliance.remote_username || appliance.remoteUsername || null,
             appliance.remote_password_encrypted || appliance.remotePasswordEncrypted || null,
+            // RustDesk fields - check both snake_case and camelCase
+            appliance.remote_desktop_type || appliance.remoteDesktopType || 'guacamole',
+            appliance.rustdeskId || appliance.rustdeskId || null,
+            Boolean(
+              appliance.rustdesk_installed !== undefined
+                ? appliance.rustdesk_installed
+                : appliance.rustdeskInstalled
+            ),
+            appliance.rustdesk_installation_date || appliance.rustdeskInstallationDate
+              ? new Date(
+                  appliance.rustdesk_installation_date || appliance.rustdeskInstallationDate
+                )
+                  .toISOString()
+                  .slice(0, 19)
+                  .replace('T', ' ')
+              : null,
+            appliance.rustdesk_password_encrypted || appliance.rustdeskPasswordEncrypted || null,
+            appliance.guacamolePerformanceMode || appliance.guacamolePerformanceMode || 'balanced',
           ];
 
           const placeholders = fields.map(() => '?').join(', ');
@@ -921,12 +1022,12 @@ router.post('/restore', async (req, res) => {
       }
 
       // Restore settings
-      if (settings && settings.length > 0) {
+      if (actualSettings && actualSettings.length > 0) {
         try {
-          console.log(`Restoring ${settings.length} settings...`);
+          console.log(`Restoring ${actualSettings.length} settings...`);
           await connection.execute('DELETE FROM user_settings');
 
-          for (const setting of settings) {
+          for (const setting of actualSettings) {
             const createdAt = setting.created_at
               ? new Date(setting.created_at)
                   .toISOString()
@@ -1048,8 +1149,9 @@ router.post('/restore', async (req, res) => {
 
             await connection.execute(
               `INSERT INTO background_images 
-               (filename, original_name, mime_type, file_size, width, height, is_active, created_at) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+               (filename, original_name, mime_type, file_size, width, height, 
+                uploaded_by, is_active, usage_count, created_at) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 bgImage.filename,
                 bgImage.original_name || bgImage.filename,
@@ -1057,7 +1159,9 @@ router.post('/restore', async (req, res) => {
                 bgImage.file_size || 0,
                 bgImage.width || 1920,
                 bgImage.height || 1080,
+                bgImage.uploaded_by || null,
                 Boolean(bgImage.is_active),
+                bgImage.usage_count || 0,
                 createdAt,
               ]
             );
@@ -1069,7 +1173,7 @@ router.post('/restore', async (req, res) => {
         }
       }
 
-      // Restore users - INCLUDING password hashes from backup
+      // Restore users FIRST - BEFORE hosts and other tables with foreign keys
       if (users && users.length > 0) {
         try {
           console.log(`Restoring ${users.length} users...`);
@@ -1147,6 +1251,163 @@ router.post('/restore', async (req, res) => {
         }
       }
 
+      // Restore hosts table (SSH Terminal hosts) - AFTER users due to foreign keys
+      if (hosts && hosts.length > 0) {
+        try {
+          console.log(`Restoring ${hosts.length} terminal hosts...`);
+          console.log('First host data:', JSON.stringify(hosts[0], null, 2));
+          
+          await connection.execute('DELETE FROM hosts');
+          await connection.execute('ALTER TABLE hosts AUTO_INCREMENT = 1');
+
+          for (const host of hosts) {
+            const createdAt = host.created_at
+              ? new Date(host.created_at)
+                  .toISOString()
+                  .slice(0, 19)
+                  .replace('T', ' ')
+              : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+            const updatedAt = host.updated_at
+              ? new Date(host.updated_at)
+                  .toISOString()
+                  .slice(0, 19)
+                  .replace('T', ' ')
+              : createdAt;
+
+            console.log(`Restoring host: ${host.name} (${host.hostname})`);
+
+            await connection.execute(
+              `INSERT INTO hosts 
+               (id, name, description, hostname, port, username, icon, password, private_key, 
+                color, transparency, blur, created_at, updated_at, created_by, updated_by,
+                sshKeyName, remote_desktop_enabled, remote_desktop_type, remote_protocol,
+                remote_port, remote_username, remote_password, guacamolePerformanceMode,
+                rustdesk_id, rustdeskPassword) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                host.id,
+                host.name,
+                host.description || null,
+                host.hostname,
+                host.port || 22,
+                host.username,
+                host.icon || 'Server',
+                host.password || null,
+                host.private_key || null,
+                host.color || '#007AFF',
+                host.transparency !== undefined ? host.transparency : 0.10,
+                host.blur !== undefined ? host.blur : 0,
+                createdAt,
+                updatedAt,
+                host.created_by || null,
+                host.updated_by || null,
+                host.sshKeyName || null,
+                host.remote_desktop_enabled || 0,
+                host.remote_desktop_type || 'guacamole',
+                host.remote_protocol || null,
+                host.remote_port || null,
+                host.remote_username || null,
+                host.remote_password || null,
+                host.guacamolePerformanceMode || 'balanced',
+                host.rustdeskId || null,
+                host.rustdeskPassword || null,
+              ]
+            );
+            restoredHosts++;
+          }
+
+          // Set AUTO_INCREMENT to the max ID + 1
+          const [maxIdResult] = await connection.execute(
+            'SELECT MAX(id) as maxId FROM hosts'
+          );
+          const maxId = maxIdResult[0].maxId || 0;
+          await connection.execute(
+            `ALTER TABLE hosts AUTO_INCREMENT = ${maxId + 1}`
+          );
+
+          console.log(`✅ Restored ${restoredHosts} terminal hosts`);
+        } catch (error) {
+          console.error('❌ Error restoring hosts:', error);
+          console.error('Error details:', error.message);
+          throw error; // Re-throw to rollback transaction
+        }
+      } else {
+        console.log('ℹ️ No hosts found in backup to restore');
+      }
+
+      // Restore services table
+      if (services && services.length > 0) {
+        try {
+          console.log(`Restoring ${services.length} proxy services...`);
+          await connection.execute('DELETE FROM services');
+          await connection.execute('ALTER TABLE services AUTO_INCREMENT = 1');
+
+          for (const service of services) {
+            const createdAt = service.created_at
+              ? new Date(service.created_at)
+                  .toISOString()
+                  .slice(0, 19)
+                  .replace('T', ' ')
+              : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+            const updatedAt = service.updated_at
+              ? new Date(service.updated_at)
+                  .toISOString()
+                  .slice(0, 19)
+                  .replace('T', ' ')
+              : createdAt;
+
+            await connection.execute(
+              `INSERT INTO services 
+               (id, name, type, ip_address, port, use_https, status, description,
+                ssh_host, ssh_port, ssh_username, ssh_password, ssh_private_key,
+                vnc_port, vnc_password, rdp_port, rdp_username, rdp_password,
+                created_at, updated_at) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                service.id,
+                service.name,
+                service.type,
+                service.ip_address,
+                service.port || null,
+                Boolean(service.use_https),
+                service.status || 'active',
+                service.description || null,
+                service.ssh_host || null,
+                service.ssh_port || 22,
+                service.ssh_username || null,
+                service.ssh_password || null,
+                service.ssh_private_key || null,
+                service.vnc_port || 5900,
+                service.vnc_password || null,
+                service.rdp_port || 3389,
+                service.rdp_username || null,
+                service.rdp_password || null,
+                createdAt,
+                updatedAt,
+              ]
+            );
+            restoredServices++;
+          }
+
+          // Set AUTO_INCREMENT to the max ID + 1
+          const [maxIdResult] = await connection.execute(
+            'SELECT MAX(id) as maxId FROM services'
+          );
+          const maxId = maxIdResult[0].maxId || 0;
+          await connection.execute(
+            `ALTER TABLE services AUTO_INCREMENT = ${maxId + 1}`
+          );
+
+          console.log(`✅ Restored ${restoredServices} proxy services`);
+        } catch (error) {
+          console.log('Error restoring services:', error.message);
+        }
+      }
+
+      // Users already restored above before hosts table
+
       // Restore SSH keys first (before hosts) - only if present in backup
       if (ssh_keys && ssh_keys.length > 0) {
         try {
@@ -1180,11 +1441,44 @@ router.post('/restore', async (req, res) => {
                   .replace('T', ' ')
               : createdAt;
 
+            // Find the user ID for created_by field
+            let createdById = sshKey.created_by || null;
+            if (!createdById && users && users.length > 0) {
+              // If no created_by in backup, use the first admin user or first user
+              const adminUser = users.find(u => u.role === 'Administrator' || u.role === 'admin');
+              if (adminUser) {
+                createdById = adminUser.id;
+              } else if (users[0]) {
+                createdById = users[0].id;
+              }
+            }
+            
+            // Map old user ID to new user ID if users were restored
+            if (createdById && users) {
+              const originalUser = users.find(u => u.id === createdById);
+              if (originalUser) {
+                const [userResult] = await connection.execute(
+                  'SELECT id FROM users WHERE username = ? OR email = ?',
+                  [originalUser.username, originalUser.email]
+                );
+                if (userResult.length > 0) {
+                  createdById = userResult[0].id;
+                }
+              }
+            }
+
+            // If still no created_by, use the current user or default to 1
+            if (!createdById) {
+              createdById = req.user?.id || 1;
+            }
+
+            console.log(`Restoring SSH key: ${sshKey.key_name} (created_by: ${createdById})`);
+
             // Restore SSH key to database
             await connection.execute(
               `INSERT INTO ssh_keys 
-               (key_name, private_key, public_key, key_type, key_size, comment, passphrase_hash, is_default, created_at, updated_at) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               (key_name, private_key, public_key, key_type, key_size, comment, fingerprint, passphrase_hash, is_default, created_by, created_at, updated_at) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 sshKey.key_name,
                 sshKey.private_key || '',
@@ -1192,8 +1486,10 @@ router.post('/restore', async (req, res) => {
                 sshKey.key_type || 'rsa',
                 sshKey.key_size || 2048,
                 sshKey.comment || '',
+                sshKey.fingerprint || null,
                 sshKey.passphrase_hash || null,
                 Boolean(sshKey.is_default),
+                createdById,
                 createdAt,
                 updatedAt,
               ]
@@ -1289,7 +1585,9 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             `✅ Restored ${restoredSSHKeys} SSH keys (database + filesystem)`
           );
         } catch (error) {
-          console.log('Error restoring SSH keys:', error.message);
+          console.error('❌ Error restoring SSH keys:', error);
+          console.error('Error details:', error.message);
+          // Don't throw here to allow partial restore, but log the error
         }
       } else if (!isOldVersion) {
         // Only clear SSH keys for newer backups that should have SSH data
@@ -1342,80 +1640,24 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         }
       }
 
-      // Restore SSH hosts - only if present in backup
-      if (ssh_hosts && ssh_hosts.length > 0) {
+      // SSH hosts restore removed - functionality moved to hosts table
+      // Legacy backup compatibility: skip ssh_hosts if present
+
+      // SSH config restore removed - table no longer exists
+
+      // Restore SSH upload logs
+      if (ssh_upload_logs && ssh_upload_logs.length > 0) {
         try {
-          console.log(`Restoring ${ssh_hosts.length} SSH hosts...`);
-          await connection.execute('DELETE FROM ssh_hosts');
-
-          for (const sshHost of ssh_hosts) {
-            const createdAt = sshHost.created_at
-              ? new Date(sshHost.created_at)
-                  .toISOString()
-                  .slice(0, 19)
-                  .replace('T', ' ')
-              : new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-            const updatedAt = sshHost.updated_at
-              ? new Date(sshHost.updated_at)
-                  .toISOString()
-                  .slice(0, 19)
-                  .replace('T', ' ')
-              : createdAt;
-
-            const lastTested = sshHost.last_tested
-              ? new Date(sshHost.last_tested)
-                  .toISOString()
-                  .slice(0, 19)
-                  .replace('T', ' ')
-              : null;
-
-            await connection.execute(
-              `INSERT INTO ssh_hosts 
-               (hostname, host, username, port, key_name, is_active, last_tested, test_status, created_at, updated_at) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                sshHost.hostname,
-                sshHost.host,
-                sshHost.username,
-                sshHost.port || 22,
-                sshHost.key_name || 'dashboard',
-                Boolean(sshHost.is_active !== false), // Default to true if not specified
-                lastTested,
-                sshHost.test_status || 'unknown',
-                createdAt,
-                updatedAt,
-              ]
-            );
-            restoredSSHHosts++;
-          }
-          console.log(`✅ Restored ${restoredSSHHosts} SSH hosts`);
-        } catch (error) {
-          console.log('Error restoring SSH hosts:', error.message);
-        }
-      } else if (!isOldVersion) {
-        // Only clear SSH hosts for newer backups that should have SSH data
-        try {
-          await connection.execute('DELETE FROM ssh_hosts');
-          console.log('✅ Cleared SSH hosts (none in backup)');
-        } catch (error) {
-          console.log('Note: Could not clear SSH hosts table:', error.message);
-        }
-      }
-
-      // Restore SSH config - only if present in backup
-      if (ssh_config && ssh_config.length > 0) {
-        try {
-          console.log(`Restoring ${ssh_config.length} SSH config entries...`);
-          await connection.execute('DELETE FROM ssh_config');
-
-          for (const config of ssh_config) {
-            // Find the new host ID for this config entry
-            let newHostId = config.host_id;
+          console.log(`Restoring ${ssh_upload_logs.length} SSH upload log entries...`);
+          // Don't delete existing logs, just add the ones from backup
+          
+          for (const uploadLog of ssh_upload_logs) {
+            // Find the new host ID for this upload log
+            let newHostId = uploadLog.host_id;
             
-            // If SSH hosts were remapped (e.g., due to auto-increment changes), find the new ID
+            // If SSH hosts were remapped, find the new ID
             if (ssh_hosts && ssh_hosts.length > 0) {
-              const originalHost = ssh_hosts.find(h => h.id === config.host_id);
+              const originalHost = ssh_hosts.find(h => h.id === uploadLog.host_id);
               if (originalHost) {
                 const [matchingHosts] = await connection.execute(
                   'SELECT id FROM ssh_hosts WHERE host = ? AND username = ? AND port = ?',
@@ -1427,45 +1669,57 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               }
             }
 
-            const createdAt = config.created_at
-              ? new Date(config.created_at)
-                  .toISOString()
-                  .slice(0, 19)
-                  .replace('T', ' ')
-              : new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-            const updatedAt = config.updated_at
-              ? new Date(config.updated_at)
-                  .toISOString()
-                  .slice(0, 19)
-                  .replace('T', ' ')
-              : createdAt;
-
-            await connection.execute(
-              `INSERT INTO ssh_config 
-               (host_id, config_key, config_value, created_at, updated_at) 
-               VALUES (?, ?, ?, ?, ?)`,
-              [
-                newHostId,
-                config.config_key,
-                config.config_value,
-                createdAt,
-                updatedAt,
-              ]
+            // Legacy support: try to map from old ssh_hosts if present
+            // Otherwise assume host_id refers to hosts table
+            const [hostExists] = await connection.execute(
+              'SELECT id FROM hosts WHERE id = ?',
+              [newHostId]
             );
-            restoredSSHConfig++;
+
+            if (hostExists.length > 0) {
+              const createdAt = uploadLog.created_at
+                ? new Date(uploadLog.created_at)
+                    .toISOString()
+                    .slice(0, 19)
+                    .replace('T', ' ')
+                : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+              // Find the corresponding user ID if present
+              let newUserId = null;
+              if (uploadLog.user_id && users) {
+                const originalUser = users.find(u => u.id === uploadLog.user_id);
+                if (originalUser) {
+                  const [userResult] = await connection.execute(
+                    'SELECT id FROM users WHERE username = ? OR email = ?',
+                    [originalUser.username, originalUser.email]
+                  );
+                  if (userResult.length > 0) {
+                    newUserId = userResult[0].id;
+                  }
+                }
+              }
+
+              await connection.execute(
+                `INSERT INTO ssh_upload_log 
+                 (host_id, filename, file_size, target_path, status, error_message, created_at, user_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  newHostId,
+                  uploadLog.filename,
+                  uploadLog.file_size,
+                  uploadLog.target_path,
+                  uploadLog.status,
+                  uploadLog.error_message || null,
+                  createdAt,
+                  newUserId,
+                ]
+              );
+              restoredSSHUploadLogs++;
+            }
           }
-          console.log(`✅ Restored ${restoredSSHConfig} SSH config entries`);
+          console.log(`✅ Restored ${restoredSSHUploadLogs} SSH upload log entries`);
         } catch (error) {
-          console.log('Error restoring SSH config:', error.message);
-        }
-      } else if (!isOldVersion) {
-        // Only clear SSH config for newer backups that should have SSH data
-        try {
-          await connection.execute('DELETE FROM ssh_config');
-          console.log('✅ Cleared SSH config (none in backup)');
-        } catch (error) {
-          console.log('Note: Could not clear SSH config table:', error.message);
+          console.log('Error restoring SSH upload logs:', error.message);
         }
       }
 
@@ -1477,14 +1731,14 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         'ALTER TABLE appliance_commands AUTO_INCREMENT = 1'
       );
 
-      if (custom_commands && custom_commands.length > 0) {
-        console.log(`Restoring ${custom_commands.length} custom commands...`);
+      if (actualCommands && actualCommands.length > 0) {
+        console.log(`Restoring ${actualCommands.length} appliance commands...`);
         console.log(
           'Commands to restore:',
-          JSON.stringify(custom_commands, null, 2)
+          JSON.stringify(actualCommands, null, 2)
         );
 
-        for (const command of custom_commands) {
+        for (const command of actualCommands) {
           try {
             console.log(
               `Restoring command for appliance ${command.appliance_id}: ${command.description}`
@@ -1542,7 +1796,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               }
 
               await connection.execute(
-                'INSERT INTO appliance_commands (id, appliance_id, description, command, ssh_host_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO appliance_commands (id, appliance_id, description, command, host_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [
                   command.id,
                   command.appliance_id,
@@ -1809,9 +2063,9 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       }
 
       // Restore sessions (Note: Only restore active sessions if needed)
-      if (sessions && sessions.length > 0) {
+      if (actualSessions && actualSessions.length > 0) {
         try {
-          console.log(`Found ${sessions.length} sessions in backup...`);
+          console.log(`Found ${actualSessions.length} sessions in backup...`);
           // We don't restore sessions by default as they are temporary
           // and should be recreated on login
           console.log('ℹ️ Sessions are not restored (temporary data)');
@@ -1828,8 +2082,12 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       console.log(`- ${restoredCategories} categories`);
       console.log(`- ${restoredSettings} settings`);
       console.log(`- ${restoredBackgrounds} background images`);
+      console.log(`- ${restoredHosts} terminal hosts`);
+      console.log(`- ${restoredServices} proxy services`);
       console.log(`- ${restoredSSHKeys} SSH keys`);
       console.log(`- ${restoredSSHHosts} SSH hosts`);
+      console.log(`- ${restoredSSHConfig} SSH config entries`);
+      console.log(`- ${restoredSSHUploadLogs} SSH upload logs`);
       console.log(`- ${restoredCustomCommands} custom commands`);
       console.log(`- ${restoredUsers} users (with password hashes)`);
       console.log(`- ${restoredAuditLogs} audit log entries`);
@@ -1948,9 +2206,12 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             categories: restoredCategories,
             settings: restoredSettings,
             background_images: restoredBackgrounds,
+            hosts: restoredHosts,
+            services: restoredServices,
             ssh_keys: restoredSSHKeys,
             ssh_hosts: restoredSSHHosts,
             ssh_config: restoredSSHConfig,
+            ssh_upload_logs: restoredSSHUploadLogs,
             custom_commands: restoredCustomCommands,
             users: restoredUsers,
             audit_logs: restoredAuditLogs,
@@ -1971,9 +2232,12 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         restored_categories: restoredCategories,
         restored_settings: restoredSettings,
         restored_background_images: restoredBackgrounds,
+        restored_hosts: restoredHosts,
+        restored_services: restoredServices,
         restored_ssh_keys: restoredSSHKeys,
         restored_ssh_hosts: restoredSSHHosts,
         restored_ssh_config: restoredSSHConfig,
+        restored_ssh_upload_logs: restoredSSHUploadLogs,
         restored_custom_commands: restoredCustomCommands,
         restored_users: restoredUsers,
         restored_audit_logs: restoredAuditLogs,

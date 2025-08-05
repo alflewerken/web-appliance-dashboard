@@ -84,8 +84,11 @@ export class BackupService {
       const categoriesCount = backupData.data.categories?.length || 0;
       const settingsCount = backupData.data.settings?.length || 0;
       const backgroundsCount = backupData.data.background_images?.length || 0;
+      const hostsCount = backupData.data.hosts?.length || 0;
+      const servicesCount = backupData.data.services?.length || 0;
       const sshHostsCount = backupData.data.ssh_hosts?.length || 0;
       const sshKeysCount = backupData.data.ssh_keys?.length || 0;
+      const sshUploadLogsCount = backupData.data.ssh_upload_logs?.length || 0;
       const customCommandsCount = backupData.data.custom_commands?.length || 0;
       const usersCount = backupData.data.users?.length || 0;
       const auditLogsCount = backupData.data.audit_logs?.length || 0;
@@ -103,8 +106,11 @@ export class BackupService {
         `• ${categoriesCount} Kategorien\n` +
         `• ${settingsCount} Einstellungen\n` +
         `• ${backgroundsCount} Hintergrundbilder\n` +
+        (hostsCount > 0 ? `• ${hostsCount} Terminal-Hosts\n` : '') +
+        (servicesCount > 0 ? `• ${servicesCount} Proxy-Services\n` : '') +
         (sshHostsCount > 0 ? `• ${sshHostsCount} SSH-Hosts\n` : '') +
         (sshKeysCount > 0 ? `• ${sshKeysCount} SSH-Schlüssel\n` : '') +
+        (sshUploadLogsCount > 0 ? `• ${sshUploadLogsCount} SSH-Upload-Logs\n` : '') +
         (customCommandsCount > 0
           ? `• ${customCommandsCount} Eigene Kommandos\n`
           : '') +
@@ -167,11 +173,20 @@ export class BackupService {
           `• ${result.restored_categories} Kategorien\n` +
           `• ${result.restored_settings} Einstellungen\n` +
           `• ${result.restored_background_images} Hintergrundbilder\n` +
+          (result.restored_hosts > 0
+            ? `• ${result.restored_hosts} Terminal-Hosts\n`
+            : '') +
+          (result.restored_services > 0
+            ? `• ${result.restored_services} Proxy-Services\n`
+            : '') +
           (result.restored_ssh_hosts > 0
             ? `• ${result.restored_ssh_hosts} SSH-Hosts\n`
             : '') +
           (result.restored_ssh_keys > 0
             ? `• ${result.restored_ssh_keys} SSH-Schlüssel\n`
+            : '') +
+          (result.restored_ssh_upload_logs > 0
+            ? `• ${result.restored_ssh_upload_logs} SSH-Upload-Logs\n`
             : '') +
           (result.restored_custom_commands > 0
             ? `• ${result.restored_custom_commands} Eigene Kommandos\n`

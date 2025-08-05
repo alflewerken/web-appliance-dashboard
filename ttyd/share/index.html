@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal</title>
+    <script>
+        // Suppress ttyd warnings and errors - MUST run before ttyd loads
+        (function() {
+            // Store original console methods
+            const originalWarn = console.warn;
+            const originalError = console.error;
+            const originalLog = console.log;
+            
+            // Override fetch to prevent token endpoint calls
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                const url = args[0];
+                
+                // Block ttyd token fetch attempts
+                if (typeof url === 'string' && url.includes('/terminal/token')) {
+                    // Return mock success response
+                    return Promise.resolve(new Response(JSON.stringify({
+                        success: true,
+                        token: 'not-required'
+                    }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
+                
+                return originalFetch.apply(this, args);
+            };
+            
+            // Override console.warn
+            console.warn = function(...args) {
+                const msg = args[0] ? args[0].toString() : '';
+                
+                // Suppress known non-critical warnings
+                if (msg.includes('maybe unknown option')) {
+                    return; // Suppress parameter warnings
+                }
+                if (msg.includes('WebGL renderer loaded')) {
+                    // This is info, not a warning
+                    console.log('[ttyd]', msg);
+                    return;
+                }
+                
+                return originalWarn.apply(console, args);
+            };
+            
+            // Override console.error
+            console.error = function(...args) {
+                const msg = args[0] ? args[0].toString() : '';
+                
+                // Suppress source map errors
+                if (msg.includes('Source-Map-Fehler') || msg.includes('Source-Map-Error')) {
+                    return;
+                }
+                
+                return originalError.apply(console, args);
+            };
+            
+            // Override console.log to reduce verbosity
+            console.log = function(...args) {
+                const msg = args[0] ? args[0].toString() : '';
+                
+                // Suppress verbose ttyd logs
+                if (msg.includes('[ttyd]')) {
+                    // Only show important messages
+                    if (msg.includes('connection opened') || 
+                        msg.includes('connection closed') ||
+                        msg.includes('error')) {
+                        return originalLog.apply(console, args);
+                    }
+                    // Suppress verbose logs like options, unicode version, etc.
+                    if (msg.includes('option:') || 
+                        msg.includes('setting Unicode version') ||
+                        msg.includes('WebGL renderer')) {
+                        return;
+                    }
+                }
+                
+                return originalLog.apply(console, args);
+            };
+        })();
+    </script>
+</head>
+<body>
+    <!-- ttyd will inject its content here -->
+</body>
+</html>

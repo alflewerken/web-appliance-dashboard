@@ -3,38 +3,24 @@ const express = require('express');
 const router = express.Router();
 const statusChecker = require('../utils/statusChecker');
 const pool = require('../utils/database');
+const {
+  mapServiceDbToJs,
+  getServiceSelectColumns,
+  mapServiceStatus
+} = require('../utils/dbFieldMappingServices');
 
 // GET /api/services - Get all services with their current status
 router.get('/', async (req, res) => {
   try {
     // Get all appliances with their service status
     const [appliances] = await pool.execute(`
-      SELECT 
-        id,
-        name,
-        url,
-        status_command,
-        start_command,
-        stop_command,
-        ssh_connection,
-        service_status,
-        last_status_check
+      SELECT ${getServiceSelectColumns()}
       FROM appliances
       ORDER BY name
     `);
 
-    // Map to services format
-    const services = appliances.map(appliance => ({
-      id: appliance.id,
-      name: appliance.name,
-      url: appliance.url,
-      status: appliance.service_status || 'unknown',
-      lastChecked: appliance.last_status_check,
-      hasStatusCommand: !!appliance.status_command,
-      hasStartCommand: !!appliance.start_command,
-      hasStopCommand: !!appliance.stop_command,
-      sshConfigured: !!appliance.ssh_connection
-    }));
+    // Map to services format with camelCase
+    const services = appliances.map(mapServiceDbToJs);
 
     res.json({
       success: true,
@@ -51,7 +37,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/services/check-all - Trigger status check for all services
-router.post('/check-all', async (req, res) => {
+router.post('/checkAll', async (req, res) => {
   try {
     console.log('🔄 Service check requested');
     

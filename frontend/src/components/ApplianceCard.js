@@ -5,6 +5,7 @@ import { MoreVertical, Star, Play, XCircle, Terminal } from 'lucide-react';
 import SimpleIcon from './SimpleIcon';
 import RemoteDesktopButton from './RemoteDesktopButton';
 import FileTransferButton from './FileTransferButton';
+import TerminalButton from './TerminalButton';
 import ConfirmDialog from './ConfirmDialog';
 import proxyService from '../services/proxyService';
 
@@ -33,7 +34,12 @@ const ApplianceCard = ({
   const enhancedAppliance = {
     ...appliance,
     vncEnabled: appliance.vncEnabled ?? (appliance.remoteDesktopEnabled && appliance.remoteProtocol === 'vnc'),
-    rdpEnabled: appliance.rdpEnabled ?? (appliance.remoteDesktopEnabled && appliance.remoteProtocol === 'rdp')
+    rdpEnabled: appliance.rdpEnabled ?? (appliance.remoteDesktopEnabled && appliance.remoteProtocol === 'rdp'),
+    rustdeskEnabled: appliance.rustdeskEnabled ?? (appliance.remoteDesktopEnabled && appliance.remoteDesktopType === 'rustdesk'),
+    // Ensure remoteDesktopType is included for RemoteDesktopButton
+    remoteDesktopType: appliance.remoteDesktopType,
+    rustdeskInstalled: appliance.rustdeskInstalled,
+    rustdeskId: appliance.rustdeskId
   };
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -314,7 +320,7 @@ const ApplianceCard = ({
     // Prevent click if clicking on interactive elements
     if (
       e.target.closest(
-        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn'
+        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn, .remote-desktop-button, .remote-desktop-button-wrapper'
       )
     ) {
       return;
@@ -612,34 +618,34 @@ const ApplianceCard = ({
                     </IconButton>
                   </Tooltip>
                   {adminMode && appliance.sshConnection && (
-                    <Tooltip title="Terminal öffnen">
-                      <IconButton
-                        onClick={e => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onOpenTerminal(appliance);
-                        }}
-                        size="small"
-                        sx={{
-                          backgroundColor: 'rgba(156, 39, 176, 0.3)',
-                          border: '1px solid rgba(156, 39, 176, 0.5)',
-                          color: 'white',
-                          '&:hover': {
-                            backgroundColor: 'rgba(156, 39, 176, 0.5)',
-                          },
-                          width: 28,
-                          height: 28,
-                          padding: 0,
-                        }}
-                      >
-                        <Terminal size={16} />
-                      </IconButton>
-                    </Tooltip>
+                    <TerminalButton 
+                      appliance={appliance}
+                      onClick={onOpenTerminal}
+                    />
                   )}
                   {/* Remote Desktop Button */}
-                  <RemoteDesktopButton appliance={enhancedAppliance} />
+                  {appliance.remoteDesktopEnabled && (
+                    (() => {
+                      console.log('Remote Desktop Debug:', {
+                        enabled: appliance.remoteDesktopEnabled,
+                        type: appliance.remoteDesktopType,
+                        protocol: appliance.remoteProtocol
+                      });
+                      return (
+                        <RemoteDesktopButton 
+                          appliance={enhancedAppliance} 
+                          onUpdate={(updatedAppliance) => {
+                            // Update the appliance data when RustDesk is installed
+                            if (onUpdate) {
+                              onUpdate(updatedAppliance);
+                            }
+                          }}
+                        />
+                      );
+                    })()
+                  )}
                   {/* File Transfer Button */}
-                  <FileTransferButton appliance={enhancedAppliance} />
+              <FileTransferButton appliance={enhancedAppliance} />
                 </div>
               )}
               

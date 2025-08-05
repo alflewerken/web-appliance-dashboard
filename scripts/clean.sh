@@ -102,44 +102,128 @@ echo ""
 if [ "$CLEAN_DOCKER" = true ]; then
     print_status "info" "Stopping and removing Docker containers..."
     
+    # First: List all running containers from our project
+    print_status "info" "Checking for running containers..."
+    RUNNING_CONTAINERS=$(docker ps --format '{{.Names}}' | grep -E "(appliance_|web-appliance|rustdesk)" || true)
+    if [ -n "$RUNNING_CONTAINERS" ]; then
+        echo "Found running containers:"
+        echo "$RUNNING_CONTAINERS" | sed 's/^/  - /'
+    fi
+    
     # Main project containers
-    docker compose down 2>/dev/null || true
+    docker compose down --remove-orphans 2>/dev/null || true
+    
+    # RustDesk containers
+    if [ -f "docker-compose.rustdesk.yml" ]; then
+        docker compose -f docker-compose.rustdesk.yml down --remove-orphans 2>/dev/null || true
+    fi
     
     # macOS app containers
     if [ -f "Mac-Standalone/docker-compose.app.yml" ]; then
         cd Mac-Standalone
-        docker compose -f docker-compose.app.yml -p web-appliance-app down 2>/dev/null || true
+        docker compose -f docker-compose.app.yml -p web-appliance-app down --remove-orphans 2>/dev/null || true
         cd ..
+    fi
+    
+    # Force stop and remove any remaining containers with our naming patterns
+    print_status "info" "Cleaning up any remaining containers..."
+    
+    # Stop containers first
+    docker ps -a --format '{{.Names}}' | grep -E "(appliance_|web-appliance|rustdesk|wad_)" | xargs -r docker stop 2>/dev/null || true
+    
+    # Then remove them
+    docker ps -a --format '{{.Names}}' | grep -E "(appliance_|web-appliance|rustdesk|wad_)" | xargs -r docker rm -f 2>/dev/null || true
+    
+    # Remove Docker images if --nocache equivalent behavior is desired
+    if [ "$CLEAN_VOLUMES" = true ]; then
+        print_status "info" "Removing Docker images..."
+        
+        # Remove project images
+        docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "(web-appliance|appliance)" | xargs -r docker rmi -f 2>/dev/null || true
+        
+        # Remove dangling images
+        docker image prune -f 2>/dev/null || true
     fi
     
     if [ "$CLEAN_VOLUMES" = true ]; then
         print_status "warning" "Removing Docker volumes..."
-        # Haupt-Projekt Volumes
-        docker volume rm web-appliance-dashboard_db_data 2>/dev/null || true
-        docker volume rm web-appliance-dashboard_ssh_keys 2>/dev/null || true
-        docker volume rm web-appliance-dashboard_uploads 2>/dev/null || true
-        docker volume rm web-appliance-dashboard_guacamole_db 2>/dev/null || true
-        docker volume rm web-appliance-dashboard_guacamole_drive 2>/dev/null || true
-        docker volume rm web-appliance-dashboard_guacamole_record 2>/dev/null || true
-        docker volume rm web-appliance-dashboard_guacamole_home 2>/dev/null || true
         
-        # Legacy Volume Namen (falls vorhanden)
-        docker volume rm wad_db_data 2>/dev/null || true
-        docker volume rm wad_ssh_keys 2>/dev/null || true
-        docker volume rm wad_uploads 2>/dev/null || true
-        docker volume rm wad_guacamole_db 2>/dev/null || true
-        docker volume rm wad_guacamole_drive 2>/dev/null || true
-        docker volume rm wad_guacamole_record 2>/dev/null || true
-        docker volume rm wad_guacamole_home 2>/dev/null || true
+        # First: Stop ALL containers to ensure volumes can be removed
+        print_status "info" "Ensuring all containers are stopped..."
         
-        # macOS App Volumes
-        docker volume rm wad_app_db_data 2>/dev/null || true
-        docker volume rm wad_app_ssh_keys 2>/dev/null || true
-        docker volume rm wad_app_uploads 2>/dev/null || true
-        docker volume rm wad_app_guacamole_db 2>/dev/null || true
-        docker volume rm wad_app_guacamole_drive 2>/dev/null || true
-        docker volume rm wad_app_guacamole_record 2>/dev/null || true
-        docker volume rm wad_app_guacamole_home 2>/dev/null || true
+        # Stop all project related containers
+        docker compose down 2>/dev/null || true
+        docker compose -f docker-compose.rustdesk.yml down 2>/dev/null || true
+        if [ -f "Mac-Standalone/docker-compose.app.yml" ]; then
+            cd Mac-Standalone
+            docker compose -f docker-compose.app.yml -p web-appliance-app down 2>/dev/null || true
+            cd ..
+        fi
+        
+        # Force remove any remaining containers with our project name
+        docker ps -a --format '{{.Names}}' | grep -E "(appliance_|web-appliance)" | xargs -r docker rm -f 2>/dev/null || true
+        
+        # Now remove volumes using docker-compose down -v
+        print_status "info" "Using docker compose to remove all project volumes..."
+        
+        # Main project volumes
+        docker compose down -v 2>/dev/null || true
+        
+        # RustDesk volumes
+        if [ -f "docker-compose.rustdesk.yml" ]; then
+            docker compose -f docker-compose.rustdesk.yml down -v 2>/dev/null || true
+        fi
+        
+        # macOS app volumes
+        if [ -f "Mac-Standalone/docker-compose.app.yml" ]; then
+            cd Mac-Standalone
+            docker compose -f docker-compose.app.yml -p web-appliance-app down -v 2>/dev/null || true
+            cd ..
+        fi
+        
+        # Zusätzlich: Entferne ALLE Volumes die mit web-appliance beginnen (mit und ohne -dashboard)
+        print_status "info" "Removing any remaining web-appliance volumes..."
+        
+        # List all volumes that match our patterns
+        VOLUMES_TO_REMOVE=$(docker volume ls -q | grep -E "^(web-appliance|wad_)" || true)
+        
+        if [ -n "$VOLUMES_TO_REMOVE" ]; then
+            echo "Found volumes to remove:"
+            echo "$VOLUMES_TO_REMOVE" | sed 's/^/  - /'
+            
+            # Remove each volume
+            echo "$VOLUMES_TO_REMOVE" | while read -r volume; do
+                if [ -n "$volume" ]; then
+                    docker volume rm "$volume" 2>/dev/null && \
+                        print_status "success" "Removed volume: $volume" || \
+                        print_status "warning" "Could not remove volume: $volume (might be in use)"
+                fi
+            done
+        else
+            print_status "info" "No matching volumes found to remove"
+        fi
+        
+        # Legacy Volume Namen (falls noch vorhanden)
+        print_status "info" "Checking for legacy volumes..."
+        LEGACY_VOLUMES="wad_db_data wad_ssh_keys wad_uploads wad_guacamole_db wad_guacamole_drive wad_guacamole_record wad_guacamole_home wad_rustdesk_data wad_terminal_sessions"
+        for vol in $LEGACY_VOLUMES; do
+            if docker volume ls -q | grep -q "^${vol}$"; then
+                docker volume rm "$vol" 2>/dev/null && \
+                    print_status "success" "Removed legacy volume: $vol" || \
+                    print_status "warning" "Could not remove legacy volume: $vol"
+            fi
+        done
+        
+        # Final check: List any remaining volumes from our project
+        REMAINING_VOLUMES=$(docker volume ls -q | grep -E "^(web-appliance|wad_|appliance)" || true)
+        if [ -n "$REMAINING_VOLUMES" ]; then
+            print_status "warning" "Some volumes could not be removed:"
+            echo "$REMAINING_VOLUMES" | sed 's/^/  - /'
+            echo ""
+            print_status "info" "You may need to stop containers manually or use: docker volume rm -f <volume_name>"
+        else
+            print_status "success" "All project volumes removed successfully"
+        fi
     fi
     
     print_status "success" "Docker cleanup complete"
@@ -192,9 +276,15 @@ if [ -d "terminal-app" ]; then
     print_status "success" "Terminal app cleaned"
 fi
 
+# 5.5 RustDesk cleanup
+print_status "info" "Cleaning RustDesk data..."
+rm -rf rustdesk/data/*
+rm -rf rustdesk/web-config/*
+print_status "success" "RustDesk cleaned"
+
 # 6. General project cleanup
 print_status "info" "Cleaning general project files..."
-rm -f .env
+# .env wird nur bei --all gelöscht, nicht hier!
 rm -rf .cache
 rm -rf .npm
 rm -f *.log
@@ -213,8 +303,12 @@ print_status "info" "Preserving my-data directory..."
 # Clean environment files if --all is specified
 if [ "$CLEAN_APP_DATA" = true ]; then
     print_status "info" "Removing all .env files (--all specified)..."
+    rm -f .env
     rm -f frontend/.env
     rm -f backend/.env
+    rm -f Mac-Electron/.env.electron
+    # Entferne auch alle anderen .env* Dateien (außer .example)
+    find . -name ".env*" -type f ! -name "*.example" ! -name ".env.defaults" -delete 2>/dev/null || true
     print_status "success" "All .env files removed"
 fi
 

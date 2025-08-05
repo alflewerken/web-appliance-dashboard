@@ -23,15 +23,15 @@ const terminals = new Map();
 function setupTerminalWebSocket(server) {
   const wss = new WebSocket.Server({
     noServer: true,
-    path: '/api/terminal-session',
+    path: '/api/terminalSession',
   });
 
   // Handle WebSocket upgrade
   server.on('upgrade', (request, socket, head) => {
     console.log('WebSocket upgrade request:', request.url);
     if (
-      request.url === '/api/terminal-session' ||
-      request.url.startsWith('/api/terminal-session')
+      request.url === '/api/terminalSession' ||
+      request.url.startsWith('/api/terminalSession')
     ) {
       wss.handleUpgrade(request, socket, head, ws => {
         wss.emit('connection', ws, request);

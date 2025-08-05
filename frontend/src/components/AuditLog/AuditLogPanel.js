@@ -223,6 +223,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     password_change: Shield,
     command_execute: Terminal,
     command_execute_failed: AlertTriangle,
+    terminal_open: Terminal,
+    terminal_disconnect: Terminal,
+    terminal_command: Terminal,
     audit_logs_delete: Trash2,
   };
 
@@ -232,7 +235,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     setError(null);
 
     try {
-      const response = await axios.get('/api/audit-logs');
+      const response = await axios.get('/api/auditLogs');
       setLogs(response.data);
       setFilteredLogs(response.data);
       calculateStats(response.data);
@@ -298,6 +301,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       ssh_key_create: 'SSH-Schlüssel erstellt',
       ssh_key_delete: 'SSH-Schlüssel gelöscht',
       ssh_connection_test: 'SSH-Verbindung getestet',
+      ssh_file_upload: 'Datei hochgeladen',
       service_start: 'Service gestartet',
       service_stop: 'Service gestoppt',
       service_start_failed: 'Service Start fehlgeschlagen',
@@ -306,6 +310,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       password_changed: 'Passwort geändert',
       command_execute: 'Kommando ausgeführt',
       command_execute_failed: 'Kommando fehlgeschlagen',
+      terminal_open: 'Terminal geöffnet',
+      terminal_disconnect: 'Terminal geschlossen',
+      terminal_command: 'Terminal-Befehl',
       audit_logs_delete: 'Audit Logs gelöscht',
       audit_log_created: 'Audit Log erstellt',
     };
@@ -395,9 +402,13 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       'ssh_host_created',
       'ssh_host_updated',
       'ssh_host_deleted',
-      'ssh_host_restored',
+      'ssh_host_restored', 
       'ssh_host_reverted',
+      'ssh_file_upload',
       'command_executed',
+      'terminal_open',
+      'terminal_disconnect',
+      'terminal_command',
       'audit_logs_deleted',
       'audit_log_created',
     ];
@@ -521,7 +532,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         params.append('resource_type', selectedResourceType);
       }
 
-      const response = await axios.get(`/api/audit-logs/export?${params.toString()}`, {
+      const response = await axios.get(`/api/auditLogs/export?${params.toString()}`, {
         responseType: 'blob',
       });
 
@@ -620,13 +631,13 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         if (log.details) {
           try {
             const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
-            resourceName = details.name || details.service_name || details.appliance_name || '';
+            resourceName = details.displayName || details.hostIdentifier || details.name || details.service_name || details.appliance_name || '';
           } catch (e) {
             console.error('Error parsing details:', e);
           }
         }
 
-        const resourceDisplay = resourceName || 
+        const resourceDisplay = log.resource_name || resourceName || 
           (log.resource_type && log.resource_id ? `${log.resource_type} #${log.resource_id}` : log.resource_type || '-');
 
         printWindow.document.write(`
@@ -681,7 +692,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     try {
       const logIds = filteredLogs.map(log => log.id);
 
-      const response = await axios.delete('/api/audit-logs/delete', {
+      const response = await axios.delete('/api/auditLogs/delete', {
         data: { ids: logIds },
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -691,6 +702,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       if (response.data.success) {
         await fetchAuditLogs();
         alert(`${response.data.deletedCount} Audit Log Einträge wurden erfolgreich gelöscht.`);
+      } else {
+        // Sollte normalerweise nicht passieren, da das Backend bei Fehler einen HTTP-Fehlercode sendet
+        throw new Error(response.data.error || 'Unbekannter Fehler beim Löschen');
       }
     } catch (err) {
       console.error('Error deleting audit logs:', err);

@@ -99,7 +99,7 @@ Service.prototype.getProxyUrl = function(path = '') {
 
 Service.prototype.getWebSocketUrl = function(path = '') {
     const port = this.port || 80;
-    return `/api/ws-proxy/${this.ip_address}:${port}/${path}`;
+    return `/api/wsProxy/${this.ip_address}:${port}/${path}`;
 };
 
 // Helper methods remain the same

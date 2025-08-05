@@ -103,6 +103,11 @@ class SSEService {
           'ssh_host_deleted',
           'ssh_host_restored',
           'ssh_host_reverted',
+          'host_created',
+          'host_updated',
+          'host_deleted',
+          'host_restored',
+          'host_reverted',
           'command_executed',
           'command_execute_failed',
           'ssh_connection_test',
@@ -120,7 +125,9 @@ class SSEService {
             try {
               const data = JSON.parse(event.data);
               // Log to debugger
-
+              if (eventType.includes('host_')) {
+                console.log(`🔔 SSE Event received: ${eventType}`, data);
+              }
 
               this.notifyListeners(eventType, data);
             } catch (error) {

@@ -27,7 +27,6 @@ import {
   GitBranch,
 } from 'lucide-react';
 import axios from '../../utils/axiosConfig';
-import SSHAuditDetail from './SSHAuditDetail';
 
 const AuditLogTable = ({
   filteredLogs,
@@ -39,6 +38,8 @@ const AuditLogTable = ({
   toggleRowExpansion,
   onRefresh,
   isCompactView = false,
+  onSSHHostRestore,
+  onSSHHostRevert,
 }) => {
   // State für die Ansichtsumschaltung pro Zeile
   const [viewModes, setViewModes] = useState({});
@@ -124,16 +125,19 @@ const AuditLogTable = ({
         // For deletions, use the appropriate restore endpoint based on resource type
         switch (log.resource_type) {
           case 'appliances':
-            endpoint = `/api/audit-restore/restore/appliances/${log.id}`;
+            endpoint = `/api/auditRestore/restore/appliances/${log.id}`;
             break;
           case 'users':
-            endpoint = `/api/audit-restore/restore/users/${log.id}`;
+            endpoint = `/api/auditRestore/restore/users/${log.id}`;
             break;
           case 'categories':
-            endpoint = `/api/audit-restore/restore/category/${log.id}`;
+            endpoint = `/api/auditRestore/restore/category/${log.id}`;
             break;
           case 'ssh_host':
-            endpoint = `/api/audit-restore/restore/ssh_hosts/${log.id}`;
+            endpoint = `/api/auditRestore/restore/ssh_hosts/${log.id}`;
+            break;
+          case 'hosts':
+            endpoint = `/api/auditRestore/restore/hosts/${log.id}`;
             break;
           default:
             throw new Error(
@@ -147,16 +151,19 @@ const AuditLogTable = ({
         // For updates/reverts, use the appropriate revert endpoint based on resource type
         switch (log.resource_type) {
           case 'appliances':
-            endpoint = `/api/audit-restore/revert/appliances/${log.id}`;
+            endpoint = `/api/auditRestore/revert/appliances/${log.id}`;
             break;
           case 'users':
-            endpoint = `/api/audit-restore/revert/users/${log.id}`;
+            endpoint = `/api/auditRestore/revert/users/${log.id}`;
             break;
           case 'categories':
-            endpoint = `/api/audit-restore/revert/category/${log.id}`;
+            endpoint = `/api/auditRestore/revert/category/${log.id}`;
             break;
           case 'ssh_host':
-            endpoint = `/api/audit-restore/revert/ssh_hosts/${log.id}`;
+            endpoint = `/api/auditRestore/revert/ssh_hosts/${log.id}`;
+            break;
+          case 'hosts':
+            endpoint = `/api/auditRestore/revert/hosts/${log.id}`;
             break;
           default:
             throw new Error(
@@ -1701,6 +1708,8 @@ const AuditLogTable = ({
                       : log.details;
                   // Erweiterte Suche nach Namen - prüfe verschiedene mögliche Felder
                   resourceName =
+                    details.displayName ||
+                    details.hostIdentifier ||
                     details.name ||
                     details.command_description ||
                     details.service_name ||
@@ -1713,7 +1722,7 @@ const AuditLogTable = ({
               }
 
               // Determine resource display
-              let resourceDisplay = resourceName;
+              let resourceDisplay = log.resource_name || resourceName;
 
               // If we don't have a name from details, check for specific fields in details
               if (!resourceDisplay && log.details) {
@@ -2014,13 +2023,6 @@ const AuditLogTable = ({
                                     2
                                   )}
                                 </pre>
-                              ) : (() => {
-                                  return log.resource_type === 'ssh_host';
-                                })() ? (
-                                <SSHAuditDetail
-                                  logEntry={log}
-                                  onClose={() => toggleRowExpansion(log.id)}
-                                />
                               ) : (
                                 <FormattedDetails
                                   details={log.details}

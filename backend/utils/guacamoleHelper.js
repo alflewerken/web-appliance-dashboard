@@ -25,41 +25,12 @@ async function syncGuacamoleConnection(appliance) {
       }
     }
 
-    // Hole SSH-Credentials wenn ein SSH-Host verknüpft ist
-    let sshCredentials = null;
-    if (appliance.ssh_host_id) {
-      try {
-        const [sshHosts] = await pool.execute(
-          'SELECT hostname, username, password_encrypted FROM ssh_hosts WHERE id = ?',
-          [appliance.ssh_host_id]
-        );
-        
-        if (sshHosts.length > 0) {
-          const sshHost = sshHosts[0];
-          sshCredentials = {
-            hostname: sshHost.hostname,
-            username: sshHost.username,
-            password: null
-          };
-          
-          // Entschlüssele SSH-Passwort
-          if (sshHost.password_encrypted) {
-            try {
-              sshCredentials.password = decrypt(sshHost.password_encrypted);
-            } catch (error) {
-              console.error(`Failed to decrypt SSH password for host ${appliance.ssh_host_id}:`, error.message);
-            }
-          }
-        }
-      } catch (error) {
-        console.error(`Failed to fetch SSH host for appliance ${appliance.id}:`, error.message);
-      }
-    }
+    // SSH functionality moved to hosts table - no longer needed
+    // Appliances should have direct remote desktop configuration
 
     const dbManager = new GuacamoleDBManager();
     
     try {
-      // Erstelle Konfiguration mit SSH-Credentials falls verfügbar
       const connectionConfig = {
         protocol: appliance.remote_protocol || 'vnc',
         hostname: appliance.remote_host,
@@ -67,13 +38,6 @@ async function syncGuacamoleConnection(appliance) {
         username: appliance.remote_username || '',
         password: decryptedPassword || ''
       };
-      
-      // Füge SSH-Credentials hinzu wenn verfügbar
-      if (sshCredentials) {
-        connectionConfig.sshHostname = sshCredentials.hostname;
-        connectionConfig.sshUsername = sshCredentials.username;
-        connectionConfig.sshPassword = sshCredentials.password;
-      }
       
       // Erstelle oder aktualisiere die Verbindung
       await dbManager.createOrUpdateConnection(appliance.id, connectionConfig);

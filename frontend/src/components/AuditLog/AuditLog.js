@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import axios from '../../utils/axiosConfig';
 import AuditLogTable from './AuditLogTable';
-import SSHAuditDetail from './SSHAuditDetail';
 import { useSSE } from '../../hooks/useSSE';
 import './AuditLog.css';
 import './AuditLog.light.css';
@@ -164,6 +163,9 @@ const AuditLog = ({ onClose }) => {
     password_change: Shield,
     command_execute: Terminal,
     command_execute_failed: AlertTriangle,
+    terminal_open: Terminal,
+    terminal_disconnect: Terminal,
+    terminal_command: Terminal,
     audit_logs_delete: Trash2,
   };
 
@@ -173,7 +175,7 @@ const AuditLog = ({ onClose }) => {
     setError(null);
 
     try {
-      const response = await axios.get('/api/audit-logs');
+      const response = await axios.get('/api/auditLogs');
       // Debug-Ausgabe
       setLogs(response.data);
       setFilteredLogs(response.data);
@@ -277,7 +279,11 @@ const AuditLog = ({ onClose }) => {
       'ssh_host_deleted',
       'ssh_host_restored',
       'ssh_host_reverted',
+      'ssh_file_upload',
       'command_executed',
+      'terminal_open',
+      'terminal_disconnect',
+      'terminal_command',
       'audit_logs_deleted',
       'audit_log_created', // Generic event for any audit log creation
     ];
@@ -454,7 +460,7 @@ const AuditLog = ({ onClose }) => {
   // SSH Host Restore Handler
   const handleSSHHostRestore = async hostId => {
     try {
-      const response = await axios.post(`/api/ssh/hosts/${hostId}/restore`);
+      const response = await axios.post(`/api/hosts/${hostId}/restore`);
       if (response.data.success) {
         fetchAuditLogs(); // Refresh audit logs
         // Show success message (you might want to add a toast notification here)
@@ -469,7 +475,7 @@ const AuditLog = ({ onClose }) => {
   const handleSSHHostRevert = async (hostId, historyId) => {
     try {
       const response = await axios.post(
-        `/api/ssh/hosts/${hostId}/revert/${historyId}`
+        `/api/hosts/${hostId}/revert/${historyId}`
       );
       if (response.data.success) {
         fetchAuditLogs(); // Refresh audit logs
@@ -550,11 +556,15 @@ const AuditLog = ({ onClose }) => {
       ssh_host_restore: 'SSH-Host wiederhergestellt',
       ssh_host_revert: 'SSH-Host zurückgesetzt',
       ssh_connection_test: 'SSH-Verbindung getestet',
+      ssh_file_upload: 'Datei hochgeladen',
       service_start: 'Service gestartet',
       service_stop: 'Service gestoppt',
       password_change: 'Passwort geändert',
       command_execute: 'Kommando ausgeführt',
       command_execute_failed: 'Kommando fehlgeschlagen',
+      terminal_open: 'Terminal geöffnet',
+      terminal_disconnect: 'Terminal geschlossen',
+      terminal_command: 'Terminal-Befehl',
       audit_logs_delete: 'Audit Logs gelöscht',
     };
 
@@ -621,7 +631,7 @@ const AuditLog = ({ onClose }) => {
       }
 
       const response = await axios.get(
-        `/api/audit-logs/export?${params.toString()}`,
+        `/api/auditLogs/export?${params.toString()}`,
         {
           responseType: 'blob',
         }
@@ -740,6 +750,8 @@ const AuditLog = ({ onClose }) => {
                 ? JSON.parse(log.details)
                 : log.details;
             resourceName =
+              details.displayName ||
+              details.hostIdentifier ||
               details.name ||
               details.service_name ||
               details.appliance_name ||
@@ -750,6 +762,7 @@ const AuditLog = ({ onClose }) => {
         }
 
         const resourceDisplay =
+          log.resource_name ||
           resourceName ||
           (log.resource_type && log.resource_id
             ? `${log.resource_type} #${log.resource_id}`
@@ -809,7 +822,7 @@ const AuditLog = ({ onClose }) => {
     try {
       const logIds = filteredLogs.map(log => log.id);
 
-      const response = await axios.delete('/api/audit-logs/delete', {
+      const response = await axios.delete('/api/auditLogs/delete', {
         data: { ids: logIds },
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -824,6 +837,9 @@ const AuditLog = ({ onClose }) => {
         alert(
           `${response.data.deletedCount} Audit Log Einträge wurden erfolgreich gelöscht.`
         );
+      } else {
+        // Sollte normalerweise nicht passieren, da das Backend bei Fehler einen HTTP-Fehlercode sendet
+        throw new Error(response.data.error || 'Unbekannter Fehler beim Löschen');
       }
     } catch (err) {
       console.error('Error deleting audit logs:', err);
@@ -1293,6 +1309,8 @@ const AuditLog = ({ onClose }) => {
                         ? JSON.parse(log.details)
                         : log.details;
                     resourceName =
+                      details.displayName ||
+                      details.hostIdentifier ||
                       details.name ||
                       details.command_description ||
                       details.service_name ||
@@ -1313,7 +1331,7 @@ const AuditLog = ({ onClose }) => {
                   }
                 }
 
-                let resourceDisplay = resourceName;
+                let resourceDisplay = log.resource_name || resourceName;
 
                 // Only use generic format if we have no name
                 if (!resourceDisplay) {
@@ -1510,16 +1528,16 @@ const AuditLog = ({ onClose }) => {
                                     if (isDeleted) {
                                       switch (resourceType) {
                                         case 'appliances':
-                                          endpoint = `/api/audit-restore/restore/appliances/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/appliances/${log.id}`;
                                           break;
                                         case 'users':
-                                          endpoint = `/api/audit-restore/restore/users/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/users/${log.id}`;
                                           break;
                                         case 'categories':
-                                          endpoint = `/api/audit-restore/restore/categories/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/categories/${log.id}`;
                                           break;
                                         case 'ssh_host':
-                                          endpoint = `/api/audit-restore/restore/ssh_hosts/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/ssh_hosts/${log.id}`;
                                           break;
                                         default:
                                           throw new Error(
@@ -1529,16 +1547,16 @@ const AuditLog = ({ onClose }) => {
                                     } else {
                                       switch (resourceType) {
                                         case 'appliances':
-                                          endpoint = `/api/audit-restore/revert/appliances/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/appliances/${log.id}`;
                                           break;
                                         case 'users':
-                                          endpoint = `/api/audit-restore/revert/users/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/users/${log.id}`;
                                           break;
                                         case 'categories':
-                                          endpoint = `/api/audit-restore/revert/categories/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/categories/${log.id}`;
                                           break;
                                         case 'ssh_host':
-                                          endpoint = `/api/audit-restore/revert/ssh_hosts/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/ssh_hosts/${log.id}`;
                                           break;
                                         default:
                                           throw new Error(
@@ -1736,6 +1754,8 @@ const AuditLog = ({ onClose }) => {
               getActionIcon={getActionIcon}
               expandedRows={expandedRows}
               toggleRowExpansion={toggleRowExpansion}
+              onSSHHostRestore={handleSSHHostRestore}
+              onSSHHostRevert={handleSSHHostRevert}
             />
           )}
         </div>

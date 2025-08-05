@@ -23,10 +23,8 @@
   --terminal-light-info: #1890ff;
 }
 
-/* Import all terminal CSS files */
-@import './XTerminal.css';
+/* Import remaining terminal CSS file */
 @import './TTYDTerminal.css';
-@import './TerminalModal.css';
 
 /* Additional global terminal styles for light mode */
 body.theme-light .terminal-container,

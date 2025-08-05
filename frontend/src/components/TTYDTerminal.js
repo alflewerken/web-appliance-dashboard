@@ -1,9 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { X, Maximize2, Minimize2, RefreshCw, ExternalLink } from 'lucide-react';
+import TerminalIcon from '@mui/icons-material/Terminal';
 import './TTYDTerminal.css';
 import { moveTerminalToNewWindow } from '../utils/terminalWindow';
 import axios from '../utils/axiosConfig';
+import '../utils/terminalErrorSuppressor';
 
 const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = null, title = 'Terminal' }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
@@ -39,9 +41,9 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
         }
       }
       // Fallback: Verwende SSH-Host-ID wenn verfügbar
-      else if (appliance.ssh_host_id && appliance.ssh_host) {
+      else if (appliance.sshHostId && appliance.ssh_host) {
         sshData = {
-          hostId: appliance.ssh_host_id,
+          hostId: appliance.sshHostId,
           host: appliance.ssh_host.hostname || appliance.ssh_host.name || '',
           user: appliance.ssh_host.username || '',
           port: appliance.ssh_host.port || 22
@@ -49,7 +51,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
       } else if (appliance.sshHost) {
         // Alternative Property-Namen
         sshData = {
-          hostId: appliance.sshHostId || appliance.ssh_host_id || '',
+          hostId: appliance.sshHostId || appliance.sshHostId || '',
           host: appliance.sshHost || '',
           user: appliance.sshUser || '',
           port: appliance.sshPort || 22
@@ -98,6 +100,18 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   // Terminal läuft über nginx proxy auf /terminal/
   const terminalUrl = `/terminal/${params.toString() ? '?' + params.toString() : ''}`;
   
+  // Erstelle den Anzeige-Titel
+  const displayTitle = (() => {
+    if (host && host.name) {
+      return `Terminal - ${host.name}`;
+    } else if (sshData.host) {
+      // Versuche den Hostname aus den Daten zu extrahieren
+      return `Terminal - ${sshData.host}`;
+    } else if (appliance && appliance.name) {
+      return `Terminal - ${appliance.name}`;
+    }
+    return title;
+  })();
   // Debug-Ausgabe
 
   const toggleFullscreen = () => {
@@ -122,7 +136,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
           sessionData.sshConnection = `${sshData.user}@${sshData.host}:${sshData.port || 22}`;
         }
         
-        const response = await axios.post('/api/ssh/terminal-session', sessionData);
+        const response = await axios.post('/api/terminal/session', sessionData);
 
         // Wait for session file to be written
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -154,8 +168,8 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
       >
         <div className="terminal-header">
           <h3 className="terminal-title">
-            <span className="terminal-icon">_</span>
-            {title}
+            <TerminalIcon style={{ fontSize: 20, marginRight: 8, verticalAlign: 'middle' }} />
+            {displayTitle}
           </h3>
           <div className="terminal-controls">
             <button

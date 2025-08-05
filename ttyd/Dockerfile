@@ -19,6 +19,12 @@ RUN echo "Acquire::Check-Valid-Until \"false\";" > /etc/apt/apt.conf.d/99no-chec
 # Create .ssh directory for keys
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh
 
+# Create directory for custom ttyd files
+RUN mkdir -p /usr/share/ttyd
+
+# Copy custom index.html to suppress warnings
+COPY share/index.html /usr/share/ttyd/index.html
+
 # Ensure SSH binary exists
 RUN which ssh || echo "Warning: SSH installation may have failed"
 

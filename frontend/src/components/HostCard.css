@@ -1,0 +1,60 @@
+/* Host Card Specific Styles */
+
+/* Ensure minimum size for host cards */
+.appliances-grid {
+  --min-card-size: 150px;
+}
+
+/* Override card size if too small */
+.appliance-card {
+  min-width: var(--min-card-size, 150px);
+  min-height: calc(var(--min-card-size, 150px) + 80px);
+}
+
+/* Dark info overlay at bottom - similar to service cards */
+.card-info-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.6) 50%,
+    rgba(0, 0, 0, 0.4) 70%,
+    transparent 100%
+  );
+  padding: 20px 12px 12px 12px;
+  text-align: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.card-info-overlay .card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  line-height: 1.2;
+}
+
+/* Adjust text for smaller cards */
+@media (max-width: 768px), (max-height: 600px) {
+  .appliance-card .title {
+    font-size: 14px;
+  }
+  
+  .appliance-card .subtitle {
+    font-size: 12px;
+  }
+  
+  .appliance-card .action-button span {
+    font-size: 11px;
+  }
+}
+
+/* For very small card sizes */
+.appliances-grid[style*="--card-size: 1"] {
+  --card-size: 150px !important;
+}

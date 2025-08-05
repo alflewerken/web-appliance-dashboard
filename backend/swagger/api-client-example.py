@@ -184,7 +184,7 @@ class WebApplianceAPIClient:
     def check_appliance_status(self, appliance_ids: List[int]) -> Dict[str, Any]:
         """Check status of multiple appliances."""
         response = self.session.post(
-            f"{self.base_url}/api/status-check",
+            f"{self.base_url}/api/statusCheck",
             headers=self._get_headers(),
             json={"applianceIds": appliance_ids}
         )
@@ -201,7 +201,7 @@ class WebApplianceAPIClient:
             params["userId"] = user_id
             
         response = self.session.get(
-            f"{self.base_url}/api/audit-logs",
+            f"{self.base_url}/api/auditLogs",
             headers=self._get_headers(),
             params=params
         )

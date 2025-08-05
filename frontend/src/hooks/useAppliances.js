@@ -105,43 +105,28 @@ export const useAppliances = () => {
   };
 
   const toggleFavorite = async appliance => {
-    // Stelle sicher, dass transparency und blur Werte erhalten bleiben
-    const updatedAppliance = {
-      name: appliance.name,
-      url: appliance.url,
-      description: appliance.description,
-      icon: appliance.icon,
-      color: appliance.color,
-      category: appliance.category,
-      isFavorite: !appliance.isFavorite,
-      startCommand: appliance.startCommand,
-      stopCommand: appliance.stopCommand,
-      statusCommand: appliance.statusCommand,
-      autoStart: appliance.autoStart,
-      sshConnection: appliance.sshConnection,
-      // Wichtig: transparency und blur explizit übernehmen
-      transparency:
-        appliance.transparency !== undefined ? appliance.transparency : 0.7,
-      blur: appliance.blur !== undefined ? appliance.blur : 8,
-    };
+    try {
+      // Verwende PATCH statt PUT für partielle Updates
+      const result = await ApplianceService.patchAppliance(appliance.id, {
+        isFavorite: !appliance.isFavorite
+      });
 
-    const result = await ApplianceService.updateAppliance(
-      appliance.id,
-      updatedAppliance
-    );
+      if (result) {
+        // Optimistic update für sofortiges Feedback
+        setAppliances(prev =>
+          prev.map(app =>
+            app.id === appliance.id
+              ? { ...app, isFavorite: !appliance.isFavorite }
+              : app
+          )
+        );
+      }
 
-    if (result) {
-      // Optimistic update für sofortiges Feedback
-      setAppliances(prev =>
-        prev.map(app =>
-          app.id === appliance.id
-            ? { ...app, isFavorite: !appliance.isFavorite }
-            : app
-        )
-      );
+      return result;
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      throw error;
     }
-
-    return result;
   };
 
   const openAppliance = async (appliance, applianceIdParam) => {

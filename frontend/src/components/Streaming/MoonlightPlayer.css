@@ -1,0 +1,179 @@
+/* MoonlightPlayer.css */
+
+.moonlight-player {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+}
+
+.moonlight-player video {
+  cursor: none;
+}
+
+.moonlight-player:hover video {
+  cursor: default;
+}
+
+.moonlight-player.fullscreen video {
+  cursor: none;
+}
+
+/* Input overlay for capturing events */
+.input-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: all;
+}
+
+/* Performance stats overlay */
+.perf-stats {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  z-index: 20;
+}
+
+.perf-stats div {
+  margin-bottom: 4px;
+}
+
+/* Loading spinner */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 30;
+}
+
+/* Stream quality indicator */
+.quality-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 4px;
+  z-index: 20;
+}
+
+.quality-indicator .signal {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.quality-indicator .signal.good {
+  background-color: #4caf50;
+}
+
+.quality-indicator .signal.medium {
+  background-color: #ff9800;
+}
+
+.quality-indicator .signal.poor {
+  background-color: #f44336;
+}
+
+/* Gamepad visualization */
+.gamepad-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  border-radius: 8px;
+  z-index: 20;
+}
+
+.gamepad-button {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  margin: 2px;
+  border: 2px solid #666;
+  border-radius: 50%;
+  background-color: transparent;
+  transition: all 0.1s;
+}
+
+.gamepad-button.pressed {
+  background-color: #2196f3;
+  border-color: #2196f3;
+}
+
+/* Touchscreen controls for mobile */
+.touch-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: none;
+  z-index: 25;
+}
+
+@media (max-width: 768px) and (hover: none) {
+  .touch-controls {
+    display: block;
+  }
+}
+
+.virtual-joystick {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  bottom: 20px;
+  left: 20px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+}
+
+.joystick-knob {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  transition: none;
+}
+
+/* Latency graph */
+.latency-graph {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 200px;
+  height: 60px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  padding: 5px;
+  z-index: 20;
+}
+
+.latency-graph canvas {
+  width: 100%;
+  height: 100%;
+}

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import SwipeableViews from 'react-swipeable-views';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
 import {
   Box,
@@ -45,7 +44,6 @@ import {
   Home,
   Image,
   FolderOpen,
-  Monitor,
   Archive,
   RefreshCw,
   Plus,
@@ -66,8 +64,6 @@ import { SettingsService } from '../services/settingsService';
 import { useSSE } from '../hooks/useSSE';
 import { backgroundSyncManager } from '../utils/backgroundSyncManager';
 import CategoryModal from './CategoryModal';
-import SSHManagerIntegrated from './SSHManagerIntegrated';
-import SSHTab from './SSHTab';
 import BackgroundSettingsMUI from './BackgroundSettingsMUI';
 import BackupTab from './BackupTab';
 import './SettingsModal.css';
@@ -104,7 +100,6 @@ const SettingsPanel = ({
     { icon: Home, label: 'Allgemein', key: 'general', adminOnly: false },
     { icon: Image, label: 'UI-Config', key: 'background', adminOnly: false },
     { icon: FolderOpen, label: 'Kategorien', key: 'categories', adminOnly: true },
-    { icon: Monitor, label: 'SSH', key: 'ssh', adminOnly: true },
     { icon: Archive, label: 'Backup', key: 'backup', adminOnly: true },
     { icon: RefreshCw, label: 'System', key: 'system', adminOnly: true },
   ];
@@ -195,9 +190,6 @@ const SettingsPanel = ({
   const [editingCategory, setEditingCategory] = useState(null);
   const [reorderMode, setReorderMode] = useState(false);
 
-  // SSH State
-  const [sshHosts, setSSHHosts] = useState([]);
-
   // Drag state for categories
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -215,7 +207,6 @@ const SettingsPanel = ({
   // Track if data has been loaded
   const dataLoaded = useRef({
     general: false,
-    ssh: false,
     system: false,
   });
 
@@ -247,44 +238,12 @@ const SettingsPanel = ({
       if (currentTab === 'general' && !dataLoaded.current.general) {
         fetchGeneralSettings();
         dataLoaded.current.general = true;
-      } else if (currentTab === 'ssh' && !dataLoaded.current.ssh) {
-        fetchSSHHosts();
-        dataLoaded.current.ssh = true;
       } else if (currentTab === 'system' && !dataLoaded.current.system) {
         fetchSystemSettings();
         dataLoaded.current.system = true;
       }
     }
   }, [tabValue]);
-
-  // SSE event listeners for SSH hosts
-  useEffect(() => {
-    if (addEventListener && visibleTabs[tabValue]?.key === 'ssh') {
-      const unsubscribers = [
-        addEventListener('ssh_host_created', () => {
-          fetchSSHHosts();
-        }),
-        addEventListener('ssh_host_updated', () => {
-          fetchSSHHosts();
-        }),
-        addEventListener('ssh_host_deleted', () => {
-          fetchSSHHosts();
-        }),
-        addEventListener('ssh_host_restored', () => {
-          fetchSSHHosts();
-        }),
-        addEventListener('ssh_host_reverted', () => {
-          fetchSSHHosts();
-        }),
-      ];
-
-      return () => {
-        unsubscribers.forEach(unsubscribe => {
-          if (typeof unsubscribe === 'function') unsubscribe();
-        });
-      };
-    }
-  }, [addEventListener, visibleTabs, tabValue, fetchSSHHosts]);
 
   // SSE event listeners for categories
   useEffect(() => {
@@ -453,22 +412,6 @@ const SettingsPanel = ({
       setTimeout(() => setError(''), 3000);
     }
   };
-
-  // SSH Functions
-  const fetchSSHHosts = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/ssh/hosts', {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-      });
-      const data = await response.json();
-      setSSHHosts(data.hosts || []);
-    } catch (error) {
-      setError('Fehler beim Laden der SSH-Hosts');
-    }
-  }, []);
 
   // Category Functions
   const handleCategorySave = async formData => {
@@ -1176,13 +1119,6 @@ const SettingsPanel = ({
           </Box>
         );
 
-      case 'ssh':
-        return (
-          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
-            <SSHTab onTerminalOpen={onTerminalOpen} />
-          </Box>
-        );
-
       case 'backup':
         return (
           <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
@@ -1338,23 +1274,29 @@ const SettingsPanel = ({
         </Tabs>
       </Box>
 
-      {/* Swipeable Content */}
-      <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-        <SwipeableViews
-          index={tabValue}
-          onChangeIndex={handleSwipeChange}
-          enableMouseEvents
-          resistance
-          style={{ height: '100%' }}
-          containerStyle={{ height: '100%' }}
-          slideStyle={{ height: '100%' }}
+      {/* Tab Content Container */}
+      <Box sx={{ flexGrow: 1, overflow: 'hidden', position: 'relative' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            width: '100%',
+            height: '100%',
+          }}
         >
-          {visibleTabs.map((tab) => (
-            <Box key={tab.key} sx={{ height: '100%' }}>
+          {visibleTabs.map((tab, index) => (
+            <Box 
+              key={tab.key} 
+              sx={{ 
+                width: '100%',
+                height: '100%',
+                overflow: 'auto',
+                display: tabValue === index ? 'block' : 'none'
+              }}
+            >
               {getTabContent(tab)}
             </Box>
           ))}
-        </SwipeableViews>
+        </Box>
       </Box>
 
       {/* Category Modal */}

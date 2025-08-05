@@ -62,6 +62,9 @@ public class DashboardAuthenticationProvider extends AbstractAuthenticationProvi
                 claims.getUsername(),
                 claims.getUserId(),
                 claims.getApplianceId(),
+                claims.getHostId(),
+                claims.getConnectionId(),
+                claims.getType(),
                 this
             );
             

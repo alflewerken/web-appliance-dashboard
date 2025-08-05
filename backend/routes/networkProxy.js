@@ -125,9 +125,9 @@ router.all('/proxy/:target/*',
  * WebSocket Proxy
  * Proxies WebSocket connections to internal addresses
  * 
- * Usage: ws://dashboard/api/ws-proxy/192.168.1.100:8006/path
+ * Usage: ws://dashboard/api/wsProxy/192.168.1.100:8006/path
  */
-router.ws('/ws-proxy/:target/*',
+router.ws('/wsProxy/:target/*',
     authenticateToken,
     async (ws, req) => {
         const target = req.params.target;
@@ -205,7 +205,7 @@ router.get('/discover',
                 services: discovered,
                 instructions: {
                     http: 'Use /api/proxy/{ip}:{port}/path for HTTP/HTTPS',
-                    websocket: 'Use /api/ws-proxy/{ip}:{port}/path for WebSocket'
+                    websocket: 'Use /api/wsProxy/{ip}:{port}/path for WebSocket'
                 }
             });
 

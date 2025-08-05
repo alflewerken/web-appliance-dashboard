@@ -1,6 +1,6 @@
 -- ====================================================================
 -- Web Appliance Dashboard Database Initialization
--- Version: 1.1.0 - Added Remote Desktop Support
+-- Version: 1.5.0 - Removed deprecated ssh_hosts table
 -- ====================================================================
 
 -- Ensure UTF8MB4 character set for full Unicode support
@@ -62,6 +62,34 @@ INSERT IGNORE INTO role_permissions (role, permission, description) VALUES
 -- CORE APPLICATION TABLES
 -- ====================================================================
 
+-- Create services table (for proxy services)
+CREATE TABLE IF NOT EXISTS services (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    port INT DEFAULT NULL,
+    use_https BOOLEAN DEFAULT FALSE,
+    status ENUM('active', 'inactive', 'maintenance') DEFAULT 'active',
+    description TEXT DEFAULT NULL,
+    ssh_host VARCHAR(255) DEFAULT NULL,
+    ssh_port INT DEFAULT 22,
+    ssh_username VARCHAR(255) DEFAULT NULL,
+    ssh_password VARCHAR(255) DEFAULT NULL,
+    ssh_private_key TEXT DEFAULT NULL,
+    vnc_port INT DEFAULT 5900,
+    vnc_password VARCHAR(255) DEFAULT NULL,
+    rdp_port INT DEFAULT 3389,
+    rdp_username VARCHAR(255) DEFAULT NULL,
+    rdp_password VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_services_type (type),
+    INDEX idx_services_status (status),
+    INDEX idx_services_ip (ip_address)
+) COMMENT='Services table for proxy and remote access configurations';
+
 -- Create categories table (must be before appliances for foreign key)
 CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -117,6 +145,10 @@ CREATE TABLE IF NOT EXISTS appliances (
     remote_port INT DEFAULT NULL COMMENT 'Remote desktop port',
     remote_username VARCHAR(255) DEFAULT NULL COMMENT 'Remote desktop username',
     remote_password_encrypted TEXT DEFAULT NULL COMMENT 'Encrypted remote desktop password',
+    remote_desktop_type VARCHAR(50) DEFAULT 'guacamole' COMMENT 'Type of remote desktop (guacamole, rustdesk)',
+    rustdesk_id VARCHAR(20) DEFAULT NULL COMMENT 'RustDesk device ID',
+    rustdesk_password_encrypted TEXT DEFAULT NULL COMMENT 'Encrypted RustDesk password',
+    guacamole_performance_mode VARCHAR(20) DEFAULT 'balanced' COMMENT 'Guacamole performance mode',
     order_index INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -129,6 +161,8 @@ CREATE TABLE IF NOT EXISTS appliances (
     INDEX idx_auto_start (auto_start),
     INDEX idx_ssh_connection (ssh_connection),
     INDEX idx_remote_desktop_enabled (remote_desktop_enabled),
+    INDEX idx_remote_desktop_type (remote_desktop_type),
+    INDEX idx_rustdesk_id (rustdesk_id),
     FOREIGN KEY (category) REFERENCES categories(name) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
@@ -136,68 +170,97 @@ CREATE TABLE IF NOT EXISTS appliances (
 -- SSH AND REMOTE ACCESS TABLES
 -- ====================================================================
 
--- Create SSH hosts table
-CREATE TABLE IF NOT EXISTS ssh_hosts (
+-- Create hosts table (unified SSH and remote host management)
+CREATE TABLE IF NOT EXISTS hosts (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    hostname VARCHAR(255) NOT NULL COMMENT 'Display name for the SSH host',
-    host VARCHAR(255) NOT NULL COMMENT 'IP address or hostname',
-    username VARCHAR(100) NOT NULL COMMENT 'SSH username',
-    port INT DEFAULT 22 COMMENT 'SSH port',
-    key_name VARCHAR(100) DEFAULT 'dashboard' COMMENT 'SSH key name',
-    is_active BOOLEAN DEFAULT TRUE COMMENT 'Whether this SSH host is active',
+    name VARCHAR(255) NOT NULL,
+    description TEXT DEFAULT NULL,
+    hostname VARCHAR(255) NOT NULL,
+    port INT DEFAULT 22,
+    username VARCHAR(255) NOT NULL,
+    icon VARCHAR(100) DEFAULT 'Server',
+    password VARCHAR(1024) DEFAULT NULL,
+    private_key TEXT DEFAULT NULL,
+    ssh_key_name VARCHAR(100) DEFAULT NULL COMMENT 'Name of SSH key from ssh_keys table',
+    color VARCHAR(7) DEFAULT '#007AFF',
+    transparency DECIMAL(3,2) DEFAULT 0.10,
+    blur INT DEFAULT 0,
+    remote_desktop_enabled BOOLEAN DEFAULT FALSE COMMENT 'Whether remote desktop is enabled',
+    remote_desktop_type VARCHAR(50) DEFAULT 'guacamole' COMMENT 'Type of remote desktop (guacamole, rustdesk)',
+    remote_protocol ENUM('vnc', 'rdp', 'ssh') DEFAULT 'vnc' COMMENT 'Remote desktop protocol',
+    remote_port INT DEFAULT NULL COMMENT 'Remote desktop port',
+    remote_username VARCHAR(255) DEFAULT NULL COMMENT 'Remote desktop username',
+    remote_password VARCHAR(1024) DEFAULT NULL COMMENT 'Encrypted remote desktop password',
+    guacamole_performance_mode VARCHAR(20) DEFAULT 'balanced' COMMENT 'Guacamole performance mode',
+    rustdesk_id VARCHAR(20) DEFAULT NULL COMMENT 'RustDesk device ID',
+    rustdesk_password VARCHAR(1024) DEFAULT NULL COMMENT 'Encrypted RustDesk password',
+    is_active BOOLEAN DEFAULT TRUE COMMENT 'Whether this host is active',
     last_tested TIMESTAMP NULL COMMENT 'Last time connection was tested',
     test_status ENUM('success', 'failed', 'unknown') DEFAULT 'unknown' COMMENT 'Last test result',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL COMMENT 'Soft delete timestamp',
-    deleted_by INT NULL COMMENT 'User who soft deleted this host',
+    created_by INT DEFAULT NULL,
+    updated_by INT DEFAULT NULL,
     
-    UNIQUE KEY unique_ssh_host_active (host, username, port, is_active),
-    FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_hostname (hostname),
-    INDEX idx_host (host),
-    INDEX idx_active (is_active)
-) COMMENT='SSH hosts table. Unique constraint only applies to active hosts (is_active=1). Deleted/inactive hosts have is_active=NULL';
+    INDEX idx_hosts_name (name),
+    INDEX idx_hosts_hostname (hostname),
+    INDEX idx_hosts_created_by (created_by),
+    INDEX idx_hosts_ssh_key_name (ssh_key_name),
+    INDEX idx_hosts_remote_desktop_enabled (remote_desktop_enabled),
+    INDEX idx_hosts_remote_desktop_type (remote_desktop_type),
+    INDEX idx_hosts_active (is_active),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) COMMENT='Unified hosts table for SSH, terminal and remote desktop connections';
 
 -- Create SSH keys table for storing SSH keys in database
 CREATE TABLE IF NOT EXISTS ssh_keys (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    key_name VARCHAR(100) NOT NULL UNIQUE COMMENT 'SSH key identifier',
+    key_name VARCHAR(100) NOT NULL COMMENT 'SSH key identifier',
     private_key TEXT NOT NULL COMMENT 'Private SSH key content',
     public_key TEXT NOT NULL COMMENT 'Public SSH key content',
     key_type VARCHAR(50) DEFAULT 'rsa' COMMENT 'SSH key type (rsa, ed25519, etc.)',
     key_size INT DEFAULT 2048 COMMENT 'SSH key size in bits',
     comment VARCHAR(255) NULL COMMENT 'SSH key comment',
+    fingerprint VARCHAR(255) DEFAULT NULL COMMENT 'SSH key fingerprint',
     passphrase_hash VARCHAR(255) NULL COMMENT 'Hashed passphrase if key is encrypted',
     is_default BOOLEAN DEFAULT FALSE COMMENT 'Whether this is the default key',
+    created_by INT NOT NULL COMMENT 'User who created this key',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
+    UNIQUE KEY unique_key_name_user (key_name, created_by),
     INDEX idx_key_name (key_name),
-    INDEX idx_default (is_default)
-) COMMENT='SSH keys stored in database for centralized management';
+    INDEX idx_default (is_default),
+    INDEX idx_ssh_keys_created_by (created_by),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+) COMMENT='SSH keys stored in database for centralized management - Multi-tenant support';
 
--- Create SSH config table for storing SSH configuration
-CREATE TABLE IF NOT EXISTS ssh_config (
+-- Create SSH upload log table
+CREATE TABLE IF NOT EXISTS ssh_upload_log (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    host_id INT NOT NULL COMMENT 'Reference to ssh_hosts table',
-    config_key VARCHAR(100) NOT NULL COMMENT 'SSH config option name',
-    config_value TEXT NOT NULL COMMENT 'SSH config option value',
+    host_id INT NOT NULL COMMENT 'Reference to hosts table',
+    filename VARCHAR(255) NOT NULL COMMENT 'Name of uploaded file',
+    file_size BIGINT NOT NULL COMMENT 'Size in bytes',
+    target_path VARCHAR(500) NOT NULL COMMENT 'Full path where file was uploaded',
+    status ENUM('success', 'failed') NOT NULL COMMENT 'Upload status',
+    error_message TEXT DEFAULT NULL COMMENT 'Error message if upload failed',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    user_id INT DEFAULT NULL COMMENT 'User who performed the upload',
     
-    FOREIGN KEY (host_id) REFERENCES ssh_hosts(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_host_config (host_id, config_key),
-    INDEX idx_host_id (host_id)
-);
+    INDEX idx_host_id (host_id),
+    INDEX idx_created_at (created_at),
+    INDEX idx_status (status),
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+) COMMENT='Log of all SSH file uploads';
 
--- Create appliance custom commands table (after SSH tables for foreign key)
+-- Create appliance custom commands table
 CREATE TABLE IF NOT EXISTS appliance_commands (
     id INT AUTO_INCREMENT PRIMARY KEY,
     appliance_id INT NOT NULL,
     description VARCHAR(255) NOT NULL,
     command TEXT NOT NULL,
-    ssh_host_id INT NULL,
+    host_id INT NULL COMMENT 'Reference to hosts table for SSH execution',
     order_index INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -205,7 +268,7 @@ CREATE TABLE IF NOT EXISTS appliance_commands (
     INDEX idx_appliance (appliance_id),
     INDEX idx_order (order_index),
     FOREIGN KEY (appliance_id) REFERENCES appliances(id) ON DELETE CASCADE,
-    FOREIGN KEY (ssh_host_id) REFERENCES ssh_hosts(id) ON DELETE SET NULL
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE SET NULL
 );
 
 -- ====================================================================
@@ -273,6 +336,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     action VARCHAR(100) NOT NULL COMMENT 'Action performed',
     resource_type VARCHAR(50) NOT NULL COMMENT 'Type of resource affected',
     resource_id INT NULL COMMENT 'ID of affected resource',
+    resource_name VARCHAR(255) DEFAULT NULL COMMENT 'Name of affected resource',
     details JSON COMMENT 'Additional details about the action',
     ip_address VARCHAR(45) NULL COMMENT 'IP address of the user',
     user_agent TEXT NULL COMMENT 'User agent string',
@@ -281,6 +345,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     INDEX idx_user_id (user_id),
     INDEX idx_action (action),
     INDEX idx_resource (resource_type, resource_id),
+    INDEX idx_audit_logs_resource_name (resource_name),
     INDEX idx_created_at (created_at),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -465,7 +530,17 @@ INSERT IGNORE INTO migrations (filename) VALUES
     ('003_add_ssh_tables.sql'),
     ('004_add_audit_tables.sql'),
     ('005_add_backup_tables.sql'),
-    ('006_add_remote_desktop.sql');
+    ('006_add_remote_desktop.sql'),
+    ('007_add_hosts_table.sql'),
+    ('008_add_ssh_upload_log.sql'),
+    ('009_add_rustdesk_columns.sql'),
+    ('010_add_remote_desktop_type.sql'),
+    ('011_multi_tenant_support.sql'),
+    ('012_add_description_to_hosts.sql'),
+    ('013_add_resource_name_to_audit_logs.sql'),
+    ('014_add_icon_to_hosts.sql'),
+    ('015_migrate_ssh_hosts_to_hosts.sql'),
+    ('016_update_audit_log_resource_names.sql');
 
 -- ====================================================================
 -- END OF INITIALIZATION

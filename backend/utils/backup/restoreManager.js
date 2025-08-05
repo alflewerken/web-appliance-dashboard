@@ -44,16 +44,16 @@ class RestoreManager {
         'users',              // Users first (no dependencies)
         'categories',         // Categories before appliances
         'appliances',         // Appliances (depends on categories)
-        'ssh_keys',          // SSH keys before hosts
-        'ssh_hosts',         // SSH hosts (depends on keys)
-        'ssh_config',        // SSH config (depends on hosts)
-        'appliance_commands', // Commands (depends on appliances and ssh_hosts)
+        'ssh_keys',          // SSH keys only
+        'hosts',             // Hosts table for SSH and remote connections
+        'appliance_commands', // Commands (depends on appliances and hosts)
         'user_settings',     // Settings
         'background_images', // Background images
         'role_permissions',  // Role permissions
         'user_appliance_permissions', // User permissions (depends on users and appliances)
         'audit_logs',        // Audit logs
-        'service_command_logs' // Service logs (depends on appliances)
+        'service_command_logs', // Service logs (depends on appliances)
+        'active_sessions'    // Active sessions (depends on users)
       ];
 
       const results = {};
@@ -171,9 +171,7 @@ class RestoreManager {
         case 'ssh_keys':
           ({ restored, errors } = await this.restoreSSHKeys(connection, data));
           break;
-        case 'ssh_hosts':
-          ({ restored, errors } = await this.restoreSSHHosts(connection, data, allData));
-          break;
+        // ssh_hosts case removed - no longer needed
         case 'background_images':
           ({ restored, errors } = await this.restoreBackgroundImages(connection, data));
           break;

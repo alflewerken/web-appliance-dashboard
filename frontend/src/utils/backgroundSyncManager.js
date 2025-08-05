@@ -57,7 +57,7 @@ class BackgroundSyncManager {
       case 'background_position':
         settings.position = value;
         break;
-      case 'background_enabled':
+      case 'backgroundEnabled':
         settings.enabled = value === 'true';
         break;
       default:

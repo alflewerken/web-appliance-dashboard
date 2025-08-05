@@ -141,17 +141,17 @@ class SSHDiagnostic {
       const [testResult] = await pool.execute('SELECT 1');
       dbInfo.connection_ok = true;
 
-      // Check SSH hosts
+      // Check hosts
       const [hosts] = await pool.execute(
-        'SELECT * FROM ssh_hosts ORDER BY hostname'
+        'SELECT * FROM hosts ORDER BY name'
       );
-      dbInfo.ssh_hosts_count = hosts.length;
+      dbInfo.hosts_count = hosts.length;
       dbInfo.hosts = hosts.map(host => ({
+        name: host.name,
         hostname: host.hostname,
-        host: host.host,
         username: host.username,
         port: host.port,
-        key_name: host.key_name,
+        ssh_key_name: host.ssh_key_name,
         is_active: host.is_active,
         test_status: host.test_status,
       }));

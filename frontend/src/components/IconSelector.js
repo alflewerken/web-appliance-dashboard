@@ -137,10 +137,10 @@ const ICON_CATEGORIES = {
   ],
 };
 
-const IconSelector = ({ selectedIcon, onIconSelect, onClose }) => {
+const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Alle');
-  const [tempSelectedIcon, setTempSelectedIcon] = useState(selectedIcon);
+  const [tempSelectedIcon, setTempSelectedIcon] = useState(currentIcon || selectedIcon);
 
   const allIcons = getIconNames();
 
@@ -254,7 +254,12 @@ const IconSelector = ({ selectedIcon, onIconSelect, onClose }) => {
                 className="select-btn"
                 onClick={() => {
                   if (tempSelectedIcon) {
-                    onIconSelect(tempSelectedIcon);
+                    if (onSelect) {
+                      onSelect(tempSelectedIcon);
+                    } else if (onIconSelect) {
+                      onIconSelect(tempSelectedIcon);
+                    }
+                    onClose();
                   }
                 }}
                 disabled={!tempSelectedIcon}

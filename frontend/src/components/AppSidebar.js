@@ -5,6 +5,7 @@ import {
   X,
   Server,
   Users,
+  Monitor,
   LogOut,
   FileText,
 } from 'lucide-react';
@@ -21,9 +22,11 @@ const AppSidebar = ({
   onAddService,
   setShowSettingsModal,
   setShowUserManagement,
+  setShowHostsView,
   setShowAuditLog,
   showSettingsModal = false,
   showUserManagement = false,
+  showHostsView = false,
   showAuditLog = false,
   isOpen = true,
   onClose,
@@ -86,6 +89,12 @@ const AppSidebar = ({
       .nav-item[data-category="users"].active .nav-item-indicator {
         background-color: #007AFF !important;
       }
+      .nav-item[data-category="hosts"].active {
+        background: rgba(0, 122, 255, 0.15) !important;
+      }
+      .nav-item[data-category="hosts"].active .nav-item-indicator {
+        background-color: #007AFF !important;
+      }
       .nav-item[data-category="settings"].active {
         background: rgba(0, 122, 255, 0.15) !important;
       }
@@ -103,7 +112,7 @@ const AppSidebar = ({
     return styles + additionalStyles;
   };
 
-  const handleCategorySelect = categoryId => {
+  const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
     // Auto-close sidebar on mobile after selection
     if (isMobile && onClose) {
@@ -135,6 +144,15 @@ const AppSidebar = ({
   const handleUserManagementOpen = (e) => {
     if (e) e.stopPropagation();
     setShowUserManagement(prev => !prev);
+    // Auto-close sidebar on mobile after action
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
+
+  const handleHostsViewOpen = (e) => {
+    if (e) e.stopPropagation();
+    setShowHostsView(prev => !prev);
     // Auto-close sidebar on mobile after action
     if (isMobile && onClose) {
       onClose();
@@ -243,6 +261,20 @@ const AppSidebar = ({
                 paddingBottom: '40px', // Extra padding am Ende
               }}
             >
+              {/* Hosts Button */}
+              <div
+                className={`nav-item ${showHostsView ? 'active' : ''}`}
+                onClick={handleHostsViewOpen}
+                title="Hosts verwalten"
+                data-tooltip="Hosts"
+                data-category="hosts"
+              >
+                {showHostsView && <div className="nav-item-indicator" />}
+                <div className="nav-icon-container" data-category="hosts">
+                  <Monitor size={20} />
+                </div>
+                <span className="nav-text">Hosts</span>
+              </div>
               {authEnabled && (
                 <div
                   className={`nav-item ${showUserManagement ? 'active' : ''}`}
@@ -388,6 +420,20 @@ const AppSidebar = ({
               paddingTop: '16px',
             }}
           >
+            {/* Hosts Button */}
+            <div
+              className={`nav-item ${showHostsView ? 'active' : ''}`}
+              onClick={handleHostsViewOpen}
+              title="Hosts verwalten"
+              data-tooltip="Hosts"
+              data-category="hosts"
+            >
+              {showHostsView && <div className="nav-item-indicator" />}
+              <div className="nav-icon-container" data-category="hosts">
+                <Monitor size={20} />
+              </div>
+              <span className="nav-text">Hosts</span>
+            </div>
             {authEnabled && (
               <div
                 className={`nav-item ${showUserManagement ? 'active' : ''}`}

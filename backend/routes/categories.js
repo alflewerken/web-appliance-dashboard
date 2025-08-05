@@ -3,7 +3,12 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
 const { broadcast } = require('./sse');
-const { createAuditLog } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
+const {
+  mapCategoryDbToJs,
+  mapCategoryJsToDb,
+  getCategorySelectColumns
+} = require('../utils/dbFieldMappingCategories');
 
 /**
  * @swagger
@@ -70,7 +75,7 @@ router.get('/', async (req, res) => {
   try {
     // First get all categories
     const [categories] = await pool.execute(
-      'SELECT * FROM categories ORDER BY `order_index` ASC, is_system DESC, name'
+      `SELECT ${getCategorySelectColumns()} FROM categories ORDER BY order_index ASC, is_system DESC, name`
     );
 
     // Then get appliance counts for each category
@@ -87,12 +92,12 @@ router.get('/', async (req, res) => {
       countMap[row.category] = row.count;
     });
 
-    // Add counts to categories - matching by category name
-    const categoriesWithCounts = categories.map(category => ({
-      ...category,
-      order: category.order_index, // Map order_index to order for frontend compatibility
-      appliances_count: countMap[category.name] || 0,
-    }));
+    // Map categories to JS format and add counts
+    const categoriesWithCounts = categories.map(category => {
+      const mapped = mapCategoryDbToJs(category);
+      mapped.appliancesCount = countMap[mapped.name] || 0;
+      return mapped;
+    });
 
     res.json(categoriesWithCounts);
   } catch (error) {
@@ -200,32 +205,45 @@ router.post('/', async (req, res) => {
 
     // Get the maximum order value
     const [maxOrderRows] = await pool.execute(
-      'SELECT MAX(`order_index`) as maxOrder FROM categories'
+      'SELECT MAX(order_index) as maxOrder FROM categories'
     );
     const nextOrder = (maxOrderRows[0].maxOrder || 0) + 1;
 
-    const [result] = await pool.execute(
-      'INSERT INTO categories (name, icon, color, description, is_system, `order_index`) VALUES (?, ?, ?, ?, FALSE, ?)',
-      [
-        name,
-        icon || 'Folder',
-        color || '#007AFF',
-        description || null,
-        nextOrder,
-      ]
-    );
-
-    const newCategory = {
-      id: result.insertId,
+    // Prepare data with camelCase
+    const categoryData = {
       name,
       icon: icon || 'Folder',
       color: color || '#007AFF',
+      displayName: name,
       description: description || null,
-      is_system: false,
-      order_index: nextOrder,
+      isSystem: false,
+      orderIndex: nextOrder,
     };
 
-    console.log('Created category:', newCategory);
+    // Convert to database format
+    const dbData = mapCategoryJsToDb(categoryData);
+
+    const [result] = await pool.execute(
+      'INSERT INTO categories (name, icon, color, description, is_system, order_index) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        dbData.name,
+        dbData.icon,
+        dbData.color,
+        description || null,
+        dbData.is_system,
+        dbData.order_index,
+      ]
+    );
+
+    // Get the newly created category with proper mapping
+    const [[newCategory]] = await pool.execute(
+      `SELECT ${getCategorySelectColumns()} FROM categories WHERE id = ?`,
+      [result.insertId]
+    );
+
+    const mappedCategory = mapCategoryDbToJs(newCategory);
+
+    console.log('Created category:', mappedCategory);
 
     // Create audit log
     const ipAddress = req.clientIp;
@@ -235,7 +253,7 @@ router.post('/', async (req, res) => {
       'categories',
       result.insertId,
       {
-        category_data: newCategory,
+        category_data: mappedCategory,
         created_by: req.user?.username || 'unknown',
         timestamp: new Date().toISOString(),
       },
@@ -243,12 +261,12 @@ router.post('/', async (req, res) => {
     );
 
     res.status(201).json({
-      ...newCategory,
+      ...mappedCategory,
       message: 'Category created successfully',
     });
 
     // Broadcast category creation
-    broadcast('category_created', newCategory);
+    broadcast('category_created', mappedCategory);
 
     // Broadcast audit log update
     broadcast('audit_log_created', {

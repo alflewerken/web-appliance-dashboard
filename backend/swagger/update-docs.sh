@@ -135,13 +135,13 @@ Generated on: $(date)
 - POST /api/backup/enhanced/cleanup - Cleanup old backups
 
 ## Audit Logs
-- GET /api/audit-logs - Get audit logs
-- GET /api/audit-logs/export - Export as CSV
-- GET /api/audit-logs/{resourceType}/{resourceId} - Get resource logs
-- DELETE /api/audit-logs - Delete logs
+- GET /api/auditLogs - Get audit logs
+- GET /api/auditLogs/export - Export as CSV
+- GET /api/auditLogs/{resourceType}/{resourceId} - Get resource logs
+- DELETE /api/auditLogs - Delete logs
 
 ## Status Monitoring
-- POST /api/status-check - Bulk status check
+- POST /api/statusCheck - Bulk status check
 - GET /api/sse/events - Server-sent events stream
 
 ## Terminal

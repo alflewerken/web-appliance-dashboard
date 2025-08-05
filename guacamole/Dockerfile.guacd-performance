@@ -1,0 +1,72 @@
+# Optimiertes Guacd Dockerfile für bessere Performance
+FROM guacamole/guacd:1.5.5
+
+# Alpine Linux verwendet apk statt apt-get
+RUN apk update && apk add --no-cache \
+    # Video acceleration libraries (Alpine Pakete)
+    libva libva-intel-driver \
+    mesa-va-gallium \
+    # Codecs sind bereits im Base Image
+    # Performance monitoring
+    htop iotop sysstat \
+    # Network tools
+    iperf3 \
+    # Build tools falls benötigt
+    build-base \
+    && rm -rf /var/cache/apk/*
+
+# Create optimized guacd configuration
+RUN mkdir -p /etc/guacamole
+
+# Optimized guacd configuration for low latency
+RUN cat > /etc/guacamole/guacd.conf << 'EOF'
+[server]
+bind_host = 0.0.0.0
+bind_port = 4822
+# Wichtig: Mehr Worker für bessere Parallelisierung
+workers = 4
+
+[performance]
+# Threading optimizations
+max_threads = 16
+thread_pool_size = 8
+
+# Network optimizations
+tcp_nodelay = true
+socket_timeout = 60000
+
+# Encoding optimizations
+# Prefer hardware acceleration
+prefer_hw_encoding = true
+
+# Buffer optimizations  
+frame_timeout = 40
+sync_threshold = 5
+EOF
+
+# Performance tuning script für Alpine
+COPY <<'SCRIPT' /usr/local/bin/optimize-performance.sh
+#!/bin/sh
+# Alpine Linux Performance Optimierungen
+
+# Increase network buffers (wenn als root)
+if [ $(id -u) -eq 0 ]; then
+    sysctl -w net.core.rmem_max=134217728 2>/dev/null || true
+    sysctl -w net.core.wmem_max=134217728 2>/dev/null || true
+    sysctl -w net.ipv4.tcp_rmem="4096 87380 134217728" 2>/dev/null || true
+    sysctl -w net.ipv4.tcp_wmem="4096 65536 134217728" 2>/dev/null || true
+    
+    # TCP optimizations
+    sysctl -w net.ipv4.tcp_congestion_control=bbr 2>/dev/null || true
+    sysctl -w net.ipv4.tcp_notsent_lowat=16384 2>/dev/null || true
+fi
+
+echo "Performance optimizations applied"
+exec "$@"
+SCRIPT
+
+RUN chmod +x /usr/local/bin/optimize-performance.sh
+
+# Set entrypoint to apply optimizations
+ENTRYPOINT ["/usr/local/bin/optimize-performance.sh"]
+CMD ["/usr/sbin/guacd", "-b", "0.0.0.0", "-L", "info", "-f"]

@@ -18,7 +18,7 @@ services:
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password='${MYSQL_ROOT_PASSWORD}' || exit 1"]
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-20}
       start_period: 40s
@@ -139,7 +139,7 @@ services:
       - ${NETWORK_NAME:-appliance_network}
     volumes:
       # SSH-Keys für Terminal-Zugriff
-      - ssh_keys:/root/.ssh:ro
+      - ssh_keys:/root/.ssh
       # Optional: Shared scripts
       - ./scripts:/scripts:ro
       # Shared temp directory für Session-Dateien
@@ -163,7 +163,18 @@ services:
       - guacamole_drive:/drive:rw
       - guacamole_record:/record:rw
     environment:
-      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-info}
+      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-warning}
+      # Performance Tuning
+      GUACD_MAX_THREADS: 8
+      GUACD_BIND_HOST: 0.0.0.0
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
@@ -241,6 +252,45 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 60s
 
+  # ====================================================================
+  # RUSTDESK SERVICES
+  # ====================================================================
+  
+  # RustDesk ID/Rendezvous Server
+  rustdesk-server:
+    image: rustdesk/rustdesk-server:latest
+    container_name: ${RUSTDESK_SERVER_CONTAINER:-rustdesk-server}
+    command: hbbs
+    restart: always
+    environment:
+      - RELAY=0.0.0.0:21117
+      - PORT=21116
+    ports:
+      - "${RUSTDESK_ID_PORT:-21116}:21116"  # ID Server TCP
+      - "${RUSTDESK_ID_PORT:-21116}:21116/udp"  # ID Server UDP
+      - "${RUSTDESK_WEB_PORT:-21118}:21118"  # Web Client
+      - "${RUSTDESK_API_PORT:-21119}:21119"  # API
+    volumes:
+      - rustdesk_data:/root
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    # Removed healthcheck - RustDesk container has no shell or common tools
+
+  # RustDesk Relay Server
+  rustdesk-relay:
+    image: rustdesk/rustdesk-server:latest
+    container_name: ${RUSTDESK_RELAY_CONTAINER:-rustdesk-relay}
+    command: hbbr
+    restart: always
+    ports:
+      - "${RUSTDESK_RELAY_PORT:-21117}:21117"  # Relay Server
+      - "${RUSTDESK_WEBSOCKET_PORT:-21120}:21120"  # Websocket (für Web Client)
+    volumes:
+      - rustdesk_data:/root
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    # Removed healthcheck - RustDesk container has no shell or common tools
+
 
 
 # ====================================================================
@@ -303,6 +353,14 @@ volumes:
     labels:
       - "backup=${BACKUP_ENABLED:-true}"
       - "purpose=guacamole-configuration"
+      - "project=web-appliance-dashboard"
+
+  # RustDesk volumes
+  rustdesk_data:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-true}"
+      - "purpose=rustdesk-data"
       - "project=web-appliance-dashboard"
 
 # ====================================================================

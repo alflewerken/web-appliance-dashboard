@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
 const { broadcast } = require('./sse');
-const { createAuditLog } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 
 // Get all user settings
 router.get('/', async (req, res) => {

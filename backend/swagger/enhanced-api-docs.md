@@ -196,7 +196,7 @@ update_appliance(1, {
 // JavaScript - Real-time status monitoring
 async function monitorApplianceStatus(applianceIds) {
   const checkStatus = async () => {
-    const response = await fetch('http://192.168.178.70:9080/api/status-check', {
+    const response = await fetch('http://192.168.178.70:9080/api/statusCheck', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1096,7 +1096,7 @@ class HealthMonitor:
         
         # Check status
         status_response = requests.post(
-            f'{self.base_url}/api/status-check',
+            f'{self.base_url}/api/statusCheck',
             headers=self.headers,
             json={'applianceIds': appliance_ids}
         ).json()
@@ -1250,7 +1250,7 @@ check_all_status() {
     ids_array="[${ids//,/,}]"
     
     echo "Checking status for all appliances..."
-    statuses=$(api_call POST "/api/status-check" "{\"applianceIds\": $ids_array}")
+    statuses=$(api_call POST "/api/statusCheck" "{\"applianceIds\": $ids_array}")
     
     echo "$statuses" | jq -r 'to_entries[] | "\(.key): \(.value.status) (\(.value.responseTime)ms)"'
 }

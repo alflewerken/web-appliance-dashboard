@@ -6,8 +6,8 @@ const {
   requireAdmin,
   requirePermission,
   hashPassword,
-  createAuditLog,
-} = require('../utils/auth-enhanced');
+} = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 
 // Get all roles with their permissions
 router.get('/roles', verifyToken, requireAdmin, async (req, res) => {
