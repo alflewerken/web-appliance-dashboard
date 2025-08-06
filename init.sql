@@ -148,6 +148,8 @@ CREATE TABLE IF NOT EXISTS appliances (
     remote_desktop_type VARCHAR(50) DEFAULT 'guacamole' COMMENT 'Type of remote desktop (guacamole, rustdesk)',
     rustdesk_id VARCHAR(20) DEFAULT NULL COMMENT 'RustDesk device ID',
     rustdesk_password_encrypted TEXT DEFAULT NULL COMMENT 'Encrypted RustDesk password',
+    rustdesk_installed BOOLEAN DEFAULT FALSE,
+    rustdesk_installation_date DATETIME DEFAULT NULL,
     guacamole_performance_mode VARCHAR(20) DEFAULT 'balanced' COMMENT 'Guacamole performance mode',
     order_index INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -225,7 +227,7 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     fingerprint VARCHAR(255) DEFAULT NULL COMMENT 'SSH key fingerprint',
     passphrase_hash VARCHAR(255) NULL COMMENT 'Hashed passphrase if key is encrypted',
     is_default BOOLEAN DEFAULT FALSE COMMENT 'Whether this is the default key',
-    created_by INT NOT NULL COMMENT 'User who created this key',
+    created_by INT DEFAULT NULL COMMENT 'User who created this key',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
