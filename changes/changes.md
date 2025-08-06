@@ -7280,3 +7280,98 @@ LESSONS LEARNED:
 - Docker Compose v2 verwendet andere Status-Ausgaben als v1
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-06 22:30 - MAJOR: Komplett überarbeitetes Kundenpaket v2.0
+
+PROBLEM:
+Das erste Kundenpaket hatte viele Probleme:
+1. Keine Datenbank-Initialisierung
+2. Inkonsistente Passwörter zwischen Services
+3. Falsche Health-Checks
+4. Nginx Upstream-Fehler beim Start
+5. CORS nicht für Hostnamen konfiguriert
+6. Kein vernünftiges Error-Handling
+
+LÖSUNG:
+Komplett neues create-customer-package-v2.sh Script mit:
+- Automatischer DB-Initialisierung
+- Einheitlichen Passwörtern
+- Robuster Nginx-Konfiguration
+- Intelligenter Service-Start-Reihenfolge
+- Auto-CORS-Konfiguration
+- Troubleshooting-Tools
+
+NEUE DATEI: scripts/create-customer-package-v2.sh (978 Zeilen)
+
+HAUPTVERBESSERUNGEN:
+
+1. **Datenbank-Initialisierung**:
+   - init-db/ Verzeichnis mit SQL-Scripts
+   - Automatisches Schema-Import beim ersten Start
+   - Korrekter bcrypt-Hash für admin123
+
+2. **Konsistente Konfiguration**:
+   - Ein Passwort für alle DB-Verbindungen
+   - Automatische CORS-Anpassung für Hostname
+   - SSL-Zertifikat mit richtigem CN
+
+3. **Robuste Nginx-Konfiguration**:
+   - Docker DNS Resolver
+   - Upstream-Definitionen die nicht failen
+   - Optional Services mit Timeouts
+   - WebSocket Support
+
+4. **Intelligente Installation**:
+   - OS-Erkennung (macOS/Linux)
+   - Gestaffelte Service-Starts
+   - Klare Status-Meldungen
+   - Automatische Hostname-Erkennung
+
+5. **Bessere Dokumentation**:
+   - Ausführliche README.md
+   - troubleshoot.sh Script
+   - Klare Fehlermeldungen
+
+STRUKTUR DES NEUEN PAKETS:
+```
+web-appliance-dashboard-TIMESTAMP/
+├── docker-compose.yml      # Vereinfachte, robuste Config
+├── .env                    # Vorkonfiguriert mit einem Passwort
+├── nginx.conf              # Fehlertolerante Proxy-Config
+├── init-db/                # DB-Initialisierung
+│   ├── 01-init-schema.sql  # Komplettes Schema
+│   └── 02-set-admin-password.sh
+├── ssl/                    # Auto-generierte Zertifikate
+├── install.sh              # Intelligenter Installer
+├── uninstall.sh            # Saubere Deinstallation
+├── troubleshoot.sh         # Debug-Hilfe
+└── README.md               # Vollständige Dokumentation
+```
+
+VERWENDUNG:
+```bash
+# Paket erstellen
+./scripts/create-customer-package-v2.sh
+
+# Installation beim Kunden
+tar -xzf web-appliance-dashboard-*.tar.gz
+cd web-appliance-dashboard-*
+./install.sh
+
+# Zugriff
+http://localhost (admin/admin123)
+```
+
+STATUS: ✅ Production-Ready Kundenpaket v2.0
+
+LESSONS LEARNED:
+- DB-Initialisierung muss automatisch erfolgen
+- Ein Passwort für alle Services vermeidet Konfusion
+- Robuste Konfiguration wichtiger als Features
+- Klare Fehlermeldungen sparen Support-Zeit
+- Troubleshooting-Tools sind essentiell
+
+════════════════════════════════════════════════════════════════════════════════
