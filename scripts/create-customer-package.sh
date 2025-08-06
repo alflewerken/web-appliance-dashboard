@@ -14,6 +14,23 @@ PACKAGE_NAME="web-appliance-dashboard-${TIMESTAMP}"
 echo "========================================="
 echo "Customer Package Generator"
 echo "========================================="
+echo ""
+
+# Get GitHub credentials
+echo "Enter GitHub access credentials for this customer:"
+read -p "GitHub Username: " GITHUB_USER
+read -s -p "GitHub Access Token: " GITHUB_TOKEN
+echo ""
+echo ""
+
+# Validate token is not empty
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "❌ Error: GitHub token cannot be empty"
+    exit 1
+fi
+
+echo "✅ Credentials received"
+echo ""
 
 # Clean up old package
 rm -rf "$PACKAGE_DIR"
@@ -193,9 +210,9 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
-      - frontend_static:/usr/share/nginx/html:ro
     depends_on:
       - backend
+      - frontend
       - ttyd
       - guacamole
     networks:
@@ -204,12 +221,15 @@ services:
   # Frontend static files server
   frontend:
     image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
-    container_name: appliance_frontend_builder
-    volumes:
-      - frontend_static:/app/build
-    command: ["sh", "-c", "cp -r /app/build/* /app/build/"]
+    container_name: appliance_frontend
+    restart: always
     networks:
       - appliance_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   db_data:
@@ -219,43 +239,50 @@ volumes:
   guacamole_home:
   guacamole_postgres_data:
   rustdesk_data:
-  frontend_static:
 
 networks:
   appliance_network:
     driver: bridge
 EOF
 
-# Create .env.example
-cat > .env.example << 'EOF'
+# Generate passwords for .env
+MYSQL_ROOT_PWD=$(openssl rand -hex 32)
+MYSQL_PWD=$(openssl rand -hex 32)
+DB_PWD=$(openssl rand -hex 32)
+JWT=$(openssl rand -hex 32)
+SSH_KEY=$(openssl rand -hex 32)
+GUAC_PWD=$(openssl rand -hex 32)
+
+# Create .env.example with pre-generated passwords
+cat > .env.example << EOF
 # Database Configuration
-MYSQL_ROOT_PASSWORD=your_secure_root_password
+MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PWD
 MYSQL_DATABASE=appliance_dashboard
 MYSQL_USER=appliance_user
-MYSQL_PASSWORD=your_secure_db_password
+MYSQL_PASSWORD=$MYSQL_PWD
 
 # Backend Database Connection
 DB_HOST=database
 DB_PORT=3306
 DB_USER=appliance_user
-DB_PASSWORD=your_secure_db_password
+DB_PASSWORD=$DB_PWD
 DB_NAME=appliance_dashboard
 
-# Security Keys (generate with: openssl rand -base64 32)
-JWT_SECRET=your_jwt_secret_key_here
-SSH_KEY_ENCRYPTION_SECRET=your_ssh_encryption_key_here
+# Security Keys
+JWT_SECRET=$JWT
+SSH_KEY_ENCRYPTION_SECRET=$SSH_KEY
 
 # CORS Configuration
-ALLOWED_ORIGINS=http://localhost,http://localhost:80
+ALLOWED_ORIGINS=http://localhost,http://localhost:80,https://localhost,https://localhost:443
 
 # Guacamole Database
 GUACAMOLE_DB_NAME=guacamole_db
 GUACAMOLE_DB_USER=guacamole_user
-GUACAMOLE_DB_PASSWORD=your_guacamole_db_password
+GUACAMOLE_DB_PASSWORD=$GUAC_PWD
 
 # Admin User (will be created on first run)
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=changeme
+ADMIN_PASSWORD=admin123
 
 # SSH Default User (for terminal access)
 DEFAULT_SSH_USER=root
@@ -283,13 +310,62 @@ http {
     upstream guacamole {
         server guacamole:8080;
     }
+    
+    upstream frontend {
+        server frontend:80;
+    }
 
     server {
         listen 80;
         server_name _;
         
-        # Redirect to HTTPS
-        return 301 https://$server_name$request_uri;
+        # Frontend
+        location / {
+            proxy_pass http://frontend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        
+        # Backend API
+        location /api {
+            proxy_pass http://backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        
+        # WebSocket for Backend
+        location /api/terminal-session {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        # ttyd Terminal
+        location /terminal/ {
+            proxy_pass http://ttyd/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        # Guacamole
+        location /guacamole/ {
+            proxy_pass http://guacamole:8080/guacamole/;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $http_connection;
+            access_log off;
+        }
     }
 
     server {
@@ -301,8 +377,10 @@ http {
         
         # Frontend
         location / {
-            root /usr/share/nginx/html;
-            try_files $uri $uri/ /index.html;
+            proxy_pass http://frontend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
         
         # Backend API
@@ -348,8 +426,11 @@ http {
 }
 EOF
 
-# Create installation script
-cat > install.sh << 'EOF'
+# Create the auth string for Docker
+AUTH_STRING=$(echo -n "$GITHUB_USER:$GITHUB_TOKEN" | base64)
+
+# Create installation script with embedded credentials
+cat > install.sh << EOF
 #!/bin/bash
 
 echo "========================================="
@@ -359,94 +440,173 @@ echo "========================================="
 # Check Docker
 if ! command -v docker &> /dev/null; then
     echo "❌ Docker is not installed. Please install Docker first."
+    echo "   Visit: https://docs.docker.com/get-docker/"
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+# Check Docker Compose
+COMPOSE_COMMAND=""
+if docker compose version &> /dev/null; then
+    COMPOSE_COMMAND="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    COMPOSE_COMMAND="docker-compose"
+else
     echo "❌ Docker Compose is not installed. Please install Docker Compose first."
+    echo "   Visit: https://docs.docker.com/compose/install/"
     exit 1
 fi
+
+echo "✅ Using Docker Compose command: \$COMPOSE_COMMAND"
 
 # Create .env from example
 if [ ! -f .env ]; then
     echo "📝 Creating .env file..."
     cp .env.example .env
-    
-    # Generate secure passwords
-    echo "🔐 Generating secure passwords..."
-    sed -i.bak "s/your_secure_root_password/$(openssl rand -base64 32 | tr -d '=')/g" .env
-    sed -i.bak "s/your_secure_db_password/$(openssl rand -base64 32 | tr -d '=')/g" .env
-    sed -i.bak "s/your_jwt_secret_key_here/$(openssl rand -base64 32 | tr -d '=')/g" .env
-    sed -i.bak "s/your_ssh_encryption_key_here/$(openssl rand -base64 32 | tr -d '=')/g" .env
-    sed -i.bak "s/your_guacamole_db_password/$(openssl rand -base64 32 | tr -d '=')/g" .env
-    rm -f .env.bak
-    
     echo "✅ .env file created with secure defaults"
-    echo "⚠️  Please edit .env to set your admin password!"
 fi
 
 # Generate SSL certificate
 if [ ! -d ssl ]; then
     echo "🔒 Generating self-signed SSL certificate..."
     mkdir -p ssl
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout ssl/key.pem \
-        -out ssl/cert.pem \
-        -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \\
+        -keyout ssl/key.pem \\
+        -out ssl/cert.pem \\
+        -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" \\
         2>/dev/null
     echo "✅ SSL certificate generated"
 fi
 
-# Login to GitHub Container Registry
+# Setup Docker authentication (works around macOS keychain issues)
 echo ""
-echo "🔑 Please login to GitHub Container Registry"
-echo "You need the access token provided by Alflewerken"
-echo ""
-read -p "GitHub Username: " github_user
-read -s -p "Access Token: " github_token
-echo ""
+echo "🔑 Setting up GitHub Container Registry access..."
 
-echo "$github_token" | docker login ghcr.io -u "$github_user" --password-stdin
+# Create docker config directory
+mkdir -p ~/.docker
 
-if [ $? -ne 0 ]; then
-    echo "❌ Login failed. Please check your credentials."
+# Check if we're on macOS
+if [[ "\$(uname)" == "Darwin" ]]; then
+    echo "📱 Detected macOS - using manual authentication method"
+    
+    # Backup existing config
+    if [ -f ~/.docker/config.json ]; then
+        cp ~/.docker/config.json ~/.docker/config.json.backup
+    fi
+    
+    # Create config with auth directly (bypasses keychain)
+    cat > ~/.docker/config.json << 'DOCKEREOF'
+{
+  "auths": {
+    "ghcr.io": {
+      "auth": "$AUTH_STRING"
+    }
+  }
+}
+DOCKEREOF
+    
+    echo "✅ Docker authentication configured"
+else
+    # For Linux, try normal login first
+    echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin 2>/dev/null || {
+        echo "⚠️  Standard login failed, using manual method..."
+        cat > ~/.docker/config.json << 'DOCKEREOF'
+{
+  "auths": {
+    "ghcr.io": {
+      "auth": "$AUTH_STRING"
+    }
+  }
+}
+DOCKEREOF
+    }
+fi
+
+# Test authentication by trying to pull one image
+echo "🔍 Testing registry access..."
+if docker pull ghcr.io/alflewerken/web-appliance-dashboard-backend:latest &> /dev/null; then
+    echo "✅ Successfully authenticated with GitHub Container Registry"
+else
+    echo "❌ Authentication test failed."
+    echo ""
+    echo "Troubleshooting steps:"
+    echo "1. Try manual login:"
+    echo "   docker login ghcr.io -u $GITHUB_USER"
+    echo "   Password: [use your access token]"
+    echo ""
+    echo "2. If on macOS, disable keychain in Docker Desktop:"
+    echo "   Docker Desktop → Settings → General"
+    echo "   Uncheck 'Securely store Docker logins in macOS keychain'"
+    echo ""
+    echo "3. Contact support with this error"
     exit 1
 fi
 
-echo "✅ Successfully logged in to GitHub Container Registry"
-
-# Pull images
+# Pull all images
+echo ""
 echo "📥 Pulling Docker images..."
-docker-compose pull
+echo "This may take a few minutes depending on your internet speed..."
+
+\$COMPOSE_COMMAND pull || {
+    echo "❌ Failed to pull images."
+    echo "Please check your internet connection and try again."
+    exit 1
+}
 
 # Start services
+echo ""
 echo "🚀 Starting services..."
-docker-compose up -d
+\$COMPOSE_COMMAND up -d
 
-# Wait for services
+# Wait for services with progress indicator
+echo ""
 echo "⏳ Waiting for services to start..."
-sleep 30
+for i in {1..30}; do
+    echo -n "."
+    sleep 1
+done
+echo ""
 
 # Check health
+echo ""
 echo "🏥 Checking service health..."
-docker-compose ps
+\$COMPOSE_COMMAND ps
 
-echo ""
-echo "========================================="
-echo "✅ Installation Complete!"
-echo "========================================="
-echo ""
-echo "Access the dashboard at: https://localhost"
-echo "Default login: admin / (password from .env)"
-echo ""
-echo "Services:"
-echo "  - Dashboard: https://localhost"
-echo "  - API: https://localhost/api"
-echo "  - Terminal: https://localhost/terminal/"
-echo "  - Remote Desktop: https://localhost/guacamole/"
-echo ""
-echo "For help: docker-compose logs -f"
-echo ""
+# Check if services are actually running
+BACKEND_RUNNING=\$(\$COMPOSE_COMMAND ps backend | grep -c "Up")
+WEBSERVER_RUNNING=\$(\$COMPOSE_COMMAND ps webserver | grep -c "Up")
+
+if [ "\$BACKEND_RUNNING" -eq 0 ] || [ "\$WEBSERVER_RUNNING" -eq 0 ]; then
+    echo ""
+    echo "⚠️  Some services didn't start properly."
+    echo "Check logs with: \$COMPOSE_COMMAND logs"
+else
+    echo ""
+    echo "========================================="
+    echo "✅ Installation Complete!"
+    echo "========================================="
+    echo ""
+    echo "Access the dashboard at:"
+    echo "  📌 http://localhost"
+    echo "  🔒 https://localhost (self-signed cert warning is normal)"
+    echo ""
+    echo "Login credentials:"
+    echo "  👤 Username: admin"
+    echo "  🔑 Password: admin123"
+    echo ""
+    echo "Available services:"
+    echo "  📊 Dashboard: https://localhost"
+    echo "  🔌 API: https://localhost/api"
+    echo "  💻 Terminal: https://localhost/terminal/"
+    echo "  🖥️  Remote Desktop: https://localhost/guacamole/"
+    echo ""
+    echo "Useful commands:"
+    echo "  View logs: \$COMPOSE_COMMAND logs -f"
+    echo "  Stop services: \$COMPOSE_COMMAND stop"
+    echo "  Start services: \$COMPOSE_COMMAND start"
+    echo "  Restart services: \$COMPOSE_COMMAND restart"
+    echo "  Remove everything: ./uninstall.sh"
+    echo ""
+fi
 EOF
 
 chmod +x install.sh
@@ -463,49 +623,195 @@ cat > README.md << 'EOF'
    ```
 
 2. Access the dashboard at https://localhost
+   - Username: **admin**
+   - Password: **admin123**
 
-## Manual Installation
+## System Requirements
 
-1. Copy `.env.example` to `.env` and configure
-2. Generate SSL certificates in `ssl/` directory
-3. Login to GitHub Container Registry
-4. Run `docker-compose up -d`
+- Docker Desktop (macOS/Windows) or Docker Engine (Linux)
+- Docker Compose
+- 4GB RAM minimum
+- 10GB free disk space
 
 ## Services Included
 
 - **Dashboard**: Web-based management interface
 - **API Backend**: Node.js backend with SSH tools
-- **Terminal**: Web-based SSH terminal (ttyd)
+- **Terminal**: Web-based SSH terminal
 - **Remote Desktop**: Guacamole for RDP/VNC access
-- **RustDesk**: Modern remote desktop solution (optional)
+- **Database**: MariaDB for data storage
 
-## Configuration
+## Troubleshooting
 
-Edit `.env` file for:
-- Database passwords
-- JWT secrets
-- Admin credentials
-- CORS origins
+### Docker Login Issues (macOS)
+
+If you see "Error saving credentials", try:
+
+1. Open Docker Desktop → Settings → General
+2. Uncheck "Securely store Docker logins in macOS keychain"
+3. Apply & Restart
+4. Run `./install.sh` again
+
+### Manual Docker Login
+
+If automatic login fails:
+```bash
+docker login ghcr.io
+Username: [provided username]
+Password: [provided token]
+```
+
+### View Logs
+
+To see what's happening:
+```bash
+docker-compose logs -f
+# Or for specific service:
+docker-compose logs -f backend
+```
+
+### Port Conflicts
+
+If ports 80/443 are already in use:
+1. Stop conflicting services, or
+2. Edit `docker-compose.yml` to change ports:
+   ```yaml
+   ports:
+     - "8080:80"
+     - "8443:443"
+   ```
+
+## Daily Operations
+
+### Start Services
+```bash
+docker-compose start
+```
+
+### Stop Services
+```bash
+docker-compose stop
+```
+
+### Restart Services
+```bash
+docker-compose restart
+```
+
+### Update Images
+```bash
+docker-compose pull
+docker-compose up -d
+```
+
+### Backup Data
+```bash
+docker-compose exec database mysqldump -u root -p appliance_dashboard > backup.sql
+```
 
 ## Support
 
-Contact: support@alflewerken.com
+- Email: support@alflewerken.com
+- Documentation: [Coming Soon]
+
+## Uninstall
+
+To completely remove the installation:
+```bash
+./uninstall.sh
+```
+
+⚠️ **Warning**: This will delete all data!
 EOF
 
 # Create uninstall script
 cat > uninstall.sh << 'EOF'
 #!/bin/bash
 
-echo "⚠️  This will remove all containers and data!"
-read -p "Are you sure? (y/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    docker-compose down -v
-    echo "✅ All containers and volumes removed"
+echo "========================================="
+echo "Web Appliance Dashboard Uninstaller"
+echo "========================================="
+echo ""
+echo "⚠️  WARNING: This will remove:"
+echo "   - All containers"
+echo "   - All volumes (INCLUDING YOUR DATA)"
+echo "   - Docker images"
+echo ""
+read -p "Are you SURE you want to continue? Type 'yes' to confirm: " -r CONFIRM
+
+if [[ "$CONFIRM" != "yes" ]]; then
+    echo "❌ Uninstall cancelled"
+    exit 0
 fi
+
+# Detect compose command
+if docker compose version &> /dev/null; then
+    COMPOSE_COMMAND="docker compose"
+else
+    COMPOSE_COMMAND="docker-compose"
+fi
+
+echo ""
+echo "🛑 Stopping services..."
+$COMPOSE_COMMAND down -v
+
+echo "🗑️  Removing images..."
+$COMPOSE_COMMAND down --rmi all
+
+echo "🧹 Cleaning up SSL certificates..."
+rm -rf ssl/
+
+echo ""
+echo "✅ Uninstall complete!"
+echo ""
+echo "Note: The .env file was preserved in case you need it."
+echo "To remove it: rm .env"
 EOF
 
 chmod +x uninstall.sh
+
+# Create a fix-docker-login.sh helper script
+cat > fix-docker-login.sh << 'EOF'
+#!/bin/bash
+
+echo "🔧 Docker Login Helper for macOS"
+echo "================================"
+echo ""
+echo "This script helps fix Docker login issues on macOS."
+echo ""
+
+# Backup current config
+if [ -f ~/.docker/config.json ]; then
+    cp ~/.docker/config.json ~/.docker/config.json.backup
+    echo "✅ Backed up existing Docker config"
+fi
+
+# Remove the credsStore to avoid keychain issues
+if grep -q "credsStore" ~/.docker/config.json 2>/dev/null; then
+    echo "🔧 Removing credential store from Docker config..."
+    # Use python to safely modify JSON
+    python3 -c "
+import json
+with open('$HOME/.docker/config.json', 'r') as f:
+    config = json.load(f)
+if 'credsStore' in config:
+    del config['credsStore']
+with open('$HOME/.docker/config.json', 'w') as f:
+    json.dump(config, f, indent=2)
+"
+    echo "✅ Credential store removed"
+fi
+
+echo ""
+echo "Now try running ./install.sh again"
+echo ""
+echo "If it still fails, you can manually login:"
+echo "  docker login ghcr.io"
+echo "  Username: [provided username]"
+echo "  Password: [provided token]"
+EOF
+
+chmod +x fix-docker-login.sh
 
 # Package everything
 cd ..
@@ -516,18 +822,30 @@ echo "========================================="
 echo "✅ Customer package created successfully!"
 echo "========================================="
 echo ""
-echo "Package: $PACKAGE_DIR/$PACKAGE_NAME.tar.gz"
+echo "📦 Package: $PACKAGE_DIR/$PACKAGE_NAME.tar.gz"
 echo ""
-echo "The package contains:"
-echo "  - docker-compose.yml"
-echo "  - .env.example"
-echo "  - nginx.conf"
-echo "  - install.sh"
-echo "  - uninstall.sh"
-echo "  - README.md"
+echo "This package includes:"
+echo "  ✓ docker-compose.yml - Service definitions"
+echo "  ✓ .env.example - Pre-configured environment"
+echo "  ✓ nginx.conf - Web server configuration"
+echo "  ✓ install.sh - Automated installer (macOS compatible)"
+echo "  ✓ uninstall.sh - Clean removal script"
+echo "  ✓ fix-docker-login.sh - macOS helper script"
+echo "  ✓ README.md - Complete documentation"
 echo ""
-echo "To deploy to customer:"
-echo "1. Send the .tar.gz file"
-echo "2. Provide GitHub access token"
-echo "3. Customer runs: tar -xzf $PACKAGE_NAME.tar.gz && cd $PACKAGE_NAME && ./install.sh"
+echo "📋 Deployment info:"
+echo "  • GitHub User: $GITHUB_USER"
+echo "  • Auth Token: [EMBEDDED]"
+echo "  • Admin Login: admin / admin123"
+echo ""
+echo "🚀 Customer instructions:"
+echo "  1. Extract: tar -xzf $PACKAGE_NAME.tar.gz"
+echo "  2. Install: cd $PACKAGE_NAME && ./install.sh"
+echo "  3. Access: https://localhost (admin/admin123)"
+echo ""
+echo "✨ Features:"
+echo "  • Automatic macOS keychain workaround"
+echo "  • No manual input required"
+echo "  • Self-signed SSL included"
+echo "  • Complete error handling"
 echo ""

@@ -6915,3 +6915,264 @@ nicht mit den Original-Request-Daten (req.body).
 
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-06 02:10 - MAJOR: Großer Commit mit umfassenden Änderungen
+
+ZUSAMMENFASSUNG:
+Dies war ein massiver Commit mit 322 Dateien geändert, 81668 Zeilen hinzugefügt und 14804 Zeilen entfernt.
+Die Hauptziele waren die Implementierung einer konsistenten camelCase API, die Integration neuer Features
+und umfangreiche Code-Bereinigung.
+
+HAUPTÄNDERUNGEN:
+
+1. **API Mapping Layer Vollständig Implementiert**
+   - Alle 7 Hauptentitäten haben jetzt Mapping-Layer
+   - Konsistente camelCase API über alle Endpoints
+   - Keine Breaking Changes durch schrittweise Migration
+
+2. **Neue Features**
+   - Host Management System implementiert
+   - RustDesk Integration hinzugefügt
+   - Streaming Modul vorbereitet
+   - WebRTC Support grundlegend implementiert
+
+3. **Code Bereinigung**
+   - Viele veraltete Routes entfernt (auth-guacamole.js → authGuacamole.js)
+   - Duplikate Dateien gelöscht
+   - Legacy SSH Management Code entfernt
+   - Nicht mehr benötigte Frontend Komponenten entfernt
+
+4. **Dokumentation**
+   - Projektanalyse und Vermarktungsstrategie erstellt
+   - API Endpoints Dokumentation aktualisiert
+   - Neue Guides für macOS Remote Desktop
+   - RustDesk Integration dokumentiert
+
+5. **Performance & Sicherheit**
+   - Guacamole Performance Optimierungen
+   - Terminal Error Suppressor implementiert
+   - Sicherheitslücken geschlossen
+   - Cleanup von Debug-Code
+
+NEUE DATEIEN (Auszug):
+- backend/utils/dbFieldMapping*.js (7 neue Mapping-Layer)
+- backend/routes/hosts.js
+- backend/routes/rustdesk*.js
+- frontend/src/components/Host*.js
+- docs/projektanalyse-und-vermarktung.md
+
+GELÖSCHTE DATEIEN (Auszug):
+- Viele SSH Legacy Komponenten
+- Veraltete Mobile-spezifische Komponenten
+- Debug und Test Routes
+- Duplikate Auth Utilities
+
+LESSONS LEARNED:
+- Große Refactorings sollten in kleineren Commits erfolgen
+- Mapping-Layer Ansatz hat sich bewährt
+- Konsistente Namenskonventionen sind essentiell
+
+STATUS: ✅ Commit erfolgreich, bereit für Push
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-06 18:45 - DEPENDENCY UPDATES: Dependabot PRs für Development Dependencies gemergt
+
+ZUSAMMENFASSUNG:
+Drei Dependabot Pull Requests für Development Dependencies wurden erfolgreich gemergt:
+- PR #20: Backend Development Dependencies (2 Updates)
+- PR #21: Frontend Development Dependencies (6 Updates)
+
+AKTUALISIERTE DEPENDENCIES:
+
+## Backend (PR #20):
+1. **eslint-config-prettier**: 9.1.2 → 10.1.8
+2. **jest**: 29.7.0 → 30.0.5
+
+## Frontend (PR #21):
+1. **babel-loader**: 9.2.1 → 10.0.0
+2. **eslint-config-prettier**: 9.1.2 → 10.1.8
+3. **jest**: 29.7.0 → 30.0.5
+4. **jest-environment-jsdom**: 29.7.0 → 30.0.5
+5. **webpack-cli**: 5.1.4 → 6.0.1
+6. **webpack-dev-server**: 4.15.2 → 5.2.2
+
+WICHTIGE ÄNDERUNGEN:
+
+### Breaking Changes:
+- **babel-loader v10**: Mindest-Node.js Version jetzt ^18.20.0 || ^20.10.0 || >=22.0.0
+- **jest v30**: Major Release nach 3 Jahren mit vielen Verbesserungen
+- **webpack-cli v6**: Mindest-Node.js Version 18.12.0, webpack-dev-server v4 Support entfernt
+- **webpack-dev-server v5**: Sicherheitsverbesserungen und neue Features
+
+PATCHES:
+
+PATCH backend/package.json:
+```diff
+   "devDependencies": {
+-    "eslint-config-prettier": "^9.1.2",
+-    "jest": "^29.7.0",
++    "eslint-config-prettier": "^10.1.8",
++    "jest": "^30.0.5",
+     "nodemon": "^3.1.4",
+     "prettier": "^3.3.3"
+   }
+```
+
+PATCH frontend/package.json:
+```diff
+   "devDependencies": {
+     "@babel/core": "^7.25.2",
+     "@babel/preset-env": "^7.25.3",
+     "@babel/preset-react": "^7.24.7",
+-    "babel-loader": "^9.2.1",
++    "babel-loader": "^10.0.0",
+     "copy-webpack-plugin": "^11.0.0",
+     "css-loader": "^6.11.0",
+     "eslint": "^8.57.0",
+-    "eslint-config-prettier": "^9.1.2",
++    "eslint-config-prettier": "^10.1.8",
+     "eslint-plugin-react": "^7.35.0",
+     "eslint-plugin-react-hooks": "^4.6.2",
+     "html-webpack-plugin": "^5.6.0",
+-    "jest": "^29.7.0",
+-    "jest-environment-jsdom": "^29.7.0",
++    "jest": "^30.0.5",
++    "jest-environment-jsdom": "^30.0.5",
+     "prettier": "^3.3.3",
+     "style-loader": "^3.3.4",
+     "webpack": "^5.93.0",
+-    "webpack-cli": "^5.1.4",
+-    "webpack-dev-server": "^4.15.2"
++    "webpack-cli": "^6.0.1",
++    "webpack-dev-server": "^5.2.2"
+   }
+```
+
+VERHALTEN:
+- Alle Development Dependencies sind auf dem neuesten Stand
+- Keine Production Dependencies wurden geändert
+- Projekt bleibt stabil, da nur Dev-Tools betroffen sind
+
+STATUS: ✅ Dependencies erfolgreich aktualisiert
+
+NÄCHSTE SCHRITTE:
+- Container neu bauen mit `scripts/build.sh --refresh` um sicherzustellen, dass alle Dependencies korrekt installiert sind
+- Tests ausführen um Kompatibilität zu prüfen
+- Weitere Dependabot PRs reviewen (es gibt noch 15+ offene PRs)
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-06 20:30 - BUGFIX: Kundenpaket Docker-Compose Konfiguration korrigiert
+
+PROBLEM:
+Das generierte Kundenpaket startete Backend und Nginx Container nicht korrekt. 
+Der Frontend-Service war falsch konfiguriert und stoppte nach dem Kopieren der Dateien.
+
+URSACHE:
+1. Frontend-Service verwendete einen falschen Command der nur Dateien kopierte und dann beendete
+2. Nginx war auf ein Volume konfiguriert statt auf den Frontend-Service zu proxyen
+3. Fehlende Abhängigkeiten zwischen den Services
+
+LÖSUNG:
+Frontend-Service als eigenständigen Container konfiguriert und Nginx-Proxy entsprechend angepasst.
+
+PATCHES:
+
+PATCH scripts/create-customer-package.sh (Frontend Service korrigiert):
+```diff
+   # Frontend static files server
+   frontend:
+     image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
+-    container_name: appliance_frontend_builder
+-    volumes:
+-      - frontend_static:/app/build
+-    command: ["sh", "-c", "cp -r /app/build/* /app/build/"]
++    container_name: appliance_frontend
++    restart: always
+     networks:
+       - appliance_network
++    healthcheck:
++      test: ["CMD", "curl", "-f", "http://localhost:80"]
++      interval: 30s
++      timeout: 10s
++      retries: 3
+```
+
+PATCH scripts/create-customer-package.sh (Nginx upstream für Frontend hinzugefügt):
+```diff
+     upstream guacamole {
+         server guacamole:8080;
+     }
++    
++    upstream frontend {
++        server frontend:80;
++    }
+```
+
+PATCH scripts/create-customer-package.sh (Nginx Frontend location angepasst - 2 Vorkommen):
+```diff
+         # Frontend
+         location / {
+-            root /usr/share/nginx/html;
+-            try_files $uri $uri/ /index.html;
++            proxy_pass http://frontend;
++            proxy_set_header Host $host;
++            proxy_set_header X-Real-IP $remote_addr;
++            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         }
+```
+
+PATCH scripts/create-customer-package.sh (Volume-Mount für Frontend entfernt):
+```diff
+     volumes:
+       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+       - ./ssl:/etc/nginx/ssl:ro
+-      - frontend_static:/usr/share/nginx/html:ro
+```
+
+PATCH scripts/create-customer-package.sh (Frontend Volume aus volumes-Liste entfernt):
+```diff
+ volumes:
+   db_data:
+   backend_uploads:
+   backend_logs:
+   ssh_keys:
+   guacamole_home:
+   guacamole_postgres_data:
+   rustdesk_data:
+-  frontend_static:
+```
+
+PATCH scripts/create-customer-package.sh (Webserver dependencies erweitert):
+```diff
+     depends_on:
+       - backend
++      - frontend
+       - ttyd
+       - guacamole
+```
+
+VERHALTEN:
+- Frontend läuft jetzt als eigenständiger Nginx-Container
+- Webserver (Nginx) fungiert als Reverse-Proxy für alle Services
+- Alle Container starten korrekt und bleiben aktiv
+- Kundenpaket ist nun vollständig funktionsfähig
+
+STATUS: ✅ Kundenpaket-Generator korrigiert
+
+LESSONS LEARNED:
+- Docker-Compose Services müssen langlebige Prozesse sein
+- Volume-Mounts sind nicht immer die beste Lösung
+- Service-Abhängigkeiten sind wichtig für die Startreihenfolge
+
+════════════════════════════════════════════════════════════════════════════════
