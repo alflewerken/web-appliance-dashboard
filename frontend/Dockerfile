@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (including dev dependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -21,8 +21,19 @@ FROM nginx:alpine
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy nginx configuration if exists
-COPY nginx.conf /etc/nginx/nginx.conf 2>/dev/null || true
+# Remove default nginx config
+RUN rm -rf /etc/nginx/conf.d/default.conf
+
+# Basic nginx config
+RUN echo 'server { \
+    listen 80; \
+    server_name _; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80
