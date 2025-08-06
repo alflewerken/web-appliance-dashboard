@@ -327,9 +327,10 @@ CREATE TABLE IF NOT EXISTS hosts (
   FOREIGN KEY (ssh_key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL
 );
 
--- Insert default admin user (password will be set by init script)
+-- Insert default admin user (password: admin123)
+-- Hash generated with bcryptjs: bcrypt.hashSync('admin123', 10)
 INSERT INTO users (username, email, password, is_admin, is_active) VALUES
-('admin', 'admin@localhost', 'TEMP_PASSWORD_WILL_BE_REPLACED', TRUE, TRUE);
+('admin', 'admin@localhost', '$2a$10$ZU7Jq5cGnGSkrm2Y3HNVF.jFpRcF5Q1Sc0YW1XqBvxVBx8rFpjPLq', TRUE, TRUE);
 
 -- Insert default categories
 INSERT INTO categories (name, icon, color, is_system, order_index) VALUES
@@ -341,28 +342,6 @@ INSERT INTO categories (name, icon, color, is_system, order_index) VALUES
 -- Mark initial migration as complete
 INSERT INTO migrations (name) VALUES ('initial-schema');
 EOF
-
-# Create post-init script to set admin passwordcat > init-db/02-set-admin-password.sh << 'EOF'
-#!/bin/bash
-# Set admin password after database is initialized
-
-echo "Setting admin password..."
-
-# Wait for MariaDB to be ready
-sleep 5
-
-# Generate bcrypt hash for admin123
-ADMIN_HASH='$2a$10$ZU7Jq5cGnGSkrm2Y3HNVF.jFpRcF5Q1Sc0YW1XqBvxVBx8rFpjPLq'
-
-# Update admin password
-mariadb -u root -p"$MYSQL_ROOT_PASSWORD" appliance_dashboard << SQL
-UPDATE users SET password='$ADMIN_HASH' WHERE username='admin';
-SQL
-
-echo "Admin password set successfully"
-EOF
-
-chmod +x init-db/02-set-admin-password.sh
 
 # Generate single password for all DB connections
 DB_PASSWORD=$(openssl rand -hex 32)

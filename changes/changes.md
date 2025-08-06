@@ -7375,3 +7375,56 @@ LESSONS LEARNED:
 - Troubleshooting-Tools sind essentiell
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-06 23:00 - BUGFIX: Customer Package Generator v2 - Shell-Script Fehler
+
+PROBLEM:
+Das create-customer-package-v2.sh Script versuchte `mariadb` lokal auszuführen statt im Container.
+Fehlermeldung: "mariadb: command not found"
+
+URSACHE:
+Das 02-set-admin-password.sh wurde während der Paket-Erstellung ausgeführt, nicht beim Container-Start.
+
+LÖSUNG:
+Admin-Passwort wird jetzt direkt im SQL-Script gesetzt, separates Shell-Script entfernt.
+
+PATCHES:
+
+PATCH scripts/create-customer-package-v2.sh (Admin-Passwort direkt in SQL):
+```diff
+--- Insert default admin user (password will be set by init script)
++-- Insert default admin user (password: admin123)
++-- Hash generated with bcryptjs: bcrypt.hashSync('admin123', 10)
+ INSERT INTO users (username, email, password, is_admin, is_active) VALUES
+-('admin', 'admin@localhost', 'TEMP_PASSWORD_WILL_BE_REPLACED', TRUE, TRUE);
++('admin', 'admin@localhost', '$2a$10$ZU7Jq5cGnGSkrm2Y3HNVF.jFpRcF5Q1Sc0YW1XqBvxVBx8rFpjPLq', TRUE, TRUE);
+```
+
+PATCH scripts/create-customer-package-v2.sh (Shell-Script entfernt):
+```diff
+ INSERT INTO migrations (name) VALUES ('initial-schema');
+ EOF
+
+-# Create post-init script to set admin password
+-cat > init-db/02-set-admin-password.sh << 'EOF'
+-#!/bin/bash
+-# Set admin password after database is initialized
+-...
+-EOF
+-
+-chmod +x init-db/02-set-admin-password.sh
+-
+ # Generate single password for all DB connections
+```
+
+VERHALTEN:
+- Paket-Erstellung funktioniert jetzt fehlerfrei
+- Admin-Passwort wird bei DB-Initialisierung korrekt gesetzt
+- Keine lokalen Abhängigkeiten mehr
+
+STATUS: ✅ Customer Package Generator v2 funktioniert
+
+════════════════════════════════════════════════════════════════════════════════
