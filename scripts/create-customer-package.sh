@@ -437,6 +437,9 @@ echo "========================================="
 echo "Web Appliance Dashboard Installation"
 echo "========================================="
 
+# Get installation directory name for unique container names
+INSTALL_DIR=\$(basename "\$(pwd)")
+
 # Check Docker
 if ! command -v docker &> /dev/null; then
     echo "❌ Docker is not installed. Please install Docker first."
@@ -552,6 +555,65 @@ echo "This may take a few minutes depending on your internet speed..."
     exit 1
 }
 
+# Check for conflicting containers
+echo ""
+echo "🔍 Checking for conflicting containers..."
+CONFLICTING_CONTAINERS=""
+for container in appliance_db appliance_backend appliance_frontend appliance_webserver appliance_ttyd appliance_guacd appliance_guacamole_db appliance_guacamole rustdesk-server rustdesk-relay; do
+    if docker ps -a --format "{{.Names}}" | grep -q "^\$container\$"; then
+        CONFLICTING_CONTAINERS="\$CONFLICTING_CONTAINERS \$container"
+    fi
+done
+
+if [ -n "\$CONFLICTING_CONTAINERS" ]; then
+    echo "⚠️  Found conflicting containers:\$CONFLICTING_CONTAINERS"
+    echo ""
+    echo "These containers are already running from another installation."
+    echo "Options:"
+    echo "1. Stop the other installation first"
+    echo "2. Use a different installation directory name"
+    echo "3. Remove conflicting containers (data will be preserved in volumes)"
+    echo ""
+    read -p "Remove conflicting containers? [y/N] " -n 1 -r
+    echo ""
+    if [[ \$REPLY =~ ^[Yy]\$ ]]; then
+        echo "Removing conflicting containers..."
+        for container in \$CONFLICTING_CONTAINERS; do
+            docker stop \$container 2>/dev/null
+            docker rm \$container 2>/dev/null
+        done
+        echo "✅ Conflicting containers removed"
+    else
+        echo "❌ Installation cancelled. Please resolve conflicts and try again."
+        exit 1
+    fi
+fi
+
+# Check for port conflicts
+echo "🔍 Checking for port conflicts..."
+PORT_CONFLICTS=""
+for port in 80 443 21116 21117 21118 21119 21120; do
+    if lsof -iTCP:\$port -sTCP:LISTEN &>/dev/null || netstat -an | grep -E ":\$port.*LISTEN" &>/dev/null; then
+        PORT_CONFLICTS="\$PORT_CONFLICTS \$port"
+    fi
+done
+
+if [ -n "\$PORT_CONFLICTS" ]; then
+    echo "⚠️  Warning: Following ports are already in use:\$PORT_CONFLICTS"
+    echo ""
+    echo "The installation will continue, but some services may fail to start."
+    echo "You may need to:"
+    echo "- Stop services using these ports"
+    echo "- Or modify docker-compose.yml to use different ports"
+    echo ""
+    read -p "Continue anyway? [y/N] " -n 1 -r
+    echo ""
+    if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then
+        echo "❌ Installation cancelled."
+        exit 1
+    fi
+fi
+
 # Start services
 echo ""
 echo "🚀 Starting services..."
@@ -572,8 +634,8 @@ echo "🏥 Checking service health..."
 \$COMPOSE_COMMAND ps
 
 # Check if services are actually running
-BACKEND_RUNNING=\$(\$COMPOSE_COMMAND ps backend | grep -c "Up")
-WEBSERVER_RUNNING=\$(\$COMPOSE_COMMAND ps webserver | grep -c "Up")
+BACKEND_RUNNING=\$(\$COMPOSE_COMMAND ps | grep "appliance_backend" | grep -c "Up\|running")
+WEBSERVER_RUNNING=\$(\$COMPOSE_COMMAND ps | grep "appliance_webserver" | grep -c "Up\|running")
 
 if [ "\$BACKEND_RUNNING" -eq 0 ] || [ "\$WEBSERVER_RUNNING" -eq 0 ]; then
     echo ""

@@ -7176,3 +7176,107 @@ LESSONS LEARNED:
 - Service-Abhängigkeiten sind wichtig für die Startreihenfolge
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-06 21:00 - IMPROVEMENT: Kundenpaket Install-Script verbessert - Container-Konflikte behandeln
+
+PROBLEM:
+Bei der Installation des Kundenpakets traten Konflikte auf:
+1. Container-Namen kollidierten mit existierenden Containern
+2. Ports waren bereits belegt (besonders RustDesk Port 21118)
+3. Service-Health-Check erkannte Backend/Webserver Status nicht korrekt
+
+LÖSUNG:
+Install-Script erweitert um Konflikt-Erkennung und -Behandlung.
+
+PATCHES:
+
+PATCH scripts/create-customer-package.sh (Container-Konflikt-Prüfung hinzugefügt):
+```diff
++# Check for conflicting containers
++echo ""
++echo "🔍 Checking for conflicting containers..."
++CONFLICTING_CONTAINERS=""
++for container in appliance_db appliance_backend appliance_frontend appliance_webserver appliance_ttyd appliance_guacd appliance_guacamole_db appliance_guacamole rustdesk-server rustdesk-relay; do
++    if docker ps -a --format "{{.Names}}" | grep -q "^\$container\$"; then
++        CONFLICTING_CONTAINERS="\$CONFLICTING_CONTAINERS \$container"
++    fi
++done
++
++if [ -n "\$CONFLICTING_CONTAINERS" ]; then
++    echo "⚠️  Found conflicting containers:\$CONFLICTING_CONTAINERS"
++    echo ""
++    echo "These containers are already running from another installation."
++    echo "Options:"
++    echo "1. Stop the other installation first"
++    echo "2. Use a different installation directory name"
++    echo "3. Remove conflicting containers (data will be preserved in volumes)"
++    echo ""
++    read -p "Remove conflicting containers? [y/N] " -n 1 -r
++    echo ""
++    if [[ \$REPLY =~ ^[Yy]\$ ]]; then
++        echo "Removing conflicting containers..."
++        for container in \$CONFLICTING_CONTAINERS; do
++            docker stop \$container 2>/dev/null
++            docker rm \$container 2>/dev/null
++        done
++        echo "✅ Conflicting containers removed"
++    else
++        echo "❌ Installation cancelled. Please resolve conflicts and try again."
++        exit 1
++    fi
++fi
++
++# Check for port conflicts
++echo "🔍 Checking for port conflicts..."
++PORT_CONFLICTS=""
++for port in 80 443 21116 21117 21118 21119 21120; do
++    if lsof -iTCP:\$port -sTCP:LISTEN &>/dev/null || netstat -an | grep -E ":\$port.*LISTEN" &>/dev/null; then
++        PORT_CONFLICTS="\$PORT_CONFLICTS \$port"
++    fi
++done
++
++if [ -n "\$PORT_CONFLICTS" ]; then
++    echo "⚠️  Warning: Following ports are already in use:\$PORT_CONFLICTS"
++    echo ""
++    echo "The installation will continue, but some services may fail to start."
++    echo "You may need to:"
++    echo "- Stop services using these ports"
++    echo "- Or modify docker-compose.yml to use different ports"
++    echo ""
++    read -p "Continue anyway? [y/N] " -n 1 -r
++    echo ""
++    if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then
++        echo "❌ Installation cancelled."
++        exit 1
++    fi
++fi
++
+ # Start services
+```
+
+PATCH scripts/create-customer-package.sh (Service-Status-Check korrigiert):
+```diff
+ # Check if services are actually running
+-BACKEND_RUNNING=\$(\$COMPOSE_COMMAND ps backend | grep -c "Up")
+-WEBSERVER_RUNNING=\$(\$COMPOSE_COMMAND ps webserver | grep -c "Up")
++BACKEND_RUNNING=\$(\$COMPOSE_COMMAND ps | grep "appliance_backend" | grep -c "Up\|running")
++WEBSERVER_RUNNING=\$(\$COMPOSE_COMMAND ps | grep "appliance_webserver" | grep -c "Up\|running")
+```
+
+VERHALTEN:
+- Installation prüft jetzt auf existierende Container und bietet Optionen
+- Port-Konflikte werden erkannt und gemeldet
+- Benutzer kann entscheiden, ob Installation fortgesetzt werden soll
+- Service-Status wird korrekt erkannt (kompatibel mit Docker Compose v2)
+
+STATUS: ✅ Install-Script robuster gemacht
+
+LESSONS LEARNED:
+- Container-Namen sollten projekt-spezifisch sein (z.B. mit Prefix)
+- Port-Konflikte sollten vor der Installation geprüft werden
+- Docker Compose v2 verwendet andere Status-Ausgaben als v1
+
+════════════════════════════════════════════════════════════════════════════════
