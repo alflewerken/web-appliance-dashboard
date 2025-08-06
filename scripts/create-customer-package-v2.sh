@@ -740,7 +740,8 @@ EOF
 chmod +x uninstall.sh
 
 # Create README
-cat > README.md << 'EOF'# Web Appliance Dashboard - Installation Guide
+cat > README.md << 'EOF'
+# Web Appliance Dashboard - Installation Guide
 
 ## 🚀 Quick Start
 
