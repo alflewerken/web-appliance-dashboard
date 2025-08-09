@@ -103,8 +103,8 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
     params.append('keyName', sshData.keyName);
   }
   
-  // Terminal läuft über nginx proxy auf /wetty/
-  const terminalUrl = `/wetty/${params.toString() ? '?' + params.toString() : ''}`;
+  // Terminal läuft über nginx proxy auf /terminal/
+  const terminalUrl = `/terminal/${params.toString() ? '?' + params.toString() : ''}`;
   
   // Erstelle den Anzeige-Titel
   const displayTitle = (() => {

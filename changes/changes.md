@@ -22894,3 +22894,36 @@ WICHTIG:
 STATUS: ✅ Terminal-Routing im Customer Package funktioniert jetzt korrekt
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 14:30 - FIX: Frontend Terminal-URL von /wetty/ auf /terminal/ korrigiert
+
+PROBLEM:
+- Frontend verwendete noch /wetty/ als Terminal-URL
+- Führte zu 503 Service Temporarily Unavailable
+- Customer Package hatte korrekte nginx-Konfiguration, aber Frontend war veraltet
+
+LÖSUNG:
+Terminal-URL im Frontend von /wetty/ auf /terminal/ geändert
+
+### frontend/src/components/TTYDTerminal.js - Terminal-URL korrigiert
+
+-PATCH frontend/src/components/TTYDTerminal.js (Zeile 106)
+```javascript
+-  // Terminal läuft über nginx proxy auf /wetty/
+-  const terminalUrl = `/wetty/${params.toString() ? '?' + params.toString() : ''}`;
++  // Terminal läuft über nginx proxy auf /terminal/
++  const terminalUrl = `/terminal/${params.toString() ? '?' + params.toString() : ''}`;
+```
+
+WICHTIG:
+- ttyd läuft auf Port 7681
+- Terminal ist über /terminal/ erreichbar
+- WebSocket-Verbindungen über /terminal/ws
+- Frontend muss neu gebaut werden nach dieser Änderung
+
+STATUS: ✅ Terminal verwendet jetzt korrekte URL
+
+════════════════════════════════════════════════════════════════════════════════
