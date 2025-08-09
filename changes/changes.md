@@ -22927,3 +22927,74 @@ WICHTIG:
 STATUS: ✅ Terminal verwendet jetzt korrekte URL
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 14:45 - FIX: ttyd Container-Konfiguration im Customer Package
+
+PROBLEM:
+- ttyd war als einfacher Platzhalter konfiguriert
+- 404 Fehler beim Öffnen des Terminals
+- JavaScript Syntax-Fehler wegen fehlender Terminal-Funktionalität
+
+LÖSUNG:
+ttyd Container verwendet jetzt das korrekte ghcr.io Image mit vollständiger Konfiguration
+
+### scripts/create-customer-package-v2.sh - ttyd Container korrigiert
+
+-PATCH scripts/create-customer-package-v2.sh (Zeilen 199-211 entfernt)
+```yaml
+  ttyd:
+    image: tsl0922/ttyd:latest
+    container_name: appliance_ttyd
+    hostname: ttyd
+    command: ["ttyd", "-p", "7681", "-W", "--base-path", "/terminal/", "bash", "-c", "echo 'Terminal proxy - use appliance cards for SSH connections'"]
+    networks:
+      - appliance_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7681"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
++PATCH scripts/create-customer-package-v2.sh (Zeilen 199-220 hinzugefügt)
+```yaml
+  ttyd:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+    container_name: appliance_ttyd
+    hostname: ttyd
+    depends_on:
+      - backend
+    environment:
+      # Connection to backend for SSH
+      BACKEND_HOST: backend
+      BACKEND_PORT: 3001
+      # JWT settings
+      JWT_SECRET: ${JWT_SECRET}
+      # Terminal settings
+      TTYD_PORT: 7681
+      TTYD_BASE_PATH: /terminal/
+    volumes:
+      - ssh_keys:/root/.ssh:ro
+    networks:
+      - appliance_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7681"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+WICHTIG:
+- Verwendet jetzt das korrekte ghcr.io ttyd Image
+- JWT_SECRET wird durchgereicht für Authentifizierung
+- SSH-Keys werden als Volume gemountet
+- Verbindung zum Backend konfiguriert
+
+STATUS: ✅ ttyd Container korrekt konfiguriert
+
+════════════════════════════════════════════════════════════════════════════════

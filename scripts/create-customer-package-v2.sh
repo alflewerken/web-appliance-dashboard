@@ -190,10 +190,22 @@ services:
       retries: 5
 
   ttyd:
-    image: tsl0922/ttyd:latest
+    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
     container_name: appliance_ttyd
     hostname: ttyd
-    command: ["ttyd", "-p", "7681", "-W", "--base-path", "/terminal/", "bash", "-c", "echo 'Terminal proxy - use appliance cards for SSH connections'"]
+    depends_on:
+      - backend
+    environment:
+      # Connection to backend for SSH
+      BACKEND_HOST: backend
+      BACKEND_PORT: 3001
+      # JWT settings
+      JWT_SECRET: ${JWT_SECRET}
+      # Terminal settings
+      TTYD_PORT: 7681
+      TTYD_BASE_PATH: /terminal/
+    volumes:
+      - ssh_keys:/root/.ssh:ro
     networks:
       - appliance_network
     restart: unless-stopped
