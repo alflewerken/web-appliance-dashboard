@@ -7,8 +7,8 @@ const sseManager = require('./sseManager');
  * @param {string} action - Action performed
  * @param {string} resourceType - Type of resource
  * @param {number} resourceId - Resource ID
- * @param {object} details - Additional details
- * @param {string} ipAddress - IP address
+ * @param {object} details - Additional details (can include _req for IP extraction)
+ * @param {string} ipAddress - IP address (optional if _req is in details)
  * @param {string} resourceName - Human-readable resource name (optional)
  */
 async function createAuditLog(
@@ -21,8 +21,33 @@ async function createAuditLog(
   resourceName = null
 ) {
   try {
+    // Extract IP from request object if passed in details
+    let finalIpAddress = ipAddress;
+    
+    // If details contains a _req property, extract IP from it
+    if (details && details._req && details._req.clientIp) {
+      finalIpAddress = details._req.clientIp;
+      // Remove _req from details before storing
+      const { _req, ...cleanDetails } = details;
+      details = cleanDetails;
+    }
+    
+    // If ipAddress is still not set, try to extract from common patterns
+    if (!finalIpAddress) {
+      // Check if details was actually meant to be ipAddress (common mistake in calls)
+      if (typeof details === 'string' && details.includes('.')) {
+        finalIpAddress = details;
+        details = {};
+      }
+    }
+    
+    // Ensure we have a valid IP or set to null
+    if (!finalIpAddress || finalIpAddress === 'undefined') {
+      finalIpAddress = null;
+    }
+    
     // Debug log
-    console.log(`📝 Creating audit log - Action: ${action}, Resource: ${resourceType} #${resourceId}, Name: "${resourceName}"`);
+    console.log(`📝 Creating audit log - Action: ${action}, Resource: ${resourceType} #${resourceId}, Name: "${resourceName}", IP: ${finalIpAddress}`);
     
     // Insert audit log entry
     const [result] = await pool.execute(
@@ -37,12 +62,12 @@ async function createAuditLog(
         resourceId,
         resourceName,
         JSON.stringify(details),
-        ipAddress || null,
+        finalIpAddress,
       ]
     );
 
     console.log(
-      `📝 Audit log created: ${action} on ${resourceType} #${resourceId}${resourceName ? ` (${resourceName})` : ''} by user ${userId}`
+      `📝 Audit log created: ${action} on ${resourceType} #${resourceId}${resourceName ? ` (${resourceName})` : ''} by user ${userId} from IP ${finalIpAddress}`
     );
 
     // Broadcast SSE event for audit log creation
@@ -56,7 +81,7 @@ async function createAuditLog(
         resource_id: resourceId,
         resource_name: resourceName,
         details,
-        ip_address: ipAddress,
+        ip_address: finalIpAddress,
         created_at: new Date(),
       },
     });

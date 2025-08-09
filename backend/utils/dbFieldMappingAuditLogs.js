@@ -24,6 +24,42 @@ const AUDIT_LOG_DB_COLUMNS = {
 function mapAuditLogDbToJs(row) {
   if (!row) return null;
 
+  // Convert MySQL datetime to ISO string for proper JS Date parsing
+  let createdAt = row.created_at;
+  if (createdAt) {
+    // Check if it's already a Date object
+    if (createdAt instanceof Date) {
+      createdAt = createdAt.toISOString();
+    } else if (typeof createdAt === 'string') {
+      // MySQL datetime might come in different formats
+      if (createdAt.includes('Z') || createdAt.includes('+')) {
+        // Already has timezone info, use as-is
+        createdAt = createdAt;
+      } else if (createdAt.includes('T')) {
+        // Has T separator but no timezone - assume UTC (Docker container time)
+        // Add Z to mark as UTC
+        createdAt = createdAt + 'Z';
+      } else {
+        // MySQL datetime format: "2025-08-08 11:56:11" 
+        // In Docker containers, MySQL/MariaDB stores in container's timezone (UTC in our case)
+        // Since the container runs in UTC, we can directly add Z to mark it as UTC
+        const utcDateStr = createdAt.replace(' ', 'T') + 'Z';
+        createdAt = utcDateStr;
+      }
+    }
+  }
+
+  // Parse details/metadata field
+  let metadata = row.metadata || row.details;
+  if (metadata && typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch (e) {
+      // If parsing fails, keep as string
+      console.error('Failed to parse metadata:', e);
+    }
+  }
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -34,8 +70,9 @@ function mapAuditLogDbToJs(row) {
     resourceName: row.resource_name,
     ipAddress: row.ip_address,
     userAgent: row.user_agent,
-    metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : null,
-    createdAt: row.created_at,
+    metadata: metadata,
+    details: metadata,  // Frontend erwartet 'details'
+    createdAt: createdAt,
   };
 }
 

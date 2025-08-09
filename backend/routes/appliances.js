@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const {
   getSelectColumns,
   mapDbToJs,
@@ -14,6 +15,9 @@ const { getClientIp } = require('../utils/getClientIp');
 const { saveBackgroundImageToAuditLog } = require('../utils/backgroundImageHelper');
 const { encrypt, decrypt } = require('../utils/crypto');
 const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 /**
  * @swagger
@@ -49,29 +53,22 @@ const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils
 // Get all appliances
 router.get('/', async (req, res) => {
   try {
-    const [appliances] = await pool.execute(`
-      SELECT ${getSelectColumns()}
-      FROM appliances 
-      ORDER BY name
-    `);
+    const appliances = await db.select('appliances', {}, { orderBy: 'name' });
 
     // Debug: Log first appliance with SSH connection
-    const debugAppliance = appliances.find(a => a.ssh_connection);
+    const debugAppliance = appliances.find(a => a.sshConnection);
     if (debugAppliance) {
       console.log('DEBUG: Raw appliance with SSH:', {
         id: debugAppliance.id,
         name: debugAppliance.name,
-        ssh_connection: debugAppliance.ssh_connection,
-        remote_desktop_type: debugAppliance.remote_desktop_type,
-        remote_desktop_enabled: debugAppliance.remote_desktop_enabled
+        sshConnection: debugAppliance.sshConnection,
+        remoteDesktopType: debugAppliance.remoteDesktopType,
+        remoteDesktopEnabled: debugAppliance.remoteDesktopEnabled
       });
     }
 
-    // Map all appliances to consistent JS format
-    const mappedAppliances = appliances.map(mapDbToJs);
-    
     // Debug: Check mapped appliance
-    const debugMapped = mappedAppliances.find(a => a.sshConnection);
+    const debugMapped = appliances.find(a => a.sshConnection);
     if (debugMapped) {
       console.log('DEBUG: Mapped appliance with SSH:', {
         id: debugMapped.id,
@@ -83,7 +80,7 @@ router.get('/', async (req, res) => {
       });
     }
 
-    res.json(mappedAppliances);
+    res.json(appliances);
   } catch (error) {
     console.error('Error fetching appliances:', error);
     res.status(500).json({
@@ -136,19 +133,13 @@ router.get('/', async (req, res) => {
 // Get single appliance
 router.get('/:id', async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      `SELECT ${getSelectColumns()}
-       FROM appliances 
-       WHERE id = ?`,
-      [req.params.id]
-    );
+    const appliance = await db.findOne('appliances', { id: req.params.id });
 
-    if (rows.length === 0) {
+    if (!appliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    const mappedAppliance = mapDbToJs(rows[0]);
-    res.json(mappedAppliance);
+    res.json(appliance);
   } catch (error) {
     console.error('Error fetching appliance:', error);
     res.status(500).json({
@@ -288,54 +279,40 @@ router.post('/', verifyToken, async (req, res) => {
   }
 
   try {
-    const [result] = await pool.execute(
-      `INSERT INTO appliances (
-        name, url, description, icon, color, category, isFavorite,
-        start_command, stop_command, status_command, auto_start, ssh_connection,
-        transparency, blur_amount, open_mode_mini, open_mode_mobile, open_mode_desktop,
-        remote_desktop_enabled, remote_desktop_type, remote_protocol, remote_host, remote_port, remote_username, remote_password_encrypted,
-        rustdeskId, rustdesk_installed, rustdesk_password_encrypted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        dbData.name,
-        dbData.url,
-        dbData.description || '',
-        dbData.icon || 'Server',
-        dbData.color || '#007AFF',
-        dbData.category || 'productivity',
-        dbData.isFavorite || 0,
-        dbData.start_command || null,
-        dbData.stop_command || null,
-        dbData.status_command || null,
-        dbData.auto_start || 0,
-        dbData.ssh_connection || null,
-        dbData.transparency !== undefined ? dbData.transparency : 0.85,
-        dbData.blur_amount !== undefined ? dbData.blur_amount : 8,
-        dbData.open_mode_mini || 'browser_tab',
-        dbData.open_mode_mobile || 'browser_tab',
-        dbData.open_mode_desktop || 'browser_tab',
-        dbData.remote_desktop_enabled ? 1 : 0,
-        dbData.remote_desktop_type || 'guacamole',
-        dbData.remote_protocol || 'vnc',
-        dbData.remote_host || null,
-        dbData.remote_port || null,
-        dbData.remote_username || null,
-        encryptedPassword,
-        dbData.rustdesk_id || null,
-        dbData.rustdesk_installed || 0,
-        encryptedRustDeskPassword
-      ]
-    );
+    const result = await db.insert('appliances', {
+      name: dbData.name,
+      url: dbData.url,
+      description: dbData.description || '',
+      icon: dbData.icon || 'Server',
+      color: dbData.color || '#007AFF',
+      category: dbData.category || 'productivity',
+      isFavorite: dbData.isFavorite || false,
+      startCommand: dbData.start_command || null,
+      stopCommand: dbData.stop_command || null,
+      statusCommand: dbData.status_command || null,
+      autoStart: dbData.auto_start || false,
+      sshConnection: dbData.ssh_connection || null,
+      transparency: dbData.transparency !== undefined ? dbData.transparency : 0.85,
+      blurAmount: dbData.blur_amount !== undefined ? dbData.blur_amount : 8,
+      openModeMini: dbData.open_mode_mini || 'browser_tab',
+      openModeMobile: dbData.open_mode_mobile || 'browser_tab',
+      openModeDesktop: dbData.open_mode_desktop || 'browser_tab',
+      remoteDesktopEnabled: dbData.remote_desktop_enabled || false,
+      remoteDesktopType: dbData.remote_desktop_type || 'guacamole',
+      remoteProtocol: dbData.remote_protocol || 'vnc',
+      remoteHost: dbData.remote_host || null,
+      remotePort: dbData.remote_port || null,
+      remoteUsername: dbData.remote_username || null,
+      remotePasswordEncrypted: encryptedPassword,
+      rustdeskId: dbData.rustdesk_id || null,
+      rustdeskInstalled: dbData.rustdesk_installed || false,
+      rustdeskPasswordEncrypted: encryptedRustDeskPassword,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
     // Fetch the created appliance with all fields
-    const [newRows] = await pool.execute(
-      `SELECT ${getSelectColumns()}
-       FROM appliances 
-       WHERE id = ?`,
-      [result.insertId]
-    );
-
-    const mappedAppliance = mapDbToJs(newRows[0]);
+    const newAppliance = await db.findOne('appliances', { id: result.insertId });
 
     // Create audit log
     if (req.user) {
@@ -345,8 +322,8 @@ router.post('/', verifyToken, async (req, res) => {
         'appliances',
         result.insertId,
         {
-          appliance_name: name,
-          service: mappedAppliance,
+          appliance_name: req.body.name,
+          service: newAppliance,
           created_by: req.user.username,
         },
         req.clientIp || req.ip
@@ -354,15 +331,15 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Sync Guacamole connection if remote desktop is enabled
-    if (dbData.remote_desktop_enabled) {
-      // Convert JS format back to DB format for Guacamole sync
+    if (newAppliance.remoteDesktopEnabled) {
+      // Use the appliance data directly for Guacamole sync
       const dbAppliance = {
         id: result.insertId,
         remote_desktop_enabled: 1,
-        remote_protocol: dbData.remote_protocol,
-        remote_host: dbData.remote_host,
-        remote_port: dbData.remote_port,
-        remote_username: dbData.remote_username,
+        remote_protocol: newAppliance.remoteProtocol,
+        remote_host: newAppliance.remoteHost,
+        remote_port: newAppliance.remotePort,
+        remote_username: newAppliance.remoteUsername,
         remote_password_encrypted: encryptedPassword
       };
       syncGuacamoleConnection(dbAppliance).catch(err => 
@@ -371,7 +348,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Broadcast SSE events
-    broadcast('appliance_created', mappedAppliance);
+    broadcast('appliance_created', newAppliance);
     broadcast('audit_log_created', {
       action: 'appliance_create',
       resource_type: 'appliances',
@@ -379,7 +356,7 @@ router.post('/', verifyToken, async (req, res) => {
       user: req.user?.username || 'System',
     });
 
-    res.status(201).json(mappedAppliance);
+    res.status(201).json(newAppliance);
   } catch (error) {
     console.error('Error creating appliance:', error);
     res.status(500).json({
@@ -393,127 +370,171 @@ router.post('/', verifyToken, async (req, res) => {
 // Update appliance
 router.put('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
-  const dbData = mapJsToDb(req.body);
 
   try {
     // Get current data for audit log
-    const [currentData] = await pool.execute(
-      `SELECT ${getSelectColumns()}
-       FROM appliances 
-       WHERE id = ?`,
-      [id]
-    );
+    const currentAppliance = await db.findOne('appliances', { id });
 
-    if (currentData.length === 0) {
+    if (!currentAppliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    const originalData = mapDbToJs(currentData[0]);
+    // Map originalData to consistent format
+    const originalMapped = mapDbToJs(currentAppliance, 'appliances');
 
     // Handle password encryption
-    let encryptedPassword = currentData[0].remote_password_encrypted; // Keep existing if not changed
+    let encryptedPassword = currentAppliance.remotePasswordEncrypted; // Keep existing if not changed
     if (req.body.remotePassword && req.body.remotePassword !== '') {
       encryptedPassword = encrypt(req.body.remotePassword);
     }
     
     // Handle RustDesk password encryption
-    let encryptedRustDeskPassword = currentData[0].rustdesk_password_encrypted; // Keep existing if not changed
+    let encryptedRustDeskPassword = currentAppliance.rustdeskPasswordEncrypted; // Keep existing if not changed
     if (req.body.rustdeskPassword && req.body.rustdeskPassword !== '') {
       encryptedRustDeskPassword = encrypt(req.body.rustdeskPassword);
     }
 
-    await pool.execute(
-      `UPDATE appliances SET 
-        name = ?, url = ?, description = ?, icon = ?, color = ?, 
-        category = ?, isFavorite = ?, start_command = ?, stop_command = ?, 
-        status_command = ?, auto_start = ?, ssh_connection = ?,
-        transparency = ?, blur_amount = ?, open_mode_mini = ?,
-        open_mode_mobile = ?, open_mode_desktop = ?,
-        remote_desktop_enabled = ?, remote_desktop_type = ?, remote_protocol = ?, remote_host = ?, remote_port = ?,
-        remote_username = ?, remote_password_encrypted = ?,
-        rustdesk_id = ?, rustdesk_installed = ?, rustdesk_password_encrypted = ?
-       WHERE id = ?`,
-      [
-        dbData.name,
-        dbData.url,
-        dbData.description,
-        dbData.icon,
-        dbData.color,
-        dbData.category,
-        dbData.isFavorite,
-        dbData.start_command || null,
-        dbData.stop_command || null,
-        dbData.status_command || null,
-        dbData.auto_start || 0,
-        dbData.ssh_connection || null,
-        dbData.transparency !== undefined ? dbData.transparency : 0.85,
-        dbData.blur_amount !== undefined ? dbData.blur_amount : 8,
-        dbData.open_mode_mini || 'browser_tab',
-        dbData.open_mode_mobile || 'browser_tab',
-        dbData.open_mode_desktop || 'browser_tab',
-        dbData.remote_desktop_enabled ? 1 : 0,
-        dbData.remote_desktop_type || 'guacamole',
-        dbData.remote_protocol || 'vnc',
-        dbData.remote_host || null,
-        dbData.remote_port || null,
-        dbData.remote_username || null,
-        encryptedPassword,
-        dbData.rustdesk_id || null,
-        dbData.rustdesk_installed !== undefined ? dbData.rustdesk_installed : 0,
-        encryptedRustDeskPassword,
-        id,
-      ]
-    );
+    // Prepare update data from request body
+    const updateData = {
+      name: req.body.name,
+      url: req.body.url,
+      description: req.body.description,
+      icon: req.body.icon,
+      color: req.body.color,
+      category: req.body.category,
+      isFavorite: req.body.isFavorite,
+      startCommand: req.body.startCommand || null,
+      stopCommand: req.body.stopCommand || null,
+      statusCommand: req.body.statusCommand || null,
+      autoStart: req.body.autoStart || false,
+      sshConnection: req.body.sshConnection || null,
+      transparency: req.body.transparency !== undefined ? req.body.transparency : 0.85,
+      blurAmount: req.body.blurAmount !== undefined ? req.body.blurAmount : 8,
+      openModeMini: req.body.openModeMini || 'browser_tab',
+      openModeMobile: req.body.openModeMobile || 'browser_tab',
+      openModeDesktop: req.body.openModeDesktop || 'browser_tab',
+      remoteDesktopEnabled: req.body.remoteDesktopEnabled || false,
+      remoteDesktopType: req.body.remoteDesktopType || 'guacamole',
+      remoteProtocol: req.body.remoteProtocol || 'vnc',
+      remoteHost: req.body.remoteHost || null,
+      remotePort: req.body.remotePort || null,
+      remoteUsername: req.body.remoteUsername || null,
+      remotePasswordEncrypted: encryptedPassword,
+      rustdeskId: req.body.rustdeskId || null,
+      rustdeskInstalled: req.body.rustdeskInstalled !== undefined ? req.body.rustdeskInstalled : false,
+      rustdeskPasswordEncrypted: encryptedRustDeskPassword,
+      updatedAt: new Date()
+    };
+
+    await db.update('appliances', updateData, { id });
 
     // Fetch updated appliance
-    const [updatedRows] = await pool.execute(
-      `SELECT ${getSelectColumns()}
-       FROM appliances 
-       WHERE id = ?`,
-      [id]
-    );
+    const updatedAppliance = await db.findOne('appliances', { id });
 
-    if (updatedRows.length === 0) {
+    if (!updatedAppliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    const mappedAppliance = mapDbToJs(updatedRows[0]);
+    // Calculate changed fields - only include fields that actually changed
+    const changedFields = {};
+    const oldValues = {};
+    
+    console.log('PUT Debug - Comparing fields for appliance', id);
+    console.log('PUT Debug - updateData keys:', Object.keys(updateData));
+    
+    Object.keys(updateData).forEach(key => {
+      // Skip updatedAt and password fields
+      if (key === 'updatedAt' || key.includes('Password')) return;
+      
+      // Use mapped original data for consistent comparison
+      const oldVal = originalMapped[key];
+      const newVal = updateData[key];
+      
+      console.log(`PUT Debug - Field ${key}: old="${oldVal}" (${typeof oldVal}), new="${newVal}" (${typeof newVal})`);
+      
+      // Normalize values for comparison
+      let normalizedOld = oldVal;
+      let normalizedNew = newVal;
+      
+      // Handle null/undefined/empty string as equivalent
+      if (oldVal === null || oldVal === undefined || oldVal === '') normalizedOld = '';
+      if (newVal === null || newVal === undefined || newVal === '') normalizedNew = '';
+      
+      // Handle boolean comparisons (database returns 0/1, frontend sends true/false)
+      if (typeof normalizedNew === 'boolean' || normalizedOld === 0 || normalizedOld === 1) {
+        normalizedOld = Boolean(normalizedOld);
+        normalizedNew = Boolean(normalizedNew);
+      }
+      
+      // Handle number/string conversion for numeric fields
+      const numericFields = ['transparency', 'blurAmount', 'remotePort'];
+      if (numericFields.includes(key)) {
+        // Convert both to numbers if possible, otherwise keep as string
+        const oldNum = parseFloat(normalizedOld);
+        const newNum = parseFloat(normalizedNew);
+        if (!isNaN(oldNum) && !isNaN(newNum)) {
+          normalizedOld = oldNum;
+          normalizedNew = newNum;
+        }
+      }
+      
+      // Convert to string for final comparison
+      const oldStr = String(normalizedOld);
+      const newStr = String(normalizedNew);
+      
+      if (oldStr !== newStr) {
+        console.log(`PUT Debug - Field ${key} CHANGED: "${oldStr}" -> "${newStr}"`);
+        changedFields[key] = newVal;
+        oldValues[key] = oldVal;
+      } else {
+        console.log(`PUT Debug - Field ${key} unchanged`);
+      }
+    });
+    
+    console.log('PUT Debug - Total changed fields:', Object.keys(changedFields).length);
+    console.log('PUT Debug - Changed fields:', changedFields);
 
     // Create audit log
     if (req.user) {
-      await createAuditLog(
-        req.user.id,
-        'appliance_update',
-        'appliances',
-        id,
-        {
-          appliance_name: mappedAppliance.name || originalData.name,
-          original_data: originalData,
-          new_data: mappedAppliance,
-          updated_by: req.user.username,
-        },
-        req.clientIp || req.ip
-      );
+      if (Object.keys(changedFields).length > 0) {
+        console.log('PUT Debug - Creating audit log for changes:', changedFields);
+        await createAuditLog(
+          req.user.id,
+          'appliance_update',
+          'appliances',
+          id,
+          {
+            appliance_name: updatedAppliance.name || originalData.name,
+            changes: changedFields,
+            oldValues: oldValues,
+            fields_updated: Object.keys(changedFields),
+            updated_by: req.user.username,
+          },
+          req.clientIp || req.ip
+        );
+      } else {
+        console.log('PUT Debug - No changes detected, skipping audit log');
+      }
     }
 
     // Sync Guacamole connection if remote desktop settings changed
     const remoteDesktopFieldsChanged = 
-      originalData.remoteDesktopEnabled !== mappedAppliance.remoteDesktopEnabled ||
-      originalData.remoteProtocol !== mappedAppliance.remoteProtocol ||
-      originalData.remoteHost !== mappedAppliance.remoteHost ||
-      originalData.remotePort !== mappedAppliance.remotePort ||
-      originalData.remoteUsername !== mappedAppliance.remoteUsername ||
+      originalMapped.remoteDesktopEnabled !== updatedAppliance.remoteDesktopEnabled ||
+      originalMapped.remoteProtocol !== updatedAppliance.remoteProtocol ||
+      originalMapped.remoteHost !== updatedAppliance.remoteHost ||
+      originalMapped.remotePort !== updatedAppliance.remotePort ||
+      originalMapped.remoteUsername !== updatedAppliance.remoteUsername ||
       req.body.remotePassword; // Password was changed
 
     if (remoteDesktopFieldsChanged) {
       // Convert to DB format for Guacamole sync
       const dbAppliance = {
         id: parseInt(id),
-        remote_desktop_enabled: dbData.remote_desktop_enabled ? 1 : 0,
-        remote_protocol: dbData.remote_protocol,
-        remote_host: dbData.remote_host,
-        remote_port: dbData.remote_port,
-        remote_username: dbData.remote_username,
+        remote_desktop_enabled: updatedAppliance.remoteDesktopEnabled ? 1 : 0,
+        remote_protocol: updatedAppliance.remoteProtocol,
+        remote_host: updatedAppliance.remoteHost,
+        remote_port: updatedAppliance.remotePort,
+        remote_username: updatedAppliance.remoteUsername,
         remote_password_encrypted: encryptedPassword
       };
       syncGuacamoleConnection(dbAppliance).catch(err => 
@@ -532,13 +553,13 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     if (remoteDesktopUpdated) {
       // Sync Guacamole connection
-      syncGuacamoleConnection(updatedRows[0]).catch(err => 
+      syncGuacamoleConnection(updatedAppliance).catch(err => 
         console.error('Failed to sync Guacamole connection:', err)
       );
     }
 
     // Broadcast the update to all connected clients
-    broadcast('appliance_updated', mappedAppliance);
+    broadcast('appliance_updated', updatedAppliance);
     broadcast('audit_log_created', {
       action: 'appliance_update',
       resource_type: 'appliances',
@@ -546,7 +567,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       user: req.user?.username || 'System',
     });
 
-    res.json(mappedAppliance);
+    res.json(updatedAppliance);
   } catch (error) {
     console.error('Error updating appliance:', error);
     res.status(500).json({
@@ -563,21 +584,17 @@ router.patch('/:id/lastUsed', verifyToken, async (req, res) => {
     const applianceId = req.params.id;
     
     // Get appliance details for audit log
-    const [applianceRows] = await pool.execute(
-      'SELECT name FROM appliances WHERE id = ?',
-      [applianceId]
-    );
+    const appliance = await db.findOne('appliances', { id: applianceId });
     
-    if (applianceRows.length === 0) {
+    if (!appliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
     
-    const appliance = applianceRows[0];
-    
     // Update last used timestamp
-    await pool.execute(
-      'UPDATE appliances SET lastUsed = CURRENT_TIMESTAMP WHERE id = ?',
-      [applianceId]
+    await db.update(
+      'appliances',
+      { lastUsed: new Date() },
+      { id: applianceId }
     );
     
     // Create audit log entry
@@ -612,95 +629,68 @@ router.patch('/:id', verifyToken, async (req, res) => {
 
   try {
     // First, get the current data for audit log
-    const [originalRows] = await pool.execute(
-      `SELECT ${getSelectColumns()}
-       FROM appliances 
-       WHERE id = ?`,
-      [id]
-    );
+    const originalDataRaw = await db.findOne('appliances', { id });
 
-    if (originalRows.length === 0) {
+    if (!originalDataRaw) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
+    
+    // Map to consistent format
+    const originalData = mapDbToJs(originalDataRaw, 'appliances');
 
-    const originalData = originalRows[0];
-
-    // Build dynamic UPDATE query based on provided fields
-    const updateFields = [];
-    const updateValues = [];
-    const updateData = {}; // Store the actual updates for audit log
-
-    // Map frontend field names to database column names
-    const fieldMapping = {
-      transparency: 'transparency',
-      blur: 'blur_amount',
-      blur_amount: 'blur_amount', // Support both field names
-      name: 'name',
-      url: 'url',
-      description: 'description',
-      icon: 'icon',
-      color: 'color',
-      category: 'category',
-      isFavorite: 'isFavorite',
-      startCommand: 'start_command',
-      stopCommand: 'stop_command',
-      statusCommand: 'status_command',
-      autoStart: 'auto_start',
-      sshConnection: 'ssh_connection',
-      openModeMini: 'open_mode_mini',
-      openModeMobile: 'open_mode_mobile',
-      openModeDesktop: 'open_mode_desktop',
-      open_mode_mini: 'open_mode_mini',
-      open_mode_mobile: 'open_mode_mobile',
-      open_mode_desktop: 'open_mode_desktop',
-      // Remote Desktop fields
-      remoteDesktopEnabled: 'remote_desktop_enabled',
-      remoteDesktopType: 'remote_desktop_type',
-      remoteProtocol: 'remote_protocol',
-      remoteHost: 'remote_host',
-      remotePort: 'remote_port',
-      remoteUsername: 'remote_username',
-    };
+    // Prepare update data
+    const updateData = {};
 
     // Handle password encryption separately
     if (updates.remotePassword && updates.remotePassword !== '') {
-      const encryptedPassword = encrypt(updates.remotePassword);
-      updateFields.push('remote_password_encrypted = ?');
-      updateValues.push(encryptedPassword);
-      updateData['remote_password_encrypted'] = 'encrypted'; // Don't store actual encrypted value in audit log
+      updateData.remotePasswordEncrypted = encrypt(updates.remotePassword);
     }
 
-    // Build the UPDATE query dynamically
-    Object.keys(updates).forEach(key => {
-      if (fieldMapping[key] !== undefined && updates[key] !== undefined) {
-        // Handle boolean conversion for remote_desktop_enabled
-        if (key === 'remoteDesktopEnabled') {
-          updateFields.push(`${fieldMapping[key]} = ?`);
-          updateValues.push(updates[key] ? 1 : 0);
-          updateData[fieldMapping[key]] = updates[key] ? 1 : 0;
-        } else {
-          updateFields.push(`${fieldMapping[key]} = ?`);
-          updateValues.push(updates[key]);
-          updateData[fieldMapping[key]] = updates[key];
-        }
+    // Handle RustDesk password encryption
+    if (updates.rustdeskPassword && updates.rustdeskPassword !== '') {
+      updateData.rustdeskPasswordEncrypted = encrypt(updates.rustdeskPassword);
+    }
+
+    // Map all other fields from request body
+    const fieldsToCopy = [
+      'transparency', 'blurAmount', 'name', 'url', 'description', 
+      'icon', 'color', 'category', // removed isFavorite - mapping layer handles it
+      'startCommand', 'stopCommand', 'statusCommand', 'autoStart',
+      'sshConnection', 'openModeMini', 'openModeMobile', 'openModeDesktop',
+      'remoteDesktopEnabled', 'remoteDesktopType', 'remoteProtocol',
+      'remoteHost', 'remotePort', 'remoteUsername', 'rustdeskId', 'rustdeskInstalled'
+    ];
+
+    fieldsToCopy.forEach(field => {
+      if (updates[field] !== undefined) {
+        updateData[field] = updates[field];
       }
     });
 
-    if (updateFields.length === 0) {
+    // Handle isFavorite separately - it needs field mapping
+    if (updates.isFavorite !== undefined) {
+      updateData.isFavorite = updates.isFavorite;
+    }
+
+    // Also support snake_case field names from legacy requests
+    if (updates.blur !== undefined) updateData.blurAmount = updates.blur;
+    if (updates.blur_amount !== undefined) updateData.blurAmount = updates.blur_amount;
+    if (updates.open_mode_mini !== undefined) updateData.openModeMini = updates.open_mode_mini;
+    if (updates.open_mode_mobile !== undefined) updateData.openModeMobile = updates.open_mode_mobile;
+    if (updates.open_mode_desktop !== undefined) updateData.openModeDesktop = updates.open_mode_desktop;
+
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    // Add the ID to the end of values array
-    updateValues.push(id);
+    // Add updatedAt timestamp
+    updateData.updatedAt = new Date();
 
     // Execute the update
-    await pool.execute(
-      `UPDATE appliances SET ${updateFields.join(', ')} WHERE id = ?`,
-      updateValues
-    );
+    await db.update('appliances', updateData, { id });
     
     // If remote password was updated and RustDesk is installed, update RustDesk password too
-    if (updates.remotePassword && originalData.rustdesk_installed && originalData.rustdeskId) {
+    if (updates.remotePassword && originalData.rustdeskInstalled && originalData.rustdeskId) {
       try {
         const axios = require('axios');
         const baseURL = `http://localhost:${process.env.BACKEND_PORT || 3001}`;
@@ -723,45 +713,97 @@ router.patch('/:id', verifyToken, async (req, res) => {
     }
 
     // Fetch the updated appliance
-    const [updatedRows] = await pool.execute(
-      `SELECT ${getSelectColumns()}
-       FROM appliances 
-       WHERE id = ?`,
-      [id]
-    );
+    const updatedAppliance = await db.findOne('appliances', { id });
 
-    if (updatedRows.length === 0) {
+    if (!updatedAppliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    const mappedAppliance = mapDbToJs(updatedRows[0]);
-
     // Create audit log
     if (req.user) {
-      // Create an object with only the changed original values
-      const originalChangedData = {};
-      Object.keys(updateData).forEach(key => {
-        originalChangedData[key] = originalData[key];
+      // Calculate actual changes - only include fields that really changed
+      const changedFields = {};
+      const oldValues = {};
+      
+      // Debug logging
+      console.log('PATCH Debug - updateData keys:', Object.keys(updateData));
+      console.log('PATCH Debug - originalData sample:', {
+        color: originalData.color,
+        startCommand: originalData.startCommand,
+        stopCommand: originalData.stopCommand
       });
-
-      await createAuditLog(
-        req.user.id,
-        'appliance_update',
-        'appliances',
-        id,
-        {
-          appliance_name: originalData.name,
-          original_data: originalChangedData,
-          new_data: updateData,
-          fields_updated: Object.keys(updateData),
-          updated_by: req.user.username,
-        },
-        getClientIp(req)
-      );
+      
+      Object.keys(updateData).forEach(key => {
+        // Skip updatedAt and password fields in comparison
+        if (key === 'updatedAt' || key.includes('Password')) return;
+        
+        const oldVal = originalData[key];
+        const newVal = updateData[key];
+        
+        // Debug: Check if field exists in original data
+        if (oldVal === undefined && newVal !== undefined) {
+          console.log(`PATCH Debug - Field ${key} not in originalData, newVal: ${newVal}`);
+        }
+        
+        // Normalize values for comparison
+        let normalizedOld = oldVal;
+        let normalizedNew = newVal;
+        
+        // Handle null/undefined/empty string as equivalent
+        if (oldVal === null || oldVal === undefined || oldVal === '') normalizedOld = '';
+        if (newVal === null || newVal === undefined || newVal === '') normalizedNew = '';
+        
+        // Handle boolean comparisons (database returns 0/1, frontend sends true/false)
+        if (typeof normalizedNew === 'boolean' || normalizedOld === 0 || normalizedOld === 1) {
+          normalizedOld = Boolean(normalizedOld);
+          normalizedNew = Boolean(normalizedNew);
+        }
+        
+        // Handle number/string conversion for numeric fields
+        const numericFields = ['transparency', 'blurAmount', 'remotePort'];
+        if (numericFields.includes(key)) {
+          // Convert both to numbers if possible, otherwise keep as string
+          const oldNum = parseFloat(normalizedOld);
+          const newNum = parseFloat(normalizedNew);
+          if (!isNaN(oldNum) && !isNaN(newNum)) {
+            normalizedOld = oldNum;
+            normalizedNew = newNum;
+          }
+        }
+        
+        // Convert to string for final comparison
+        const oldStr = String(normalizedOld);
+        const newStr = String(normalizedNew);
+        
+        // Only track if values are actually different
+        if (oldStr !== newStr) {
+          console.log(`PATCH Debug - Field ${key} changed: "${oldStr}" -> "${newStr}"`);
+          changedFields[key] = newVal;
+          oldValues[key] = oldVal;
+        }
+      });
+      
+      // Only create audit log if there were actual changes (besides updatedAt)
+      if (Object.keys(changedFields).length > 0) {
+        await createAuditLog(
+          req.user.id,
+          'appliance_update',
+          'appliances',
+          id,
+          {
+            appliance_name: originalData.name,
+            changes: changedFields,
+            oldValues: oldValues,
+            fields_updated: Object.keys(changedFields),
+            updated_by: req.user.username,
+          },
+          getClientIp(req)
+        );
+      }
     }
 
     // Broadcast the update to all connected clients
-    broadcast('appliance_updated', mappedAppliance);
+    broadcast('appliance_updated', updatedAppliance);
     broadcast('audit_log_created', {
       action: 'appliance_update',
       resource_type: 'appliances',
@@ -769,7 +811,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
       user: req.user?.username || 'System',
     });
 
-    res.json(mappedAppliance);
+    res.json(updatedAppliance);
   } catch (error) {
     console.error('Error patching appliance:', error);
     res.status(500).json({
@@ -784,33 +826,22 @@ router.patch('/:id', verifyToken, async (req, res) => {
 router.patch('/:id/favorite', verifyToken, async (req, res) => {
   try {
     // First get current status
-    const [current] = await pool.execute(
-      'SELECT isFavorite FROM appliances WHERE id = ?',
-      [req.params.id]
-    );
+    const current = await db.findOne('appliances', { id: req.params.id });
 
-    if (current.length === 0) {
+    if (!current) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    const newStatus = !current[0].isFavorite;
+    const newStatus = !current.isFavorite;
 
-    await pool.execute('UPDATE appliances SET isFavorite = ? WHERE id = ?', [
-      newStatus ? 1 : 0,
-      req.params.id,
-    ]);
-
-    // Get updated appliance data
-    const [updatedRows] = await pool.execute(
-      `
-      SELECT ${getSelectColumns()}
-      FROM appliances 
-      WHERE id = ?
-    `,
-      [req.params.id]
+    await db.update(
+      'appliances',
+      { isFavorite: newStatus, updatedAt: new Date() },
+      { id: req.params.id }
     );
 
-    const mappedAppliance = mapDbToJs(updatedRows[0]);
+    // Get updated appliance data
+    const updatedAppliance = await db.findOne('appliances', { id: req.params.id });
 
     // Create audit log
     if (req.user) {
@@ -820,10 +851,10 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
         'appliances',
         req.params.id,
         {
-          appliance_name: mappedAppliance.name,
+          appliance_name: updatedAppliance.name,
+          changes: { isFavorite: newStatus },
+          oldValues: { isFavorite: current.isFavorite },
           field_updated: 'isFavorite',
-          old_value: current[0].isFavorite,
-          new_value: newStatus,
           updated_by: req.user.username,
         },
         req.clientIp || req.ip
@@ -831,7 +862,7 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
     }
 
     // Broadcast the update to all connected clients
-    broadcast('appliance_updated', mappedAppliance);
+    broadcast('appliance_updated', updatedAppliance);
     broadcast('audit_log_created', {
       action: 'appliance_update',
       resource_type: 'appliances',
@@ -839,7 +870,7 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
       user: req.user?.username || 'System',
     });
 
-    res.json(mappedAppliance);
+    res.json(updatedAppliance);
   } catch (error) {
     console.error('Error toggling favorite:', error);
     res.status(500).json({
@@ -850,146 +881,28 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
   }
 });
 
-// Partial update appliance (PATCH)
-router.patch('/:id', verifyToken, async (req, res) => {
-  const { id } = req.params;
-  const updates = req.body;
-
-  try {
-    // Get current data
-    const [currentData] = await pool.execute(
-      `SELECT * FROM appliances WHERE id = ?`,
-      [id]
-    );
-
-    if (currentData.length === 0) {
-      return res.status(404).json({ error: 'Appliance not found' });
-    }
-
-    // Build dynamic update query
-    const updateFields = [];
-    const updateValues = [];
-
-    // Handle RustDesk specific fields
-    if (updates.rustdesk_installed !== undefined) {
-      updateFields.push('rustdesk_installed = ?');
-      updateValues.push(updates.rustdesk_installed ? 1 : 0);
-    }
-    if (updates.rustdeskId !== undefined) {
-      updateFields.push('rustdeskId = ?');
-      updateValues.push(updates.rustdeskId);
-    }
-    if (updates.rustdeskPassword !== undefined) {
-      updateFields.push('rustdesk_password_encrypted = ?');
-      const encryptedPassword = updates.rustdeskPassword ? encrypt(updates.rustdeskPassword) : null;
-      updateValues.push(encryptedPassword);
-    }
-    if (updates.rustdesk_installation_date !== undefined) {
-      updateFields.push('rustdesk_installation_date = ?');
-      updateValues.push(updates.rustdesk_installation_date);
-    }
-
-    // Handle other fields that might be updated
-    const mappableFields = [
-      'name', 'url', 'description', 'icon', 'color', 
-      'category', 'isFavorite', 'remote_desktop_type'
-    ];
-
-    mappableFields.forEach(field => {
-      if (updates[field] !== undefined) {
-        const dbField = mapJsToDb({ [field]: updates[field] });
-        const dbFieldName = Object.keys(dbField)[0];
-        if (dbFieldName) {
-          updateFields.push(`${dbFieldName} = ?`);
-          updateValues.push(dbField[dbFieldName]);
-        }
-      }
-    });
-
-    if (updateFields.length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
-    }
-
-    // Add ID to values
-    updateValues.push(id);
-
-    // Execute update
-    await pool.execute(
-      `UPDATE appliances SET ${updateFields.join(', ')} WHERE id = ?`,
-      updateValues
-    );
-
-    // Get updated data
-    const [updatedRows] = await pool.execute(
-      `SELECT ${getSelectColumns()} FROM appliances WHERE id = ?`,
-      [id]
-    );
-
-    const mappedAppliance = mapDbToJs(updatedRows[0]);
-
-    // Create audit log
-    if (req.user) {
-      await createAuditLog(
-        req.user.id,
-        'appliance_update_partial',
-        'appliances',
-        id,
-        {
-          appliance_name: mappedAppliance.name,
-          updates: updates,
-          updated_by: req.user.username,
-        },
-        req.clientIp || req.ip
-      );
-    }
-
-    // Broadcast update
-    broadcast('appliance_updated', mappedAppliance);
-
-    res.json(mappedAppliance);
-  } catch (error) {
-    console.error('Error updating appliance:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Delete appliance
 router.delete('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
 
   try {
     // Get appliance details for audit log
-    const [appliances] = await pool.execute(
-      `SELECT ${getSelectColumns()}
-       FROM appliances 
-       WHERE id = ?`,
-      [id]
-    );
+    const appliance = await db.findOne('appliances', { id });
 
-    if (appliances.length === 0) {
+    if (!appliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    // Use special mapping that includes passwords for audit log
-    const deletedService = mapDbToJsWithPasswords(appliances[0]);
-
     // Save background image data if exists
     let backgroundImageData = null;
-    if (deletedService.backgroundImage) {
-      backgroundImageData = await saveBackgroundImageToAuditLog(deletedService.backgroundImage);
+    if (appliance.backgroundImage) {
+      backgroundImageData = await saveBackgroundImageToAuditLog(appliance.backgroundImage);
     }
 
     // Get custom commands for this appliance
-    const [customCommands] = await pool.execute(
-      `SELECT id, description, command, host_id
-       FROM appliance_commands
-       WHERE appliance_id = ?`,
-      [id]
-    );
+    const customCommands = await db.select('appliance_commands', { applianceId: id });
 
-    const [result] = await pool.execute('DELETE FROM appliances WHERE id = ?', [
-      id,
-    ]);
+    const result = await db.delete('appliances', { id });
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Appliance not found' });
@@ -1003,8 +916,8 @@ router.delete('/:id', verifyToken, async (req, res) => {
         'appliances',
         id,
         {
-          appliance_name: deletedService.name,
-          appliance: deletedService,
+          appliance_name: appliance.name,
+          appliance: appliance,
           customCommands,
           backgroundImageData,
           deleted_by: req.user.username,
@@ -1064,9 +977,10 @@ router.post('/:id/access', async (req, res) => {
     const { id } = req.params;
     
     // Update last accessed time
-    await pool.execute(
-      'UPDATE appliances SET lastUsed = NOW() WHERE id = ?',
-      [id]
+    await db.update(
+      'appliances',
+      { lastUsed: new Date() },
+      { id }
     );
     
     // Don't create audit log here - it's already created by the /lastUsed endpoint

@@ -87,6 +87,7 @@ const SettingsPanel = ({
   onDeleteBackground,
   onDisableBackground,
   setBackgroundImages,
+  loadCurrentBackground,
   onOpenSSHManager,
   onTerminalOpen,
   isAdmin,
@@ -168,6 +169,21 @@ const SettingsPanel = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Local state for categories to enable immediate UI updates
+  const [localCategories, setLocalCategories] = useState(apiCategories || []);
+  
+  // Update local categories when prop changes
+  useEffect(() => {
+    setLocalCategories(apiCategories || []);
+  }, [apiCategories]);
+  // Load current background when background tab is opened
+  useEffect(() => {
+    const currentTab = visibleTabs[tabValue]?.key;
+    if (currentTab === 'background' && loadCurrentBackground) {
+      loadCurrentBackground();
+    }
+  }, [tabValue, loadCurrentBackground, visibleTabs]);
 
   // General Settings State
   const [generalSettings, setGeneralSettings] = useState({
@@ -512,8 +528,8 @@ const SettingsPanel = ({
         const currentIndex = parseInt(
           e.currentTarget.getAttribute('data-index')
         );
-        if (currentIndex === apiCategories.length - 1) {
-          setDragOverIndex(apiCategories.length);
+        if (currentIndex === localCategories.length - 1) {
+          setDragOverIndex(localCategories.length);
         }
       }
     }
@@ -528,7 +544,7 @@ const SettingsPanel = ({
 
     if (draggedIndex !== null && draggedIndex !== actualDropIndex) {
       // Create new order array
-      const newCategories = [...apiCategories];
+      const newCategories = [...localCategories];
       const draggedCategory = newCategories[draggedIndex];
 
       // Remove from old position
@@ -543,6 +559,9 @@ const SettingsPanel = ({
       // Insert at new position
       newCategories.splice(insertIndex, 0, draggedCategory);
 
+      // Update local state immediately for visual feedback
+      setLocalCategories(newCategories);
+
       // Create ordered array with IDs and new order
       const orderedCategories = newCategories.map((cat, index) => ({
         id: cat.id,
@@ -551,6 +570,7 @@ const SettingsPanel = ({
 
       if (onReorderCategories) {
         onReorderCategories(orderedCategories);
+      } else {
       }
     }
 
@@ -561,11 +581,14 @@ const SettingsPanel = ({
   // Mobile-friendly category reordering
   const moveCategory = (index, direction) => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= apiCategories.length) return;
+    if (newIndex < 0 || newIndex >= localCategories.length) return;
     
-    const newCategories = [...apiCategories];
+    const newCategories = [...localCategories];
     const [moved] = newCategories.splice(index, 1);
     newCategories.splice(newIndex, 0, moved);
+    
+    // Update local state immediately for visual feedback
+    setLocalCategories(newCategories);
     
     const orderedCategories = newCategories.map((cat, idx) => ({
       id: cat.id,
@@ -574,6 +597,7 @@ const SettingsPanel = ({
     
     if (onReorderCategories) {
       onReorderCategories(orderedCategories);
+    } else {
     }
   };
 
@@ -664,7 +688,7 @@ const SettingsPanel = ({
       // Perform the drop if we have a valid target
       if (dragOverIndex !== null && draggedIndex !== dragOverIndex) {
         // Reorder the categories
-        const newCategories = [...apiCategories];
+        const newCategories = [...localCategories];
         const draggedCategory = newCategories[draggedIndex];
         
         // Remove from old position
@@ -679,6 +703,9 @@ const SettingsPanel = ({
         // Insert at new position
         newCategories.splice(insertIndex, 0, draggedCategory);
         
+        // Update local state immediately for visual feedback
+        setLocalCategories(newCategories);
+        
         // Create ordered array with IDs and new order
         const orderedCategories = newCategories.map((cat, index) => ({
           id: cat.id,
@@ -687,6 +714,7 @@ const SettingsPanel = ({
         
         if (onReorderCategories) {
           onReorderCategories(orderedCategories);
+        } else {
         }
       }
     }
@@ -738,7 +766,7 @@ const SettingsPanel = ({
                     <MenuItem value="all">Alle Services</MenuItem>
                     <MenuItem value="recent">Zuletzt verwendet</MenuItem>
                     <MenuItem value="favorites">Favoriten</MenuItem>
-                    {apiCategories.map(category => (
+                    {localCategories.map(category => (
                       <MenuItem key={category.name} value={category.name}>
                         {category.name}
                       </MenuItem>
@@ -834,9 +862,9 @@ const SettingsPanel = ({
 
             <Box sx={{ flex: 1, overflow: 'auto', position: 'relative' }}>
               <List ref={listRef} sx={{ pb: 2 }}>
-                {apiCategories && apiCategories.length > 0 ? (
+                {localCategories && localCategories.length > 0 ? (
                   <>
-                    {apiCategories.map((category, index) => {
+                    {localCategories.map((category, index) => {
                       const isDropTarget =
                         dragOverIndex === index && draggedIndex !== index;
                       const showTopIndicator =
@@ -996,7 +1024,7 @@ const SettingsPanel = ({
                                   </IconButton>
                                   <IconButton
                                     edge="end"
-                                    disabled={index === apiCategories.length - 1}
+                                    disabled={index === localCategories.length - 1}
                                     onClick={() => moveCategory(index, 'down')}
                                     sx={{
                                       width: 36,
@@ -1077,8 +1105,8 @@ const SettingsPanel = ({
                           )}
                           {/* Last item drop indicator */}
                           {!showBottomIndicator &&
-                            index === apiCategories.length - 1 &&
-                            dragOverIndex === apiCategories.length && (
+                            index === localCategories.length - 1 &&
+                            dragOverIndex === localCategories.length && (
                               <Box
                                 sx={{
                                   height: '3px',
@@ -1094,7 +1122,7 @@ const SettingsPanel = ({
                       );
                     })}
                     {/* Drop zone at the end */}
-                    {dragOverIndex === apiCategories.length && (
+                    {dragOverIndex === localCategories.length && (
                       <Box
                         sx={{
                           height: '3px',

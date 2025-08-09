@@ -59,7 +59,6 @@ const WebRTCRemoteDesktop = ({ applianceId }) => {
 
       // 4. Stream empfangen
       pc.ontrack = (event) => {
-        console.log('Stream empfangen:', event.streams[0]);
         if (videoRef.current) {
           videoRef.current.srcObject = event.streams[0];
           setIsStreaming(true);
@@ -69,7 +68,6 @@ const WebRTCRemoteDesktop = ({ applianceId }) => {
 
       // 5. Signaling Events
       socket.on('offer', async (data) => {
-        console.log('Offer erhalten');
         await pc.setRemoteDescription(data.offer);
         
         const answer = await pc.createAnswer();
@@ -88,7 +86,6 @@ const WebRTCRemoteDesktop = ({ applianceId }) => {
       });
 
       socket.on('stream-config', (config) => {
-        console.log('Stream config:', config);
       });
 
       // 6. Stream anfordern

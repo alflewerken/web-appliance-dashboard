@@ -125,9 +125,7 @@ class SSEService {
             try {
               const data = JSON.parse(event.data);
               // Log to debugger
-              if (eventType.includes('host_')) {
-                console.log(`🔔 SSE Event received: ${eventType}`, data);
-              }
+              // Removed host event logging
 
               this.notifyListeners(eventType, data);
             } catch (error) {

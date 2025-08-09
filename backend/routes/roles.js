@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const {
   verifyToken,
   requireAdmin,
@@ -13,6 +15,7 @@ const { createAuditLog } = require('../utils/auditLogger');
 router.get('/roles', verifyToken, requireAdmin, async (req, res) => {
   try {
     // Get all unique roles
+    // Complex query with CASE statement - requires raw SQL
     const [roles] = await pool.execute(
       `SELECT DISTINCT role FROM role_permissions ORDER BY 
              CASE role 
@@ -27,10 +30,9 @@ router.get('/roles', verifyToken, requireAdmin, async (req, res) => {
     // Get permissions for each role
     const rolesWithPermissions = await Promise.all(
       roles.map(async roleRow => {
-        const [permissions] = await pool.execute(
-          'SELECT resource, action FROM role_permissions WHERE role = ?',
-          [roleRow.role]
-        );
+        const permissions = await db.select('role_permissions', { 
+          role: roleRow.role 
+        }, ['resource', 'action']);
 
         return {
           role: roleRow.role,
@@ -101,9 +103,7 @@ router.put(
 
     try {
       // Check if user exists
-      const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [
-        userId,
-      ]);
+      const users = await db.select('users', { id: userId });
 
       if (users.length === 0) {
         return res.status(404).json({ error: 'User not found' });
@@ -112,10 +112,7 @@ router.put(
       const oldRole = users[0].role;
 
       // Update user role
-      await pool.execute('UPDATE users SET role = ? WHERE id = ?', [
-        role,
-        userId,
-      ]);
+      await db.update('users', { role: role }, { id: userId });
 
       // Create audit log
       await createAuditLog(
@@ -218,34 +215,30 @@ router.put(
 
     try {
       // Check if permission entry exists
-      const [existing] = await pool.execute(
-        'SELECT * FROM user_appliance_permissions WHERE user_id = ? AND appliance_id = ?',
-        [userId, applianceId]
-      );
+      const existing = await db.select('user_appliance_permissions', {
+        userId: userId,
+        applianceId: applianceId
+      });
 
       if (existing.length > 0) {
         // Update existing permission
-        await pool.execute(
-          'UPDATE user_appliance_permissions SET can_view = ?, can_execute = ? WHERE user_id = ? AND appliance_id = ?',
-          [can_view, can_execute, userId, applianceId]
+        await db.update('user_appliance_permissions', 
+          { canView: can_view, canExecute: can_execute },
+          { userId: userId, applianceId: applianceId }
         );
       } else {
         // Create new permission
-        await pool.execute(
-          'INSERT INTO user_appliance_permissions (user_id, appliance_id, can_view, can_execute) VALUES (?, ?, ?, ?)',
-          [userId, applianceId, can_view, can_execute]
-        );
+        await db.insert('user_appliance_permissions', {
+          userId: userId,
+          applianceId: applianceId,
+          canView: can_view,
+          canExecute: can_execute
+        });
       }
 
       // Get appliance and user details for audit log
-      const [appliances] = await pool.execute(
-        'SELECT name FROM appliances WHERE id = ?',
-        [applianceId]
-      );
-      const [users] = await pool.execute(
-        'SELECT username FROM users WHERE id = ?',
-        [userId]
-      );
+      const appliances = await db.select('appliances', { id: applianceId }, ['name']);
+      const users = await db.select('users', { id: userId }, ['username']);
 
       await createAuditLog(
         req.user.id,
@@ -289,8 +282,8 @@ router.post('/users', verifyToken, requireAdmin, async (req, res) => {
   }
 
   try {
-    // Check if user already exists
-    const [existing] = await pool.execute(
+    // Check if user already exists - Using raw for OR condition
+    const existing = await db.raw(
       'SELECT * FROM users WHERE username = ? OR email = ?',
       [username, email]
     );
@@ -303,10 +296,12 @@ router.post('/users', verifyToken, requireAdmin, async (req, res) => {
     const passwordHash = await hashPassword(password);
 
     // Create user
-    const [result] = await pool.execute(
-      'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [username, email, passwordHash, role]
-    );
+    const result = await db.insert('users', {
+      username: username,
+      email: email,
+      passwordHash: passwordHash,
+      role: role
+    });
 
     await createAuditLog(
       req.user.id,
@@ -375,20 +370,20 @@ router.put(
 
     try {
       // Get appliance details for audit
-      const [appliances] = await pool.execute(
-        'SELECT name, visibility as old_visibility FROM appliances WHERE id = ?',
-        [applianceId]
-      );
+      const appliances = await db.select('appliances', { id: applianceId }, 
+        ['name', 'visibility']);
 
       if (appliances.length === 0) {
         return res.status(404).json({ error: 'Appliance not found' });
       }
 
+      const oldVisibility = appliances[0].visibility;
+
       // Update visibility
-      await pool.execute('UPDATE appliances SET visibility = ? WHERE id = ?', [
-        visibility,
-        applianceId,
-      ]);
+      await db.update('appliances', 
+        { visibility: visibility }, 
+        { id: applianceId }
+      );
 
       await createAuditLog(
         req.user.id,
@@ -397,7 +392,7 @@ router.put(
         applianceId,
         {
           name: appliances[0].name,
-          old_visibility: appliances[0].old_visibility,
+          old_visibility: oldVisibility,
           new_visibility: visibility,
         },
         null,

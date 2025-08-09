@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import SimpleIcon from './SimpleIcon';
 import IconSelector from './IconSelector';
+import RustDeskInstaller from './RustDeskInstaller';
 import { COLOR_PRESETS } from '../utils/constants';
 import { getAvailableIcons } from '../utils/iconMap';
 import axios from '../utils/axiosConfig';
@@ -68,11 +69,15 @@ const HostPanel = ({
   const [activeTab, setActiveTab] = useState(0);
   const [registeringKey, setRegisteringKey] = useState(false);
   const [checkingRustDeskStatus, setCheckingRustDeskStatus] = useState(false);
+  const [showRustDeskInstaller, setShowRustDeskInstaller] = useState(false);
   const [panelWidth, setPanelWidth] = useState(() => {
     return parseInt(localStorage.getItem('hostPanelWidth')) || defaultWidth;
   });
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef(null);
+
+  // Store original data for comparison
+  const [originalFormData, setOriginalFormData] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -83,7 +88,7 @@ const HostPanel = ({
     username: 'root',
     password: '',
     privateKey: '',
-    ssh_key_name: null,
+    sshKeyName: null,
     icon: 'Server',
     color: '#007AFF',
     transparency: 0.15,
@@ -96,7 +101,7 @@ const HostPanel = ({
     remotePassword: '',
     rustdeskId: '',
     rustdeskPassword: '',
-    guacamole_performance_mode: 'balanced',
+    guacamolePerformanceMode: 'balanced',
   });
 
   // SSH Keys state
@@ -106,68 +111,126 @@ const HostPanel = ({
   // Initialize form data
   useEffect(() => {
     if (host && !host.isNew) {
-      setFormData({
+      const initialData = {
         name: host.name || '',
         description: host.description || '',
         hostname: host.hostname || '',
         port: host.port || 22,
         username: host.username || 'root',
         password: host.password || '',
-        privateKey: host.private_key || host.privateKey || '',
-        ssh_key_name: host.ssh_key_name || host.sshKeyName || null,
+        privateKey: host.privateKey || '',
+        sshKeyName: host.sshKeyName || null,
         icon: host.icon || 'Server',
         color: host.color || '#007AFF',
         transparency: host.transparency !== undefined ? host.transparency : 0.15,
         blur: host.blur !== undefined ? host.blur : 8,
-        remoteDesktopEnabled: host.remoteDesktopEnabled || host.remote_desktop_enabled || false,
-        remoteDesktopType: host.remoteDesktopType || host.remote_desktop_type || 'guacamole',
-        remoteProtocol: host.remoteProtocol || host.remote_protocol || 'vnc',
-        remotePort: host.remotePort || host.remote_port || null,
-        remoteUsername: host.remoteUsername || host.remote_username || '',
-        remotePassword: host.remotePassword || host.remote_password || '',
-        rustdeskId: host.rustdeskId || host.rustdesk_id || '',
-        rustdeskPassword: host.rustdeskPassword || host.rustdesk_password || '',
-        guacamole_performance_mode: host.guacamole_performance_mode || 'balanced',
-      });
+        remoteDesktopEnabled: host.remoteDesktopEnabled || false,
+        remoteDesktopType: host.remoteDesktopType || 'guacamole',
+        remoteProtocol: host.remoteProtocol || 'vnc',
+        remotePort: host.remotePort || null,
+        remoteUsername: host.remoteUsername || '',
+        remotePassword: host.remotePassword || '',
+        rustdeskId: host.rustdeskId || '',
+        rustdeskPassword: host.rustdeskPassword || '',
+        guacamolePerformanceMode: host.guacamolePerformanceMode || 'balanced',
+      };
+      setFormData(initialData);
+      setOriginalFormData(initialData); // Store original for comparison
       
-      // Set selected key if host has one
-      if (host.ssh_key_name || host.sshKeyName) {
-        setSelectedKey(host.ssh_key_name || host.sshKeyName);
+      // Set selected key if host has one - wird in fetchSSHKeys nochmal validiert
+      if (host.sshKeyName) {
+        setSelectedKey(host.sshKeyName);
+        console.log('Setting selectedKey from host:', host.sshKeyName);
+      } else {
+        setSelectedKey(null);
+        console.log('No SSH key configured for this host');
       }
     } else if (host?.isNew) {
-      // Bei neuen Hosts: Dashboard-Schlüssel wird in fetchSSHKeys gesetzt
-      // Hier nur Default-Werte setzen
-      setFormData(prev => ({
-        ...prev,
+      // Bei neuen Hosts: Default-Werte setzen
+      // Dashboard-Schlüssel wird in fetchSSHKeys gesetzt
+      const defaultData = {
+        name: '',
+        description: '',
+        hostname: '',
         username: 'root',
         port: 22,
+        password: '',
+        privateKey: '',
+        sshKeyName: 'dashboard', // Default auf dashboard setzen
         icon: 'Server',
         color: '#007AFF',
         transparency: 0.15,
         blur: 8,
-      }));
+        remoteDesktopEnabled: false,
+        remoteDesktopType: 'guacamole',
+        remoteProtocol: 'vnc',
+        remotePort: null,
+        remoteUsername: '',
+        remotePassword: '',
+        rustdeskId: '',
+        rustdeskPassword: '',
+        guacamolePerformanceMode: 'balanced',
+      };
+      setFormData(defaultData);
+      setOriginalFormData(defaultData);
+      // Dashboard wird standardmäßig ausgewählt
+      setSelectedKey('dashboard');
     }
   }, [host]);
 
   // Fetch SSH keys
-  const fetchSSHKeys = async () => {
+  const fetchSSHKeys = async (forceSelectDashboard = false) => {
     try {
       const response = await axios.get('/api/sshKeys');
       if (response.data.success) {
         const keys = response.data.keys || [];
         setSshKeys(keys);
         
-        // Bei neuen Hosts: Dashboard-Schlüssel auswählen oder erstellen
-        if (host?.isNew) {
-          const dashboardKey = keys.find(k => k.key_name === 'dashboard');
+        // Wenn keine Keys vorhanden sind, dashboard Key erstellen
+        if (keys.length === 0) {
+          const token = localStorage.getItem('token');
+          if (token) {
+            console.log('No SSH keys found, creating dashboard key...');
+            await createDashboardKey();
+            return; // Nach Erstellung wird fetchSSHKeys erneut aufgerufen
+          }
+        }
+        
+        // Bei neuen Hosts oder wenn forceSelectDashboard: Dashboard-Schlüssel auswählen oder erstellen
+        if (host?.isNew || forceSelectDashboard) {
+          const dashboardKey = keys.find(k => k.keyName === 'dashboard');
           
           if (dashboardKey) {
             // Dashboard-Schlüssel existiert - auswählen
             setSelectedKey('dashboard');
-            setFormData(prev => ({ ...prev, ssh_key_name: 'dashboard' }));
-          } else {
-            // Dashboard-Schlüssel existiert nicht - automatisch erstellen
-            await createDashboardKey();
+            setFormData(prev => ({ ...prev, sshKeyName: 'dashboard' }));
+          } else if (keys.length > 0) {
+            // Kein Dashboard-Key aber andere Keys vorhanden - ersten auswählen
+            setSelectedKey(keys[0].keyName);
+            setFormData(prev => ({ ...prev, sshKeyName: keys[0].keyName }));
+          }
+        } else if (host && !host.isNew) {
+          // Für bestehende Hosts: Den gespeicherten Key setzen
+          const hostKeyName = host.sshKeyName || formData.sshKeyName;
+          if (hostKeyName) {
+            // Prüfen ob der gespeicherte Key existiert
+            const existingKey = keys.find(k => k.keyName === hostKeyName);
+            if (existingKey) {
+              setSelectedKey(hostKeyName);
+              console.log('Selected existing key for host:', hostKeyName);
+            } else {
+              // Key existiert nicht mehr - ersten verfügbaren Key auswählen
+              console.warn(`SSH key "${hostKeyName}" not found, selecting first available key`);
+              if (keys.length > 0) {
+                setSelectedKey(keys[0].keyName);
+                handleInputChange('sshKeyName', keys[0].keyName);
+              }
+            }
+          } else if (keys.length > 0) {
+            // Kein Key gespeichert aber Keys vorhanden - ersten auswählen
+            console.log('No key configured for host, selecting first available');
+            setSelectedKey(keys[0].keyName);
+            handleInputChange('sshKeyName', keys[0].keyName);
           }
         }
       }
@@ -179,7 +242,6 @@ const HostPanel = ({
   // Dashboard SSH-Schlüssel erstellen
   const createDashboardKey = async () => {
     try {
-      console.log('Creating dashboard SSH key...');
       const response = await axios.post('/api/sshKeys/generate', {
         keyName: 'dashboard',
         keyType: 'rsa',
@@ -188,7 +250,6 @@ const HostPanel = ({
       });
       
       if (response.data.success) {
-        console.log('Dashboard SSH key created successfully');
         // SSH-Schlüssel neu laden
         const keysResponse = await axios.get('/api/sshKeys');
         if (keysResponse.data.success) {
@@ -196,18 +257,44 @@ const HostPanel = ({
           setSshKeys(newKeys);
           // Dashboard-Schlüssel auswählen
           setSelectedKey('dashboard');
-          setFormData(prev => ({ ...prev, ssh_key_name: 'dashboard' }));
+          setFormData(prev => ({ ...prev, sshKeyName: 'dashboard' }));
         }
       }
     } catch (error) {
-      console.error('Error creating dashboard SSH key:', error);
+      // Detaillierte Fehlerbehandlung
+      if (error.response?.status === 400) {
+        // Wahrscheinlich existiert der Schlüssel bereits
+        console.log('Dashboard key might already exist, refreshing keys...');
+        // Versuche die Keys neu zu laden
+        try {
+          const keysResponse = await axios.get('/api/sshKeys');
+          if (keysResponse.data.success) {
+            const newKeys = keysResponse.data.keys || [];
+            setSshKeys(newKeys);
+            const dashboardKey = newKeys.find(k => k.keyName === 'dashboard');
+            if (dashboardKey) {
+              setSelectedKey('dashboard');
+              setFormData(prev => ({ ...prev, sshKeyName: 'dashboard' }));
+            }
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing SSH keys:', refreshError);
+        }
+      } else if (error.response?.status === 401) {
+        console.error('Authentication required for creating SSH keys');
+        // User ist nicht eingeloggt
+      } else {
+        console.error('Error creating dashboard SSH key:', error);
+      }
       // Kein Fehler anzeigen, da es im Hintergrund passiert
       // Benutzer kann immer noch manuell einen anderen Schlüssel wählen
     }
   };
 
   useEffect(() => {
-    fetchSSHKeys();
+    // Bei neuen Hosts immer Dashboard-Schlüssel auswählen
+    const shouldForceSelect = host?.isNew === true;
+    fetchSSHKeys(shouldForceSelect);
   }, [host]); // Neu laden wenn sich der Host ändert (wichtig für isNew Status)
 
   // Reload SSH keys when switching to the "Allgemein" tab
@@ -262,7 +349,7 @@ const HostPanel = ({
 
     setCheckingRustDeskStatus(true);
     try {
-      const response = await axios.get(`/api/rustdeskInstall/${host.id}/status`);
+      const response = await axios.get(`/api/rustdeskInstall/host/${host.id}/status`);
       
       if (response.data) {
         const status = response.data;
@@ -276,16 +363,62 @@ const HostPanel = ({
           // Installed but no ID
           setError('RustDesk ist installiert, aber keine ID gefunden. Bitte prüfen Sie die Installation.');
         } else {
-          // Not installed
-          setError('RustDesk ist nicht auf diesem Host installiert.');
+          // Not installed - open installer dialog
+          console.log('RustDesk not installed, opening installer dialog');
+          setShowRustDeskInstaller(true);
         }
       }
     } catch (error) {
       console.error('Error checking RustDesk status:', error);
-      setError(error.response?.data?.error || 'Fehler beim Abrufen der RustDesk ID');
+      // If we get a 404 or similar error, also open the installer
+      if (error.response?.status === 404 || error.response?.data?.message?.includes('not installed')) {
+        console.log('RustDesk not found, opening installer dialog');
+        setShowRustDeskInstaller(true);
+      } else {
+        setError(error.response?.data?.error || 'Fehler beim Abrufen der RustDesk ID');
+      }
     } finally {
       setCheckingRustDeskStatus(false);
     }
+  };
+
+  // Helper function to get only changed fields
+  const getChangedFields = (original, current) => {
+    if (!original) return current; // For new hosts, return all fields
+    
+    const changes = {};
+    const passwordFields = ['password', 'privateKey', 'remotePassword', 'rustdeskPassword'];
+    
+    Object.keys(current).forEach(key => {
+      // Skip password fields completely if they are empty
+      // (they come back empty from backend for security, so empty = no change)
+      if (passwordFields.includes(key)) {
+        // Only include if user actually entered something new
+        if (current[key] && current[key] !== '') {
+          changes[key] = current[key];
+        }
+        return;
+      }
+      
+      // Compare values for non-password fields
+      let originalValue = original[key];
+      let currentValue = current[key];
+      
+      // Normalize null/undefined to empty string for comparison
+      if (originalValue === null || originalValue === undefined) originalValue = '';
+      if (currentValue === null || currentValue === undefined) currentValue = '';
+      
+      // Convert to strings for comparison
+      const originalStr = String(originalValue);
+      const currentStr = String(currentValue);
+      
+      // Only include field if it has changed
+      if (originalStr !== currentStr) {
+        changes[key] = current[key];
+      }
+    });
+    
+    return changes;
   };
 
   // Handle save
@@ -301,36 +434,82 @@ const HostPanel = ({
         return;
       }
 
-      // Transform snake_case to camelCase for backend
-      const dataToSave = {
-        name: formData.name,
-        description: formData.description,
-        hostname: formData.hostname,
-        port: formData.port,
-        username: formData.username,
-        password: formData.password,
-        privateKey: formData.privateKey,
-        sshKeyName: selectedKey || null,
-        icon: formData.icon,
-        color: formData.color,
-        transparency: parseFloat(formData.transparency) || 0,
-        blur: parseInt(formData.blur) || 0,
-        remoteDesktopEnabled: Boolean(formData.remoteDesktopEnabled),
-        remoteDesktopType: formData.remoteDesktopType,
-        remoteProtocol: formData.remoteProtocol,
-        remotePort: formData.remotePort ? parseInt(formData.remotePort) : null,
-        remoteUsername: formData.remoteUsername,
-        remotePassword: formData.remotePassword,
-        guacamole_performance_mode: formData.guacamole_performance_mode,
-        rustdeskId: formData.rustdeskId,
-        rustdeskPassword: formData.rustdeskPassword,
-      };
-
-      // Clean up empty fields
-      if (!dataToSave.password) delete dataToSave.password;
-      if (!dataToSave.privateKey) delete dataToSave.privateKey;
-      if (!dataToSave.remotePassword) delete dataToSave.remotePassword;
-      if (!dataToSave.rustdeskPassword) delete dataToSave.rustdeskPassword;
+      let dataToSave;
+      
+      if (host?.isNew) {
+        // For new hosts, prepare all fields
+        dataToSave = {
+          name: formData.name,
+          description: formData.description,
+          hostname: formData.hostname,
+          port: formData.port,
+          username: formData.username,
+          password: formData.password,
+          privateKey: formData.privateKey,
+          sshKeyName: selectedKey || null,
+          icon: formData.icon,
+          color: formData.color,
+          transparency: parseFloat(formData.transparency) || 0,
+          blur: parseInt(formData.blur) || 0,
+          remoteDesktopEnabled: Boolean(formData.remoteDesktopEnabled),
+          remoteDesktopType: formData.remoteDesktopType,
+          remoteProtocol: formData.remoteProtocol,
+          remotePort: formData.remotePort ? parseInt(formData.remotePort) : null,
+          remoteUsername: formData.remoteUsername,
+          remotePassword: formData.remotePassword,
+          guacamole_performance_mode: formData.guacamole_performance_mode,
+          rustdeskId: formData.rustdeskId,
+          rustdeskPassword: formData.rustdeskPassword,
+        };
+        
+        // Clean up empty fields
+        if (!dataToSave.password) delete dataToSave.password;
+        if (!dataToSave.privateKey) delete dataToSave.privateKey;
+        if (!dataToSave.remotePassword) delete dataToSave.remotePassword;
+        if (!dataToSave.rustdeskPassword) delete dataToSave.rustdeskPassword;
+      } else {
+        // For existing hosts, get only changed fields
+        const changedFields = getChangedFields(originalFormData, formData);
+        
+        // Debug: Log what getChangedFields returns
+        console.log('getChangedFields result:', changedFields);
+        console.log('Original remotePassword:', originalFormData?.remotePassword);
+        console.log('Current remotePassword:', formData.remotePassword);
+        
+        // Check if there are any changes
+        if (Object.keys(changedFields).length === 0) {
+          setSuccess(true);
+          setError('Keine Änderungen vorhanden');
+          setTimeout(() => setError(null), 2000);
+          setLoading(false);
+          return;
+        }
+        
+        // Transform changed fields to backend format
+        dataToSave = {};
+        Object.keys(changedFields).forEach(key => {
+          const value = changedFields[key];
+          
+          // Special handling for certain fields
+          if (key === 'transparency') {
+            dataToSave[key] = parseFloat(value) || 0;
+          } else if (key === 'blur' || key === 'port' || key === 'remotePort') {
+            dataToSave[key] = parseInt(value) || (key === 'port' ? 22 : 0);
+          } else if (key === 'remoteDesktopEnabled') {
+            dataToSave[key] = Boolean(value);
+          } else {
+            dataToSave[key] = value;
+          }
+        });
+        
+        // Add ssh key if changed
+        if (selectedKey !== originalFormData.sshKeyName) {
+          dataToSave.sshKeyName = selectedKey || null;
+        }
+        
+        console.log('Saving host - changed fields:', Object.keys(dataToSave));
+        console.log('Changed data:', dataToSave);
+      }
 
       if (host?.isNew) {
         const response = await axios.post('/api/hosts', dataToSave);
@@ -340,9 +519,12 @@ const HostPanel = ({
           // Panel bleibt offen - kein onClose()
         }
       } else {
-        const response = await axios.put(`/api/hosts/${host.id}`, dataToSave);
+        // Use PATCH for partial updates
+        const response = await axios.patch(`/api/hosts/${host.id}`, dataToSave);
         if (response.data.success) {
           setSuccess(true);
+          // Update original data after successful save
+          setOriginalFormData({ ...formData, sshKeyName: selectedKey });
           const updatedHost = response.data.host || { ...host, ...dataToSave };
           onSave(host.id, updatedHost);
           // Panel bleibt offen - kein onClose()
@@ -591,18 +773,38 @@ const HostPanel = ({
                 </Typography>
 
                 <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                  <InputLabel 
+                    id="ssh-key-select-label"
+                    sx={{ 
+                      color: 'var(--text-secondary)',
+                      '&.Mui-focused': {
+                        color: 'var(--primary-color)',
+                      },
+                    }}
+                  >
                     SSH-Schlüssel
                   </InputLabel>
                   <Select
+                    labelId="ssh-key-select-label"
+                    label="SSH-Schlüssel"
                     value={selectedKey || ''}
                     onChange={(e) => {
-                      const keyName = e.target.value || null;
+                      const keyName = e.target.value;
                       setSelectedKey(keyName);
-                      handleInputChange('ssh_key_name', keyName);
-                      if (keyName) {
-                        handleInputChange('privateKey', '');
-                      }
+                      handleInputChange('sshKeyName', keyName);
+                    }}
+                    renderValue={(value) => {
+                      if (!value) return <em>Bitte wählen...</em>;
+                      const key = sshKeys.find(k => k.keyName === value);
+                      return (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Key size={16} />
+                          <span>{value}</span>
+                          {key?.isDefault && (
+                            <Chip label="Standard" size="small" color="primary" sx={{ ml: 1, height: 20 }} />
+                          )}
+                        </Box>
+                      );
                     }}
                     sx={{
                       color: 'var(--text-primary)',
@@ -610,18 +812,35 @@ const HostPanel = ({
                       '& .MuiOutlinedInput-notchedOutline': {
                         borderColor: 'rgba(255, 255, 255, 0.2)',
                       },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'var(--primary-color)',
+                      },
                     }}
                   >
-                    <MenuItem value="">
-                      <em>Kein Schlüssel</em>
-                    </MenuItem>
                     {sshKeys.map((key) => (
-                      <MenuItem key={key.id} value={key.key_name}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Key size={16} />
-                          <span>{key.key_name}</span>
-                          {key.is_default && (
-                            <Chip label="Standard" size="small" color="primary" sx={{ ml: 1 }} />
+                      <MenuItem 
+                        key={key.id} 
+                        value={key.keyName}
+                        sx={{ 
+                          color: 'var(--text-primary)',
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                          },
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                          <Key size={16} style={{ flexShrink: 0 }} />
+                          <span style={{ flexGrow: 1 }}>{key.keyName}</span>
+                          {key.isDefault && (
+                            <Chip 
+                              label="Standard" 
+                              size="small" 
+                              color="primary" 
+                              sx={{ ml: 'auto', height: 20 }} 
+                            />
                           )}
                         </Box>
                       </MenuItem>
@@ -666,20 +885,6 @@ const HostPanel = ({
                 >
                   Das Passwort wird nicht gespeichert. Es wird nur zur Authentifizierung für den Schlüsselaustausch benötigt.
                 </Alert>
-
-                {!selectedKey && (
-                  <TextField
-                    fullWidth
-                    label="Privater Schlüssel (manuell)"
-                    value={formData.privateKey}
-                    onChange={(e) => handleInputChange('privateKey', e.target.value)}
-                    margin="normal"
-                    multiline
-                    rows={4}
-                    placeholder="-----BEGIN PRIVATE KEY-----..."
-                    sx={textFieldStyles}
-                  />
-                )}
               </CardContent>
             </Card>
 
@@ -975,14 +1180,21 @@ const HostPanel = ({
         {activeTab === 1 && (
           <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
             <SSHKeyManagement
+              selectedKeyName={selectedKey}
               onKeyCreated={(keyName) => {
                 fetchSSHKeys();
                 // Automatisch den neu erstellten Schlüssel auswählen
                 if (keyName) {
                   setSelectedKey(keyName);
+                  handleInputChange('sshKeyName', keyName);
                 }
               }}
-              onKeyDeleted={fetchSSHKeys}
+              onKeyDeleted={() => {
+                fetchSSHKeys();
+                // Wenn der gelöschte Key der ausgewählte war, zurücksetzen
+                setSelectedKey(null);
+                handleInputChange('sshKeyName', null);
+              }}
               adminMode={adminMode}
             />
           </Box>
@@ -1048,6 +1260,21 @@ const HostPanel = ({
             setShowIconSelector(false);
           }}
           onClose={() => setShowIconSelector(false)}
+        />
+      )}
+
+      {/* RustDesk Installer Dialog */}
+      {showRustDeskInstaller && host && (
+        <RustDeskInstaller
+          open={showRustDeskInstaller}
+          onClose={() => setShowRustDeskInstaller(false)}
+          appliance={host}
+          onSuccess={(rustdeskId) => {
+            console.log('RustDesk installation successful, ID:', rustdeskId);
+            handleInputChange('rustdeskId', rustdeskId);
+            setSuccess(`RustDesk erfolgreich installiert! ID: ${rustdeskId}`);
+            setShowRustDeskInstaller(false);
+          }}
         />
       )}
     </Box>

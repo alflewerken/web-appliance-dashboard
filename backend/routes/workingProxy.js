@@ -5,10 +5,14 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { logger } = require('../utils/logger');
 const axios = require('axios');
 const http = require('http');
 const https = require('https');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Axios-Instanz mit angepassten Einstellungen
 const proxyClient = axios.create({
@@ -45,10 +49,7 @@ router.all('/:id/proxy/*', authenticateToken, async (req, res) => {
     
     try {
         // Appliance aus Datenbank laden
-        const [appliances] = await pool.execute(
-            'SELECT * FROM appliances WHERE id = ?',
-            [applianceId]
-        );
+        const appliances = await db.select('appliances', { id: applianceId });
         
         if (appliances.length === 0) {
             return res.status(404).json({ error: 'Appliance not found' });
@@ -133,10 +134,7 @@ router.get('/:id/proxy-health', authenticateToken, async (req, res) => {
     const applianceId = req.params.id;
     
     try {
-        const [appliances] = await pool.execute(
-            'SELECT * FROM appliances WHERE id = ?',
-            [applianceId]
-        );
+        const appliances = await db.select('appliances', { id: applianceId });
         
         if (appliances.length === 0) {
             return res.status(404).json({ error: 'Appliance not found' });

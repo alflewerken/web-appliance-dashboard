@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const { createAuditLog } = require('../utils/auditLogger');
 const { decrypt } = require('../utils/crypto');
 const { getClientIp } = require('../utils/getClientIp');
@@ -68,9 +70,9 @@ router.post('/token/:applianceId', async (req, res) => {
     const userId = req.user.id;
     
     // Prüfe ob Appliance existiert
-    const [appliances] = await pool.execute(
-      'SELECT * FROM appliances WHERE id = ?',
-      [applianceId]
+    const appliances = await db.select('appliances', 
+      { id: applianceId },
+      { limit: 1 }
     );
     
     if (appliances.length === 0) {

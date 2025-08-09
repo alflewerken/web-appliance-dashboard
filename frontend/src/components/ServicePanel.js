@@ -94,6 +94,9 @@ const ServicePanel = ({
   adminMode = false,
   onWidthChange,
 }) => {
+  // Store original data for comparison
+  const [originalFormData, setOriginalFormData] = useState(null);
+
   // Form state for service editing
   const [formData, setFormData] = useState({
     name: '',
@@ -194,6 +197,43 @@ const ServicePanel = ({
     return tabs[index] || 'commands';
   };
 
+  // Helper function to get only changed fields
+  const getChangedFields = (original, current) => {
+    if (!original) return current; // If no original data, return all fields (new appliance)
+    
+    const changes = {};
+    const skipFields = ['remotePassword', 'rustdeskPassword']; // Fields that should always be included if not empty
+    
+    Object.keys(current).forEach(key => {
+      // Always include password fields if they have a value (user entered new password)
+      if (skipFields.includes(key)) {
+        if (current[key] && current[key] !== '') {
+          changes[key] = current[key];
+        }
+        return;
+      }
+      
+      // Compare values - handle different types
+      let originalValue = original[key];
+      let currentValue = current[key];
+      
+      // Normalize null/undefined to empty string for comparison
+      if (originalValue === null || originalValue === undefined) originalValue = '';
+      if (currentValue === null || currentValue === undefined) currentValue = '';
+      
+      // Convert both to strings for comparison (handles number/string differences)
+      const originalStr = String(originalValue);
+      const currentStr = String(currentValue);
+      
+      // Only include field if it has changed
+      if (originalStr !== currentStr) {
+        changes[key] = current[key];
+      }
+    });
+    
+    return changes;
+  };
+
   // Extract host from URL
   const extractHostFromUrl = (url) => {
     if (!url) return '';
@@ -210,7 +250,7 @@ const ServicePanel = ({
   // Initialize form data when appliance changes
   useEffect(() => {
     if (appliance) {
-      setFormData({
+      const initialData = {
         name: appliance.name || '',
         url: appliance.url || '',
         description: appliance.description || '',
@@ -236,7 +276,12 @@ const ServicePanel = ({
         rustdeskId: appliance.rustdeskId || appliance.rustdesk_id || '',
         rustdeskPassword: '', // RustDesk Passwort wird nicht vom Server zurückgegeben
         rustdeskInstalled: appliance.rustdeskInstalled || appliance.rustdesk_installed || false,
-      });
+      };
+      
+      setFormData(initialData);
+      
+      // Store original data for comparison when saving
+      setOriginalFormData(initialData);
 
       // Convert transparency from 0-1 range to 0-100 percentage
       // Note: In ApplianceCard, 1 = fully opaque, 0 = fully transparent
@@ -397,27 +442,38 @@ const ServicePanel = ({
       setLoading(true);
       setError('');
 
-      // Create a copy of formData without visual settings
-      const { ...dataToSave } = formData;
-      // Remove visual settings that should not be saved from Service tab
-      // (transparency and blur are handled in the Visual tab)
+      // Get only changed fields for existing appliances
+      let dataToSave;
+      if (appliance?.isNew) {
+        // For new appliances, send all fields
+        dataToSave = { ...formData };
+      } else {
+        // For existing appliances, send only changed fields
+        dataToSave = getChangedFields(originalFormData, formData);
+        
+        // Check if there are any changes
+        if (Object.keys(dataToSave).length === 0) {
+          setSuccess('Keine Änderungen vorhanden');
+          setLoading(false);
+          return;
+        }
+      }
       
       // If RustDesk ID is provided, mark as installed
       if (dataToSave.rustdeskId) {
         dataToSave.rustdeskInstalled = true;
       }
       
-      console.log('Saving Service Data:', {
-        remoteDesktopType: dataToSave.remoteDesktopType,
-        remoteDesktopEnabled: dataToSave.remoteDesktopEnabled,
-        rustdesk_id: dataToSave.rustdeskId,
-        rustdeskId: dataToSave.rustdeskId,
-        rustdeskInstalled: dataToSave.rustdeskInstalled,
-        rustdeskPassword: dataToSave.rustdeskPassword,
-        fullData: dataToSave
-      });
+      // Debug logging to see what fields are being sent
+      console.log('Saving appliance - changed fields:', Object.keys(dataToSave));
+      console.log('Changed data:', dataToSave);
 
       await onSave(appliance?.id, dataToSave);
+      
+      // Update original data after successful save (for existing appliances)
+      if (!appliance?.isNew) {
+        setOriginalFormData({ ...formData });
+      }
 
       setSuccess(
         appliance?.isNew
@@ -481,8 +537,6 @@ const ServicePanel = ({
       return;
     }
 
-    console.log('Checking RustDesk status for appliance:', appliance.id);
-    console.log('Current rustdeskId in form:', formData.rustdeskId);
     
     // If we already have a RustDesk ID in the form, show it directly
     if (formData.rustdeskId) {
@@ -511,9 +565,8 @@ const ServicePanel = ({
         return;
       }
 
-      const response = await axios.get(`/api/rustdeskInstall/${sshConnectionId}/status`);
+      const response = await axios.get(`/api/rustdeskInstall/${appliance.id}/status`);
       
-      console.log('RustDesk status response:', response.data);
       
       if (response.data) {
         const status = response.data;
@@ -535,7 +588,6 @@ const ServicePanel = ({
           }
         } else {
           // Not installed - show installer dialog
-          console.log('RustDesk not installed, showing dialog');
           setShowRustDeskDialog(true);
         }
       }
@@ -747,13 +799,12 @@ const ServicePanel = ({
       setExecutingCommandId(command.id);
       const token = localStorage.getItem('token');
       const executeUrl = `/api/commands/${appliance.id}/${command.id}/execute`;
-      
-      console.log('Executing command:', {
+      const executeInfo = {
         applianceId: appliance.id,
         commandId: command.id,
         url: executeUrl,
         fullUrl: window.location.origin + executeUrl
-      });
+      };
       
       const response = await fetch(
         executeUrl,

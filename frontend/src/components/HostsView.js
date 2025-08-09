@@ -33,33 +33,27 @@ const HostsView = ({
   useEffect(() => {
     // Only load if no props provided
     if (!propsHosts) {
-      console.log('HostsView mounted - loading hosts...');
       loadHosts();
     }
     
     // Subscribe to SSE events for real-time updates
     const handleHostCreated = (data) => {
-      console.log('🎉 Host created event received:', data);
       loadHosts();
     };
     
     const handleHostUpdated = (data) => {
-      console.log('✏️ Host updated event received:', data);
       loadHosts();
     };
     
     const handleHostDeleted = (data) => {
-      console.log('🗑️ Host deleted event received:', data);
       loadHosts();
     };
     
     const handleHostRestored = (data) => {
-      console.log('♻️ Host restored event received:', data);
       loadHosts();
     };
     
     const handleHostReverted = (data) => {
-      console.log('⏪ Host reverted event received:', data);
       loadHosts();
     };
     
@@ -85,9 +79,7 @@ const HostsView = ({
   const loadHosts = async () => {
     try {
       setLoading(true);
-      console.log('Fetching hosts from API...');
       const response = await axios.get('/api/hosts');
-      console.log('Hosts received:', response.data.hosts);
       setHosts(response.data.hosts || []);
       setError(null);
     } catch (err) {

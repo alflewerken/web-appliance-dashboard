@@ -248,7 +248,8 @@ const AuditLogTableMUI = ({
     }
 
     if (key.includes('_at') || key === 'timestamp') {
-      return new Date(value).toLocaleString('de-DE', {
+      const date = new Date(value);
+      return date.toLocaleString('de-DE', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -632,121 +633,227 @@ const AuditLogTableMUI = ({
 
   // Render details
   const renderDetails = (log) => {
-    if (!log.details) return null;
+    if (!log.details) {
+      return (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Keine Detailinformationen verfügbar
+          </Typography>
+        </Box>
+      );
+    }
 
     const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
     const isJsonView = viewModes[log.id] === 'json';
 
-    // Special rendering for host updates
-    if (log.action === 'host_updated' && details.changes) {
+    // Helper function to render update table
+    const renderUpdateTable = (title, changes, oldValues) => {
       return (
         <Box sx={{ mt: 2 }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Geänderte Felder
+            {title}
           </Typography>
-          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+          <TableContainer component={Paper} sx={{ 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.03)' 
+              : 'rgba(0, 0, 0, 0.02)',
+            border: `1px solid ${theme.palette.divider}`,
+          }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Feldname</TableCell>
-                  <TableCell>Alter Wert</TableCell>
-                  <TableCell>Neuer Wert</TableCell>
+                  <TableCell sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Feldname</TableCell>
+                  <TableCell sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Alter Wert</TableCell>
+                  <TableCell sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Neuer Wert</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.entries(details.changes).map(([field, newValue]) => (
+                {Object.entries(changes).map(([field, newValue]) => (
                   <TableRow key={field}>
-                    <TableCell sx={{ fontWeight: 500 }}>{field}</TableCell>
+                    <TableCell sx={{ fontWeight: 500 }}>
+                      {formatFieldName(field)}
+                    </TableCell>
                     <TableCell sx={{ color: 'error.main' }}>
-                      {details.oldValues?.[field] ?? '-'}
+                      {formatFieldValue(oldValues?.[field])}
                     </TableCell>
                     <TableCell sx={{ color: 'success.main' }}>
-                      {newValue}
+                      {formatFieldValue(newValue)}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
-          
-          {/* Restore button for host updates */}
-          {canRestore(log).canRestore && (
-            <Box sx={{ mt: 2 }}>
-              <Button
-                startIcon={<History size={16} />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRestore(log);
-                }}
-                disabled={restoringLogs.has(log.id)}
-                sx={{
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(34, 197, 94, 0.2)' 
-                    : 'rgba(34, 197, 94, 0.15)',
-                  color: theme.palette.mode === 'dark' ? '#86efac' : '#22c55e',
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(34, 197, 94, 0.3)' 
-                      : 'rgba(34, 197, 94, 0.25)',
-                  },
-                  '&:disabled': {
-                    opacity: 0.7,
-                  },
-                }}
-              >
-                {restoringLogs.has(log.id) ? 'Wird zurückgesetzt...' : 'Änderungen zurücksetzen'}
-              </Button>
-            </Box>
-          )}
-          
-          {/* Restore result */}
-          {restoreResults[log.id] && (
-            <Alert
-              severity={restoreResults[log.id].success ? 'success' : 'error'}
-              sx={{ mt: 2 }}
-              onClose={() => setRestoreResults(prev => {
-                const newResults = { ...prev };
-                delete newResults[log.id];
-                return newResults;
-              })}
-            >
-              {restoreResults[log.id].message}
-            </Alert>
-          )}
         </Box>
       );
-    }
+    };
 
-    // Special rendering for host deletion
-    if (log.action === 'host_deleted') {
+    // Helper function to render deletion details
+    const renderDeletionTable = (title, data) => {
+      // Filter out sensitive fields
+      const filteredData = Object.entries(data)
+        .filter(([key]) => !['password', 'password_hash', 'remote_password', 'rustdesk_password', 
+                            'private_key', 'ssh_private_key', 'vnc_password', 'rdp_password'].includes(key));
+
       return (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Gelöschte Host-Details
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'error.main' }}>
+            {title}
           </Typography>
-          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+          <TableContainer component={Paper} sx={{ 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.03)' 
+              : 'rgba(0, 0, 0, 0.02)',
+            border: `1px solid ${theme.palette.divider}`,
+          }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Feldname</TableCell>
-                  <TableCell>Wert</TableCell>
+                  <TableCell sx={{
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Feldname</TableCell>
+                  <TableCell sx={{
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Wert</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.entries(details)
-                  .filter(([key]) => !['password', 'remote_password', 'rustdesk_password', 'private_key', 'deleted_by'].includes(key))
-                  .map(([key, value]) => (
-                    <TableRow key={key}>
-                      <TableCell sx={{ fontWeight: 500 }}>{key}</TableCell>
-                      <TableCell>{value ?? '-'}</TableCell>
-                    </TableRow>
-                  ))}
+                {filteredData.map(([key, value]) => (
+                  <TableRow key={key}>
+                    <TableCell sx={{ fontWeight: 500 }}>
+                      {formatFieldName(key)}
+                    </TableCell>
+                    <TableCell>{formatFieldValue(value)}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
-          
-          {/* Restore button for deleted hosts */}
+        </Box>
+      );
+    };
+
+    // Format field names for display
+    const formatFieldName = (fieldName) => {
+      const translations = {
+        name: 'Name',
+        hostname: 'Hostname',
+        ip_address: 'IP-Adresse',
+        remote_address: 'Remote-Adresse',
+        port: 'Port',
+        username: 'Benutzername',
+        email: 'E-Mail',
+        role: 'Rolle',
+        is_active: 'Aktiv',
+        use_https: 'HTTPS verwenden',
+        remote_desktop_enabled: 'Remote Desktop',
+        remote_desktop_type: 'Remote Desktop Typ',
+        category_id: 'Kategorie',
+        visibility: 'Sichtbarkeit',
+        icon: 'Icon',
+        description: 'Beschreibung',
+        url: 'URL',
+        created_at: 'Erstellt am',
+        updated_at: 'Aktualisiert am',
+        last_used: 'Zuletzt verwendet',
+        display_name: 'Anzeigename',
+        vnc_enabled: 'VNC aktiviert',
+        rdp_enabled: 'RDP aktiviert',
+        ssh_enabled: 'SSH aktiviert',
+      };
+      return translations[fieldName] || fieldName;
+    };
+
+    // Format field values for display
+    const formatFieldValue = (value) => {
+      if (value === null || value === undefined) return '-';
+      
+      // Handle boolean values (including 0/1 from database)
+      if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
+      if (value === 1 || value === '1' || value === true) return 'Ja';
+      if (value === 0 || value === '0' || value === false) return 'Nein';
+      
+      // Handle objects
+      if (typeof value === 'object') return JSON.stringify(value);
+      
+      return value;
+    };
+
+    // Handle different action types
+    // Updates (appliance, host, user, category)
+    if (log.action.includes('_update') || log.action.includes('_updated')) {
+      if (details.changes || details.old_data) {
+        const changes = details.changes || details.new_data || {};
+        const oldValues = details.oldValues || details.old_data || {};
+        return (
+          <>
+            {renderUpdateTable('Geänderte Felder', changes, oldValues)}
+            {/* Restore button for updates */}
+            {canRestore(log).canRestore && (
+              <Box sx={{ mt: 2 }}>
+                <Button
+                  startIcon={<History size={16} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRestore(log);
+                  }}
+                  disabled={restoringLogs.has(log.id)}
+                  sx={{
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(34, 197, 94, 0.2)' 
+                      : 'rgba(34, 197, 94, 0.15)',
+                    color: theme.palette.mode === 'dark' ? '#86efac' : '#22c55e',
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(34, 197, 94, 0.3)' 
+                        : 'rgba(34, 197, 94, 0.25)',
+                    },
+                  }}
+                >
+                  {restoringLogs.has(log.id) ? 'Wird zurückgesetzt...' : 'Änderungen zurücksetzen'}
+                </Button>
+              </Box>
+            )}
+          </>
+        );
+      }
+    }
+
+    // Deletions (appliance, host, user, category)
+    if (log.action.includes('_delete') || log.action.includes('_deleted')) {
+      const title = log.action.includes('appliance') ? 'Gelöschte Appliance-Details' :
+                    log.action.includes('host') ? 'Gelöschte Host-Details' :
+                    log.action.includes('user') ? 'Gelöschte Benutzer-Details' :
+                    log.action.includes('category') ? 'Gelöschte Kategorie-Details' :
+                    'Gelöschte Details';
+      return (
+        <>
+          {renderDeletionTable(title, details)}
+          {/* Restore button for deletions */}
           {canRestore(log).canRestore && (
             <Box sx={{ mt: 2 }}>
               <Button
@@ -767,31 +874,13 @@ const AuditLogTableMUI = ({
                       ? 'rgba(34, 197, 94, 0.3)' 
                       : 'rgba(34, 197, 94, 0.25)',
                   },
-                  '&:disabled': {
-                    opacity: 0.7,
-                  },
                 }}
               >
-                {restoringLogs.has(log.id) ? 'Wird wiederhergestellt...' : 'Host wiederherstellen'}
+                {restoringLogs.has(log.id) ? 'Wird wiederhergestellt...' : 'Wiederherstellen'}
               </Button>
             </Box>
           )}
-          
-          {/* Restore result */}
-          {restoreResults[log.id] && (
-            <Alert
-              severity={restoreResults[log.id].success ? 'success' : 'error'}
-              sx={{ mt: 2 }}
-              onClose={() => setRestoreResults(prev => {
-                const newResults = { ...prev };
-                delete newResults[log.id];
-                return newResults;
-              })}
-            >
-              {restoreResults[log.id].message}
-            </Alert>
-          )}
-        </Box>
+        </>
       );
     }
 
@@ -902,21 +991,43 @@ const AuditLogTableMUI = ({
             <Icon size={18} />
             {title}
           </Typography>
-          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+          <TableContainer component={Paper} sx={{ 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.03)' 
+              : 'rgba(0, 0, 0, 0.02)',
+            border: `1px solid ${theme.palette.divider}`,
+          }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Feldname</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Wert</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Feldname</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Wert</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {Object.entries(detailsObj).map(([key, value]) => (
                   <TableRow key={key}>
-                    <TableCell sx={{ fontWeight: 500 }}>
+                    <TableCell sx={{ 
+                      fontWeight: 500,
+                      color: theme.palette.text.secondary,
+                    }}>
                       {formatFieldName(key)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{
+                      color: theme.palette.text.primary,
+                    }}>
                       {formatValue(key, value)}
                     </TableCell>
                   </TableRow>
@@ -1089,7 +1200,7 @@ const AuditLogTableMUI = ({
                   {/* Compact header row */}
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ minWidth: '80px' }}>
-                      {formatTimestamp(log.created_at)}
+                      {formatTimestamp(log.createdAt)}
                     </Typography>
                     <Chip
                       icon={getActionIcon(log.action)}
@@ -1123,11 +1234,11 @@ const AuditLogTableMUI = ({
                       </Stack>
                     )}
 
-                    {log.ip_address && (
+                    {log.ipAddress && (
                       <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
                         <Globe size={12} style={{ opacity: 0.6 }} />
                         <Typography variant="caption" color="text.secondary">
-                          {log.ip_address}
+                          {log.ipAddress}
                         </Typography>
                       </Stack>
                     )}
@@ -1136,8 +1247,16 @@ const AuditLogTableMUI = ({
 
                 {/* Expanded details */}
                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                  <Divider />
-                  {renderDetails(log)}
+                  <Box sx={{ 
+                    p: 2, 
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.02)',
+                    color: theme.palette.text.primary
+                  }}>
+                    <Divider sx={{ mb: 2, opacity: 0.3 }} />
+                    {renderDetails(log)}
+                  </Box>
                 </Collapse>
               </Box>
             );
@@ -1231,7 +1350,6 @@ const AuditLogTableMUI = ({
                       transition: 'background-color 0.2s ease',
                     }}
                     onClick={() => {
-
                       onToggleExpand(log.id);
                     }}
                   >
@@ -1242,7 +1360,7 @@ const AuditLogTableMUI = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" noWrap>
-                        {formatTimestamp(log.created_at)}
+                        {formatTimestamp(log.createdAt)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -1266,7 +1384,7 @@ const AuditLogTableMUI = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {log.ip_address || '-'}
+                        {log.ipAddress || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
@@ -1289,7 +1407,15 @@ const AuditLogTableMUI = ({
                   <TableRow>
                     <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
                       <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                        {renderDetails(log)}
+                        <Box sx={{ 
+                          p: 2,
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.05)' 
+                            : 'rgba(0, 0, 0, 0.02)',
+                          color: theme.palette.text.primary
+                        }}>
+                          {renderDetails(log)}
+                        </Box>
                       </Collapse>
                     </TableCell>
                   </TableRow>

@@ -50,7 +50,6 @@ export const UnifiedTerminal = ({
         };
       }
 
-      console.log(`Starting ${entityType} terminal for ${entity.name}`, payload);
       const response = await axios.post(endpoint, payload);
       
       if (response.data.url) {

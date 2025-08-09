@@ -4,6 +4,8 @@ const RustDeskManager = require('../modules/streaming/rustdesk-manager');
 const { authenticateToken } = require('../middleware/auth');
 const { executeSSHCommand } = require('../utils/ssh');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const { createAuditLog } = require('../utils/auditLogger');
 const { getClientIp } = require('../utils/getClientIp');
 
@@ -45,9 +47,9 @@ router.post('/access/:applianceId', authenticateToken, async (req, res) => {
   
   try {
     // Get appliance info
-    const [appliances] = await pool.execute(
-      'SELECT name, rustdesk_id FROM appliances WHERE id = ?',
-      [applianceId]
+    const appliances = await db.select('appliances', 
+      { id: applianceId },
+      { limit: 1 }
     );
 
     if (appliances.length === 0) {
@@ -201,9 +203,9 @@ router.get('/install/:hostId/status', authenticateToken, async (req, res) => {
     console.log('RustDesk is installed, creating audit log...');
     try {
       // Get appliance info for audit log
-      const [appliances] = await pool.execute(
-        'SELECT name FROM appliances WHERE id = ?',
-        [hostId]
+      const appliances = await db.select('appliances', 
+        { id: hostId },
+        { limit: 1 }
       );
       
       console.log('Found appliances:', appliances.length);

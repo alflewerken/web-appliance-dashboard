@@ -38,6 +38,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
   const [currentTargetPath, setCurrentTargetPath] = useState(targetPath || '~');
 
   const uploadFiles = useCallback(async (files) => {
+    
     setUploading(true);
     setUploadStatus(null);
     setUploadProgress({});
@@ -51,10 +52,23 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
         
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('hostId', sshHost.id);
-        formData.append('targetPath', currentTargetPath);
         
-        // Debug: Log the actual targetPath being sent
+        // Send either hostId or direct SSH connection details
+        if (sshHost.id) {
+          formData.append('hostId', sshHost.id);
+        } else {
+          // For services without host entry, send connection details directly
+          formData.append('hostname', sshHost.hostname);
+          formData.append('username', sshHost.username);
+          formData.append('port', sshHost.port || 22);
+        }
+        
+        // Always use absolute path on Mac
+        const targetPath = currentTargetPath.startsWith('~') 
+          ? `/Users/${sshHost.username}${currentTargetPath.substring(1)}`
+          : currentTargetPath;
+        formData.append('targetPath', targetPath);
+        
 
         if (password) {
           formData.append('password', password);
@@ -62,6 +76,12 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
         
         try {
           const token = localStorage.getItem('token');
+          const uploadDetails = {
+            hostId: sshHost.id, 
+            targetPath: currentTargetPath,
+            fileName: file.name,
+            fileSize: file.size 
+          };
           
           // Since the backend uses SSE, we need to handle the response differently
           const response = await fetch('/api/ssh/upload', {
@@ -72,8 +92,10 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
             body: formData,
           });
 
+
           if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
+            const errorText = await response.text();
+            throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
           }
 
           // Read SSE stream
@@ -125,8 +147,11 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
             buffer = lines[lines.length - 1];
           }
         } catch (error) {
-          console.error('Upload error:', error);
           results.push({ file: file.name, success: false, error: error.message });
+          setUploadStatus({
+            type: 'error',
+            message: `Fehler beim Upload: ${error.message}`
+          });
         }
       }
 
@@ -180,6 +205,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
     e.stopPropagation(); // Wichtig: Event nicht weitergeben!
     setIsDragging(false);
     
+    
     const items = e.dataTransfer.items;
     const files = [];
     
@@ -216,6 +242,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
       }
     }
     
+    
     if (files.length > 0) {
       if (sshHost.requiresPassword && !password) {
         window.pendingFiles = files;
@@ -223,6 +250,7 @@ const SSHFileUpload = ({ sshHost, targetPath, requirePassword, onClose, applianc
       } else {
         uploadFiles(files);
       }
+    } else {
     }
   };
 

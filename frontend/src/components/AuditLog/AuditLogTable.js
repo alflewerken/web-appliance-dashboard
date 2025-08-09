@@ -123,7 +123,7 @@ const AuditLogTable = ({
       // Determine endpoint based on resource type and action
       if (log.action.includes('delete')) {
         // For deletions, use the appropriate restore endpoint based on resource type
-        switch (log.resource_type) {
+        switch (log.resourceType) {
           case 'appliances':
             endpoint = `/api/auditRestore/restore/appliances/${log.id}`;
             break;
@@ -149,7 +149,7 @@ const AuditLogTable = ({
         log.action.includes('reverted')
       ) {
         // For updates/reverts, use the appropriate revert endpoint based on resource type
-        switch (log.resource_type) {
+        switch (log.resourceType) {
           case 'appliances':
             endpoint = `/api/auditRestore/revert/appliances/${log.id}`;
             break;
@@ -383,7 +383,8 @@ const AuditLogTable = ({
         key === 'backup_created_at' ||
         key.endsWith('_at')
       ) {
-        return new Date(value).toLocaleString('de-DE', {
+        const date = new Date(value);
+        return date.toLocaleString('de-DE', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -1373,12 +1374,12 @@ const AuditLogTable = ({
           {filteredLogs.map(log => {
             // Parse details if needed
             let resourceName = '';
-            if (log.details) {
+            if (log.metadata) {
               try {
                 const details =
-                  typeof log.details === 'string'
-                    ? JSON.parse(log.details)
-                    : log.details;
+                  typeof log.metadata === 'string'
+                    ? JSON.parse(log.metadata)
+                    : log.metadata;
                 resourceName =
                   details.name ||
                   details.command_description ||
@@ -1467,7 +1468,7 @@ const AuditLogTable = ({
                       }}
                     >
                       <Clock size={12} />
-                      {formatTimestamp(log.created_at)}
+                      {formatTimestamp(log.createdAt)}
                     </span>
                     <span
                       style={{
@@ -1494,7 +1495,7 @@ const AuditLogTable = ({
                   )}
                 </button>
 
-                {isExpanded && log.details && (
+                {isExpanded && log.metadata && (
                   <div
                     style={{
                       marginTop: '-8px',
@@ -1654,19 +1655,19 @@ const AuditLogTable = ({
                           }}
                         >
                           {JSON.stringify(
-                            typeof log.details === 'string'
-                              ? JSON.parse(log.details)
-                              : log.details,
+                            typeof log.metadata === 'string'
+                              ? JSON.parse(log.metadata)
+                              : log.metadata,
                             null,
                             2
                           )}
                         </pre>
                       ) : (
                         <FormattedDetails
-                          details={log.details}
+                          details={log.metadata}
                           action={log.action}
                           logId={log.id}
-                          resourceId={log.resource_id}
+                          resourceId={log.resourceId}
                         />
                       )}
                     </div>
@@ -1700,12 +1701,12 @@ const AuditLogTable = ({
             {filteredLogs.map(log => {
               // Parse details if needed
               let resourceName = '';
-              if (log.details) {
+              if (log.metadata) {
                 try {
                   const details =
-                    typeof log.details === 'string'
-                      ? JSON.parse(log.details)
-                      : log.details;
+                    typeof log.metadata === 'string'
+                      ? JSON.parse(log.metadata)
+                      : log.metadata;
                   // Erweiterte Suche nach Namen - prüfe verschiedene mögliche Felder
                   resourceName =
                     details.displayName ||
@@ -1722,18 +1723,18 @@ const AuditLogTable = ({
               }
 
               // Determine resource display
-              let resourceDisplay = log.resource_name || resourceName;
+              let resourceDisplay = log.resourceName || resourceName;
 
-              // If we don't have a name from details, check for specific fields in details
-              if (!resourceDisplay && log.details) {
+              // If we don't have a name from metadata, check for specific fields in metadata
+              if (!resourceDisplay && log.metadata) {
                 try {
                   const details =
-                    typeof log.details === 'string'
-                      ? JSON.parse(log.details)
-                      : log.details;
+                    typeof log.metadata === 'string'
+                      ? JSON.parse(log.metadata)
+                      : log.metadata;
 
                   // For appliances/services
-                  if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+                  if (log.resourceType === 'appliances' || log.resourceType === 'appliance') {
                     // Check for service object (used in create operations)
                     if (details.service && details.service.name) {
                       resourceDisplay = details.service.name;
@@ -1784,10 +1785,10 @@ const AuditLogTable = ({
 
               // Only fall back to generic display if we still don't have a name
               if (!resourceDisplay) {
-                if (log.resource_type && log.resource_id) {
-                  resourceDisplay = `${log.resource_type} #${log.resource_id}`;
-                } else if (log.resource_type) {
-                  resourceDisplay = log.resource_type;
+                if (log.resourceType && log.resourceId) {
+                  resourceDisplay = `${log.resourceType} #${log.resourceId}`;
+                } else if (log.resourceType) {
+                  resourceDisplay = log.resourceType;
                 } else {
                   resourceDisplay = '-';
                 }
@@ -1799,7 +1800,7 @@ const AuditLogTable = ({
                     <td style={tdStyle}>
                       <div style={iconTextStyle}>
                         <Calendar size={14} />
-                        <span>{formatTimestamp(log.created_at)}</span>
+                        <span>{formatTimestamp(log.createdAt)}</span>
                       </div>
                     </td>
                     <td style={tdStyle}>
@@ -1825,12 +1826,12 @@ const AuditLogTable = ({
                           fontSize: '13px',
                         }}
                       >
-                        {log.ip_address || '-'}
+                        {log.ipAddress || '-'}
                       </td>
                     )}
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        {log.details && (
+                        {log.metadata && (
                           <button
                             className="expand-btn"
                             onClick={() => toggleRowExpansion(log.id)}
@@ -1858,7 +1859,7 @@ const AuditLogTable = ({
                       </div>
                     </td>
                   </tr>
-                  {expandedRows.has(log.id) && log.details && (
+                  {expandedRows.has(log.id) && log.metadata && (
                     <tr className="details-row">
                       <td
                         colSpan="6"
@@ -2016,19 +2017,19 @@ const AuditLogTable = ({
                                   }}
                                 >
                                   {JSON.stringify(
-                                    typeof log.details === 'string'
-                                      ? JSON.parse(log.details)
-                                      : log.details,
+                                    typeof log.metadata === 'string'
+                                      ? JSON.parse(log.metadata)
+                                      : log.metadata,
                                     null,
                                     2
                                   )}
                                 </pre>
                               ) : (
                                 <FormattedDetails
-                                  details={log.details}
+                                  details={log.metadata}
                                   action={log.action}
                                   logId={log.id}
-                                  resourceId={log.resource_id}
+                                  resourceId={log.resourceId}
                                 />
                               )}
                             </div>

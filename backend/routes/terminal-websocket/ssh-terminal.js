@@ -7,9 +7,13 @@
 const WebSocket = require('ws');
 const { spawn } = require('child_process');
 const pool = require('../../utils/database');
+const QueryBuilder = require('../../utils/QueryBuilder');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs').promises;
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Store active terminal sessions
 const terminals = new Map();
@@ -27,10 +31,7 @@ async function getSSHConnectionDetails(applianceId) {
       const hostId = applianceId.replace('ssh_host_', '');
 
       // Get host details directly from hosts table
-      const [hosts] = await pool.execute(
-        `SELECT * FROM hosts WHERE id = ?`,
-        [hostId]
-      );
+      const hosts = await db.select('hosts', { id: hostId });
 
       if (!hosts.length) {
         throw new Error('Host not found');
@@ -48,19 +49,14 @@ async function getSSHConnectionDetails(applianceId) {
     }
 
     // Otherwise, get appliance details as before
-    const [appliances] = await pool.execute(
-      `
-      SELECT * FROM appliances WHERE id = ?
-    `,
-      [applianceId]
-    );
+    const appliances = await db.select('appliances', { id: applianceId });
 
-    if (!appliances.length || !appliances[0].ssh_connection) {
+    if (!appliances.length || !appliances[0].sshConnection) {
       throw new Error('No SSH connection configured for this appliance');
     }
 
     const appliance = appliances[0];
-    const sshConnectionString = appliance.ssh_connection;
+    const sshConnectionString = appliance.sshConnection;
 
     // Parse the connection string format: username@host:port
     const match = sshConnectionString.match(/^(.+)@(.+):(\d+)$/);
@@ -71,12 +67,11 @@ async function getSSHConnectionDetails(applianceId) {
     const [, username, host, port] = match;
 
     // Try to find matching host to get the key name
-    const [hosts] = await pool.execute(
-      `SELECT * FROM hosts 
-       WHERE hostname = ? AND username = ? AND port = ?
-       LIMIT 1`,
-      [host, username, parseInt(port)]
-    );
+    const hosts = await db.select('hosts', {
+      hostname: host,
+      username: username,
+      port: parseInt(port)
+    }, { limit: 1 });
 
     if (!hosts.length) {
       // If no exact match found, return basic connection without key
@@ -178,13 +173,13 @@ function setupSSHTerminalWebSocket(server) {
                 };
                 
                 // Verify the SSH host exists in database
-                const [sshHosts] = await pool.execute(
-                  `SELECT * FROM ssh_hosts WHERE id = ? AND is_active = 1`,
-                  [data.sshHost.id]
-                );
+                const sshHosts = await db.select('ssh_hosts', {
+                  id: data.sshHost.id,
+                  isActive: 1
+                });
                 
                 if (sshHosts.length > 0) {
-                  sshConnection.keyName = sshHosts[0].key_name;
+                  sshConnection.keyName = sshHosts[0].keyName;
                 }
               } else if (data.applianceId) {
                 // Appliance connection

@@ -12,7 +12,11 @@ try {
 }
 const { spawn: childSpawn } = require('child_process');
 const pool = require('../../utils/database');
+const QueryBuilder = require('../../utils/QueryBuilder');
 const jwt = require('jsonwebtoken');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Store active terminal sessions
 const terminals = new Map();
@@ -72,10 +76,7 @@ function setupTerminalWebSocket(server) {
             }
 
             // Get appliance details
-            const [appliances] = await pool.execute(
-              'SELECT * FROM appliances WHERE id = ?',
-              [data.applianceId]
-            );
+            const appliances = await db.select('appliances', { id: data.applianceId });
             const appliance = appliances[0];
 
             if (!appliance) {

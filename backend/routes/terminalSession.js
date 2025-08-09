@@ -1,3 +1,4 @@
+// Terminal Session Management - Using QueryBuilder
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
@@ -6,8 +7,12 @@ const path = require('path');
 const { verifyToken } = require('../utils/auth');
 const { createAuditLog } = require('../utils/auditLogger');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { logger } = require('../utils/logger');
 const { getClientIp } = require('../utils/getClientIp');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Ensure terminal sessions directory exists
 const SESSIONS_DIR = '/tmp/terminal-sessions';
@@ -45,11 +50,11 @@ router.post('/session', verifyToken, async (req, res) => {
     let resourceId = null;
     
     if (hostId) {
-      // Get host details
-      const [hosts] = await pool.execute(
-        'SELECT * FROM hosts WHERE id = ? AND created_by = ?',
-        [hostId, req.user.id]
-      );
+      // Get host details using QueryBuilder
+      const hosts = await db.select('hosts', {
+        id: hostId,
+        createdBy: req.user.id
+      });
 
       if (hosts.length === 0) {
         return res.status(404).json({
@@ -72,7 +77,7 @@ router.post('/session', verifyToken, async (req, res) => {
         host: host.hostname,
         port: host.port || 22,
         user: host.username,
-        keyPath: host.sshKeyName ? `/root/.ssh/id_rsa_user${host.created_by || req.user.id}_${host.sshKeyName}` : undefined
+        keyPath: host.sshKeyName ? `/root/.ssh/id_rsa_user${host.createdBy || req.user.id}_${host.sshKeyName}` : undefined
       };
       
       // Prepare audit details for host
@@ -103,19 +108,22 @@ router.post('/session', verifyToken, async (req, res) => {
         port: parseInt(match[3], 10)
       };
       
-      // Try to find associated appliance
-      const [appliances] = await pool.execute(
-        'SELECT id, name FROM appliances WHERE ssh_connection = ?',
-        [sshConnection]
-      );
+      // Try to find associated appliance using QueryBuilder
+      const appliances = await db.select('appliances', { sshConnection });
       
       if (appliances.length > 0) {
         const appliance = appliances[0];
+        
+        // Füge SSH-Schlüssel-Pfad hinzu für Appliances
+        const keyName = appliance.sshKeyName || appliance.ssh_key_name || 'dashboard';
+        sessionData.keyPath = `/root/.ssh/id_rsa_user${req.user.id}_${keyName}`;
+        
         auditDetails = {
           applianceName: appliance.name,
           appliance_name: appliance.name,
           name: appliance.name,
-          sshConnection: sshConnection
+          sshConnection: sshConnection,
+          keyName: keyName
         };
         resourceType = 'appliances';
         resourceId = appliance.id;

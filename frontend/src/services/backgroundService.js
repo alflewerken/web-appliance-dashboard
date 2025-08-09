@@ -55,7 +55,7 @@ export class BackgroundService {
       const response = await axios.get('/api/settings');
       const { data } = response;
       const settings = {
-        enabled: data.background_enabled === 'true',
+        enabled: data.background_enabled === 'true' || data.background_enabled === true,
         opacity: parseFloat(data.background_opacity || '0.3'),
         blur: parseInt(data.background_blur || '5'),
         position: data.background_position || 'center',

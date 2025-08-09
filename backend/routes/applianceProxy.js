@@ -16,8 +16,12 @@ router.get('/test-proxy', (req, res) => {
 
 const { authenticateToken } = require('../middleware/auth');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const logger = require('../utils/logger');
 const proxyEngine = require('../utils/proxyEngine');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 const sessionCache = require('../utils/sessionCache');
 // Temporär: Korrigierte checkApplianceAccess Middleware
 const checkApplianceAccessFixed = require('../middleware/checkApplianceAccessFixed');
@@ -41,10 +45,7 @@ const checkApplianceAccess = async (req, res, next) => {
         const userId = req.user.id;
         
         // Appliance laden
-        const [appliances] = await pool.execute(
-            'SELECT * FROM appliances WHERE id = ?',
-            [applianceId]
-        );
+        const appliances = await db.select('appliances', { id: applianceId });
         
         if (appliances.length === 0) {
             return res.status(404).json({ error: 'Appliance not found' });
@@ -127,10 +128,10 @@ router.ws('/:id/terminal', async (ws, req) => {
         if (!authenticated) return;
         
         // Appliance laden
-        const [appliances] = await pool.execute(
-            'SELECT * FROM appliances WHERE id = ? AND proxy_protocol = "ssh"',
-            [req.params.id]
-        );
+        const appliances = await db.select('appliances', {
+            id: req.params.id,
+            proxyProtocol: 'ssh'
+        });
         
         if (appliances.length === 0) {
             ws.close(1008, 'Invalid appliance or not SSH type');
@@ -178,20 +179,15 @@ router.ws('/:id/terminal', async (ws, req) => {
         logger.info(`Terminal session started for appliance ${appliance.id} by user ${req.user.id}`);
         
         // Audit Log
-        await pool.execute(
-            `INSERT INTO proxy_audit_logs 
-            (user_id, user_name, appliance_id, appliance_name, action, ip, user_agent) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-                req.user.id,
-                req.user.username,
-                appliance.id,
-                appliance.name,
-                'terminal_session',
-                req.ip,
-                req.headers['user-agent']
-            ]
-        );
+        await db.insert('proxy_audit_logs', {
+            userId: req.user.id,
+            userName: req.user.username,
+            applianceId: appliance.id,
+            applianceName: appliance.name,
+            action: 'terminal_session',
+            ip: req.ip,
+            userAgent: req.headers['user-agent']
+        });
         
     } catch (error) {
         logger.error('Terminal session error:', error);

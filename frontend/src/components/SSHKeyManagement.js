@@ -19,6 +19,7 @@ import {
   MenuItem,
   Tooltip,
   CircularProgress,
+  Chip,
 } from '@mui/material';
 import {
   Plus,
@@ -29,11 +30,12 @@ import {
   Upload,
   Eye,
   EyeOff,
+  Edit2,
 } from 'lucide-react';
 import axios from '../utils/axiosConfig';
 import { copyToClipboard } from '../utils/clipboard';
 
-const SSHKeyManagement = ({ onKeyGenerated }) => {
+const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyName }) => {
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -42,6 +44,7 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
   // Dialog states
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPrivateKey, setShowPrivateKey] = useState({});
   
   // Form data
@@ -57,6 +60,12 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
     privateKey: '',
     passphrase: '',
   });
+  
+  const [editForm, setEditForm] = useState({
+    id: null,
+    keyName: '',
+    comment: '',
+  });
 
   useEffect(() => {
     fetchKeys();
@@ -65,8 +74,38 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
   const fetchKeys = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/sshKeys');
-      setKeys(response.data.keys || []);
+      // SSH-Schlüssel abrufen
+      const keysResponse = await axios.get('/api/sshKeys');
+      const keysData = keysResponse.data.keys || [];
+      
+      // Hosts abrufen um zu zählen, welche Keys verwendet werden
+      try {
+        const hostsResponse = await axios.get('/api/hosts');
+        if (hostsResponse.data.success) {
+          const hosts = hostsResponse.data.hosts || [];
+          
+          // Zähle wie viele Hosts jeden Key verwenden
+          const keyUsageCount = {};
+          hosts.forEach(host => {
+            if (host.sshKeyName) {
+              keyUsageCount[host.sshKeyName] = (keyUsageCount[host.sshKeyName] || 0) + 1;
+            }
+          });
+          
+          // Füge die Usage-Counts zu den Keys hinzu
+          const keysWithUsage = keysData.map(key => ({
+            ...key,
+            hostCount: keyUsageCount[key.keyName] || 0
+          }));
+          
+          setKeys(keysWithUsage);
+        } else {
+          setKeys(keysData);
+        }
+      } catch (hostError) {
+        console.warn('Could not fetch host counts:', hostError);
+        setKeys(keysData);
+      }
     } catch (error) {
       console.error('Error fetching SSH keys:', error);
       setError('Fehler beim Laden der SSH-Schlüssel');
@@ -102,8 +141,8 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
         }
         
         // Notify parent component
-        if (onKeyGenerated) {
-          onKeyGenerated(generateForm.keyName);
+        if (onKeyCreated) {
+          onKeyCreated(generateForm.keyName);
         }
       }
     } catch (error) {
@@ -130,8 +169,8 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
         fetchKeys();
         
         // Notify parent component
-        if (onKeyGenerated) {
-          onKeyGenerated(importForm.keyName);
+        if (onKeyCreated) {
+          onKeyCreated(importForm.keyName);
         }
       }
     } catch (error) {
@@ -181,6 +220,11 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
       await axios.delete(`/api/sshKeys/${keyId}`);
       setSuccess('SSH-Schlüssel erfolgreich gelöscht');
       fetchKeys();
+      
+      // Notify parent component
+      if (onKeyDeleted) {
+        onKeyDeleted();
+      }
     } catch (error) {
       console.error('Error deleting SSH key:', error);
       if (error.response?.status === 400) {
@@ -188,6 +232,30 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
       } else {
         setError('Fehler beim Löschen des SSH-Schlüssels');
       }
+    }
+  };
+
+  const handleEditKey = (key) => {
+    setEditForm({
+      id: key.id,
+      keyName: key.keyName,
+      comment: key.comment || '',
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateKey = async () => {
+    try {
+      setLoading(true);
+      // Da das Backend noch keine Update-Route hat, zeigen wir nur eine Meldung
+      // TODO: Backend-Route für Update implementieren
+      setError('Schlüssel-Bearbeitung wird noch implementiert');
+      setShowEditDialog(false);
+    } catch (error) {
+      console.error('Error updating SSH key:', error);
+      setError('Fehler beim Aktualisieren des SSH-Schlüssels');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -269,12 +337,20 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
                 backgroundColor: 'rgba(0, 0, 0, 0.4)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: key.keyName === selectedKeyName 
+                  ? '2px solid var(--primary-color)' 
+                  : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: 2,
                 width: '100%',
+                boxShadow: key.keyName === selectedKeyName 
+                  ? '0 0 20px rgba(0, 122, 255, 0.3)' 
+                  : 'none',
+                transition: 'all 0.3s ease',
                 '.theme-light &': {
                   backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  border: '1px solid rgba(0, 0, 0, 0.1)',
+                  border: key.keyName === selectedKeyName 
+                    ? '2px solid var(--primary-color)' 
+                    : '1px solid rgba(0, 0, 0, 0.1)',
                 }
               }}
               >
@@ -283,21 +359,52 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Key size={28} style={{ color: 'var(--primary-color)' }} />
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {key.key_name}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {key.keyName}
+                        </Typography>
+                        {key.hostCount > 0 && (
+                          <Chip 
+                            label={`${key.hostCount} ${key.hostCount === 1 ? 'Host' : 'Hosts'}`}
+                            size="small"
+                            sx={{
+                              backgroundColor: 'rgba(138, 43, 226, 0.2)',
+                              color: '#8A2BE2',
+                              border: '1px solid rgba(138, 43, 226, 0.3)',
+                              fontWeight: 500,
+                              fontSize: '0.75rem',
+                              height: 22,
+                            }}
+                          />
+                        )}
+                      </Box>
                       <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
-                        {key.key_type?.toUpperCase()} • {key.key_size} bit
+                        {key.keyType?.toUpperCase() || 'RSA'} • {key.keySize || 2048} bit
                       </Typography>
                     </Box>
                   </Box>
                   
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Tooltip title="Bearbeiten">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleEditKey(key)}
+                        sx={{ 
+                          color: 'var(--text-secondary)',
+                          '&:hover': { 
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            color: 'var(--text-primary)'
+                          }
+                        }}
+                      >
+                        <Edit2 size={18} />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Öffentlichen Schlüssel kopieren">
                       <IconButton 
                         size="small" 
-                        onClick={() => handleCopyPublicKey(key.key_name)}
+                        onClick={() => handleCopyPublicKey(key.keyName)}
                         sx={{ 
                           color: 'var(--text-secondary)',
                           '&:hover': { 
@@ -312,7 +419,7 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
                     <Tooltip title="Privaten Schlüssel kopieren">
                       <IconButton 
                         size="small" 
-                        onClick={() => handleCopyPrivateKey(key.key_name)}
+                        onClick={() => handleCopyPrivateKey(key.keyName)}
                         sx={{ 
                           color: 'var(--warning-color)',
                           '&:hover': { 
@@ -327,7 +434,7 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
                     <Tooltip title="Herunterladen">
                       <IconButton 
                         size="small" 
-                        onClick={() => handleDownloadKey(key.key_name, 'public')}
+                        onClick={() => handleDownloadKey(key.keyName, 'public')}
                         sx={{ 
                           color: 'var(--text-secondary)',
                           '&:hover': { 
@@ -339,20 +446,27 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
                         <Download size={18} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Löschen">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleDeleteKey(key.id, key.key_name)}
-                        sx={{ 
-                          color: 'var(--error-color)',
-                          '&:hover': { 
-                            backgroundColor: 'rgba(255, 82, 82, 0.1)',
-                            color: 'var(--error-color)'
-                          }
-                        }}
-                      >
-                        <Trash2 size={18} />
-                      </IconButton>
+                    <Tooltip title={key.hostCount > 0 ? `Kann nicht gelöscht werden - wird von ${key.hostCount} ${key.hostCount === 1 ? 'Host' : 'Hosts'} verwendet` : 'Löschen'}>
+                      <span>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleDeleteKey(key.id, key.keyName)}
+                          disabled={key.hostCount > 0}
+                          sx={{ 
+                            color: key.hostCount > 0 ? 'var(--text-tertiary)' : 'var(--error-color)',
+                            '&:hover': { 
+                              backgroundColor: key.hostCount > 0 ? 'transparent' : 'rgba(255, 82, 82, 0.1)',
+                              color: key.hostCount > 0 ? 'var(--text-tertiary)' : 'var(--error-color)'
+                            },
+                            '&.Mui-disabled': {
+                              color: 'var(--text-tertiary)',
+                              opacity: 0.5,
+                            }
+                          }}
+                        >
+                          <Trash2 size={18} />
+                        </IconButton>
+                      </span>
                     </Tooltip>
                   </Box>
                 </Box>
@@ -401,13 +515,13 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
                       Erstellt am
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'var(--text-primary)' }}>
-                      {new Date(key.created_at).toLocaleDateString('de-DE', {
+                      {key.createdAt ? new Date(key.createdAt).toLocaleDateString('de-DE', {
                         day: '2-digit',
                         month: '2-digit',
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
-                      })}
+                      }) : 'Unbekannt'}
                     </Typography>
                   </Box>
                 </Box>
@@ -544,6 +658,51 @@ const SSHKeyManagement = ({ onKeyGenerated }) => {
             disabled={loading || !importForm.keyName || !importForm.privateKey}
           >
             Importieren
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Key Dialog */}
+      <Dialog
+        open={showEditDialog}
+        onClose={() => setShowEditDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>SSH-Schlüssel bearbeiten</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Schlüsselname"
+                value={editForm.keyName}
+                onChange={(e) => setEditForm({ ...editForm, keyName: e.target.value })}
+                disabled
+                helperText="Der Schlüsselname kann nicht geändert werden"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Kommentar"
+                value={editForm.comment}
+                onChange={(e) => setEditForm({ ...editForm, comment: e.target.value })}
+                helperText="Optionaler Kommentar oder Beschreibung"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowEditDialog(false)}>
+            Abbrechen
+          </Button>
+          <Button 
+            onClick={handleUpdateKey} 
+            variant="contained" 
+            disabled={loading}
+          >
+            Speichern
           </Button>
         </DialogActions>
       </Dialog>

@@ -3,6 +3,8 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const { NodeSSH } = require('node-ssh');
 const { verifyToken } = require('../utils/auth');
 const { logger } = require('../utils/logger');
@@ -50,9 +52,12 @@ router.post('/setup', verifyToken, async (req, res) => {
   
   try {
     // Get the SSH key from database
-    const [keyRows] = await pool.execute(
-      'SELECT public_key FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      [keyName, req.user.id]
+    const keyRows = await db.select('ssh_keys', 
+      { 
+        keyName: keyName,
+        createdBy: req.user.id
+      },
+      { limit: 1 }
     );
 
     if (keyRows.length === 0) {
@@ -62,7 +67,7 @@ router.post('/setup', verifyToken, async (req, res) => {
       });
     }
 
-    const publicKey = keyRows[0].public_key;
+    const publicKey = keyRows[0].publicKey;
 
     // Connect to host
     await ssh.connect({
@@ -137,6 +142,6 @@ router.post('/setup', verifyToken, async (req, res) => {
 
 // Upload file via SSH
 const handleSSHUpload = require('../utils/sshUploadHandler');
-router.post('/upload', upload.single('file'), handleSSHUpload);
+router.post('/upload', verifyToken, upload.single('file'), handleSSHUpload);
 
 module.exports = router;

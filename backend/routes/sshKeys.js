@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../utils/auth');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const { logger } = require('../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
@@ -51,10 +53,10 @@ async function execWithTimeout(command, timeoutMs = 5000) {
 async function ensureUserDashboardKey(userId, username) {
   try {
     // Check if user already has a dashboard key
-    const [existing] = await pool.execute(
-      'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      ['dashboard', userId]
-    );
+    const existing = await db.select('ssh_keys', { 
+      keyName: 'dashboard', 
+      createdBy: userId 
+    });
 
     if (existing.length > 0) {
       return { exists: true };
@@ -81,21 +83,16 @@ async function ensureUserDashboardKey(userId, username) {
     );
 
     // Store in database
-    await pool.execute(`
-      INSERT INTO ssh_keys (
-        key_name, key_type, key_size, comment, 
-        public_key, private_key, fingerprint, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      'dashboard',
-      'rsa',
-      2048,
-      `dashboard@${username}`,
-      publicKey.trim(),
-      privateKey,
-      fingerprint.trim(),
-      userId
-    ]);
+    await db.insert('ssh_keys', {
+      keyName: 'dashboard',
+      keyType: 'rsa',
+      keySize: 2048,
+      comment: `dashboard@${username}`,
+      publicKey: publicKey.trim(),
+      privateKey: privateKey,
+      fingerprint: fingerprint.trim(),
+      createdBy: userId
+    });
 
     logger.info(`Auto-created dashboard SSH key for user ${username} (ID: ${userId})`);
     
@@ -123,6 +120,7 @@ router.get('/', verifyToken, async (req, res) => {
     }
 
     // User can only see their own SSH keys
+    // Complex query with dynamic columns - requires raw SQL
     const [keys] = await pool.execute(`
       SELECT ${getSSHKeySelectColumns()}
       FROM ssh_keys
@@ -149,6 +147,7 @@ router.get('/ensure-dashboard', verifyToken, async (req, res) => {
     const result = await ensureUserDashboardKey(req.user.id, req.user.username);
     
     // Get all user's keys
+    // Complex query with dynamic columns - requires raw SQL
     const [keys] = await pool.execute(`
       SELECT ${getSSHKeySelectColumns()}
       FROM ssh_keys
@@ -175,10 +174,10 @@ router.get('/ensure-dashboard', verifyToken, async (req, res) => {
 router.get('/:keyName/public', verifyToken, async (req, res) => {
   try {
     // User can only see their own keys
-    const [keys] = await pool.execute(
-      'SELECT public_key FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      [req.params.keyName, req.user.id]
-    );
+    const keys = await db.select('ssh_keys', {
+      keyName: req.params.keyName,
+      createdBy: req.user.id
+    }, ['publicKey']);
 
     if (keys.length === 0) {
       return res.status(404).json({
@@ -189,7 +188,7 @@ router.get('/:keyName/public', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      publicKey: keys[0].public_key
+      publicKey: keys[0].publicKey
     });
   } catch (error) {
     logger.error('Error fetching public key:', error);
@@ -219,10 +218,10 @@ router.post('/generate', verifyToken, async (req, res) => {
     }
 
     // Check if key already exists for this user
-    const [existing] = await pool.execute(
-      'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      [keyName, req.user.id]
-    );
+    const existing = await db.select('ssh_keys', {
+      keyName: keyName,
+      createdBy: req.user.id
+    });
 
     if (existing.length > 0) {
       return res.status(400).json({
@@ -257,21 +256,16 @@ router.post('/generate', verifyToken, async (req, res) => {
     );
 
     // Store in database
-    await pool.execute(`
-      INSERT INTO ssh_keys (
-        key_name, key_type, key_size, comment, 
-        public_key, private_key, fingerprint, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      keyName,
-      keyType,
-      keySize,
-      comment || null,
-      publicKey.trim(),
-      privateKey,
-      fingerprint.trim(),
-      req.user.id
-    ]);
+    await db.insert('ssh_keys', {
+      keyName: keyName,
+      keyType: keyType,
+      keySize: keySize,
+      comment: comment || null,
+      publicKey: publicKey.trim(),
+      privateKey: privateKey,
+      fingerprint: fingerprint.trim(),
+      createdBy: req.user.id
+    });
 
     logger.info(`SSH key generated: ${keyName} by user ${req.user.username}`);
 
@@ -294,10 +288,10 @@ router.post('/generate', verifyToken, async (req, res) => {
 router.delete('/:keyId', verifyToken, async (req, res) => {
   try {
     // Get key details first - check ownership
-    const [keys] = await pool.execute(
-      'SELECT key_name FROM ssh_keys WHERE id = ? AND created_by = ?',
-      [req.params.keyId, req.user.id]
-    );
+    const keys = await db.select('ssh_keys', {
+      id: req.params.keyId,
+      createdBy: req.user.id
+    }, ['keyName']);
 
     if (keys.length === 0) {
       return res.status(404).json({
@@ -306,10 +300,10 @@ router.delete('/:keyId', verifyToken, async (req, res) => {
       });
     }
 
-    const keyName = keys[0].key_name;
+    const keyName = keys[0].keyName;
 
     // Check if key is in use by any of the user's hosts
-    const [hosts] = await pool.execute(
+    const hosts = await db.raw(
       'SELECT COUNT(*) as count FROM hosts WHERE ssh_key_name = ? AND created_by = ?',
       [keyName, req.user.id]
     );
@@ -322,7 +316,7 @@ router.delete('/:keyId', verifyToken, async (req, res) => {
     }
 
     // Delete from database
-    await pool.execute('DELETE FROM ssh_keys WHERE id = ?', [req.params.keyId]);
+    await db.delete('ssh_keys', { id: req.params.keyId });
 
     // Delete key files
     try {
@@ -365,10 +359,10 @@ router.post('/setup', verifyToken, async (req, res) => {
     logger.info(`SSH Setup requested for host ${hostname} (${host}:${port}) with user ${username}`);
 
     // Get the public key - check ownership
-    const [keys] = await pool.execute(
-      'SELECT public_key FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      [keyName, req.user.id]
-    );
+    const keys = await db.select('ssh_keys', {
+      keyName: keyName,
+      createdBy: req.user.id
+    }, ['publicKey']);
 
     if (keys.length === 0) {
       logger.warn(`SSH key not found: ${keyName} for user ${req.user.id}`);
@@ -378,7 +372,7 @@ router.post('/setup', verifyToken, async (req, res) => {
       });
     }
 
-    const publicKey = keys[0].public_key;
+    const publicKey = keys[0].publicKey;
 
     // Create a temporary file for the password to avoid shell escaping issues
     const tempDir = '/tmp';
@@ -454,10 +448,10 @@ router.post('/setup', verifyToken, async (req, res) => {
 router.get('/:keyName/private', verifyToken, async (req, res) => {
   try {
     // User can only get their own private keys
-    const [keys] = await pool.execute(
-      'SELECT private_key FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      [req.params.keyName, req.user.id]
-    );
+    const keys = await db.select('ssh_keys', {
+      keyName: req.params.keyName,
+      createdBy: req.user.id
+    }, ['privateKey']);
 
     if (keys.length === 0) {
       return res.status(404).json({
@@ -468,7 +462,7 @@ router.get('/:keyName/private', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      privateKey: keys[0].private_key
+      privateKey: keys[0].privateKey
     });
   } catch (error) {
     logger.error('Error fetching private key:', error);
@@ -497,10 +491,10 @@ router.post('/import', verifyToken, async (req, res) => {
     }
 
     // Check if key already exists for this user
-    const [existing] = await pool.execute(
-      'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      [keyName, req.user.id]
-    );
+    const existing = await db.select('ssh_keys', {
+      keyName: keyName,
+      createdBy: req.user.id
+    });
 
     if (existing.length > 0) {
       return res.status(400).json({
@@ -565,21 +559,16 @@ router.post('/import', verifyToken, async (req, res) => {
       const dbData = mapSSHKeyJsToDb(keyData);
 
       // Store in database
-      await pool.execute(`
-        INSERT INTO ssh_keys (
-          key_name, key_type, key_size, comment, 
-          public_key, private_key, fingerprint, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        dbData.key_name,
-        dbData.key_type,
-        dbData.key_size,
-        dbData.comment,
-        dbData.public_key,
-        dbData.private_key,
-        dbData.fingerprint,
-        dbData.created_by
-      ]);
+      await db.insert('ssh_keys', {
+        keyName: dbData.key_name,
+        keyType: dbData.key_type,
+        keySize: dbData.key_size,
+        comment: dbData.comment,
+        publicKey: dbData.public_key,
+        privateKey: dbData.private_key,
+        fingerprint: dbData.fingerprint,
+        createdBy: dbData.created_by
+      });
 
       logger.info(`SSH key imported: ${keyName} by user ${req.user.username}`);
 
@@ -634,10 +623,10 @@ router.post('/register-key', verifyToken, async (req, res) => {
     }
 
     // Get the public key
-    const [keys] = await pool.execute(
-      'SELECT public_key FROM ssh_keys WHERE key_name = ? AND created_by = ?',
-      [keyName, req.user.id]
-    );
+    const keys = await db.select('ssh_keys', {
+      keyName: keyName,
+      createdBy: req.user.id
+    }, ['publicKey']);
 
     if (keys.length === 0) {
       return res.status(404).json({
@@ -646,7 +635,7 @@ router.post('/register-key', verifyToken, async (req, res) => {
       });
     }
 
-    const publicKey = keys[0].public_key;
+    const publicKey = keys[0].publicKey;
 
     // Create SSH command to add key to authorized_keys
     const sshCommand = `sshpass -p '${password}' ssh -o StrictHostKeyChecking=no -p ${port} ${username}@${hostname} "mkdir -p ~/.ssh && echo '${publicKey}' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"`;

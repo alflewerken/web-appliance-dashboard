@@ -182,7 +182,6 @@ const ApplianceCard = ({
   };
 
   const openService = async e => {
-    console.log('[DEBUG] openService called in ApplianceCard for:', appliance.name, 'v4-external-check'); // Version marker UPDATED
     
     if (e) {
       e.preventDefault();
@@ -626,11 +625,6 @@ const ApplianceCard = ({
                   {/* Remote Desktop Button */}
                   {appliance.remoteDesktopEnabled && (
                     (() => {
-                      console.log('Remote Desktop Debug:', {
-                        enabled: appliance.remoteDesktopEnabled,
-                        type: appliance.remoteDesktopType,
-                        protocol: appliance.remoteProtocol
-                      });
                       return (
                         <RemoteDesktopButton 
                           appliance={enhancedAppliance} 
@@ -674,15 +668,15 @@ const ApplianceCard = ({
                   backgroundColor: (() => {
                     switch (appliance.serviceStatus) {
                       case 'running':
-                        return '#34C759';
+                        return '#34C759'; // Grün - Service läuft
                       case 'stopped':
-                        return '#FF3B30';
-                      case 'error':
-                        return '#FF9500';
                       case 'offline':
-                        return '#8E8E93';
+                        return '#FF3B30'; // Rot - Service ist gestoppt/offline
+                      case 'error':
+                        return '#FF9500'; // Gelb/Orange - Service hat Probleme
+                      case 'unknown':
                       default:
-                        return '#FFD60A';
+                        return '#FF3B30'; // Rot als Default (sicherer)
                     }
                   })(),
                   borderRadius: '0 0 16px 16px',
@@ -693,16 +687,20 @@ const ApplianceCard = ({
                   let statusText = 'unbekannt';
                   switch (appliance.serviceStatus) {
                     case 'running':
-                      statusText = 'aktiv';
+                      statusText = 'Service läuft';
                       break;
                     case 'stopped':
-                      statusText = 'gestoppt';
+                      statusText = 'Service gestoppt';
                       break;
                     case 'error':
-                      statusText = 'fehlerhaft';
+                      statusText = 'Service fehlerhaft';
                       break;
                     case 'offline':
-                      statusText = 'nicht erreichbar';
+                      statusText = 'Service nicht erreichbar';
+                      break;
+                    case 'unknown':
+                    default:
+                      statusText = 'Status unbekannt';
                       break;
                   }
                   return `Service ist ${statusText} (Zuletzt geprüft: ${new Date().toLocaleTimeString()})`;

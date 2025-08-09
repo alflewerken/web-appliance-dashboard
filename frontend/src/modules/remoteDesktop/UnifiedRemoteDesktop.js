@@ -56,7 +56,6 @@ export const UnifiedRemoteDesktop = ({
       const connectionId = entityType === 'host' ? entity.id : sshConnectionId;
       const response = await axios.get(`/api/rustdeskInstall/${connectionId}/status`);
       
-      console.log('RustDesk status response:', response.data);      
       if (response.data.installed && response.data.rustdesk_id) {
         alert(`RustDesk ist installiert!\nID: ${response.data.rustdesk_id}`);
         onFieldChange('rustdesk_id', response.data.rustdesk_id);

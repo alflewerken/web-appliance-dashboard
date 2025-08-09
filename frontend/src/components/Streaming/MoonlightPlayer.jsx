@@ -67,7 +67,6 @@ const MoonlightPlayer = ({ applianceId, onClose }) => {
             break;
             
           case 'log':
-            console.log('Sunshine:', data.data);
             break;
             
           case 'error':

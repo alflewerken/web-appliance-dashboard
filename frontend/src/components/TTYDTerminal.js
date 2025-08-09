@@ -36,7 +36,9 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
             hostId: appliance.id,
             user: match[1],
             host: match[2],
-            port: parseInt(match[3], 10)
+            port: parseInt(match[3], 10),
+            // SSH-Schlüssel-Name hinzufügen
+            keyName: appliance.sshKeyName || appliance.ssh_key_name || 'dashboard'
           };
         }
       }
@@ -95,6 +97,10 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   }
   if (sshData.port) {
     params.append('port', sshData.port);
+  }
+  // SSH-Schlüssel-Name hinzufügen
+  if (sshData.keyName) {
+    params.append('keyName', sshData.keyName);
   }
   
   // Terminal läuft über nginx proxy auf /terminal/

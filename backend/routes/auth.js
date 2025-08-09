@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
+const { mapDbToJsForTable } = require('../utils/universalFieldMapping');
 const rateLimit = require('express-rate-limit');
 const { broadcast } = require('./sse');
 const {
@@ -12,12 +15,6 @@ const {
   generateToken,
 } = require('../utils/auth');
 const { createAuditLog } = require('../utils/auditLogger');
-const {
-  mapUserDbToJs,
-  mapUserJsToDb,
-  getUserSelectColumns,
-  mapUserDbToJsWithPassword
-} = require('../utils/dbFieldMappingUsers');
 
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
@@ -125,13 +122,17 @@ router.post('/login', loginLimiter, async (req, res) => {
         .json({ error: 'Username and password are required' });
     }
 
-    // Find user
-    const [users] = await pool.execute(
-      'SELECT * FROM users WHERE (username = ? OR email = ?) AND is_active = 1',
-      [username, username]
-    );
-
-    if (users.length === 0) {
+    // Find user - Special query to include password_hash
+    // First, check if user exists
+    const usersBasic = await db.select('users', {
+      $or: [
+        { username: username },
+        { email: username }
+      ],
+      is_active: 1  // Changed from isActive to is_active
+    });
+    
+    if (usersBasic.length === 0) {
       await createAuditLog(
         null,
         'failed_login',
@@ -150,11 +151,39 @@ router.post('/login', loginLimiter, async (req, res) => {
 
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    
+    // Now get the full user with password_hash using raw query
+    const rawQuery = `
+      SELECT id, username, email, role, is_active, password_hash, last_login, last_activity, created_at, updated_at
+      FROM users 
+      WHERE (username = ? OR email = ?) AND is_active = 1
+      LIMIT 1
+    `;
+    
+    const users = await db.raw(rawQuery, [username, username]);
+    
+    if (users.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-    const user = users[0];
+    const user = users[0]; // Behalte snake_case für Passwort-Vergleich
+    
+    // Debug: Log user object to check password_hash
+    console.log('Login Debug - User object keys:', Object.keys(user));
+    console.log('Login Debug - password_hash exists:', !!user.password_hash);
+    console.log('Login Debug - passwordHash exists:', !!user.passwordHash);
+    
+    // Handle both possible field names (password_hash or passwordHash)
+    const passwordHash = user.password_hash || user.passwordHash;
+    
+    if (!passwordHash) {
+      console.error('Login error: No password hash found in user object');
+      console.error('User object:', JSON.stringify(user, null, 2));
+      return res.status(500).json({ error: 'Authentication configuration error' });
+    }
 
     // Verify password
-    const isValidPassword = await comparePassword(password, user.password_hash);
+    const isValidPassword = await comparePassword(password, passwordHash);
     if (!isValidPassword) {
       await createAuditLog(
         user.id,
@@ -181,23 +210,24 @@ router.post('/login', loginLimiter, async (req, res) => {
     const tokenHash = hashToken(token);
 
     // Get token expiry from settings
-    const [settings] = await pool.execute(
-      'SELECT setting_value FROM user_settings WHERE setting_key = ?',
-      ['auth_token_expiry']
-    );
+    const settings = await db.select('user_settings', { settingKey: 'auth_token_expiry' });
     const tokenExpiry =
-      settings.length > 0 ? parseInt(settings[0].setting_value) : 86400;
+      settings.length > 0 ? parseInt(settings[0].settingValue) : 86400;
 
-    // Create session
-    await pool.execute(
-      'INSERT INTO active_sessions (user_id, session_token, expires_at, ip_address, user_agent) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND), ?, ?)',
-      [user.id, tokenHash, tokenExpiry, ipAddress, userAgent]
-    );
+    // Create session - Using raw for DATE_ADD function
+    const expiresAt = new Date();
+    expiresAt.setSeconds(expiresAt.getSeconds() + tokenExpiry);
+    
+    await db.insert('active_sessions', {
+      userId: user.id,
+      sessionToken: tokenHash,
+      expiresAt: expiresAt,
+      ipAddress: ipAddress,
+      userAgent: userAgent
+    });
 
     // Update last login
-    await pool.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [
-      user.id,
-    ]);
+    await db.update('users', { lastLogin: new Date() }, { id: user.id });
 
     // Create audit log
     await createAuditLog(
@@ -225,10 +255,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     });
 
     // Get user permissions
-    const [permissions] = await pool.execute(
-      'SELECT permission FROM role_permissions WHERE role = ?',
-      [user.role]
-    );
+    const permissions = await db.select('role_permissions', { role: user.role });
 
     // Return user data and token
     res.json({
@@ -255,9 +282,7 @@ router.post('/logout', verifyToken, async (req, res) => {
   try {
     if (token) {
       const tokenHash = hashToken(token);
-      await pool.execute('DELETE FROM active_sessions WHERE session_token = ?', [
-        tokenHash,
-      ]);
+      await db.delete('active_sessions', { sessionToken: tokenHash });
     }
 
     await createAuditLog(
@@ -293,10 +318,7 @@ router.post('/logout', verifyToken, async (req, res) => {
 router.get('/me', verifyToken, async (req, res) => {
   try {
     // Get user permissions
-    const [permissions] = await pool.execute(
-      'SELECT permission FROM role_permissions WHERE role = ?',
-      [req.user.role]
-    );
+    const permissions = await db.select('role_permissions', { role: req.user.role });
 
     res.json({
       user: req.user,
@@ -312,8 +334,8 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('GET /users - User:', req.user.username, 'Role:', req.user.role);
     
-    // Get users with their last activity from sessions
-    const [users] = await pool.execute(`
+    // Get users with their last activity from sessions - Complex query requires raw
+    const users = await db.raw(`
             SELECT 
                 u.id, 
                 u.username, 
@@ -339,7 +361,7 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
     console.log('Found users:', users.length);
     
     // Map users to camelCase
-    const mappedUsers = users.map(mapUserDbToJs);
+    const mappedUsers = users.map(user => mapDbToJsForTable('users', user));
     console.log('User list:', mappedUsers.map(u => ({ id: u.id, username: u.username, role: u.role })));
 
     res.json(mappedUsers);
@@ -363,12 +385,9 @@ router.post('/users', verifyToken, requireAdmin, async (req, res) => {
     }
 
     // Check password length
-    const [settings] = await pool.execute(
-      'SELECT setting_value FROM user_settings WHERE setting_key = ?',
-      ['auth_password_min_length']
-    );
+    const settings = await db.select('user_settings', { settingKey: 'auth_password_min_length' });
     const minLength =
-      settings.length > 0 ? parseInt(settings[0].setting_value) : 8;
+      settings.length > 0 ? parseInt(settings[0].settingValue) : 8;
 
     if (password.length < minLength) {
       return res
@@ -378,11 +397,13 @@ router.post('/users', verifyToken, requireAdmin, async (req, res) => {
         });
     }
 
-    // Check if user already exists
-    const [existing] = await pool.execute(
-      'SELECT id FROM users WHERE username = ? OR email = ?',
-      [username, email]
-    );
+    // Check if user already exists - Using QueryBuilder with OR support
+    const existing = await db.select('users', {
+      $or: [
+        { username: username },
+        { email: email }
+      ]
+    });
 
     if (existing.length > 0) {
       return res.status(400).json({ error: 'User already exists' });
@@ -392,10 +413,12 @@ router.post('/users', verifyToken, requireAdmin, async (req, res) => {
     const passwordHash = await hashPassword(password);
 
     // Create user
-    const [result] = await pool.execute(
-      'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [username, email, passwordHash, role]
-    );
+    const result = await db.insert('users', {
+      username,
+      email,
+      passwordHash,
+      role
+    });
 
     await createAuditLog(
       req.user.id,
@@ -443,7 +466,113 @@ router.post('/users', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// Update user (admin only)
+// PATCH user (admin only) - for partial updates
+router.patch('/users/:id', verifyToken, requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  const ipAddress = req.clientIp;
+
+  try {
+    // Get current user data for comparison
+    const user = await db.findOne('users', { id: userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const originalData = { ...user };
+    const updateData = {};
+    const changedFields = {};
+    const fieldsUpdated = [];
+
+    // Process only the fields that were sent
+    const { username, email, password, role, is_active } = req.body;
+
+    // Check each field for changes
+    if (username !== undefined && username !== user.username) {
+      updateData.username = username;
+      changedFields.username = username;
+      fieldsUpdated.push('username');
+    }
+
+    if (email !== undefined && email !== user.email) {
+      updateData.email = email;
+      changedFields.email = email;
+      fieldsUpdated.push('email');
+    }
+
+    if (password) {
+      const passwordHash = await hashPassword(password);
+      updateData.passwordHash = passwordHash;
+      changedFields.password = '(geändert)';
+      fieldsUpdated.push('password');
+    }
+
+    if (role !== undefined && role !== user.role) {
+      updateData.role = role;
+      changedFields.role = role;
+      fieldsUpdated.push('role');
+    }
+
+    if (is_active !== undefined) {
+      const currentActive = user.is_active || user.isActive;
+      const newActive = is_active ? 1 : 0;
+      if (newActive !== currentActive) {
+        updateData.isActive = newActive;
+        changedFields.is_active = newActive;
+        fieldsUpdated.push('is_active');
+      }
+    }
+
+    // If no changes, return early
+    if (Object.keys(updateData).length === 0) {
+      return res.json({ 
+        message: 'No changes detected',
+        user: user 
+      });
+    }
+
+    // Apply updates
+    await db.update('users', updateData, { id: userId });
+
+    // Create audit log only for actual changes
+    await createAuditLog(
+      req.user.id,
+      'user_updated',
+      'users',
+      userId,
+      {
+        username: originalData.username,
+        changes: changedFields,
+        fields_updated: fieldsUpdated,
+        updated_by: req.user.username,
+        timestamp: new Date().toISOString(),
+      },
+      ipAddress
+    );
+
+    // Get updated user
+    const updatedUser = await db.findOne('users', { id: userId });
+
+    res.json({ 
+      message: 'User updated successfully',
+      user: updatedUser,
+      fieldsUpdated: fieldsUpdated
+    });
+
+    // Broadcast user update
+    broadcast('user_updated', {
+      id: userId,
+      username: updatedUser.username,
+      updatedBy: req.user.username,
+      fieldsUpdated: fieldsUpdated
+    });
+
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Update user (admin only) - legacy PUT route
 router.put('/users/:id', verifyToken, requireAdmin, async (req, res) => {
   const userId = req.params.id;
   const { username, email, password, role, is_active } = req.body;
@@ -451,55 +580,43 @@ router.put('/users/:id', verifyToken, requireAdmin, async (req, res) => {
 
   try {
     // Get current user data for audit log
-    const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [
-      userId,
-    ]);
-    if (users.length === 0) {
+    const user = await db.findOne('users', { id: userId });
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const originalData = users[0];
-    const updates = [];
-    const values = [];
+    const originalData = user;
+    const updateData = {};
     const updatedData = {};
 
     if (username) {
-      updates.push('username = ?');
-      values.push(username);
+      updateData.username = username;
       updatedData.username = username;
     }
     if (email) {
-      updates.push('email = ?');
-      values.push(email);
+      updateData.email = email;
       updatedData.email = email;
     }
     if (password) {
       const passwordHash = await hashPassword(password);
-      updates.push('password_hash = ?');
-      values.push(passwordHash);
+      updateData.passwordHash = passwordHash;
       // Zeige an, dass das Passwort geändert wurde, aber nicht den Wert
       updatedData.password = '(geändert)';
     }
     if (role !== undefined) {
-      updates.push('role = ?');
-      values.push(role);
+      updateData.role = role;
       updatedData.role = role;
     }
     if (is_active !== undefined) {
-      updates.push('is_active = ?');
-      values.push(is_active);
+      updateData.isActive = is_active;
       updatedData.is_active = is_active;
     }
 
-    if (updates.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    values.push(userId);
-    await pool.execute(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-      values
-    );
+    await db.update('users', updateData, { id: userId });
 
     // Create audit log with original and new data
     const fieldsUpdated = [];
@@ -581,21 +698,15 @@ router.put(
 
     try {
       // Get current user data
-      const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [
-        userId,
-      ]);
-      if (users.length === 0) {
+      const user = await db.findOne('users', { id: userId });
+      if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const user = users[0];
-      const newStatus = user.is_active ? 0 : 1;
+      const newStatus = user.isActive ? 0 : 1;
 
       // Update user status
-      await pool.execute('UPDATE users SET is_active = ? WHERE id = ?', [
-        newStatus,
-        userId,
-      ]);
+      await db.update('users', { isActive: newStatus }, { id: userId });
 
       // Create specific audit log for status change
       await createAuditLog(
@@ -604,7 +715,7 @@ router.put(
         'users',
         userId,
         {
-          original_status: user.is_active,
+          original_status: user.isActive,
           new_status: newStatus,
           username: user.username,
           changed_by: req.user.username,
@@ -671,14 +782,12 @@ router.delete('/users/:id', verifyToken, requireAdmin, async (req, res) => {
     }
 
     // Get complete user info before deletion for audit log
-    const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [
-      userId,
-    ]);
-    if (users.length === 0) {
+    const user = await db.findOne('users', { id: userId });
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const userData = users[0];
+    const userData = user;
 
     // Create audit log with complete user data (including password_hash for restoration)
     await createAuditLog(
@@ -694,7 +803,7 @@ router.delete('/users/:id', verifyToken, requireAdmin, async (req, res) => {
       ipAddress
     );
 
-    await pool.execute('DELETE FROM users WHERE id = ?', [userId]);
+    await db.delete('users', { id: userId });
 
     res.json({ message: 'User deleted successfully' });
 
@@ -725,17 +834,15 @@ router.post('/changePassword', verifyToken, async (req, res) => {
     }
 
     // Get user
-    const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [
-      req.user.id,
-    ]);
-    if (users.length === 0) {
+    const user = await db.findOne('users', { id: req.user.id });
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // Verify current password
     const isValid = await comparePassword(
       currentPassword,
-      users[0].password_hash
+      user.passwordHash
     );
     if (!isValid) {
       return res.status(401).json({ error: 'Current password is incorrect' });
@@ -745,10 +852,7 @@ router.post('/changePassword', verifyToken, async (req, res) => {
     const newPasswordHash = await hashPassword(newPassword);
 
     // Update password
-    await pool.execute('UPDATE users SET password_hash = ? WHERE id = ?', [
-      newPasswordHash,
-      req.user.id,
-    ]);
+    await db.update('users', { passwordHash: newPasswordHash }, { id: req.user.id });
 
     await createAuditLog(
       req.user.id,
@@ -771,7 +875,8 @@ router.get('/audit-logs', verifyToken, requireAdmin, async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const offset = parseInt(req.query.offset) || 0;
 
-    const [logs] = await pool.execute(
+    // Complex join query requires raw SQL
+    const logs = await db.raw(
       `SELECT a.*, u.username 
              FROM audit_logs a 
              LEFT JOIN users u ON a.user_id = u.id 

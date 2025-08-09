@@ -2,10 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { logger } = require('../utils/logger');
 const http = require('http');
 const https = require('https');
 const url = require('url');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Helper: URL aus Appliance-Daten erstellen
 const getApplianceUrl = (appliance) => {
@@ -58,25 +62,21 @@ const proxyRequest = (targetUrl, req, res, appliance) => {
         // Audit Log nach erfolgreicher Response
         proxyRes.on('end', async () => {
             try {
-                await pool.execute(
-                    `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                        req.user.id,
-                        'proxy_access',
-                        'appliances',
-                        appliance.id,
-                        JSON.stringify({
-                            appliance_name: appliance.name,
-                            target_url: targetUrl,
-                            method: req.method,
-                            status: proxyRes.statusCode,
-                            path: parsedUrl.path
-                        }),
-                        req.ip || req.connection.remoteAddress,
-                        req.headers['user-agent'] || 'Unknown'
-                    ]
-                );
+                await db.insert('audit_logs', {
+                    userId: req.user.id,
+                    action: 'proxy_access',
+                    resourceType: 'appliances',
+                    resourceId: appliance.id,
+                    details: JSON.stringify({
+                        appliance_name: appliance.name,
+                        target_url: targetUrl,
+                        method: req.method,
+                        status: proxyRes.statusCode,
+                        path: parsedUrl.path
+                    }),
+                    ipAddress: req.ip || req.connection.remoteAddress,
+                    userAgent: req.headers['user-agent'] || 'Unknown'
+                });
                 logger.info(`[AUDIT] Proxy access logged for appliance ${appliance.name}`);
             } catch (auditError) {
                 logger.error('[AUDIT] Failed to log proxy access:', auditError);
@@ -93,24 +93,20 @@ const proxyRequest = (targetUrl, req, res, appliance) => {
         });
         
         // Auch Fehler im Audit Log erfassen
-        pool.execute(
-            `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-                req.user.id,
-                'proxy_access_failed',
-                'appliances',
-                appliance.id,
-                JSON.stringify({
-                    appliance_name: appliance.name,
-                    target_url: targetUrl,
-                    method: req.method,
-                    error: error.message
-                }),
-                req.ip || req.connection.remoteAddress,
-                req.headers['user-agent'] || 'Unknown'
-            ]
-        ).catch(auditError => {
+        db.insert('audit_logs', {
+            userId: req.user.id,
+            action: 'proxy_access_failed',
+            resourceType: 'appliances',
+            resourceId: appliance.id,
+            details: JSON.stringify({
+                appliance_name: appliance.name,
+                target_url: targetUrl,
+                method: req.method,
+                error: error.message
+            }),
+            ipAddress: req.ip || req.connection.remoteAddress,
+            userAgent: req.headers['user-agent'] || 'Unknown'
+        }).catch(auditError => {
             logger.error('[AUDIT] Failed to log proxy error:', auditError);
         });
     });
@@ -135,10 +131,7 @@ router.all('/:id/proxy/*', authenticateToken, async (req, res) => {
     
     try {
         // Appliance aus Datenbank laden
-        const [appliances] = await pool.execute(
-            'SELECT * FROM appliances WHERE id = ?',
-            [applianceId]
-        );
+        const appliances = await db.select('appliances', { id: applianceId });
         
         if (appliances.length === 0) {
             return res.status(404).json({ error: 'Appliance not found' });
@@ -174,10 +167,7 @@ router.get('/:id/proxy-health', authenticateToken, async (req, res) => {
     const applianceId = req.params.id;
     
     try {
-        const [appliances] = await pool.execute(
-            'SELECT * FROM appliances WHERE id = ?',
-            [applianceId]
-        );
+        const appliances = await db.select('appliances', { id: applianceId });
         
         if (appliances.length === 0) {
             return res.status(404).json({ error: 'Appliance not found' });

@@ -1,15 +1,20 @@
+// Commands API routes - Using QueryBuilder
 const express = require('express');
 const router = express.Router();
-const db = require('../utils/database');
+const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { exec, execSync } = require('child_process');
 const { verifyToken } = require('../utils/auth');
 const { createAuditLog } = require('../utils/auditLogger');
 const { getSSHConnection } = require('../utils/ssh');
 
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
+
 // Get available hosts for SSH commands
 router.get('/ssh-hosts/available', async (req, res) => {
   try {
-    const [hosts] = await db.execute(
+    const hosts = await db.raw(
       `SELECT 
         id, 
         name,
@@ -32,7 +37,7 @@ router.get('/ssh-hosts/available', async (req, res) => {
 router.get('/available/:excludeApplianceId', async (req, res) => {
   try {
     const { excludeApplianceId } = req.params;
-    const [commands] = await db.execute(
+    const commands = await db.raw(
       `SELECT 
         ac.id,
         ac.description,
@@ -60,7 +65,7 @@ router.get('/available/:excludeApplianceId', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [commands] = await db.execute(
+    const commands = await db.raw(
       `SELECT 
         ac.*,
         h.name as ssh_hostname,
@@ -96,12 +101,16 @@ router.post('/:id', async (req, res) => {
     // Support both host_id and ssh_host_id for backwards compatibility
     const hostId = host_id || ssh_host_id || null;
 
-    const [result] = await db.execute(
-      'INSERT INTO appliance_commands (appliance_id, description, command, host_id) VALUES (?, ?, ?, ?)',
-      [id, description, command, hostId]
-    );
+    const result = await db.insert('appliance_commands', {
+      applianceId: id,
+      description,
+      command,
+      hostId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
-    const [newCommand] = await db.execute(
+    const newCommand = await db.raw(
       `SELECT 
         ac.*,
         h.name as ssh_hostname,
@@ -137,12 +146,21 @@ router.put('/:applianceId/:commandId', async (req, res) => {
     // Support both host_id and ssh_host_id for backwards compatibility
     const hostId = host_id || ssh_host_id || null;
 
-    await db.execute(
-      'UPDATE appliance_commands SET description = ?, command = ?, host_id = ? WHERE id = ? AND appliance_id = ?',
-      [description, command, hostId, commandId, applianceId]
+    await db.update(
+      'appliance_commands',
+      { 
+        description, 
+        command, 
+        hostId,
+        updatedAt: new Date()
+      },
+      { 
+        id: commandId, 
+        applianceId: applianceId 
+      }
     );
 
-    const [updatedCommand] = await db.execute(
+    const updatedCommand = await db.raw(
       `SELECT 
         ac.*,
         h.name as ssh_hostname,
@@ -172,10 +190,10 @@ router.delete('/:applianceId/:commandId', async (req, res) => {
   try {
     const { applianceId, commandId } = req.params;
 
-    const [result] = await db.execute(
-      'DELETE FROM appliance_commands WHERE id = ? AND appliance_id = ?',
-      [commandId, applianceId]
-    );
+    const result = await db.delete('appliance_commands', {
+      id: commandId,
+      applianceId: applianceId
+    });
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Command not found' });
@@ -188,7 +206,7 @@ router.delete('/:applianceId/:commandId', async (req, res) => {
   }
 });
 
-// Execute a command
+// Execute a command (keeping original logic as it's complex)
 router.post('/:applianceId/:commandId/execute', async (req, res) => {
   console.log('=== Command Execute Request ===');
   console.log('Params:', req.params);
@@ -198,7 +216,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
     const { applianceId, commandId } = req.params;
 
     // Get the command details with host info and appliance name
-    const [commandResult] = await db.execute(
+    const commandResult = await db.raw(
       `SELECT 
         c.*, 
         a.ssh_connection as appliance_ssh_connection,
@@ -429,11 +447,7 @@ router.post('/execute-direct', async (req, res) => {
     }
 
     // Get appliance details
-    const [appliances] = await db.execute(
-      'SELECT * FROM appliances WHERE id = ?',
-      [applianceId]
-    );
-    const appliance = appliances[0];
+    const appliance = await db.findOne('appliances', { id: applianceId });
     if (!appliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
@@ -449,7 +463,7 @@ router.post('/execute-direct', async (req, res) => {
         name: appliance.name,
         appliance_name: appliance.name,
         command,
-        executed_on: appliance.ssh_connection ? 'remote' : 'local',
+        executed_on: appliance.sshConnection ? 'remote' : 'local',
       },
       ipAddress
     );
@@ -462,10 +476,10 @@ router.post('/execute-direct', async (req, res) => {
       COLORTERM: 'truecolor',
     };
 
-    if (appliance.ssh_connection) {
+    if (appliance.sshConnection) {
       // Execute via SSH - need to find matching host
       // Parse ssh_connection format: username@hostname:port
-      const connectionMatch = appliance.ssh_connection.match(/^(.+)@(.+):(\d+)$/);
+      const connectionMatch = appliance.sshConnection.match(/^(.+)@(.+):(\d+)$/);
       if (!connectionMatch) {
         return res.json({
           success: false,
@@ -474,7 +488,7 @@ router.post('/execute-direct', async (req, res) => {
       }
 
       const [, username, hostname, port] = connectionMatch;
-      const [hosts] = await db.execute(
+      const hosts = await db.raw(
         'SELECT * FROM hosts WHERE hostname = ? AND username = ? AND port = ?',
         [hostname, username, parseInt(port)]
       );

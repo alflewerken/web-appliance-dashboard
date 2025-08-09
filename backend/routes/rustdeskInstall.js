@@ -3,10 +3,14 @@ const router = express.Router();
 const { verifyToken } = require('../utils/auth');
 const { executeSSHCommand } = require('../utils/ssh');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/queryBuilder');
 const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
 const { findRustDeskId } = require('../utils/rustdesk-id-finder');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 /**
  * POST /api/rustdeskInstall/:applianceId
@@ -25,23 +29,21 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
   
   try {
     console.log('[RUSTDESK] Starting installation for appliance ID:', applianceId);
-    // Get appliance details
-    const [appliances] = await pool.execute(
-      `SELECT a.*, h.hostname, h.username, h.port, h.sshKeyName
-       FROM appliances a
-       LEFT JOIN hosts h ON (
-         a.ssh_connection = CONCAT(h.username, '@', h.hostname, ':', h.port) OR
-         a.ssh_connection = CONCAT(h.username, '@', h.hostname)
-       )
-       WHERE a.id = ?`,
-      [applianceId]
-    );
+    // Get appliance details with host information
+    const appliance = await db.findOneWithJoin({
+      from: 'appliances',
+      select: ['appliances.*', 'hosts.hostname', 'hosts.username', 'hosts.port', 'hosts.ssh_key_name'],
+      joins: [{
+        table: 'hosts',
+        on: 'appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname, ":", hosts.port) OR appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname)',
+        type: 'LEFT'
+      }],
+      where: { 'appliances.id': applianceId }
+    });
     
-    if (!appliances.length) {
+    if (!appliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
-    
-    const appliance = appliances[0];
     
     // Check if already installed
     if (appliance.rustdesk_installed && appliance.rustdeskId) {
@@ -58,14 +60,14 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
     let useHostname = false;
     
     // Check if we have host configuration from hosts table
-    if (appliance.hostname) {
+    if (appliance.hosts_hostname) {
       // Use the hostname from hosts table
-      sshHost = appliance.hostname;
-      sshUsername = appliance.username;
-      sshPort = appliance.port || 22;
+      sshHost = appliance.hosts_hostname;
+      sshUsername = appliance.hosts_username;
+      sshPort = appliance.hosts_port || 22;
       useHostname = true;
-    } else if (appliance.ssh_connection) {
-      const sshParts = appliance.ssh_connection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
+    } else if (appliance.sshConnection) {
+      const sshParts = appliance.sshConnection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
       if (sshParts) {
         sshUsername = sshParts[1] || 'root';
         sshHost = sshParts[2];
@@ -77,7 +79,7 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
       host: sshHost,
       username: sshUsername,
       port: sshPort,
-      hostname: appliance.hostname || null
+      hostname: appliance.hosts_hostname || null
     };
     
     // Validate that we have the necessary connection info
@@ -93,7 +95,7 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
     try {
       // Use IP address instead of hostname for better compatibility
       const actualHost = sshConfig.host || sshConfig.hostname;
-      const keyName = appliance.sshKeyName || 'dashboard';
+      const keyName = appliance.ssh_key_name || 'dashboard';
       const sshCommand = useHostname && sshConfig.username && actualHost
         ? `ssh -i ~/.ssh/id_rsa_${keyName} -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${sshConfig.username}@${actualHost}`
         : `ssh -i ~/.ssh/id_rsa_dashboard -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${sshConfig.username}@${sshConfig.host} -p ${sshConfig.port || 22}`;
@@ -155,14 +157,11 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
     // Check if manual ID is required
     if (rustdeskId === 'MANUAL_ID_REQUIRED') {
       // Mark as installed but without ID - frontend will show manual input
-      await pool.execute(
-        `UPDATE appliances 
-         SET rustdesk_installed = true, 
-             rustdesk_installation_date = NOW(),
-             remote_desktop_type = 'rustdesk'
-         WHERE id = ?`,
-        [applianceId]
-      );
+      await db.update('appliances', {
+        rustdeskInstalled: true,
+        rustdeskInstallationDate: new Date(),
+        remoteDesktopType: 'rustdesk'
+      }, { id: applianceId });
       
       return res.json({
         success: true,
@@ -181,22 +180,21 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
     }
     
     // Update database
-    await pool.execute(
-      `UPDATE appliances 
-       SET rustdesk_installed = true, 
-           rustdeskId = ?, 
-           rustdesk_installation_date = NOW(),
-           remote_desktop_type = 'rustdesk'
-       WHERE id = ?`,
-      [actualRustdeskId, applianceId]
-    );
+    await db.update('appliances', {
+      rustdeskInstalled: true,
+      rustdeskId: actualRustdeskId,
+      rustdeskInstallationDate: new Date(),
+      remoteDesktopType: 'rustdesk'
+    }, { id: applianceId });
     
     // Log the action
-    await pool.execute(
-      `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details) 
-       VALUES (?, 'rustdesk_install', 'appliance', ?, ?)`,
-      [req.user?.id || req.userId || 1, applianceId, JSON.stringify({ rustdeskId: actualRustdeskId, platform })]
-    );
+    await db.insert('audit_logs', {
+      userId: req.user?.id || req.userId || 1,
+      action: 'rustdesk_install',
+      resourceType: 'appliance',
+      resourceId: applianceId,
+      details: JSON.stringify({ rustdeskId: actualRustdeskId, platform })
+    });
     
     res.json({
       success: true,
@@ -218,10 +216,191 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
 });
 
 /**
- * GET /api/rustdesk-install/:hostId/status
- * Check RustDesk installation status on the actual host
+ * GET /api/rustdeskInstall/:applianceId/status
+ * Check RustDesk installation status for an appliance
  */
-router.get('/:hostId/status', verifyToken, async (req, res) => {
+router.get('/:applianceId/status', verifyToken, async (req, res) => {
+  const { applianceId } = req.params;
+  
+  console.log('[RUSTDESK STATUS] Checking status for appliance:', applianceId);
+  
+  try {
+    // Get appliance details with host information
+    const appliance = await db.findOneWithJoin({
+      from: 'appliances',
+      select: ['appliances.*', 'hosts.hostname', 'hosts.username', 'hosts.port', 'hosts.ssh_key_name'],
+      joins: [{
+        table: 'hosts',
+        on: 'appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname, ":", hosts.port) OR appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname)',
+        type: 'LEFT'
+      }],
+      where: { 'appliances.id': applianceId }
+    });
+    
+    console.log('[RUSTDESK STATUS] Query result:', appliance ? 'Found' : 'Not found');
+    
+    if (!appliance) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+    
+    console.log('[RUSTDESK STATUS] Appliance data:', {
+      id: appliance.id,
+      name: appliance.name,
+      rustdeskId: appliance.rustdeskId,
+      rustdeskInstalled: appliance.rustdeskInstalled,
+      sshConnection: appliance.sshConnection,
+      hostname: appliance.hosts_hostname
+    });
+    
+    // Check if we have SSH connection info
+    if (!appliance.sshConnection) {
+      console.log('[RUSTDESK STATUS] No SSH connection configured, returning DB status');
+      return res.json({
+        success: true,
+        installed: !!appliance.rustdeskInstalled,
+        rustdeskId: appliance.rustdeskId
+      });
+    }
+    
+    // Parse SSH connection info
+    let sshHost, sshUsername = 'root', sshPort = 22;
+    
+    if (appliance.hosts_hostname) {
+      // Use the hostname from hosts table
+      sshHost = appliance.hosts_hostname;
+      sshUsername = appliance.hosts_username;
+      sshPort = appliance.hosts_port || 22;
+    } else if (appliance.sshConnection) {
+      const sshParts = appliance.sshConnection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
+      if (sshParts) {
+        sshUsername = sshParts[1] || 'root';
+        sshHost = sshParts[2];
+        sshPort = parseInt(sshParts[3] || '22');
+      }
+    }
+    
+    if (!sshHost) {
+      console.log('[RUSTDESK STATUS] No valid SSH host found');
+      return res.json({
+        success: true,
+        installed: !!appliance.rustdeskInstalled,
+        rustdeskId: appliance.rustdeskId
+      });
+    }
+    
+    console.log('[RUSTDESK STATUS] Checking RustDesk on host:', sshHost);
+    
+    // Build SSH command
+    const keyName = appliance.hosts_sshKeyName || appliance.sshKeyName || 'dashboard';
+    let sshCommand = `ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null`;
+    
+    // Add key if specified
+    sshCommand += ` -i ~/.ssh/id_rsa_${keyName}`;
+    sshCommand += ` ${sshUsername}@${sshHost} -p ${sshPort}`;
+    
+    try {
+      // Check if RustDesk is installed on the host
+      const checkCommand = `${sshCommand} '
+        if command -v rustdesk &> /dev/null || [ -f /Applications/RustDesk.app/Contents/MacOS/RustDesk ]; then
+          echo "INSTALLED"
+          # Try to get the ID
+          if [ -f /Applications/RustDesk.app/Contents/MacOS/RustDesk ]; then
+            # macOS
+            /Applications/RustDesk.app/Contents/MacOS/RustDesk --get-id 2>/dev/null | grep -E "^[0-9]{9}$" | head -1 || true
+          else
+            # Linux
+            rustdesk --get-id 2>/dev/null | grep -E "^[0-9]{9}$" | head -1 || true
+          fi
+        else
+          echo "NOT_INSTALLED"
+        fi
+      '`;
+      
+      const result = await executeSSHCommand(checkCommand);
+      const output = (result.stdout || result || '').toString().trim();
+      const lines = output.split('\n').filter(line => line.trim());
+      
+      console.log('[RUSTDESK STATUS] SSH output:', lines);
+      
+      const isInstalled = lines[0] === 'INSTALLED';
+      let rustdeskId = null;
+      
+      if (isInstalled && lines.length > 1) {
+        // Check if second line is a valid RustDesk ID
+        if (/^\d{9}$/.test(lines[1])) {
+          rustdeskId = lines[1];
+        }
+      }
+      
+      // If installed but no ID found via command, try other methods
+      if (isInstalled && !rustdeskId) {
+        console.log('[RUSTDESK STATUS] Installed but no ID via command, trying config files...');
+        
+        // Check config files
+        const configCommand = `${sshCommand} '
+          # Check macOS config
+          if [ -f "$HOME/Library/Preferences/com.carriez.rustdesk/RustDesk.toml" ]; then
+            grep -E "^id = .+[0-9]{9}" "$HOME/Library/Preferences/com.carriez.rustdesk/RustDesk.toml" | sed "s/id = .\\([0-9]\\{9\\}\\).*/\\1/" || true
+          fi
+          # Check Linux config
+          if [ -f "$HOME/.config/rustdesk/RustDesk.toml" ]; then
+            grep -E "^id = .+[0-9]{9}" "$HOME/.config/rustdesk/RustDesk.toml" | sed "s/id = .\\([0-9]\\{9\\}\\).*/\\1/" || true
+          fi
+        '`;
+        
+        const configResult = await executeSSHCommand(configCommand);
+        const configOutput = (configResult.stdout || '').toString().trim();
+        if (/^\d{9}$/.test(configOutput)) {
+          rustdeskId = configOutput;
+        }
+      }
+      
+      // Update database if status changed
+      if (isInstalled && rustdeskId && rustdeskId !== appliance.rustdeskId) {
+        await db.update('appliances', {
+          rustdeskInstalled: true,
+          rustdeskId: rustdeskId
+        }, { id: applianceId });
+      } else if (!isInstalled && appliance.rustdeskInstalled) {
+        // RustDesk was uninstalled
+        await db.update('appliances', {
+          rustdeskInstalled: false,
+          rustdeskId: null
+        }, { id: applianceId });
+      }
+      
+      res.json({
+        success: true,
+        installed: isInstalled,
+        rustdeskId: rustdeskId
+      });
+      
+    } catch (sshError) {
+      console.error('[RUSTDESK STATUS] SSH Error:', sshError);
+      // If SSH fails, return database status
+      return res.json({
+        success: true,
+        installed: !!appliance.rustdeskInstalled,
+        rustdeskId: appliance.rustdeskId,
+        sshError: true
+      });
+    }
+    
+  } catch (error) {
+    console.error('[RUSTDESK STATUS] Error:', error);
+    console.error('[RUSTDESK STATUS] Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to check RustDesk status',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/rustdeskInstall/host/:hostId/status
+ * Check RustDesk installation status on the actual host (for hosts table)
+ */
+router.get('/host/:hostId/status', verifyToken, async (req, res) => {
   const { hostId } = req.params;
   let host = null; // Define host outside try block
   
@@ -229,9 +408,9 @@ router.get('/:hostId/status', verifyToken, async (req, res) => {
   
   try {
     // Get host details
-    const [hosts] = await pool.execute(
-      'SELECT * FROM hosts WHERE id = ?',
-      [hostId]
+    const hosts = await db.select('hosts', 
+      { id: hostId },
+      { limit: 1 }
     );
     
     console.log('[RUSTDESK STATUS] Query result:', hosts.length, 'hosts found');
@@ -247,7 +426,7 @@ router.get('/:hostId/status', verifyToken, async (req, res) => {
       hostname: host.hostname,
       username: host.username,
       port: host.port,
-      sshKeyName: host.sshKeyName,
+      sshKeyName: host.ssh_key_name,
       rustdeskId: host.rustdeskId
     });
     
@@ -266,12 +445,16 @@ router.get('/:hostId/status', verifyToken, async (req, res) => {
       });
     }
     
-    // Prepare SSH configuration
+    // Prepare SSH configuration  
+    // For user-specific keys, use the user prefix format
+    const userId = host.created_by || 1;
     const sshConfig = {
       host: host.hostname,
       username: host.username,
       port: host.port || 22,
-      privateKeyPath: host.ssh_key_name ? `/root/.ssh/id_rsa_user${host.created_by || 1}_${host.ssh_key_name}` : null
+      privateKeyPath: host.ssh_key_name 
+        ? `/root/.ssh/id_rsa_user${userId}_${host.ssh_key_name}` 
+        : `/root/.ssh/id_rsa_user${userId}_dashboard`
     };
     
     console.log('[RUSTDESK STATUS] Checking RustDesk on host:', sshConfig.host);
@@ -331,17 +514,17 @@ router.get('/:hostId/status', verifyToken, async (req, res) => {
     // Update database with current status
     if (isInstalled) {
       if (rustdeskId) {
-        await pool.execute(
-          'UPDATE hosts SET rustdesk_id = ? WHERE id = ?',
-          [rustdeskId, hostId]
+        await db.update('hosts', 
+          { rustdeskId: rustdeskId },
+          { id: hostId }
         );
       }
       // If installed but no ID found, we keep the existing ID in the database
     } else {
       // RustDesk was uninstalled
-      await pool.execute(
-        'UPDATE hosts SET rustdesk_id = NULL WHERE id = ?',
-        [hostId]
+      await db.update('hosts', 
+        { rustdeskId: null },
+        { id: hostId }
       );
     }
     
@@ -358,7 +541,7 @@ router.get('/:hostId/status', verifyToken, async (req, res) => {
       id: hostId,
       hostname: host?.hostname,
       username: host?.username,
-      sshKeyName: host?.sshKeyName,
+      sshKeyName: host?.ssh_key_name,
       created_by: host?.created_by
     });
     res.status(500).json({ 
@@ -749,7 +932,7 @@ fi
     let scpCommand;
     if (useHostname && sshConfig.hostname) {
       const actualHost = sshConfig.host || sshConfig.hostname;
-      const keyName = appliance.sshKeyName || 'dashboard';
+      const keyName = appliance.ssh_key_name || 'dashboard';
       scpCommand = `scp -i ~/.ssh/id_rsa_${keyName} -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${localScriptPath} ${sshConfig.username}@${actualHost}:${scriptPath}`;
     } else {
       scpCommand = `scp -i ~/.ssh/id_rsa_dashboard -o StrictHostKeyChecking=no -o ConnectTimeout=10 -P ${sshConfig.port || 22} ${localScriptPath} ${sshConfig.username}@${sshConfig.host}:${scriptPath}`;
@@ -1047,7 +1230,7 @@ fi
     let scpCommand;
     if (useHostname && sshConfig.hostname) {
       const actualHost = sshConfig.host || sshConfig.hostname;
-      const keyName = appliance.sshKeyName || 'dashboard';
+      const keyName = appliance.ssh_key_name || 'dashboard';
       scpCommand = `scp -i ~/.ssh/id_rsa_${keyName} -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${localScriptPath} ${sshConfig.username}@${actualHost}:${scriptPath}`;
     } else {
       scpCommand = `scp -i ~/.ssh/id_rsa_dashboard -o StrictHostKeyChecking=no -o ConnectTimeout=10 -P ${sshConfig.port || 22} ${localScriptPath} ${sshConfig.username}@${sshConfig.host}:${scriptPath}`;
@@ -1161,14 +1344,11 @@ router.put('/:applianceId/id', verifyToken, async (req, res) => {
   }
   
   try {
-    await pool.execute(
-      `UPDATE appliances 
-       SET rustdeskId = ?,
-           rustdesk_installed = 1,
-           rustdesk_installation_date = NOW()
-       WHERE id = ?`,
-      [rustdeskId, applianceId]
-    );
+    await db.update('appliances', {
+      rustdeskId: rustdeskId,
+      rustdeskInstalled: true,
+      rustdeskInstallationDate: new Date()
+    }, { id: applianceId });
     
     res.json({ success: true, rustdeskId });
   } catch (error) {
@@ -1186,22 +1366,20 @@ router.put('/:applianceId/password', verifyToken, async (req, res) => {
   
   try {
     // Get appliance details with SSH connection info
-    const [appliances] = await pool.execute(
-      `SELECT a.*, h.hostname, h.username, h.port, h.sshKeyName
-       FROM appliances a
-       LEFT JOIN hosts h ON (
-         a.ssh_connection = CONCAT(h.username, '@', h.hostname, ':', h.port) OR
-         a.ssh_connection = CONCAT(h.username, '@', h.hostname)
-       )
-       WHERE a.id = ?`,
-      [applianceId]
-    );
+    const appliance = await db.findOneWithJoin({
+      from: 'appliances',
+      select: ['appliances.*', 'hosts.hostname', 'hosts.username', 'hosts.port', 'hosts.ssh_key_name'],
+      joins: [{
+        table: 'hosts',
+        on: 'appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname, ":", hosts.port) OR appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname)',
+        type: 'LEFT'
+      }],
+      where: { 'appliances.id': applianceId }
+    });
     
-    if (!appliances.length) {
+    if (!appliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
-    
-    const appliance = appliances[0];
     
     // Check if RustDesk is installed
     if (!appliance.rustdesk_installed || !appliance.rustdeskId) {
@@ -1220,13 +1398,13 @@ router.put('/:applianceId/password', verifyToken, async (req, res) => {
     let sshHost, sshUsername = 'root', sshPort = 22;
     let useHostname = false;
     
-    if (appliance.hostname) {
-      sshHost = appliance.hostname;
-      sshUsername = appliance.username;
-      sshPort = appliance.port || 22;
+    if (appliance.hosts_hostname) {
+      sshHost = appliance.hosts_hostname;
+      sshUsername = appliance.hosts_username;
+      sshPort = appliance.hosts_port || 22;
       useHostname = true;
-    } else if (appliance.ssh_connection) {
-      const sshParts = appliance.ssh_connection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
+    } else if (appliance.sshConnection) {
+      const sshParts = appliance.sshConnection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
       if (sshParts) {
         sshUsername = sshParts[1] || 'root';
         sshHost = sshParts[2];
@@ -1236,10 +1414,10 @@ router.put('/:applianceId/password', verifyToken, async (req, res) => {
     
     // Build SSH command
     let sshCommand;
-    const actualHost = appliance.host || appliance.hostname;
-    const keyName = appliance.key_name || 'dashboard';
+    const actualHost = appliance.host || appliance.hosts_hostname;
+    const keyName = appliance.keyName || 'dashboard';
     
-    if (useHostname && appliance.hostname) {
+    if (useHostname && appliance.hosts_hostname) {
       sshCommand = `ssh -i ~/.ssh/id_rsa_${keyName} -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${sshUsername}@${actualHost}`;
     } else {
       sshCommand = `ssh -i ~/.ssh/id_rsa_dashboard -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${sshUsername}@${sshHost} -p ${sshPort || 22}`;
@@ -1260,6 +1438,115 @@ router.put('/:applianceId/password', verifyToken, async (req, res) => {
     console.error('RustDesk password update error:', error);
     res.status(500).json({ 
       error: 'Failed to update RustDesk password',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/rustdeskInstall/host/:hostId
+ * Install RustDesk on a host
+ */
+router.post('/host/:hostId', verifyToken, async (req, res) => {
+  const { hostId } = req.params;
+  const { password } = req.body;
+  
+  console.log('[RUSTDESK INSTALL] Starting installation on host:', hostId);
+  
+  try {
+    // Get host details
+    const hosts = await db.select('hosts', 
+      { id: hostId },
+      { limit: 1 }
+    );
+    
+    if (hosts.length === 0) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    const host = hosts[0];
+    console.log('[RUSTDESK INSTALL] Host found:', host.hostname);
+    
+    // Build SSH config
+    const sshConfig = {
+      host: host.hostname,
+      username: host.username,
+      port: host.port || 22,
+      privateKey: null
+    };
+    
+    // Get SSH key if specified
+    if (host.ssh_key_name) {
+      console.log('[RUSTDESK INSTALL] Using SSH key:', host.ssh_key_name);
+      const keys = await db.select('ssh_keys',
+        { key_name: host.ssh_key_name },
+        { limit: 1 }
+      );
+      
+      if (keys.length > 0) {
+        sshConfig.privateKey = keys[0].private_key;
+      }
+    } else {
+      // Use dashboard key as default
+      console.log('[RUSTDESK INSTALL] No SSH key specified, using dashboard key as default');
+      const keys = await db.select('ssh_keys',
+        { key_name: 'dashboard' },
+        { limit: 1 }
+      );
+      
+      if (keys.length > 0) {
+        sshConfig.privateKey = keys[0].private_key;
+      }
+    }
+    
+    // Install RustDesk based on platform
+    let result;
+    const platform = host.platform || 'mac';
+    
+    if (platform === 'mac' || platform === 'darwin') {
+      console.log('[RUSTDESK INSTALL] Installing on macOS');
+      result = await installRustDeskMacOS(sshConfig, true, host, password);
+    } else if (platform === 'linux') {
+      console.log('[RUSTDESK INSTALL] Installing on Linux');
+      result = await installRustDeskLinux(sshConfig, true, host, password);
+    } else {
+      return res.status(400).json({ 
+        error: 'Unsupported platform',
+        platform: platform 
+      });
+    }
+    
+    // Update host with RustDesk info if installation was successful
+    if (result && result.rustdeskId) {
+      await db.update('hosts',
+        { 
+          rustdesk_installed: true,
+          rustdesk_id: result.rustdeskId,
+          rustdesk_password: password || null
+        },
+        { id: hostId }
+      );
+      
+      console.log('[RUSTDESK INSTALL] Installation successful, ID:', result.rustdeskId);
+      
+      res.json({
+        success: true,
+        installed: true,
+        rustdeskId: result.rustdeskId,
+        message: 'RustDesk installed successfully'
+      });
+    } else {
+      res.json({
+        success: true,
+        installed: true,
+        message: 'RustDesk installed but ID retrieval pending'
+      });
+    }
+    
+  } catch (error) {
+    console.error('[RUSTDESK INSTALL] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to install RustDesk',
       details: error.message 
     });
   }

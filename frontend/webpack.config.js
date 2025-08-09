@@ -10,7 +10,7 @@ module.exports = {
     path: path.resolve(__dirname, 'build'),
     filename: 'static/js/bundle.[contenthash].js',
     publicPath: '/',
-    hashSalt: 'fix-' + Date.now()
+    hashSalt: 'debug-' + Date.now()
   },
   module: {
     rules: [

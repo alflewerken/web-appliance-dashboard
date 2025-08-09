@@ -1,14 +1,14 @@
-// Categories API routes
+// Categories API routes - Using QueryBuilder
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { broadcast } = require('./sse');
 const { createAuditLog } = require('../utils/auditLogger');
-const {
-  mapCategoryDbToJs,
-  mapCategoryJsToDb,
-  getCategorySelectColumns
-} = require('../utils/dbFieldMappingCategories');
+const { verifyToken } = require('../utils/auth');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 /**
  * @swagger
@@ -18,433 +18,273 @@ const {
  */
 
 /**
- * @swagger
- * /api/categories:
- *   get:
- *     summary: Get all categories with appliance counts
- *     tags: [Categories]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of all categories
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                     example: 1
- *                   name:
- *                     type: string
- *                     example: productivity
- *                   display_name:
- *                     type: string
- *                     example: Productivity
- *                   icon:
- *                     type: string
- *                     example: Briefcase
- *                   color:
- *                     type: string
- *                     example: #007AFF
- *                   order_index:
- *                     type: integer
- *                     example: 0
- *                   is_system:
- *                     type: boolean
- *                     example: true
- *                   appliances_count:
- *                     type: integer
- *                     example: 5
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Failed to fetch categories
+ * Get all categories with appliance counts
  */
-// Get all categories
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
-    // First get all categories
-    const [categories] = await pool.execute(
-      `SELECT ${getCategorySelectColumns()} FROM categories ORDER BY order_index ASC, is_system DESC, name`
-    );
-
-    // Then get appliance counts for each category
-    const [counts] = await pool.execute(`
-      SELECT category, COUNT(*) as count
-      FROM appliances
-      WHERE category IS NOT NULL
-      GROUP BY category
+    // Get all categories with appliance count
+    const [categories] = await pool.execute(`
+      SELECT 
+        c.*,
+        COUNT(DISTINCT a.id) as appliance_count
+      FROM categories c
+      LEFT JOIN appliances a ON c.name = a.category
+      GROUP BY c.id
+      ORDER BY c.order_index ASC, c.name ASC
     `);
-
-    // Create a map of counts by category name
-    const countMap = {};
-    counts.forEach(row => {
-      countMap[row.category] = row.count;
-    });
-
-    // Map categories to JS format and add counts
-    const categoriesWithCounts = categories.map(category => {
-      const mapped = mapCategoryDbToJs(category);
-      mapped.appliancesCount = countMap[mapped.name] || 0;
-      return mapped;
-    });
-
-    res.json(categoriesWithCounts);
+    
+    // Map to JS format
+    const mappedCategories = categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+      description: cat.description,
+      isSystem: Boolean(cat.is_system),
+      orderIndex: cat.order_index,
+      applianceCount: cat.appliance_count,
+      createdAt: cat.created_at,
+      updatedAt: cat.updated_at
+    }));
+    
+    res.json(mappedCategories);
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
 
-// Update categories order - MUST BE BEFORE /:id route
-router.put('/reorder', async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    const { categories } = req.body;
-
-    if (!categories || !Array.isArray(categories)) {
-      return res.status(400).json({ error: 'Invalid categories data' });
-    }
-
-    await connection.beginTransaction();
-
-    // Update order for each category
-    for (let i = 0; i < categories.length; i++) {
-      const category = categories[i];
-      await connection.execute(
-        'UPDATE categories SET `order_index` = ? WHERE id = ?',
-        [i, category.id]
-      );
-    }
-
-    await connection.commit();
-
-    // Fetch updated categories to broadcast complete data
-    const [updatedCategories] = await connection.execute(
-      'SELECT * FROM categories ORDER BY `order_index` ASC'
-    );
-
-    // Get appliance counts
-    const [counts] = await connection.execute(`
-      SELECT category, COUNT(*) as count
-      FROM appliances
-      WHERE category IS NOT NULL
-      GROUP BY category
-    `);
-
-    // Create a map of counts by category name
-    const countMap = {};
-    counts.forEach(row => {
-      countMap[row.category] = row.count;
-    });
-
-    // Add counts to categories
-    const categoriesWithCounts = updatedCategories.map(category => ({
-      ...category,
-      order: category.order_index, // Map order_index to order for frontend compatibility
-      appliances_count: countMap[category.name] || 0,
-    }));
-
-    console.log('Updated categories order successfully');
-    res.json({
-      success: true,
-      message: 'Categories order updated successfully',
-      categories: categoriesWithCounts,
-    });
-
-    // Broadcast complete category data
-    broadcast('categories_reordered', categoriesWithCounts);
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error updating categories order:', error);
-    res.status(500).json({ error: 'Failed to update categories order' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Get category by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const [rows] = await pool.execute('SELECT * FROM categories WHERE id = ?', [
-      req.params.id,
-    ]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-
-    res.json(rows[0]);
-  } catch (error) {
-    console.error('Error fetching category:', error);
-    res.status(500).json({ error: 'Failed to fetch category' });
-  }
-});
-
-// Create new category
-router.post('/', async (req, res) => {
+/**
+ * Create a new category
+ */
+router.post('/', verifyToken, async (req, res) => {
   try {
     const { name, icon, color, description } = req.body;
-
-    console.log('Creating category with data:', req.body);
-
-    if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
+    
+    // Validate required fields
+    if (!name || !icon || !color) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name, icon, and color are required'
+      });
     }
-
-    // Get the maximum order value
-    const [maxOrderRows] = await pool.execute(
+    
+    // Check if category already exists
+    const existing = await db.findOne('categories', { name });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        error: 'Category with this name already exists'
+      });
+    }
+    
+    // Get next order index
+    const maxOrderResult = await db.raw(
       'SELECT MAX(order_index) as maxOrder FROM categories'
     );
-    const nextOrder = (maxOrderRows[0].maxOrder || 0) + 1;
-
-    // Prepare data with camelCase
-    const categoryData = {
+    const nextOrder = (maxOrderResult[0]?.maxOrder || 0) + 1;
+    
+    // Insert new category
+    const result = await db.insert('categories', {
       name,
-      icon: icon || 'Folder',
-      color: color || '#007AFF',
-      displayName: name,
-      description: description || null,
+      icon,
+      color,
+      description,
       isSystem: false,
       orderIndex: nextOrder,
-    };
-
-    // Convert to database format
-    const dbData = mapCategoryJsToDb(categoryData);
-
-    const [result] = await pool.execute(
-      'INSERT INTO categories (name, icon, color, description, is_system, order_index) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        dbData.name,
-        dbData.icon,
-        dbData.color,
-        description || null,
-        dbData.is_system,
-        dbData.order_index,
-      ]
-    );
-
-    // Get the newly created category with proper mapping
-    const [[newCategory]] = await pool.execute(
-      `SELECT ${getCategorySelectColumns()} FROM categories WHERE id = ?`,
-      [result.insertId]
-    );
-
-    const mappedCategory = mapCategoryDbToJs(newCategory);
-
-    console.log('Created category:', mappedCategory);
-
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    // Get the created category
+    const newCategory = await db.findOne('categories', { id: result.insertId });
+    
     // Create audit log
-    const ipAddress = req.clientIp;
     await createAuditLog(
-      req.user?.id || null,
-      'category_created',
+      req.user?.id,
+      'category_create',
       'categories',
       result.insertId,
-      {
-        category_data: mappedCategory,
-        created_by: req.user?.username || 'unknown',
-        timestamp: new Date().toISOString(),
-      },
-      ipAddress
+      newCategory,
+      req.clientIp || req.ip,
+      newCategory.name
     );
-
-    res.status(201).json({
-      ...mappedCategory,
-      message: 'Category created successfully',
+    
+    // Broadcast update
+    broadcast({
+      type: 'category_created',
+      data: newCategory
     });
-
-    // Broadcast category creation
-    broadcast('category_created', mappedCategory);
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'category_created',
-      resource_type: 'categories',
-      resource_id: result.insertId,
-    });
+    
+    res.status(201).json(newCategory);
   } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ error: 'Category name already exists' });
-    }
     console.error('Error creating category:', error);
     res.status(500).json({ error: 'Failed to create category' });
   }
 });
 
-// Update category
-router.put('/:id', async (req, res) => {
+/**
+ * Reorder categories - MUST BE BEFORE /:id ROUTES
+ */
+router.put('/reorder', verifyToken, async (req, res) => {
+  const connection = await pool.getConnection();
+  
   try {
-    const { name, icon, color, description } = req.body;
-
-    console.log('Updating category ID', req.params.id, 'with data:', req.body);
-
-    if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
+    const { categories } = req.body;
+    
+    if (!Array.isArray(categories)) {
+      return res.status(400).json({ error: 'Categories array is required' });
     }
-
-    // Get original category data for audit log
-    const [originalRows] = await pool.execute(
-      'SELECT * FROM categories WHERE id = ?',
-      [req.params.id]
-    );
-    if (originalRows.length === 0) {
-      return res.status(404).json({ error: 'Category not found' });
+    
+    await connection.beginTransaction();
+    
+    // Update order for each category
+    for (let i = 0; i < categories.length; i++) {
+      const categoryId = categories[i].id;
+      await connection.execute(
+        'UPDATE categories SET order_index = ?, updated_at = NOW() WHERE id = ?',
+        [i, categoryId]
+      );
     }
-
-    const originalData = originalRows[0];
-
-    const [result] = await pool.execute(
-      'UPDATE categories SET name = ?, icon = ?, color = ?, description = ? WHERE id = ?',
-      [
-        name,
-        icon || 'Folder',
-        color || '#007AFF',
-        description || null,
-        req.params.id,
-      ]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-
-    const updatedData = {
-      id: parseInt(req.params.id),
-      name,
-      icon: icon || 'Folder',
-      color: color || '#007AFF',
-      description: description || null,
-    };
-
-    console.log('Updated category successfully');
-
-    // Create audit log with both original and new data
-    const ipAddress = req.clientIp;
-    await createAuditLog(
-      req.user?.id || null,
-      'category_updated',
-      'categories',
-      parseInt(req.params.id),
-      {
-        original_data: originalData,
-        new_data: updatedData,
-        changes: {
-          name:
-            originalData.name !== name
-              ? { old: originalData.name, new: name }
-              : undefined,
-          icon:
-            originalData.icon !== (icon || 'Folder')
-              ? { old: originalData.icon, new: icon || 'Folder' }
-              : undefined,
-          color:
-            originalData.color !== (color || '#007AFF')
-              ? { old: originalData.color, new: color || '#007AFF' }
-              : undefined,
-          description:
-            originalData.description !== (description || null)
-              ? { old: originalData.description, new: description || null }
-              : undefined,
-        },
-        updated_by: req.user?.username || 'unknown',
-        timestamp: new Date().toISOString(),
-      },
-      ipAddress
-    );
-
-    res.json({ message: 'Category updated successfully' });
-
-    // Broadcast category update
-    broadcast('category_updated', updatedData);
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'category_updated',
-      resource_type: 'categories',
-      resource_id: parseInt(req.params.id),
+    
+    await connection.commit();
+    
+    // Broadcast update
+    broadcast({
+      type: 'categories_reordered',
+      data: { categories }
     });
+    
+    res.json({ message: 'Categories reordered successfully' });
   } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ error: 'Category name already exists' });
+    await connection.rollback();
+    console.error('Error reordering categories:', error);
+    res.status(500).json({ error: 'Failed to reorder categories' });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * Update a category
+ */
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.id);
+    const { name, icon, color, description } = req.body;
+    
+    // Get existing category
+    const existingCategory = await db.findOne('categories', { id: categoryId });
+    if (!existingCategory) {
+      return res.status(404).json({
+        success: false,
+        error: 'Category not found'
+      });
     }
+    
+    // Check if system category
+    if (existingCategory.isSystem) {
+      return res.status(403).json({
+        success: false,
+        error: 'System categories cannot be modified'
+      });
+    }
+    
+    // Prepare update data
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (icon !== undefined) updateData.icon = icon;
+    if (color !== undefined) updateData.color = color;
+    if (description !== undefined) updateData.description = description;
+    updateData.updatedAt = new Date();
+    
+    // Update category
+    await db.update('categories', updateData, { id: categoryId });
+    
+    // Get updated category
+    const updatedCategory = await db.findOne('categories', { id: categoryId });
+    
+    // Create audit log
+    await createAuditLog(
+      req.user?.id,
+      'category_update',
+      'categories',
+      categoryId,
+      {
+        old_data: existingCategory,
+        new_data: updatedCategory
+      },
+      req.clientIp || req.ip,
+      updatedCategory.name
+    );
+    
+    // Broadcast update
+    broadcast({
+      type: 'category_updated',
+      data: updatedCategory
+    });
+    
+    res.json(updatedCategory);
+  } catch (error) {
     console.error('Error updating category:', error);
     res.status(500).json({ error: 'Failed to update category' });
   }
 });
 
-// Delete category
-router.delete('/:id', async (req, res) => {
+/**
+ * Delete a category
+ */
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
-    // Get full category data before deletion for audit log
-    const [categoryRows] = await pool.execute(
-      'SELECT * FROM categories WHERE id = ?',
-      [req.params.id]
-    );
-    if (categoryRows.length === 0) {
-      return res.status(404).json({ error: 'Category not found' });
+    const categoryId = parseInt(req.params.id);
+    
+    // Get existing category
+    const existingCategory = await db.findOne('categories', { id: categoryId });
+    if (!existingCategory) {
+      return res.status(404).json({
+        success: false,
+        error: 'Category not found'
+      });
     }
-
-    const categoryData = categoryRows[0];
-
-    // Check if any appliances use this category
-    const [applianceRows] = await pool.execute(
-      'SELECT COUNT(*) as count FROM appliances WHERE category = ?',
-      [categoryData.name]
-    );
-    if (applianceRows[0].count > 0) {
-      return res
-        .status(400)
-        .json({
-          error: `Cannot delete category: ${applianceRows[0].count} appliances are using this category`,
-        });
+    
+    // Check if system category
+    if (existingCategory.isSystem) {
+      return res.status(403).json({
+        success: false,
+        error: 'System categories cannot be deleted'
+      });
     }
-
-    const [result] = await pool.execute('DELETE FROM categories WHERE id = ?', [
-      req.params.id,
-    ]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Category not found' });
+    
+    // Check if category has appliances
+    const applianceCount = await db.count('appliances', { category: existingCategory.name });
+    if (applianceCount > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot delete category with ${applianceCount} appliances`
+      });
     }
-
-    // Create audit log with complete category data for potential restoration
-    const ipAddress = req.clientIp;
+    
+    // Delete category
+    await db.delete('categories', { id: categoryId });
+    
+    // Create audit log
     await createAuditLog(
-      req.user?.id || null,
-      'category_deleted',
+      req.user?.id,
+      'category_delete',
       'categories',
-      parseInt(req.params.id),
-      {
-        category: categoryData,
-        deleted_by: req.user?.username || 'unknown',
-        timestamp: new Date().toISOString(),
-      },
-      ipAddress
+      categoryId,
+      existingCategory,
+      req.clientIp || req.ip,
+      existingCategory.name
     );
-
-    res.json({ message: 'Category deleted successfully' });
-
-    // Broadcast category deletion
-    broadcast('category_deleted', { id: parseInt(req.params.id) });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'category_deleted',
-      resource_type: 'categories',
-      resource_id: parseInt(req.params.id),
+    
+    // Broadcast update
+    broadcast({
+      type: 'category_deleted',
+      data: { id: categoryId }
     });
+    
+    res.json({ message: 'Category deleted successfully' });
   } catch (error) {
     console.error('Error deleting category:', error);
     res.status(500).json({ error: 'Failed to delete category' });

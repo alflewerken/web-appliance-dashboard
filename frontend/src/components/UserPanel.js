@@ -63,6 +63,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [originalFormData, setOriginalFormData] = useState(null); // Store original data for comparison
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -187,9 +188,9 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           username: user.username,
           email: user.email,
           role: user.role,
-          is_active: 1,
-          last_login: new Date().toISOString(),
-          created_at: new Date().toISOString()
+          isActive: true,
+          lastLogin: new Date().toISOString(),
+          createdAt: new Date().toISOString()
         }]);
         setLoading(false);
         return;
@@ -212,9 +213,9 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             username: user.username,
             email: user.email,
             role: user.role,
-            is_active: 1,
-            last_login: new Date().toISOString(),
-            created_at: new Date().toISOString()
+            isActive: true,
+            lastLogin: new Date().toISOString(),
+            createdAt: new Date().toISOString()
           }]);
         } else {
           const errorData = await response.text();
@@ -267,6 +268,39 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     ]);
   };
 
+  // Helper function to get only changed fields
+  const getChangedFields = (original, current) => {
+    if (!original) return current; // For new users, return all fields
+    
+    const changes = {};
+    
+    Object.keys(current).forEach(key => {
+      // Skip password field if empty (no password change)
+      if (key === 'password' && !current[key]) {
+        return;
+      }
+      
+      // Compare values
+      let originalValue = original[key];
+      let currentValue = current[key];
+      
+      // Normalize null/undefined to empty string for comparison
+      if (originalValue === null || originalValue === undefined) originalValue = '';
+      if (currentValue === null || currentValue === undefined) currentValue = '';
+      
+      // Convert to strings for comparison
+      const originalStr = String(originalValue);
+      const currentStr = String(currentValue);
+      
+      // Only include field if it has changed
+      if (originalStr !== currentStr) {
+        changes[key] = current[key];
+      }
+    });
+    
+    return changes;
+  };
+
   const handleCreateUser = async () => {
     try {
       const response = await fetch(`/api/auth/users`, {
@@ -294,20 +328,33 @@ const UserPanel = ({ onClose, onWidthChange }) => {
 
   const handleUpdateUser = async () => {
     try {
-      const updateData = { ...formData };
-      if (!updateData.password) {
-        delete updateData.password;
+      // Get only changed fields
+      const changedFields = getChangedFields(originalFormData, formData);
+      
+      // Check if there are any changes
+      if (Object.keys(changedFields).length === 0) {
+        setSuccess('Keine Änderungen vorhanden');
+        setEditDialog(false);
+        return;
       }
+      
+      // Remove password field if it's empty (no password change)
+      if (changedFields.password === '') {
+        delete changedFields.password;
+      }
+      
+      console.log('Updating user - changed fields:', Object.keys(changedFields));
+      console.log('Changed data:', changedFields);
 
       const response = await fetch(
         `/api/auth/users/${selectedUser.id}`,
         {
-          method: 'PUT',
+          method: 'PATCH', // Use PATCH for partial updates
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
-          body: JSON.stringify(updateData),
+          body: JSON.stringify(changedFields),
         }
       );
 
@@ -549,18 +596,18 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                   }}
                 />
                 <Chip
-                  label={u.is_active ? 'Account aktiv' : 'Account gesperrt'}
+                  label={u.isActive ? 'Account aktiv' : 'Account gesperrt'}
                   size="small"
                   sx={{
-                    backgroundColor: u.is_active ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 59, 48, 0.2)',
-                    color: u.is_active ? '#34C759' : '#FF3B30',
-                    border: `1px solid ${u.is_active ? '#34C759' : '#FF3B30'}`,
+                    backgroundColor: u.isActive ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 59, 48, 0.2)',
+                    color: u.isActive ? '#34C759' : '#FF3B30',
+                    border: `1px solid ${u.isActive ? '#34C759' : '#FF3B30'}`,
                   }}
                 />
               </Box>
 
               <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem', mb: 1 }}>
-                Letzte Anmeldung: {u.last_login ? new Date(u.last_login).toLocaleString('de-DE') : 'Nie'}
+                Letzte Anmeldung: {u.lastLogin ? new Date(u.lastLogin).toLocaleString('de-DE') : 'Nie'}
               </Typography>
 
               <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
@@ -569,12 +616,14 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     size="small"
                     onClick={() => {
                       setSelectedUser(u);
-                      setFormData({
+                      const initialData = {
                         username: u.username,
                         email: u.email,
                         password: '',
                         role: u.role,
-                      });
+                      };
+                      setFormData(initialData);
+                      setOriginalFormData(initialData); // Store original for comparison
                       setEditDialog(true);
                     }}
                     sx={{ 
@@ -593,10 +642,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                 </Tooltip>
                 {isAdmin() && (
                   <>
-                    <Tooltip title={u.is_active ? 'Deaktivieren' : 'Aktivieren'}>
+                    <Tooltip title={u.isActive ? 'Deaktivieren' : 'Aktivieren'}>
                       <IconButton
                         size="small"
-                        onClick={() => handleToggleActive(u.id, Boolean(u.is_active))}
+                        onClick={() => handleToggleActive(u.id, Boolean(u.isActive))}
                         sx={{ 
                           color: '#FF9500',
                           backgroundColor: 'rgba(255, 149, 0, 0.1)',
@@ -607,7 +656,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                           }
                         }}
                       >
-                        {u.is_active ? <Lock size={16} /> : <Unlock size={16} />}
+                        {u.isActive ? <Lock size={16} /> : <Unlock size={16} />}
                       </IconButton>
                     </Tooltip>
                     {u.username !== user.username && (
@@ -727,18 +776,18 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={u.is_active ? 'Account aktiv' : 'Account gesperrt'}
+                    label={u.isActive ? 'Account aktiv' : 'Account gesperrt'}
                     size="small"
                     sx={{
-                      backgroundColor: u.is_active ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 59, 48, 0.2)',
-                      color: u.is_active ? '#34C759' : '#FF3B30',
-                      border: `1px solid ${u.is_active ? '#34C759' : '#FF3B30'}`,
+                      backgroundColor: u.isActive ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 59, 48, 0.2)',
+                      color: u.isActive ? '#34C759' : '#FF3B30',
+                      border: `1px solid ${u.isActive ? '#34C759' : '#FF3B30'}`,
                     }}
                   />
                 </TableCell>
                 <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                  <Tooltip title={u.last_login ? new Date(u.last_login).toLocaleString('de-DE') : 'Nie'}>
-                    <span>{u.last_login ? new Date(u.last_login).toLocaleDateString('de-DE') : 'Nie'}</span>
+                  <Tooltip title={u.lastLogin ? new Date(u.lastLogin).toLocaleString('de-DE') : 'Nie'}>
+                    <span>{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('de-DE') : 'Nie'}</span>
                   </Tooltip>
                 </TableCell>
                 <TableCell sx={{ padding: '8px' }}>
@@ -764,10 +813,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                         <Edit size={16} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title={u.is_active ? 'Account sperren' : 'Account aktivieren'}>
+                    <Tooltip title={u.isActive ? 'Account sperren' : 'Account aktivieren'}>
                       <IconButton
                         size="small"
-                        onClick={() => handleToggleActive(u.id, Boolean(u.is_active))}
+                        onClick={() => handleToggleActive(u.id, Boolean(u.isActive))}
                         sx={{ 
                           color: '#FF9500',
                           backgroundColor: 'rgba(255, 149, 0, 0.1)',
@@ -778,7 +827,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                           }
                         }}
                       >
-                        {u.is_active ? <Lock size={16} /> : <Unlock size={16} />}
+                        {u.isActive ? <Lock size={16} /> : <Unlock size={16} />}
                       </IconButton>
                     </Tooltip>
                     {u.username !== user.username && (
@@ -1040,7 +1089,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                   }}
                 >
                   <Typography variant="h3" sx={{ color: '#34C759', fontWeight: 'bold' }}>
-                    {users.filter(u => Boolean(u.is_active)).length}
+                    {users.filter(u => Boolean(u.isActive)).length}
                   </Typography>
                   <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                     Aktive Benutzer

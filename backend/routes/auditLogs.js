@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const { requireAdmin } = require('../utils/auth');
 const { broadcast } = require('./sse');
 const { logger } = require('../utils/logger');
@@ -97,6 +99,8 @@ router.get('/export', requireAdmin, async (req, res) => {
 // Get all audit logs
 router.get('/', requireAdmin, async (req, res) => {
   try {
+    console.log('[AUDIT_LOGS] API called at:', new Date().toISOString());
+    
     const query = `
       SELECT 
         al.id,
@@ -105,8 +109,9 @@ router.get('/', requireAdmin, async (req, res) => {
         al.resource_type,
         al.resource_id,
         al.resource_name,
-        al.details as metadata,
+        al.details,
         al.ip_address,
+        al.user_agent,
         al.created_at,
         u.username
       FROM audit_logs al
@@ -116,6 +121,12 @@ router.get('/', requireAdmin, async (req, res) => {
     `;
 
     const [logs] = await pool.execute(query);
+    console.log('[AUDIT_LOGS] Found', logs.length, 'logs from DB');
+    
+    // Debug: Check first log for IP
+    if (logs.length > 0) {
+      console.log('[AUDIT_LOGS] First DB log IP:', logs[0].ip_address);
+    }
     
     // Map logs to camelCase format
     const mappedLogs = logs.map(log => ({
@@ -124,7 +135,30 @@ router.get('/', requireAdmin, async (req, res) => {
       actionDisplay: getActionDisplayName(log.action)
     }));
     
-    res.json(mappedLogs);
+    // Debug: Check first mapped log for IP
+    if (mappedLogs.length > 0) {
+      console.log('[AUDIT_LOGS] First mapped log IP:', mappedLogs[0].ipAddress);
+    }
+    
+    // Berechne Statistiken direkt im Backend
+    const todayString = new Date().toISOString().split('T')[0];
+    const todayCount = mappedLogs.filter(log => 
+      log.createdAt && log.createdAt.startsWith(todayString)
+    ).length;
+    
+    console.log('[AUDIT_LOGS] Today count:', todayCount);
+    console.log('[AUDIT_LOGS] First mapped log:', JSON.stringify(mappedLogs[0], null, 2));
+    console.log('[AUDIT_LOGS] Sending', mappedLogs.length, 'logs to frontend');
+    
+    // Sende Logs UND Statistiken
+    res.json({
+      logs: mappedLogs,
+      stats: {
+        total: mappedLogs.length,
+        today: todayCount,
+        todayDate: todayString
+      }
+    });
   } catch (error) {
     logger.error('Error fetching audit logs:', error);
     res.status(500).json({ error: 'Failed to fetch audit logs' });
@@ -171,29 +205,32 @@ async function getOldSettingsValues(details) {
   }
   
   if (details.blur !== undefined) {
-    const [currentSettings] = await pool.execute(
-      'SELECT background_blur FROM user_settings WHERE user_id = 1'
+    const currentSettings = await db.select('user_settings', 
+      { userId: 1 }, 
+      { limit: 1 }
     );
-    if (currentSettings.length > 0 && currentSettings[0].background_blur !== details.blur) {
-      oldValues.blur = currentSettings[0].background_blur;
+    if (currentSettings.length > 0 && currentSettings[0].backgroundBlur !== details.blur) {
+      oldValues.blur = currentSettings[0].backgroundBlur;
     }
   }
   
   if (details.opacity !== undefined) {
-    const [currentSettings] = await pool.execute(
-      'SELECT background_opacity FROM user_settings WHERE user_id = 1'
+    const currentSettings = await db.select('user_settings', 
+      { userId: 1 }, 
+      { limit: 1 }
     );
-    if (currentSettings.length > 0 && currentSettings[0].background_opacity !== details.opacity) {
-      oldValues.opacity = currentSettings[0].background_opacity;
+    if (currentSettings.length > 0 && currentSettings[0].backgroundOpacity !== details.opacity) {
+      oldValues.opacity = currentSettings[0].backgroundOpacity;
     }
   }
   
   if (details.transparentPanels !== undefined) {
-    const [currentSettings] = await pool.execute(
-      'SELECT transparent_panels FROM user_settings WHERE user_id = 1'
+    const currentSettings = await db.select('user_settings', 
+      { userId: 1 }, 
+      { limit: 1 }
     );
     if (currentSettings.length > 0) {
-      oldValues.transparentPanels = currentSettings[0].transparent_panels === 1 ? false : true;
+      oldValues.transparentPanels = currentSettings[0].transparentPanels === 1 ? false : true;
     }
   }
   

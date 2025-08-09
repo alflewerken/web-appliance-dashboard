@@ -33,14 +33,14 @@ const BackgroundImage = ({
 
   // Ensure backgroundSettings has valid defaults
   const settings = {
-    enabled: backgroundSettings?.enabled ?? true, // DEFAULT TO TRUE!
+    enabled: backgroundSettings?.enabled ?? false,
     opacity: backgroundSettings?.opacity ?? 0.3,
     blur: backgroundSettings?.blur ?? 0,
     position: backgroundSettings?.position || 'center',
   };
 
-  // Always render if we have a background image URL
-  const shouldRender = currentBackground && currentBackground.url;
+  // Always render if we have a background image URL AND it's enabled
+  const shouldRender = currentBackground && currentBackground.url && settings.enabled;
 
   // Load image only when URL changes
   useEffect(() => {

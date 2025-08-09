@@ -81,8 +81,6 @@ const RustDeskInstaller = ({ open, onClose, appliance, onSuccess }) => {
   }, [appliance]);
 
   const handleInstall = async () => {
-    console.log('=== RustDesk Installation Started ===');
-    console.log('Appliance:', appliance);
     
     // Prevent any default browser behavior
     if (window.event) {
@@ -109,12 +107,14 @@ const RustDeskInstaller = ({ open, onClose, appliance, onSuccess }) => {
       // Start installation
       updateStep(0);
       
-      console.log('Installing RustDesk on appliance:', appliance.id);
       
-      // Debug: Log the exact URL being called
-      const installUrl = `/api/rustdeskInstall/${appliance.id}`;
-      console.log('Calling URL:', installUrl);
-      console.log('Full URL would be:', window.location.origin + installUrl);
+      // Determine if this is a host or appliance and use appropriate URL
+      const isHost = appliance.hostname !== undefined; // Hosts have hostname, appliances don't
+      const installUrl = isHost 
+        ? `/api/rustdeskInstall/host/${appliance.id}`
+        : `/api/rustdeskInstall/${appliance.id}`;
+      
+      console.log(`[RustDeskInstaller] Installing on ${isHost ? 'host' : 'appliance'} with URL:`, installUrl);
       
       const response = await axios.post(
         installUrl,
@@ -124,7 +124,6 @@ const RustDeskInstaller = ({ open, onClose, appliance, onSuccess }) => {
         }
       );
       
-      console.log('Installation response:', response.data);
 
       // Simulate progress through steps
       for (let i = 1; i <= 3; i++) {

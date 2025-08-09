@@ -180,6 +180,7 @@ function Dashboard() {
 
   const {
     apiCategories,
+    setApiCategories,
     categoriesLastUpdated,
     handleCategoriesUpdate,
     reorderCategories,
@@ -251,7 +252,6 @@ function Dashboard() {
     if (!showHostsView) return;
 
     const handleHostUpdated = (data) => {
-      console.log('Host updated in App.js:', data);
       // Reload hosts to get the latest data
       const loadHosts = async () => {
         try {
@@ -795,12 +795,10 @@ function Dashboard() {
   };
 
   const handleAddHost = () => {
-    console.log('handleAddHost called');
     // Create a new empty host object for the form
     const newHost = {
       isNew: true, // Flag to indicate this is a new host
     };
-    console.log('Setting selectedHostForPanel to:', newHost);
     setSelectedHostForPanel(newHost);
     setShowHostPanel(true);
   };
@@ -1016,6 +1014,15 @@ function Dashboard() {
   const handleReorderCategories = useCallback(
     async orderedCategories => {
       try {
+        // Sofort die lokale Reihenfolge aktualisieren für bessere UX
+        const reorderedCategories = [...apiCategories];
+        reorderedCategories.sort((a, b) => {
+          const orderA = orderedCategories.find(oc => oc.id === a.id)?.order ?? 999;
+          const orderB = orderedCategories.find(oc => oc.id === b.id)?.order ?? 999;
+          return orderA - orderB;
+        });
+        setApiCategories(reorderedCategories);
+        
         const token = localStorage.getItem('token');
         const response = await fetch('/api/categories/reorder', {
           method: 'PUT',
@@ -1028,12 +1035,15 @@ function Dashboard() {
 
         if (!response.ok) throw new Error('Failed to reorder categories');
 
+        // Kategorien vom Server neu laden um sicherzustellen, dass alles synchron ist
         await handleCategoriesUpdate();
       } catch (error) {
         console.error('Error reordering categories:', error);
+        // Bei Fehler die Kategorien neu vom Server laden
+        await handleCategoriesUpdate();
       }
     },
-    [handleCategoriesUpdate]
+    [apiCategories, setApiCategories, handleCategoriesUpdate]
   );
 
   // Calculate individual panel positions
@@ -1261,7 +1271,25 @@ function Dashboard() {
                       });
                       
                       if (response.data.success) {
-                        const guacamoleUrl = response.data.guacamoleUrl;
+                        let guacamoleUrl = response.data.guacamoleUrl;
+                        
+                        // Fix URL if port is missing
+                        // Check if URL contains the host but no port
+                        if (!guacamoleUrl.includes(':9080') && !guacamoleUrl.includes(':9443')) {
+                          // Extract protocol and host from URL
+                          const urlMatch = guacamoleUrl.match(/^(https?:\/\/)([^\/]+)(\/.*)?$/);
+                          if (urlMatch) {
+                            const protocol = urlMatch[1];
+                            const hostPart = urlMatch[2];
+                            const pathPart = urlMatch[3] || '';
+                            
+                            // If hostPart doesn't contain a port, add :9080
+                            if (!hostPart.includes(':')) {
+                              guacamoleUrl = `${protocol}${hostPart}:9080${pathPart}`;
+                            }
+                          }
+                        }
+                        
                         // Open in new window with specific dimensions
                         const width = 1280;
                         const height = 800;
@@ -1361,6 +1389,7 @@ function Dashboard() {
                 onDeleteBackground={deleteBackgroundImage}
                 onDisableBackground={disableBackground}
                 setBackgroundImages={setBackgroundImages}
+                loadCurrentBackground={loadCurrentBackground}
                 onTerminalOpen={handleTerminalOpen}
                 isAdmin={isAdmin}
                 onWidthChange={setSettingsPanelWidth}
@@ -1520,6 +1549,7 @@ function Dashboard() {
             onDeleteBackground={deleteBackgroundImage}
             onDisableBackground={disableBackground}
             setBackgroundImages={setBackgroundImages}
+            loadCurrentBackground={loadCurrentBackground}
             onTerminalOpen={handleTerminalOpen}
             isAdmin={isAdmin}
             onWidthChange={setSettingsPanelWidth}

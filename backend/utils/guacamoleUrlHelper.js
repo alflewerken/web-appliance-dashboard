@@ -22,6 +22,11 @@ const getGuacamoleUrl = (req) => {
     return 'http://localhost:9080';
   }
   
+  // Option 4: Wenn der Host keinen Port hat, füge den Standard-Port 9080 hinzu
+  if (host && !host.includes(':')) {
+    return `${protocol}://${host}:9080`;
+  }
+  
   return `${protocol}://${host}`;
 };
 

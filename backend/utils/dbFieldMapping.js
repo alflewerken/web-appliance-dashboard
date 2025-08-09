@@ -14,8 +14,8 @@ const DB_COLUMNS = {
   color: 'color',
   description: 'description',
   category: 'category',
-  isFavorite: 'isFavorite', // Note: camelCase in DB
-  lastUsed: 'lastUsed', // Note: camelCase in DB
+  isFavorite: 'is_favorite', // Fixed: DB uses snake_case
+  lastUsed: 'last_used', // Fixed: DB uses snake_case
 
   // Service Control Fields
   startCommand: 'start_command',
@@ -217,7 +217,18 @@ function mapJsToDb(jsObj) {
   if (jsObj.description !== undefined) dbObj.description = jsObj.description;
   if (jsObj.category !== undefined) dbObj.category = jsObj.category;
   if (jsObj.isFavorite !== undefined)
-    dbObj.isFavorite = jsObj.isFavorite ? 1 : 0;
+    dbObj.is_favorite = jsObj.isFavorite ? 1 : 0;  // Fixed: use is_favorite
+  if (jsObj.lastUsed !== undefined) {
+    // Convert to MySQL datetime format if it's a date string
+    if (typeof jsObj.lastUsed === 'string' && jsObj.lastUsed.includes('T')) {
+      dbObj.last_used = new Date(jsObj.lastUsed)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+    } else {
+      dbObj.last_used = jsObj.lastUsed;
+    }
+  }
 
   // Service Control Fields
   if (jsObj.startCommand !== undefined)
@@ -293,7 +304,7 @@ function mapJsToDb(jsObj) {
 function getSelectColumns() {
   return `
     id, name, url, description, icon, color, category, 
-    isFavorite, lastUsed,
+    is_favorite, last_used,
     start_command, 
     stop_command, 
     status_command,

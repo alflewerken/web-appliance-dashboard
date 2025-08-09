@@ -3,6 +3,8 @@ const router = express.Router();
 const { verifyToken, requireAdmin } = require('../utils/auth');
 const { createAuditLog } = require('../utils/auditLogger');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const { logger } = require('../utils/logger');
 const bcrypt = require('bcryptjs');
 const sseManager = require('../utils/sseManager');
@@ -14,9 +16,12 @@ const { getClientIp } = require('../utils/getClientIp');
 router.post('/host/:auditLogId', verifyToken, async (req, res) => {
   try {
     // Get the audit log entry
-    const [auditLog] = await pool.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "host_deleted"',
-      [req.params.auditLogId]
+    const auditLog = await db.select('audit_logs', 
+      { 
+        id: req.params.auditLogId,
+        action: 'host_deleted'
+      },
+      { limit: 1 }
     );
 
     if (auditLog.length === 0) {
@@ -65,40 +70,31 @@ router.post('/host/:auditLogId', verifyToken, async (req, res) => {
     };
 
     // Insert the host back into the database
-    const [result] = await pool.execute(`
-      INSERT INTO hosts (
-        name, description, hostname, port, username, password, private_key, sshKeyName,
-        icon, color, transparency, blur,
-        remote_desktop_enabled, remote_desktop_type, remote_protocol,
-        remote_port, remote_username, remote_password,
-        guacamole_performance_mode, rustdesk_id, rustdeskPassword,
-        created_by, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      hostData.name,
-      hostData.description,
-      hostData.hostname,
-      hostData.port,
-      hostData.username,
-      hostData.password,
-      hostData.private_key,
-      hostData.sshKeyName,
-      hostData.icon,
-      hostData.color,
-      hostData.transparency,
-      hostData.blur,
-      hostData.remote_desktop_enabled ? 1 : 0,
-      hostData.remote_desktop_type,
-      hostData.remote_protocol,
-      hostData.remote_port,
-      hostData.remote_username,
-      hostData.remote_password,
-      hostData.guacamolePerformanceMode,
-      hostData.rustdeskId,
-      hostData.rustdeskPassword,
-      hostData.created_by,
-      hostData.updated_by
-    ]);
+    const result = await db.insert('hosts', {
+      name: hostData.name,
+      description: hostData.description,
+      hostname: hostData.hostname,
+      port: hostData.port,
+      username: hostData.username,
+      password: hostData.password,
+      privateKey: hostData.private_key,
+      sshKeyName: hostData.sshKeyName,
+      icon: hostData.icon,
+      color: hostData.color,
+      transparency: hostData.transparency,
+      blur: hostData.blur,
+      remoteDesktopEnabled: hostData.remote_desktop_enabled ? 1 : 0,
+      remoteDesktopType: hostData.remote_desktop_type,
+      remoteProtocol: hostData.remote_protocol,
+      remotePort: hostData.remote_port,
+      remoteUsername: hostData.remote_username,
+      remotePassword: hostData.remote_password,
+      guacamolePerformanceMode: hostData.guacamolePerformanceMode,
+      rustdeskId: hostData.rustdeskId,
+      rustdeskPassword: hostData.rustdeskPassword,
+      createdBy: hostData.created_by,
+      updatedBy: hostData.updated_by
+    });
 
     // Create audit log for restoration
     await createAuditLog(
@@ -158,9 +154,13 @@ router.post('/host/:hostId/revert/:auditLogId', verifyToken, async (req, res) =>
     const { hostId, auditLogId } = req.params;
 
     // Get the audit log entry
-    const [auditLog] = await pool.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "host_updated" AND resource_id = ?',
-      [auditLogId, hostId]
+    const auditLog = await db.select('audit_logs', 
+      { 
+        id: auditLogId,
+        action: 'host_updated',
+        resourceId: hostId
+      },
+      { limit: 1 }
     );
 
     if (auditLog.length === 0) {
@@ -174,9 +174,12 @@ router.post('/host/:hostId/revert/:auditLogId', verifyToken, async (req, res) =>
     const details = JSON.parse(logEntry.details);
 
     // Check if user has permission
-    const [currentHost] = await pool.execute(
-      'SELECT * FROM hosts WHERE id = ? AND created_by = ?',
-      [hostId, req.user.id]
+    const currentHost = await db.select('hosts', 
+      { 
+        id: hostId,
+        createdBy: req.user.id
+      },
+      { limit: 1 }
     );
 
     if (currentHost.length === 0 && req.user.role !== 'admin') {

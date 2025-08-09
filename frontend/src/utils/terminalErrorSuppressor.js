@@ -19,7 +19,6 @@
             const iframeDoc = terminalIframe.contentDocument || terminalIframe.contentWindow.document;
             
             if (!iframeDoc) {
-                console.log('[Terminal] Waiting for iframe document...');
                 setTimeout(setupErrorSuppression, 100);
                 return;
             }
@@ -57,7 +56,6 @@
                         const msg = args[0] ? String(args[0]) : '';
                         if (msg.includes('maybe unknown option')) return;
                         if (msg.includes('WebGL renderer loaded')) {
-                            console.log('[ttyd]', msg);
                             return;
                         }
                         return originalWarn.apply(console, args);
@@ -72,8 +70,6 @@
                     };
                     
                     // Reduce ttyd verbosity
-                    const originalLog = console.log;
-                    console.log = function(...args) {
                         const msg = args[0] ? String(args[0]) : '';
                         if (msg.includes('[ttyd]') && 
                             (msg.includes('option:') || 
@@ -90,12 +86,10 @@
             const target = iframeDoc.head || iframeDoc.body;
             if (target) {
                 target.insertBefore(script, target.firstChild);
-                console.log('[Terminal] Error suppression activated');
             }
             
         } catch (e) {
             // Cross-origin iframe, try a different approach
-            console.log('[Terminal] Cross-origin iframe detected, using alternative approach');
             
             // Override in parent window
             const originalWarn = console.warn;

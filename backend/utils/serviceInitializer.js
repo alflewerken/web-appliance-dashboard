@@ -41,6 +41,15 @@ async function initializeServices() {
   } catch (error) {
     // Silently ignore
   }
+  
+  // 3a. Restore SSH keys from database to filesystem
+  try {
+    console.log('🔑 Restoring SSH keys from database...');
+    const { restoreSSHKeys } = require('../scripts/restore-ssh-keys');
+    await restoreSSHKeys();
+  } catch (error) {
+    console.log('⚠️ Failed to restore SSH keys:', error.message);
+  }
 
   // 4. Regenerate SSH config after restore
   try {
