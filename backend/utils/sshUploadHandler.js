@@ -126,19 +126,22 @@ const handleSSHUpload = async (req, res) => {
     // Check if we need password authentication
     const authPassword = password || host.password;
     const hasPrivateKey = !!host.private_key; // Has key in database
+    const hasSSHKeyName = !!host.ssh_key_name; // Has SSH key name configured
     const hasPassword = !!authPassword;
     
-    // Use password only if explicitly provided
-    const usePassword = hasPassword;
+    // Use password only if NO SSH key is available (prefer SSH keys over passwords)
+    const usePassword = hasPassword && !hasPrivateKey && !hasSSHKeyName;
     
     console.log('DEBUG: Authentication analysis:', {
       hasPrivateKey,
+      hasSSHKeyName,
       hasPassword,
       usePassword
     });
     
     console.log('DEBUG: Authentication method:', usePassword ? 'password' : 'key');
     console.log('DEBUG: Has private_key:', !!host.private_key);
+    console.log('DEBUG: Has ssh_key_name:', !!host.ssh_key_name);
     console.log('DEBUG: Has ssh_key_id:', !!host.ssh_key_id);
     
     // Create temporary key file if private_key is in database

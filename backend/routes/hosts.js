@@ -220,6 +220,10 @@ router.patch('/:id', verifyToken, async (req, res) => {
   try {
     const hostId = req.params.id;
     
+    // Debug logging
+    console.log('PATCH /api/hosts/' + hostId);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     // Check if host exists and user owns it
     const existingHost = await db.findOne('hosts', {
       id: hostId,
@@ -314,8 +318,18 @@ router.patch('/:id', verifyToken, async (req, res) => {
       changedFields.push('remotePort');
     }
     if (remoteUsername !== undefined && remoteUsername !== existingHost.remoteUsername) {
+      console.log('Remote username changed from', existingHost.remoteUsername, 'to', remoteUsername);
       updateData.remoteUsername = remoteUsername;
       changedFields.push('remoteUsername');
+    }
+    if (remotePassword !== undefined) {
+      console.log('Remote password provided:', remotePassword ? 'yes (length: ' + remotePassword.length + ')' : 'empty/null');
+      // For passwords, we can't compare hashed values directly
+      // So we check if a new password is provided
+      if (remotePassword !== '') {
+        // Will be hashed below
+        changedFields.push('remotePassword');
+      }
     }
     if (guacamolePerformanceMode !== undefined && guacamolePerformanceMode !== existingHost.guacamolePerformanceMode) {
       updateData.guacamolePerformanceMode = guacamolePerformanceMode;
@@ -326,28 +340,56 @@ router.patch('/:id', verifyToken, async (req, res) => {
       changedFields.push('rustdeskId');
     }
 
-    // Handle password updates (only update if provided AND not empty)
-    if (password && password !== '') {
-      updateData.password = await bcrypt.hash(password, 10);
-      changedFields.push('password');
+    // Handle password updates
+    // If password is explicitly sent (even if empty), update it
+    if (password !== undefined) {
+      if (password === '' || password === null) {
+        // Clear the password
+        updateData.password = null;
+        if (!changedFields.includes('password')) changedFields.push('password');
+      } else {
+        // Hash and store new password
+        updateData.password = await bcrypt.hash(password, 10);
+        if (!changedFields.includes('password')) changedFields.push('password');
+      }
     }
-    if (remotePassword && remotePassword !== '') {
-      updateData.remotePassword = await bcrypt.hash(remotePassword, 10);
-      changedFields.push('remotePassword');
+    
+    if (remotePassword !== undefined) {
+      if (remotePassword === '' || remotePassword === null) {
+        // Clear the password
+        updateData.remotePassword = null;
+        if (!changedFields.includes('remotePassword')) changedFields.push('remotePassword');
+      } else {
+        // Hash and store new password
+        updateData.remotePassword = await bcrypt.hash(remotePassword, 10);
+        if (!changedFields.includes('remotePassword')) changedFields.push('remotePassword');
+      }
     }
-    if (rustdeskPassword && rustdeskPassword !== '') {
-      updateData.rustdeskPassword = await bcrypt.hash(rustdeskPassword, 10);
-      changedFields.push('rustdeskPassword');
+    
+    if (rustdeskPassword !== undefined) {
+      if (rustdeskPassword === '' || rustdeskPassword === null) {
+        // Clear the password
+        updateData.rustdeskPassword = null;
+        if (!changedFields.includes('rustdeskPassword')) changedFields.push('rustdeskPassword');
+      } else {
+        // Hash and store new password
+        updateData.rustdeskPassword = await bcrypt.hash(rustdeskPassword, 10);
+        if (!changedFields.includes('rustdeskPassword')) changedFields.push('rustdeskPassword');
+      }
     }
 
     // If no actual changes (besides updatedAt/updatedBy), return early
     if (changedFields.length === 0) {
+      console.log('No changes detected');
       return res.json({
         success: true,
         message: 'No changes detected',
         host: existingHost
       });
     }
+    
+    console.log('Changed fields:', changedFields);
+    console.log('Update data:', updateData);
 
     // Apply the updates
     await db.update('hosts', updateData, { id: hostId });
@@ -361,7 +403,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
         try {
           await syncGuacamoleConnection({
             ...updatedHost,
-            remotePassword: remotePassword // Pass unencrypted password if provided
+            // Pass the plain text password if it was just changed, otherwise it's already hashed in DB
+            remotePassword: remotePassword || updatedHost.remotePassword
           });
         } catch (guacError) {
           logger.error('Failed to update Guacamole connection:', guacError);

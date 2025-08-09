@@ -457,7 +457,7 @@ const HostPanel = ({
           remotePort: formData.remotePort ? parseInt(formData.remotePort) : null,
           remoteUsername: formData.remoteUsername,
           remotePassword: formData.remotePassword,
-          guacamole_performance_mode: formData.guacamole_performance_mode,
+          guacamolePerformanceMode: formData.guacamolePerformanceMode,
           rustdeskId: formData.rustdeskId,
           rustdeskPassword: formData.rustdeskPassword,
         };
@@ -1058,19 +1058,19 @@ const HostPanel = ({
                           label="Remote Port"
                           type="number"
                           value={formData.remotePort || (formData.remoteProtocol === 'rdp' ? 3389 : 5900)}
-                          onChange={(e) => handleInputChange('remote_port', parseInt(e.target.value) || '')}
+                          onChange={(e) => handleInputChange('remotePort', parseInt(e.target.value) || '')}
                           margin="normal"
-                          placeholder={formData.remote_protocol === 'rdp' ? '3389' : '5900'}
+                          placeholder={formData.remoteProtocol === 'rdp' ? '3389' : '5900'}
                           sx={textFieldStyles}
                         />
 
                         <TextField
                           fullWidth
                           label="Remote Benutzername"
-                          value={formData.remote_username}
-                          onChange={(e) => handleInputChange('remote_username', e.target.value)}
+                          value={formData.remoteUsername}
+                          onChange={(e) => handleInputChange('remoteUsername', e.target.value)}
                           margin="normal"
-                          helperText={formData.remote_protocol === 'vnc' ? 'Optional für VNC' : 'Erforderlich für RDP'}
+                          helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC' : 'Erforderlich für RDP'}
                           sx={textFieldStyles}
                         />
 
@@ -1078,8 +1078,8 @@ const HostPanel = ({
                           fullWidth
                           label="Remote Passwort"
                           type="password"
-                          value={formData.remote_password}
-                          onChange={(e) => handleInputChange('remote_password', e.target.value)}
+                          value={formData.remotePassword}
+                          onChange={(e) => handleInputChange('remotePassword', e.target.value)}
                           margin="normal"
                           helperText="Wird verschlüsselt gespeichert"
                           sx={textFieldStyles}
