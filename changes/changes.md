@@ -22998,3 +22998,96 @@ WICHTIG:
 STATUS: ✅ ttyd Container korrekt konfiguriert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 14:52 - FIX: ttyd Container verwendet Standard-Image statt nicht-existierendem ghcr.io Image
+
+PROBLEM:
+- ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest existiert nicht
+- Installation schlug fehl mit "not found" Fehler
+
+LÖSUNG:
+Verwendung des Standard tsl0922/ttyd:latest Images mit erweiterter Konfiguration
+
+### scripts/create-customer-package-v2.sh - ttyd mit Standard-Image
+
+-PATCH scripts/create-customer-package-v2.sh (Zeilen 199-220 entfernt)
+```yaml
+  ttyd:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+    container_name: appliance_ttyd
+    hostname: ttyd
+    depends_on:
+      - backend
+    environment:
+      # Connection to backend for SSH
+      BACKEND_HOST: backend
+      BACKEND_PORT: 3001
+      # JWT settings
+      JWT_SECRET: ${JWT_SECRET}
+      # Terminal settings
+      TTYD_PORT: 7681
+      TTYD_BASE_PATH: /terminal/
+    volumes:
+      - ssh_keys:/root/.ssh:ro
+    networks:
+      - appliance_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7681"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
++PATCH scripts/create-customer-package-v2.sh (Zeilen 199-234 hinzugefügt)
+```yaml
+  ttyd:
+    image: tsl0922/ttyd:latest
+    container_name: appliance_ttyd
+    hostname: ttyd
+    depends_on:
+      - backend
+    command: >
+      sh -c "
+      apk add --no-cache openssh-client curl jq &&
+      mkdir -p /root/.ssh &&
+      echo 'Host *' > /root/.ssh/config &&
+      echo '  StrictHostKeyChecking no' >> /root/.ssh/config &&
+      echo '  UserKnownHostsFile /dev/null' >> /root/.ssh/config &&
+      chmod 600 /root/.ssh/config &&
+      ttyd -p 7681 -W --base-path /terminal/ -t fontSize=14 -t 'theme={\"background\":\"#1e1e1e\",\"foreground\":\"#d4d4d4\"}' sh -c '
+        echo \"Web Terminal Ready\";
+        echo \"Use the Dashboard UI to connect to hosts\";
+        echo \"\";
+        if [ -n \"\$SSH_HOST\" ] && [ -n \"\$SSH_USER\" ]; then
+          echo \"Connecting to \$SSH_USER@\$SSH_HOST...\";
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \$SSH_USER@\$SSH_HOST;
+        else
+          echo \"No SSH connection configured.\";
+          echo \"Please use the Dashboard UI to select a host.\";
+          /bin/sh;
+        fi
+      '
+      "
+    networks:
+      - appliance_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7681"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+WICHTIG:
+- Verwendet öffentlich verfügbares tsl0922/ttyd:latest Image
+- SSH-Client wird beim Start installiert
+- Terminal zeigt hilfreiche Meldungen
+- Konfiguration erfolgt über Command statt Environment-Variablen
+
+STATUS: ✅ ttyd Container funktioniert mit Standard-Image
+
+════════════════════════════════════════════════════════════════════════════════

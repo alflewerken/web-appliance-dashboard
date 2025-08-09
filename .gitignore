@@ -104,3 +104,7 @@ venv/
 .electron/
 electron-builder.yml
 !electron-builder.json
+
+# Customer Package
+customer-package/
+/scripts/create-customer-package-v2.sh

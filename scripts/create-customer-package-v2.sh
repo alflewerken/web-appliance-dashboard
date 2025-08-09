@@ -190,22 +190,33 @@ services:
       retries: 5
 
   ttyd:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+    image: tsl0922/ttyd:latest
     container_name: appliance_ttyd
     hostname: ttyd
     depends_on:
       - backend
-    environment:
-      # Connection to backend for SSH
-      BACKEND_HOST: backend
-      BACKEND_PORT: 3001
-      # JWT settings
-      JWT_SECRET: ${JWT_SECRET}
-      # Terminal settings
-      TTYD_PORT: 7681
-      TTYD_BASE_PATH: /terminal/
-    volumes:
-      - ssh_keys:/root/.ssh:ro
+    command: >
+      sh -c "
+      apk add --no-cache openssh-client curl jq &&
+      mkdir -p /root/.ssh &&
+      echo 'Host *' > /root/.ssh/config &&
+      echo '  StrictHostKeyChecking no' >> /root/.ssh/config &&
+      echo '  UserKnownHostsFile /dev/null' >> /root/.ssh/config &&
+      chmod 600 /root/.ssh/config &&
+      ttyd -p 7681 -W --base-path /terminal/ -t fontSize=14 -t 'theme={\"background\":\"#1e1e1e\",\"foreground\":\"#d4d4d4\"}' sh -c '
+        echo \"Web Terminal Ready\";
+        echo \"Use the Dashboard UI to connect to hosts\";
+        echo \"\";
+        if [ -n \"\$SSH_HOST\" ] && [ -n \"\$SSH_USER\" ]; then
+          echo \"Connecting to \$SSH_USER@\$SSH_HOST...\";
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \$SSH_USER@\$SSH_HOST;
+        else
+          echo \"No SSH connection configured.\";
+          echo \"Please use the Dashboard UI to select a host.\";
+          /bin/sh;
+        fi
+      '
+      "
     networks:
       - appliance_network
     restart: unless-stopped
