@@ -23091,3 +23091,34 @@ WICHTIG:
 STATUS: ✅ ttyd Container funktioniert mit Standard-Image
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 15:52 - FIX: Fehlende terminal_sessions Volume-Definition im Customer Package
+
+PROBLEM:
+- docker-compose Fehler: "service 'ttyd' refers to undefined volume terminal_sessions"
+- Volume wurde im ttyd Service referenziert aber nicht definiert
+
+LÖSUNG:
+terminal_sessions Volume zur Volume-Liste hinzugefügt
+
+### scripts/create-customer-package-v2.sh - Volume Definition ergänzt
+
+-PATCH scripts/create-customer-package-v2.sh (Zeilen in volumes section)
+```yaml
+volumes:
+  db_data:
+  backend_uploads:
+  backend_logs:
+  ssh_keys:
++  terminal_sessions:
+  guacamole_home:
+  guacamole_postgres_data:
+  rustdesk_data:
+```
+
+STATUS: ✅ Customer Package hat jetzt alle benötigten Volumes definiert
+
+════════════════════════════════════════════════════════════════════════════════

@@ -276,6 +276,7 @@ volumes:
   backend_uploads:
   backend_logs:
   ssh_keys:
+  terminal_sessions:
   guacamole_home:
   guacamole_postgres_data:
   rustdesk_data:
