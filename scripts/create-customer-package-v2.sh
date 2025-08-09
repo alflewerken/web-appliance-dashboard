@@ -190,17 +190,18 @@ services:
       retries: 5
 
   ttyd:
-    image: wettyoss/wetty:latest
+    image: tsl0922/ttyd:latest
     container_name: appliance_ttyd
     hostname: ttyd
-    environment:
-      SSHHOST: backend
-      SSHPORT: 22
-      SSHUSER: root
-      WETTY_PORT: 3000
+    command: ["ttyd", "-p", "7681", "-W", "--base-path", "/terminal/", "bash", "-c", "echo 'Terminal proxy - use appliance cards for SSH connections'"]
     networks:
       - appliance_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7681"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   guacd:
     image: guacamole/guacd:latest
@@ -344,10 +345,152 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
         
-        # Terminal (ttyd/wetty) - with error handling
+        # Terminal WebSocket API endpoints - HIGHEST PRIORITY
+        location ~ ^/api/terminal/(.*)$ {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            
+            # WebSocket specific headers
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket specific settings
+            proxy_cache_bypass $http_upgrade;
+            proxy_buffering off;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            proxy_connect_timeout 10s;
+        }
+        
+        # Terminal session WebSocket endpoint
+        location = /api/terminal-session {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            
+            # WebSocket specific headers
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket specific settings
+            proxy_cache_bypass $http_upgrade;
+            proxy_buffering off;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            proxy_connect_timeout 10s;
+        }
+        
+        # Terminal token endpoint
+        location = /terminal/token {
+            # Return a dummy JSON response to satisfy ttyd
+            add_header Content-Type application/json;
+            return 200 '{"success": true, "token": "dummy-token"}';
+        }
+        
+        # ttyd Web Terminal proxy
+        location /terminal/ {
+            set $ttyd_upstream ttyd:7681;
+            proxy_pass http://$ttyd_upstream/;
+            proxy_http_version 1.1;
+            
+            # WebSocket support
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            
+            # Headers
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Authorization $http_authorization;
+            
+            # Disable buffering for real-time terminal
+            proxy_buffering off;
+            proxy_cache off;
+            
+            # Timeouts
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            proxy_connect_timeout 60s;
+            
+            # Frame options for iframe embedding
+            add_header X-Frame-Options "SAMEORIGIN";
+            
+            # Return 503 if service unavailable
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @service_unavailable;
+        }
+        
+        # ttyd Web Terminal proxy - v1 compatibility with appliance ID
+        location ~ ^/terminal/v1/(\d+)$ {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        
+        # ttyd Web Terminal proxy - v1 compatibility (static)
+        location /terminal/v1 {
+            set $ttyd_upstream ttyd:7681;
+            proxy_pass http://$ttyd_upstream/;
+            proxy_http_version 1.1;
+            
+            # WebSocket support
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            
+            # Headers
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Authorization $http_authorization;
+            
+            # Disable buffering for real-time terminal
+            proxy_buffering off;
+            proxy_cache off;
+            
+            # Timeouts
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            proxy_connect_timeout 60s;
+            
+            # Frame options for iframe embedding
+            add_header X-Frame-Options "SAMEORIGIN";
+        }
+        
+        # ttyd WebSocket specific route
+        location /terminal/ws {
+            set $ttyd_upstream ttyd:7681;
+            proxy_pass http://$ttyd_upstream/ws;
+            proxy_http_version 1.1;
+            
+            # WebSocket headers
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            
+            # No buffering for WebSocket
+            proxy_buffering off;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+        }
+        
+        # Wetty terminal (fallback if ttyd not available) - with error handling
         location /wetty/ {
-            set $ttyd_upstream ttyd:3000;
-            proxy_pass http://$ttyd_upstream/wetty/;
+            set $wetty_upstream ttyd:3000;
+            proxy_pass http://$wetty_upstream/wetty/;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
