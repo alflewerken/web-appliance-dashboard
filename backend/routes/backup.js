@@ -2089,6 +2089,128 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         }
       }
 
+      // ALWAYS regenerate SSH keys for all users after restore (regardless of SSH restore)
+      console.log('🔑 Regenerating SSH keys for all users after restore...');
+      try {
+        const [users] = await connection.execute('SELECT id, username FROM users');
+        
+        if (users.length > 0) {
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
+          const fs = require('fs').promises;
+          const sshDir = '/root/.ssh';
+          
+          // Ensure SSH directory exists
+          await fs.mkdir(sshDir, { recursive: true });
+          await fs.chmod(sshDir, 0o700);
+          
+          let keysGenerated = 0;
+          let keysFailed = 0;
+          
+          for (const user of users) {
+            try {
+              const privateKeyPath = path.join(sshDir, `id_rsa_user${user.id}_dashboard`);
+              const publicKeyPath = `${privateKeyPath}.pub`;
+              
+              // Check if key already exists
+              const keyExists = await fs.access(privateKeyPath).then(() => true).catch(() => false);
+              
+              if (!keyExists) {
+                // Generate new key
+                const keygenCmd = `ssh-keygen -t rsa -b 2048 -f "${privateKeyPath}" -N "" -C "dashboard@${user.username}"`;
+                await execAsync(keygenCmd, { timeout: 10000 });
+                
+                // Set proper permissions
+                await fs.chmod(privateKeyPath, 0o600);
+                await fs.chmod(publicKeyPath, 0o644);
+                
+                // Read the generated keys
+                const privateKey = await fs.readFile(privateKeyPath, 'utf8');
+                const publicKey = await fs.readFile(publicKeyPath, 'utf8');
+                
+                // Get fingerprint
+                const { stdout: fingerprint } = await execAsync(
+                  `ssh-keygen -lf "${publicKeyPath}" | awk '{print $2}'`,
+                  { timeout: 5000 }
+                );
+                
+                // IMPORTANT: Store in database so it's included in future backups!
+                await connection.execute(
+                  `INSERT INTO ssh_keys (key_name, key_type, key_size, comment, public_key, private_key, fingerprint, created_by, created_at, updated_at) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                  [
+                    'dashboard',  // All user keys are named 'dashboard' in the DB
+                    'rsa',
+                    2048,
+                    `dashboard@${user.username}`,
+                    publicKey.trim(),
+                    privateKey,
+                    fingerprint.trim(),
+                    user.id
+                  ]
+                );
+                
+                keysGenerated++;
+                console.log(`  ✓ Generated and stored SSH key for user ${user.username} (ID: ${user.id})`);
+              } else {
+                // Key exists in filesystem, but might not be in database - check and add if missing
+                console.log(`  ℹ️ SSH key file exists for user ${user.username} (ID: ${user.id}), checking database...`);
+                
+                // Check if key is in database
+                const [dbKeys] = await connection.execute(
+                  'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by = ?',
+                  ['dashboard', user.id]
+                );
+                
+                if (dbKeys.length === 0) {
+                  // Key not in database, add it
+                  const privateKey = await fs.readFile(privateKeyPath, 'utf8');
+                  const publicKey = await fs.readFile(publicKeyPath, 'utf8');
+                  
+                  // Get fingerprint
+                  const { stdout: fingerprint } = await execAsync(
+                    `ssh-keygen -lf "${publicKeyPath}" | awk '{print $2}'`,
+                    { timeout: 5000 }
+                  );
+                  
+                  await connection.execute(
+                    `INSERT INTO ssh_keys (key_name, key_type, key_size, comment, public_key, private_key, fingerprint, created_by, created_at, updated_at) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                    [
+                      'dashboard',
+                      'rsa',
+                      2048,
+                      `dashboard@${user.username}`,
+                      publicKey.trim(),
+                      privateKey,
+                      fingerprint.trim(),
+                      user.id
+                    ]
+                  );
+                  
+                  console.log(`  ✅ Added existing SSH key to database for user ${user.username} (ID: ${user.id})`);
+                } else {
+                  console.log(`  ✓ SSH key already in database for user ${user.username} (ID: ${user.id})`);
+                }
+              }
+            } catch (error) {
+              keysFailed++;
+              console.log(`  ⚠️ Failed to generate SSH key for user ${user.username}: ${error.message}`);
+            }
+          }
+          
+          if (keysGenerated > 0) {
+            console.log(`✅ Generated ${keysGenerated} SSH keys`);
+          }
+          if (keysFailed > 0) {
+            console.log(`⚠️ Failed to generate ${keysFailed} SSH keys`);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error regenerating user SSH keys:', error.message);
+      }
+
       // Run post-restore hook with timeout - DISABLED to prevent hanging
       console.log('🔧 Post-restore hook disabled to prevent hanging issues');
       // The SSH regeneration is already done above, so the hook is redundant

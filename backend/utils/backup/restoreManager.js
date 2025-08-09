@@ -497,6 +497,9 @@ class RestoreManager {
 
     // Regenerate SSH config
     await this.regenerateSSHConfig();
+    
+    // Regenerate SSH keys for all users
+    await this.regenerateUserSSHKeys(connection);
 
     // Recreate Guacamole connections for remote desktop
     await this.recreateGuacamoleConnections();
@@ -543,6 +546,70 @@ class RestoreManager {
       this.log('info', '  ✓ SSH config regenerated');
     } catch (error) {
       this.log('warn', '  ⚠️ Could not regenerate SSH config:', error.message);
+    }
+  }
+
+  // Regenerate SSH keys for all users after restore
+  async regenerateUserSSHKeys(connection) {
+    try {
+      this.log('info', '  🔑 Regenerating SSH keys for all users...');
+      
+      // Get all users from database
+      const [users] = await connection.execute('SELECT id, username FROM users');
+      
+      if (users.length === 0) {
+        this.log('info', '    ℹ️ No users found to regenerate keys for');
+        return;
+      }
+      
+      const sshDir = '/root/.ssh';
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+      
+      // Ensure SSH directory exists
+      await fs.mkdir(sshDir, { recursive: true, mode: 0o700 });
+      
+      let keysGenerated = 0;
+      let keysFailed = 0;
+      
+      for (const user of users) {
+        try {
+          const privateKeyPath = path.join(sshDir, `id_rsa_user${user.id}_dashboard`);
+          const publicKeyPath = `${privateKeyPath}.pub`;
+          
+          // Check if key already exists
+          const keyExists = await fs.access(privateKeyPath).then(() => true).catch(() => false);
+          
+          if (!keyExists) {
+            // Generate new key
+            const keygenCmd = `ssh-keygen -t rsa -b 2048 -f "${privateKeyPath}" -N "" -C "dashboard@${user.username}"`;
+            await execAsync(keygenCmd, { timeout: 10000 });
+            
+            // Set proper permissions
+            await fs.chmod(privateKeyPath, 0o600);
+            await fs.chmod(publicKeyPath, 0o644);
+            
+            keysGenerated++;
+            this.log('info', `    ✓ Generated SSH key for user ${user.username} (ID: ${user.id})`);
+          } else {
+            this.log('info', `    ℹ️ SSH key already exists for user ${user.username} (ID: ${user.id})`);
+          }
+        } catch (error) {
+          keysFailed++;
+          this.log('warn', `    ⚠️ Failed to generate SSH key for user ${user.username}: ${error.message}`);
+        }
+      }
+      
+      if (keysGenerated > 0) {
+        this.log('info', `  ✓ Generated ${keysGenerated} SSH keys`);
+      }
+      if (keysFailed > 0) {
+        this.log('warn', `  ⚠️ Failed to generate ${keysFailed} SSH keys`);
+      }
+      
+    } catch (error) {
+      this.log('error', `  ❌ Error regenerating user SSH keys: ${error.message}`);
     }
   }
 

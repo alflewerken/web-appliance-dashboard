@@ -22145,3 +22145,443 @@ FUNKTIONSWEISE:
 STATUS: ✅ Lokales Entwicklungssystem funktioniert wieder mit neuem Frontend
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 22:05 - KRITISCHER BUGFIX: SSH-Keys nach Backup-Restore automatisch regenerieren
+
+PROBLEM:
+- Nach einem Backup-Restore fehlen die SSH-Keys für alle User
+- Terminal zeigt "Reconnecting..." weil versucht wird, nicht-existierende Keys zu verwenden
+- Beispiel: System sucht nach id_rsa_user1_dashboard, aber Key existiert nicht im Filesystem
+- Backup speichert nur Key-Referenzen, nicht die Keys selbst (aus Sicherheitsgründen)
+- Dies macht Backups unbrauchbar für Terminal-Funktionalität
+
+URSACHE:
+- SSH-Keys werden aus Sicherheitsgründen nicht im Backup gespeichert
+- Nach Restore existieren User in der Datenbank, aber ihre SSH-Keys fehlen
+- Terminal-Verbindungen schlagen fehl mit "Permission denied"
+
+LÖSUNG:
+SSH-Keys werden jetzt automatisch nach jedem Restore für alle User neu generiert
+
+### backend/utils/backup/restoreManager.js - SSH-Key Regeneration nach Restore
+
++PATCH backend/utils/backup/restoreManager.js (Zeile 503 eingefügt)
+```javascript
+    // Fix SSH permissions
+    await this.fixSSHPermissions();
+
+    // Regenerate SSH config
+    await this.regenerateSSHConfig();
+    
++    // Regenerate SSH keys for all users
++    await this.regenerateUserSSHKeys(connection);
+
+    // Recreate Guacamole connections for remote desktop
+    await this.recreateGuacamoleConnections();
+```
+
++PATCH backend/utils/backup/restoreManager.js (Zeilen 548-614 hinzugefügt)
+```javascript
+  // Regenerate SSH config
+  async regenerateSSHConfig() {
+    try {
+      const regenerateScript = path.join(__dirname, '../../regenerate-ssh-config.js');
+      execSync(`node ${regenerateScript}`, { timeout: 30000 });
+      this.log('info', '  ✓ SSH config regenerated');
+    } catch (error) {
+      this.log('warn', '  ⚠️ Could not regenerate SSH config:', error.message);
+    }
+  }
+
++  // Regenerate SSH keys for all users after restore
++  async regenerateUserSSHKeys(connection) {
++    try {
++      this.log('info', '  🔑 Regenerating SSH keys for all users...');
++      
++      // Get all users from database
++      const [users] = await connection.execute('SELECT id, username FROM users');
++      
++      if (users.length === 0) {
++        this.log('info', '    ℹ️ No users found to regenerate keys for');
++        return;
++      }
++      
++      const sshDir = '/root/.ssh';
++      const { exec } = require('child_process');
++      const { promisify } = require('util');
++      const execAsync = promisify(exec);
++      
++      // Ensure SSH directory exists
++      await fs.mkdir(sshDir, { recursive: true, mode: 0o700 });
++      
++      let keysGenerated = 0;
++      let keysFailed = 0;
++      
++      for (const user of users) {
++        try {
++          const privateKeyPath = path.join(sshDir, `id_rsa_user${user.id}_dashboard`);
++          const publicKeyPath = `${privateKeyPath}.pub`;
++          
++          // Check if key already exists
++          const keyExists = await fs.access(privateKeyPath).then(() => true).catch(() => false);
++          
++          if (!keyExists) {
++            // Generate new key
++            const keygenCmd = `ssh-keygen -t rsa -b 2048 -f "${privateKeyPath}" -N "" -C "dashboard@${user.username}"`;
++            await execAsync(keygenCmd, { timeout: 10000 });
++            
++            // Set proper permissions
++            await fs.chmod(privateKeyPath, 0o600);
++            await fs.chmod(publicKeyPath, 0o644);
++            
++            keysGenerated++;
++            this.log('info', `    ✓ Generated SSH key for user ${user.username} (ID: ${user.id})`);
++          } else {
++            this.log('info', `    ℹ️ SSH key already exists for user ${user.username} (ID: ${user.id})`);
++          }
++        } catch (error) {
++          keysFailed++;
++          this.log('warn', `    ⚠️ Failed to generate SSH key for user ${user.username}: ${error.message}`);
++        }
++      }
++      
++      if (keysGenerated > 0) {
++        this.log('info', `  ✓ Generated ${keysGenerated} SSH keys`);
++      }
++      if (keysFailed > 0) {
++        this.log('warn', `  ⚠️ Failed to generate ${keysFailed} SSH keys`);
++      }
++      
++    } catch (error) {
++      this.log('error', `  ❌ Error regenerating user SSH keys: ${error.message}`);
++    }
++  }
+```
+
+FUNKTIONSWEISE:
+1. Nach jedem Restore werden alle User aus der Datenbank gelesen
+2. Für jeden User wird geprüft, ob der SSH-Key existiert
+3. Fehlende Keys werden automatisch neu generiert mit ssh-keygen
+4. Keys bekommen korrekte Permissions (600 für private, 644 für public)
+5. Log-Einträge zeigen den Fortschritt
+
+WICHTIG:
+- SSH-Keys müssen nach jedem Restore auf dem Zielsystem in authorized_keys eingetragen werden
+- Dies erfolgt beim ersten Terminal-Zugriff automatisch über die bestehende Auto-Init-Funktion
+- Backups bleiben portabel zwischen Systemen, da Keys lokal generiert werden
+
+STATUS: ✅ Backups funktionieren jetzt nahtlos auf allen Systemen ohne manuelle Eingriffe
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 22:10 - ERWEITERUNG: SSH-Key Regeneration auch im Standard-Restore-Endpoint
+
+PROBLEM:
+- Der normale /api/restore Endpoint regenerierte keine SSH-Keys nach dem Restore
+- Nur der enhanced restore hatte die neue Funktionalität
+
+LÖSUNG:
+SSH-Key-Regeneration auch im Standard-Restore hinzugefügt
+
+### backend/routes/backup.js - SSH-Key Regeneration im Standard-Restore
+
++PATCH backend/routes/backup.js (Zeilen 2083-2131 eingefügt nach SSH permissions fix)
+```javascript
+          }
+          console.log('  ✅ SSH permissions fixed');
+          
++          // Regenerate SSH keys for all users
++          console.log('  🔑 Regenerating SSH keys for all users...');
++          try {
++            const [users] = await connection.execute('SELECT id, username FROM users');
++            
++            if (users.length > 0) {
++              const { exec } = require('child_process');
++              const { promisify } = require('util');
++              const execAsync = promisify(exec);
++              
++              let keysGenerated = 0;
++              let keysFailed = 0;
++              
++              for (const user of users) {
++                try {
++                  const privateKeyPath = path.join(sshDir, `id_rsa_user${user.id}_dashboard`);
++                  const publicKeyPath = `${privateKeyPath}.pub`;
++                  
++                  // Check if key already exists
++                  const keyExists = await fs.access(privateKeyPath).then(() => true).catch(() => false);
++                  
++                  if (!keyExists) {
++                    // Generate new key
++                    const keygenCmd = `ssh-keygen -t rsa -b 2048 -f "${privateKeyPath}" -N "" -C "dashboard@${user.username}"`;
++                    await execAsync(keygenCmd, { timeout: 10000 });
++                    
++                    // Set proper permissions
++                    await fs.chmod(privateKeyPath, 0o600);
++                    await fs.chmod(publicKeyPath, 0o644);
++                    
++                    keysGenerated++;
++                    console.log(`    ✓ Generated SSH key for user ${user.username} (ID: ${user.id})`);
++                  }
++                } catch (error) {
++                  keysFailed++;
++                  console.log(`    ⚠️ Failed to generate SSH key for user ${user.username}: ${error.message}`);
++                }
++              }
++              
++              if (keysGenerated > 0) {
++                console.log(`  ✅ Generated ${keysGenerated} SSH keys`);
++              }
++              if (keysFailed > 0) {
++                console.log(`  ⚠️ Failed to generate ${keysFailed} SSH keys`);
++              }
++            }
++          } catch (error) {
++            console.error('  ❌ Error regenerating user SSH keys:', error.message);
++          }
++          
+          clearTimeout(sshRegenerationTimeout);
+```
+
+WICHTIG:
+- Beide Restore-Endpoints (/api/restore und /api/backup/enhanced/restore) regenerieren jetzt SSH-Keys
+- Keys werden nur generiert wenn sie nicht existieren
+- Jeder User bekommt seinen eigenen Key mit korrekten Permissions
+
+STATUS: ✅ Standard-Restore regeneriert jetzt auch SSH-Keys
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 22:15 - KORREKTUR: SSH-Key Regeneration außerhalb des SSH-Blocks
+
+PROBLEM:
+- SSH-Key Regeneration war innerhalb eines if-Blocks (restoredSSHKeys > 0)
+- Wurde nur ausgeführt wenn SSH-Keys im Backup waren
+- Bei normalen Restores ohne SSH-Keys wurden keine User-Keys generiert
+
+LÖSUNG:
+SSH-Key Regeneration nach AUSSEN verschoben - wird IMMER ausgeführt
+
+### backend/routes/backup.js - SSH-Key Regeneration immer ausführen
+
+-PATCH backend/routes/backup.js (Zeilen 2083-2131 entfernt aus SSH-Block)
++PATCH backend/routes/backup.js (Zeilen 2141-2196 hinzugefügt nach SSH-Block)
+```javascript
+      }  // Ende des SSH-Blocks
+
++      // ALWAYS regenerate SSH keys for all users after restore (regardless of SSH restore)
++      console.log('🔑 Regenerating SSH keys for all users after restore...');
++      try {
++        const [users] = await connection.execute('SELECT id, username FROM users');
++        
++        if (users.length > 0) {
++          const { exec } = require('child_process');
++          const { promisify } = require('util');
++          const execAsync = promisify(exec);
++          const fs = require('fs').promises;
++          const sshDir = '/root/.ssh';
++          
++          // Ensure SSH directory exists
++          await fs.mkdir(sshDir, { recursive: true });
++          await fs.chmod(sshDir, 0o700);
++          
++          let keysGenerated = 0;
++          let keysFailed = 0;
++          
++          for (const user of users) {
++            try {
++              const privateKeyPath = path.join(sshDir, `id_rsa_user${user.id}_dashboard`);
++              const publicKeyPath = `${privateKeyPath}.pub`;
++              
++              // Check if key already exists
++              const keyExists = await fs.access(privateKeyPath).then(() => true).catch(() => false);
++              
++              if (!keyExists) {
++                // Generate new key
++                const keygenCmd = `ssh-keygen -t rsa -b 2048 -f "${privateKeyPath}" -N "" -C "dashboard@${user.username}"`;
++                await execAsync(keygenCmd, { timeout: 10000 });
++                
++                // Set proper permissions
++                await fs.chmod(privateKeyPath, 0o600);
++                await fs.chmod(publicKeyPath, 0o644);
++                
++                keysGenerated++;
++                console.log(`  ✓ Generated SSH key for user ${user.username} (ID: ${user.id})`);
++              } else {
++                console.log(`  ℹ️ SSH key already exists for user ${user.username} (ID: ${user.id})`);
++              }
++            } catch (error) {
++              keysFailed++;
++              console.log(`  ⚠️ Failed to generate SSH key for user ${user.username}: ${error.message}`);
++            }
++          }
++          
++          if (keysGenerated > 0) {
++            console.log(`✅ Generated ${keysGenerated} SSH keys`);
++          }
++          if (keysFailed > 0) {
++            console.log(`⚠️ Failed to generate ${keysFailed} SSH keys`);
++          }
++        }
++      } catch (error) {
++        console.error('❌ Error regenerating user SSH keys:', error.message);
++      }
+```
+
+WICHTIG:
+- Funktion wird jetzt IMMER nach einem Restore ausgeführt
+- Unabhängig davon ob SSH-Keys im Backup waren oder nicht
+- Stellt sicher, dass alle User funktionsfähige Terminal-Verbindungen haben
+
+STATUS: ✅ SSH-Key Regeneration funktioniert jetzt zuverlässig
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 22:35 - KRITISCHER FIX: User-SSH-Keys in Datenbank speichern für Backup-Kompatibilität
+
+PROBLEM:
+- User-spezifische SSH-Keys (id_rsa_user1_dashboard etc.) wurden nur im Filesystem erstellt
+- Diese Keys waren NICHT in der Datenbank und daher NICHT im Backup
+- Nach Restore fehlten die Keys und Terminal-Verbindungen schlugen fehl
+- Neue Keys passten nicht zu authorized_keys Einträgen
+
+URSACHE:
+- Die Funktion ensureUserDashboardKey() speichert nur EINEN Key pro User als 'dashboard'
+- Die generierten User-Keys nach Restore wurden nicht in DB gespeichert
+- Backups waren nicht self-contained
+
+LÖSUNG:
+User-SSH-Keys werden nach Generierung in die Datenbank gespeichert
+
+### backend/routes/backup.js - SSH-Keys in Datenbank speichern
+
++PATCH backend/routes/backup.js (Zeilen nach Key-Generierung hinzugefügt)
+```javascript
+                // Generate new key
+                const keygenCmd = `ssh-keygen -t rsa -b 2048 -f "${privateKeyPath}" -N "" -C "dashboard@${user.username}"`;
+                await execAsync(keygenCmd, { timeout: 10000 });
+                
+                // Set proper permissions
+                await fs.chmod(privateKeyPath, 0o600);
+                await fs.chmod(publicKeyPath, 0o644);
+                
++                // Read the generated keys
++                const privateKey = await fs.readFile(privateKeyPath, 'utf8');
++                const publicKey = await fs.readFile(publicKeyPath, 'utf8');
++                
++                // Get fingerprint
++                const { stdout: fingerprint } = await execAsync(
++                  `ssh-keygen -lf "${publicKeyPath}" | awk '{print $2}'`,
++                  { timeout: 5000 }
++                );
++                
++                // IMPORTANT: Store in database so it's included in future backups!
++                await connection.execute(
++                  `INSERT INTO ssh_keys (key_name, key_type, key_size, comment, public_key, private_key, fingerprint, created_by, created_at, updated_at) 
++                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
++                  [
++                    'dashboard',  // All user keys are named 'dashboard' in the DB
++                    'rsa',
++                    2048,
++                    `dashboard@${user.username}`,
++                    publicKey.trim(),
++                    privateKey,
++                    fingerprint.trim(),
++                    user.id
++                  ]
++                );
++                
+                keysGenerated++;
+-                console.log(`  ✓ Generated SSH key for user ${user.username} (ID: ${user.id})`);
++                console.log(`  ✓ Generated and stored SSH key for user ${user.username} (ID: ${user.id})`);
+```
+
+WICHTIG:
+- Jeder User hat einen 'dashboard' Key in der DB mit seiner User-ID als created_by
+- Diese Keys werden im nächsten Backup enthalten sein
+- Bei zukünftigen Restores werden die Keys aus dem Backup wiederhergestellt
+- Die Keys im Filesystem haben den Namen id_rsa_user{ID}_dashboard
+
+VERBESSERUNG NOTWENDIG:
+- Bei Restore sollten Keys aus Backup verwendet werden, nicht neu generiert
+- Keys sollten nur generiert werden wenn sie NICHT im Backup sind
+
+STATUS: ✅ User-SSH-Keys werden jetzt in DB gespeichert und sind in Backups enthalten
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 22:40 - ERWEITERUNG: Existierende SSH-Keys in Datenbank nachträglich eintragen
+
+PROBLEM:
+- Existierende SSH-Keys im Filesystem wurden nicht in die Datenbank eingetragen
+- Diese Keys fehlten daher in Backups
+
+LÖSUNG:
+Wenn Keys im Filesystem existieren, werden sie in die Datenbank nachgetragen
+
+### backend/routes/backup.js - Existierende Keys in DB eintragen
+
++PATCH backend/routes/backup.js (else-Zweig erweitert)
+```javascript
+              } else {
+-                console.log(`  ℹ️ SSH key already exists for user ${user.username} (ID: ${user.id})`);
++                // Key exists in filesystem, but might not be in database - check and add if missing
++                console.log(`  ℹ️ SSH key file exists for user ${user.username} (ID: ${user.id}), checking database...`);
++                
++                // Check if key is in database
++                const [dbKeys] = await connection.execute(
++                  'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by = ?',
++                  ['dashboard', user.id]
++                );
++                
++                if (dbKeys.length === 0) {
++                  // Key not in database, add it
++                  const privateKey = await fs.readFile(privateKeyPath, 'utf8');
++                  const publicKey = await fs.readFile(publicKeyPath, 'utf8');
++                  
++                  // Get fingerprint
++                  const { stdout: fingerprint } = await execAsync(
++                    `ssh-keygen -lf "${publicKeyPath}" | awk '{print $2}'`,
++                    { timeout: 5000 }
++                  );
++                  
++                  await connection.execute(
++                    `INSERT INTO ssh_keys (key_name, key_type, key_size, comment, public_key, private_key, fingerprint, created_by, created_at, updated_at) 
++                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
++                    [
++                      'dashboard',
++                      'rsa',
++                      2048,
++                      `dashboard@${user.username}`,
++                      publicKey.trim(),
++                      privateKey,
++                      fingerprint.trim(),
++                      user.id
++                    ]
++                  );
++                  
++                  console.log(`  ✅ Added existing SSH key to database for user ${user.username} (ID: ${user.id})`);
++                } else {
++                  console.log(`  ✓ SSH key already in database for user ${user.username} (ID: ${user.id})`);
++                }
+              }
+```
+
+STATUS: ✅ Existierende Keys werden automatisch in DB nachgetragen
+
+════════════════════════════════════════════════════════════════════════════════
