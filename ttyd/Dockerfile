@@ -25,6 +25,10 @@ RUN mkdir -p /usr/share/ttyd
 # Copy custom index.html to suppress warnings
 COPY share/index.html /usr/share/ttyd/index.html
 
+# Copy the SSH wrapper script
+COPY ttyd-ssh-wrapper.sh /scripts/ttyd-ssh-wrapper.sh
+RUN chmod +x /scripts/ttyd-ssh-wrapper.sh
+
 # Ensure SSH binary exists
 RUN which ssh || echo "Warning: SSH installation may have failed"
 
