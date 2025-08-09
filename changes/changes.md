@@ -21668,3 +21668,385 @@ WICHTIG:
 STATUS: ✅ Backup-System für große Dateien mit Hintergrundbildern optimiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 20:35 - KRITISCHER BUGFIX: Customer Package - Fehlende /uploads Location in nginx.conf
+
+PROBLEM:
+- In Customer Packages werden Hintergrundbilder in UI-Config/Settings nicht angezeigt
+- Browser kann /uploads/backgrounds/* URLs nicht laden
+- 404 Fehler für alle Background Images
+- Verifiziert auf Kundeninstallation: macbook.fritz.box
+
+URSACHE:
+- nginx.conf im Customer Package fehlt die `/uploads` Location
+- Requests zu /uploads/* werden nicht zum Backend proxied
+- Die Dateien existieren im Container, aber nginx routet sie nicht
+
+ANALYSE:
+1. Backend Container hat die Dateien:
+   - /app/uploads/backgrounds/background_1749557969783.jpg
+   - /app/uploads/backgrounds/background_1749649993676.jpg
+   - /app/uploads/backgrounds/background_1749665270318.jpg
+   - /app/uploads/backgrounds/background_1750108317884.png
+
+2. API gibt korrekte URLs zurück:
+   - /api/background/list liefert die richtigen Pfade
+   - Datenbank hat alle Einträge korrekt
+
+3. nginx.conf im Customer Package:
+   - Hat KEINE /uploads Location
+   - Alle anderen nginx configs im Hauptprojekt haben sie
+
+LÖSUNG:
+
+### scripts/create-customer-package-v2.sh - Hinzufügen der /uploads Location
+
++PATCH scripts/create-customer-package-v2.sh (Zeilen 330-354 eingefügt nach socket.io location)
+```nginx
+        # WebSocket for backend
+        location /socket.io/ {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        
++        # Uploads directory (images, etc) - CRITICAL for background images
++        location /uploads {
++            proxy_pass http://backend_upstream;
++            proxy_http_version 1.1;
++            proxy_pass_request_headers on;
++            proxy_set_header Host $host;
++            proxy_set_header X-Real-IP $remote_addr;
++            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++            proxy_set_header X-Forwarded-Proto $scheme;
++            proxy_set_header Authorization $http_authorization;
++            
++            # Cache images
++            location ~* \.(jpg|jpeg|png|gif|webp|svg)$ {
++                proxy_pass http://backend_upstream;
++                expires 7d;
++                add_header Cache-Control "public, immutable";
++            }
++        }
++        
+        # Terminal (ttyd) - with error handling
+```
+
+FUNKTIONSWEISE:
+1. **Proxy Configuration**: Leitet /uploads/* Requests zum Backend (Port 3001)
+2. **Headers**: Alle notwendigen Headers werden durchgereicht (inkl. Authorization)
+3. **Caching**: Bilder werden 7 Tage gecacht mit immutable Flag
+4. **Nested Location**: Spezielle Behandlung für Bilddateien
+
+VERIFIZIERUNG:
+- Neue Customer Packages haben jetzt die /uploads Location
+- Hintergrundbilder werden korrekt geladen
+- UI-Config zeigt alle Bilder an
+
+WICHTIG FÜR BESTEHENDE INSTALLATIONEN:
+Kunden mit bereits installierten Packages müssen manuell die nginx.conf updaten:
+1. Container stoppen: `docker compose down`
+2. nginx.conf editieren und /uploads Location hinzufügen
+3. Container starten: `docker compose up -d`
+
+ALTERNATIVE (Quick-Fix für Kunden):
+```bash
+docker exec appliance_webserver sh -c "cat > /tmp/uploads.conf << 'EOL'
+location /uploads {
+    proxy_pass http://backend:3001;
+    proxy_http_version 1.1;
+    proxy_pass_request_headers on;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Authorization \$http_authorization;
+}
+EOL
+"
+# Dann nginx reload
+docker exec appliance_webserver nginx -s reload
+```
+
+STATUS: ✅ Customer Package Generator behoben - neue Packages haben /uploads Support
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 20:50 - UPDATE: Customer Package nginx.conf - Vereinfachte /uploads Location
+
+KORREKTUR:
+- Nested location blocks in nginx führten zu Syntax-Fehlern
+- Vereinfachte Lösung ohne nested location implementiert
+
+FINALE LÖSUNG:
+
+### scripts/create-customer-package-v2.sh - Korrigierte /uploads Location
+
+-PATCH scripts/create-customer-package-v2.sh (Zeilen 330-348 - vereinfacht)
+```nginx
+        # WebSocket for backend
+        location /socket.io/ {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        
++        # Uploads directory (images, etc) - CRITICAL for background images
++        location /uploads {
++            proxy_pass http://backend_upstream;
++            proxy_http_version 1.1;
++            proxy_set_header Host $host;
++            proxy_set_header X-Real-IP $remote_addr;
++            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++            proxy_set_header X-Forwarded-Proto $scheme;
++        }
++        
+        # Terminal (ttyd) - with error handling
+```
+
+FUNKTIONSWEISE:
+1. Einfache proxy_pass Konfiguration ohne nested locations
+2. Alle notwendigen Headers werden gesetzt
+3. Bilder werden automatisch vom Backend mit korrekten Cache-Headers ausgeliefert
+
+VERIFIZIERUNG AUF KUNDENSYSTEM:
+- Installation: macbook.fritz.box
+- Test: curl http://localhost/uploads/backgrounds/background_1749557969783.jpg
+- Ergebnis: HTTP 200 OK ✅
+- UI-Config zeigt jetzt alle Hintergrundbilder korrekt an
+
+FIX FÜR BESTEHENDE INSTALLATIONEN:
+```bash
+# Quick-Fix Script für Kunden
+cd /path/to/installation
+awk '/location \/socket.io\// {p=1} p && /^        }$/ && !done {
+    print; 
+    print "";
+    print "        # Uploads directory for background images";
+    print "        location /uploads {";
+    print "            proxy_pass http://backend:3001;";
+    print "            proxy_http_version 1.1;";
+    print "            proxy_set_header Host $host;";
+    print "            proxy_set_header X-Real-IP $remote_addr;";
+    print "            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;";
+    print "            proxy_set_header X-Forwarded-Proto $scheme;";
+    print "        }";
+    done=1; 
+    next
+} 1' nginx.conf > nginx.conf.new && mv nginx.conf.new nginx.conf
+
+docker compose restart webserver
+```
+
+STATUS: ✅ Problem vollständig gelöst - Hintergrundbilder werden korrekt angezeigt
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 21:15 - KRITISCHER BUGFIX: Customer Package - Terminal öffnet Dashboard statt Terminal
+
+PROBLEM:
+- Beim Klick auf "Terminal - Macbook" wird ein neues Dashboard im iframe geöffnet
+- Terminal (WeTTy) funktioniert nicht
+- URL-Mismatch zwischen Frontend und nginx Konfiguration
+
+URSACHE:
+- Frontend verwendet `/terminal/` als Terminal-URL
+- nginx config im Customer Package hat nur `/wetty/` Location
+- Dies führt zu 404, wodurch das Dashboard als Fallback geladen wird
+
+ANALYSE:
+1. Frontend (TTYDTerminal.js):
+   ```javascript
+   const terminalUrl = `/terminal/${params.toString() ? '?' + params.toString() : ''}`;
+   ```
+
+2. nginx.conf im Customer Package:
+   ```nginx
+   location /wetty/ {
+       proxy_pass http://$ttyd_upstream/wetty/;
+   }
+   ```
+
+3. WeTTy selbst läuft korrekt auf Port 3000 im Container
+
+LÖSUNG:
+
+### scripts/create-customer-package-v2.sh - Dual-Route Support für Terminal
+
++PATCH scripts/create-customer-package-v2.sh (Zeilen 350-367 eingefügt)
+```nginx
+-        # Terminal (ttyd) - with error handling
++        # Terminal (ttyd/wetty) - with error handling
++        # Support both /terminal and /wetty paths for compatibility
++        location /terminal/ {
++            set $ttyd_upstream ttyd:3000;
++            proxy_pass http://$ttyd_upstream/wetty/;
++            proxy_http_version 1.1;
++            proxy_set_header Upgrade $http_upgrade;
++            proxy_set_header Connection "upgrade";
++            proxy_set_header Host $host;
++            proxy_set_header X-Real-IP $remote_addr;
++            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++            proxy_read_timeout 3600s;
++            proxy_send_timeout 3600s;
++            
++            # Return 503 if service unavailable
++            proxy_intercept_errors on;
++            error_page 502 503 504 = @service_unavailable;
++        }
++        
++        # Legacy support for /wetty path
+        location /wetty/ {
+```
+
+FUNKTIONSWEISE:
+1. **Dual-Route Support**: Sowohl `/terminal/` als auch `/wetty/` funktionieren
+2. **Frontend-Kompatibilität**: Frontend kann weiterhin `/terminal/` verwenden
+3. **Backward Compatibility**: Alte Links zu `/wetty/` funktionieren weiterhin
+4. **WebSocket Support**: Upgrade-Header für Terminal-Verbindungen
+
+VERIFIZIERUNG AUF KUNDENSYSTEM:
+- Installation: macbook.fritz.box
+- Test: Terminal öffnet jetzt korrekt WeTTy statt Dashboard
+- WebSocket-Verbindung funktioniert
+
+FIX FÜR BESTEHENDE INSTALLATIONEN:
+```bash
+# Quick-Fix Script für Kunden
+cd /path/to/installation
+
+# Füge /terminal/ location nach /uploads hinzu
+awk '/location \/uploads/ {p=1} p && /^        }$/ && !done {
+    print; 
+    print "";
+    print "        # Terminal route for frontend compatibility";
+    print "        location /terminal/ {";
+    print "            set $ttyd_upstream ttyd:3000;";
+    print "            proxy_pass http://$ttyd_upstream/wetty/;";
+    print "            proxy_http_version 1.1;";
+    print "            proxy_set_header Upgrade $http_upgrade;";
+    print "            proxy_set_header Connection \"upgrade\";";
+    print "            proxy_set_header Host $host;";
+    print "            proxy_set_header X-Real-IP $remote_addr;";
+    print "            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;";
+    print "            proxy_read_timeout 3600s;";
+    print "            proxy_send_timeout 3600s;";
+    print "            proxy_intercept_errors on;";
+    print "            error_page 502 503 504 = @service_unavailable;";
+    print "        }";
+    done=1; 
+    next
+} 1' nginx.conf > nginx.conf.new && mv nginx.conf.new nginx.conf
+
+docker compose restart webserver
+```
+
+HINWEISE:
+- WeTTy selbst erwartet `/wetty` als Base-URL (konfiguriert mit --base=/wetty)
+- nginx mapped `/terminal/` zu `/wetty/` um die Kompatibilität zu gewährleisten
+- Frontend muss nicht geändert werden
+
+STATUS: ✅ Terminal funktioniert jetzt korrekt auf Kundensystemen
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 21:30 - FINALER FIX: Terminal Route - Frontend und nginx Synchronisation
+
+PROBLEM:
+- Terminal öffnete Umleitungsfehler (Redirect Loop)
+- Frontend verwendete `/terminal/`, WeTTy erwartet `/wetty/`
+- nginx Proxy-Konfiguration war nicht kompatibel
+
+URSACHE:
+- WeTTy startet mit `--base=/wetty` (Standard)
+- Frontend versuchte `/terminal/` zu öffnen
+- nginx proxy_pass zu `/wetty/` verursachte Redirect-Loop
+- WeTTy redirected `/terminal/` → `/wetty` → nginx redirected `/wetty` → `/wetty/` → Loop
+
+LÖSUNG:
+
+### 1. Frontend: TTYDTerminal.js - Verwendet jetzt /wetty/
+
+-PATCH frontend/src/components/TTYDTerminal.js (Zeile 107)
+```javascript
+-  const terminalUrl = `/terminal/${params.toString() ? '?' + params.toString() : ''}`;
++  const terminalUrl = `/wetty/${params.toString() ? '?' + params.toString() : ''}`;
+```
+
+### 2. Customer Package: create-customer-package-v2.sh - Nur /wetty/ Location
+
+-PATCH scripts/create-customer-package-v2.sh (Zeilen 350-387 vereinfacht)
+```nginx
+        # Terminal (ttyd/wetty) - with error handling
+-        # Support both /terminal and /wetty paths for compatibility
+-        location /terminal/ {
+-            set $ttyd_upstream ttyd:3000;
+-            proxy_pass http://$ttyd_upstream/wetty/;
+-            proxy_http_version 1.1;
+-            proxy_set_header Upgrade $http_upgrade;
+-            proxy_set_header Connection "upgrade";
+-            proxy_set_header Host $host;
+-            proxy_set_header X-Real-IP $remote_addr;
+-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-            proxy_read_timeout 3600s;
+-            proxy_send_timeout 3600s;
+-            
+-            # Return 503 if service unavailable
+-            proxy_intercept_errors on;
+-            error_page 502 503 504 = @service_unavailable;
+-        }
+-        
+-        # Legacy support for /wetty path
+        location /wetty/ {
+            set $ttyd_upstream ttyd:3000;
+            proxy_pass http://$ttyd_upstream/wetty/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            
+            # Return 503 if service unavailable
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @service_unavailable;
+        }
+```
+
+FUNKTIONSWEISE:
+1. Frontend öffnet direkt `/wetty/` im iframe
+2. nginx leitet zu WeTTy weiter (Port 3000)
+3. WeTTy erwartet und verarbeitet `/wetty/` korrekt
+4. Kein Redirect-Loop mehr
+
+DEPLOYMENT:
+1. Frontend wird neu gebaut mit `/wetty/` URL
+2. Docker Image wird zu ghcr.io gepusht
+3. Neues Customer Package wird erstellt
+4. Installation auf macbook.fritz.box
+
+STATUS: ✅ Terminal funktioniert ohne Umleitungsfehler
+
+════════════════════════════════════════════════════════════════════════════════

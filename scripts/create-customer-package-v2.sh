@@ -334,7 +334,17 @@ http {
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
         
-        # Terminal (ttyd) - with error handling
+        # Uploads directory (images, etc) - CRITICAL for background images
+        location /uploads {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        
+        # Terminal (ttyd/wetty) - with error handling
         location /wetty/ {
             set $ttyd_upstream ttyd:3000;
             proxy_pass http://$ttyd_upstream/wetty/;
