@@ -19,12 +19,29 @@ export class BackupService {
 
   static async createBackup() {
     try {
-      const response = await axios.get('/api/backup');
+      // Use longer timeout for large backups with images
+      const response = await axios.get('/api/backup', {
+        timeout: 300000, // 5 minutes timeout for large backups
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      });
       const backupData = response.data;
+
+      // Log backup details for debugging
+      console.log('Backup received:', {
+        size: JSON.stringify(backupData).length,
+        hasImages: backupData.data?.background_images?.length || 0,
+        imagesWithData: backupData.data?.background_images?.filter(img => img.file_data)?.length || 0
+      });
 
       // Extract encryption key if present
       const encryptionKey = backupData.encryption_key;
       delete backupData.encryption_key; // Remove from backup data before saving
+
+      // Verify background images are included
+      const bgImages = backupData.data?.background_images || [];
+      const imagesWithData = bgImages.filter(img => img.file_data && img.file_data.length > 0);
+      console.log(`Background images in backup: ${bgImages.length} total, ${imagesWithData.length} with base64 data`);
 
       // Create and download file
       const dataStr = JSON.stringify(backupData, null, 2);
@@ -39,12 +56,18 @@ export class BackupService {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
+      // Include image info in success message
+      const imageInfo = imagesWithData.length > 0 
+        ? ` (inkl. ${imagesWithData.length} Hintergrundbilder)` 
+        : '';
+
       return {
         success: true,
-        message: `Backup erfolgreich erstellt! ${backupData.metadata.appliances_count} Services gesichert.`,
+        message: `Backup erfolgreich erstellt! ${backupData.metadata.appliances_count} Services${imageInfo} gesichert.`,
         encryptionKey: encryptionKey,
       };
     } catch (error) {
+      console.error('Backup error:', error);
       return {
         success: false,
         message: 'Fehler beim Erstellen des Backups: ' + error.message,

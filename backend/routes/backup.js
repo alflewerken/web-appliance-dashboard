@@ -433,6 +433,9 @@ router.get('/backup', verifyToken, async (req, res) => {
 
     // For each background image, read the actual file and encode it as base64
     const backgroundImagesWithData = [];
+    let missingImageCount = 0;
+    let encodedImageCount = 0;
+    
     for (const bgImg of backgroundImages) {
       try {
         const filepath = path.join(
@@ -456,6 +459,8 @@ router.get('/backup', verifyToken, async (req, res) => {
             file_data: base64Data,
             data_size: fileBuffer.length,
           });
+          encodedImageCount++;
+          console.log(`✅ Encoded background image: ${bgImg.filename} (${fileBuffer.length} bytes -> ${base64Data.length} base64 chars)`);
         } else {
           // Include metadata without file data
           backgroundImagesWithData.push({
@@ -464,10 +469,12 @@ router.get('/backup', verifyToken, async (req, res) => {
             data_size: 0,
             file_missing: true,
           });
+          missingImageCount++;
+          console.warn(`⚠️ Background image file not found: ${filepath}`);
         }
       } catch (error) {
         console.error(
-          `Error reading background image ${bgImg.filename}:`,
+          `❌ Error reading background image ${bgImg.filename}:`,
           error.message
         );
         // Include metadata without file data
@@ -477,7 +484,13 @@ router.get('/backup', verifyToken, async (req, res) => {
           data_size: 0,
           file_error: error.message,
         });
+        missingImageCount++;
       }
+    }
+    
+    // Log summary
+    if (backgroundImages.length > 0) {
+      console.log(`📸 Background images backup summary: ${encodedImageCount} encoded, ${missingImageCount} missing/failed`);
     }
 
     // Create comprehensive backup object
@@ -627,6 +640,20 @@ router.get('/backup', verifyToken, async (req, res) => {
       encryption_key: encryptionKey
     };
 
+    // Log backup size information
+    const backupSizeKB = Math.round(Buffer.byteLength(JSON.stringify(responseData), 'utf8') / 1024);
+    console.log(`📦 Sending backup response: ${backupSizeKB} KB total`);
+    console.log(`   - Background images with data: ${backgroundImagesWithData.filter(img => img.file_data).length}`);
+    console.log(`   - Total background image data: ${Math.round(backgroundImagesWithData.reduce((sum, img) => sum + (img.data_size || 0), 0) / 1024)} KB`);
+
+    // Set appropriate headers for large responses
+    res.setHeader('Content-Type', 'application/json');
+    
+    // Send response - for very large backups, consider streaming
+    if (backupSizeKB > 10240) { // If backup is larger than 10MB
+      console.warn(`⚠️ Large backup detected (${backupSizeKB} KB). This may cause issues with some clients.`);
+    }
+    
     res.json(responseData);
   } catch (error) {
     console.error('Error creating enhanced backup:', error);
