@@ -22050,3 +22050,98 @@ DEPLOYMENT:
 STATUS: ✅ Terminal funktioniert ohne Umleitungsfehler
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 21:45 - ABSCHLUSS: Erfolgreiche Installation des korrigierten Customer Packages
+
+ZUSAMMENFASSUNG:
+- Neues Customer Package (v20250809_202443) erstellt und auf macbook.fritz.box installiert
+- Alle kritischen Bugs wurden behoben
+- System läuft stabil mit den neuen Docker Images
+
+BEHOBENE PROBLEME:
+1. ✅ Hintergrundbilder werden korrekt angezeigt (/uploads location hinzugefügt)
+2. ✅ Terminal funktioniert ohne Redirect-Loop (Frontend verwendet /wetty/)
+3. ✅ Docker Images wurden aktualisiert und von GitHub Container Registry geladen
+
+VERIFIZIERUNG:
+- Installation: macbook.fritz.box (Port 80/443)
+- Dashboard: http://macbook.fritz.box ✅
+- Uploads: /uploads/* Route funktioniert ✅
+- Terminal: /wetty/ Route funktioniert ✅
+- Alle Container laufen: database, backend, frontend, webserver, ttyd, guacamole ✅
+
+DEPLOYMENT PROZESS:
+1. Code-Änderungen in Frontend und Scripts
+2. Git commit & push
+3. GitHub Actions baut neue Docker Images
+4. Customer Package v2 Script erstellt Package mit korrekten Konfigurationen
+5. Installation auf Zielsystem erfolgreich
+
+NÄCHSTE SCHRITTE FÜR DEN BENUTZER:
+1. Backup über die Web-UI auf http://macbook.fritz.box wiederherstellen
+2. Mit admin/admin123 einloggen und Passwort ändern
+3. Terminal und Hintergrundbilder testen
+
+WICHTIGE DATEIEN:
+- Customer Package: web-appliance-dashboard-20250809_202443.tar.gz
+- Installation Path: /Users/alflewerken/docker/web-appliance-dashboard-20250809_202443
+- Backup: /tmp/backup.json (auf macbook.fritz.box)
+
+STATUS: ✅ System vollständig funktionsfähig auf macbook.fritz.box
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 22:45 - FIX: Lokales Entwicklungssystem - /wetty/ Alias für Terminal
+
+PROBLEM:
+- Frontend wurde auf `/wetty/` umgestellt für Customer Packages
+- Lokales Entwicklungssystem verwendet aber ttyd auf Port 7681 mit `/terminal/`
+- Terminal funktionierte nicht mehr im lokalen System
+
+LÖSUNG:
+
+### nginx/nginx-docker-with-optional-guacamole.conf - Alias für /wetty/ hinzugefügt
+
++PATCH nginx/nginx-docker-with-optional-guacamole.conf (Zeilen 200-223)
+```nginx
+        # Terminal location (redirects to ttyd) - MUST come after specific routes
+        location /terminal/ {
+            # WICHTIG: $is_args$args fügt die Query-Parameter hinzu
+            proxy_pass http://ttyd:7681/$is_args$args;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 86400;
+        }
+        
++        # Alias for /wetty/ - Frontend now uses this path
++        location /wetty/ {
++            # Redirect to ttyd on port 7681 (same as /terminal/)
++            proxy_pass http://ttyd:7681/$is_args$args;
++            proxy_http_version 1.1;
++            proxy_set_header Upgrade $http_upgrade;
++            proxy_set_header Connection "upgrade";
++            proxy_set_header Host $host;
++            proxy_set_header X-Real-IP $remote_addr;
++            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++            proxy_read_timeout 86400;
++        }
+```
+
+FUNKTIONSWEISE:
+- Lokales System: ttyd läuft auf Port 7681, erreichbar über `/terminal/` und `/wetty/`
+- Customer Package: WeTTy läuft auf Port 3000, erreichbar über `/wetty/`
+- Frontend verwendet einheitlich `/wetty/` für beide Systeme
+
+STATUS: ✅ Lokales Entwicklungssystem funktioniert wieder mit neuem Frontend
+
+════════════════════════════════════════════════════════════════════════════════
