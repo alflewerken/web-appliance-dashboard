@@ -1403,14 +1403,16 @@ router.post('/restore', verifyToken, async (req, res) => {
             // Restore SSH key files to filesystem
             if (sshKey.private_key && sshKey.key_name) {
               try {
-                const privateKeyPath = path.join(
-                  sshDir,
-                  `id_rsa_${sshKey.key_name}`
-                );
-                const publicKeyPath = path.join(
-                  sshDir,
-                  `id_rsa_${sshKey.key_name}.pub`
-                );
+                // Determine the correct filename based on the user who created it
+                let keyFileName = `id_rsa_${sshKey.key_name}`;
+                
+                // If this is a user-specific dashboard key, use the user-specific naming
+                if (sshKey.key_name === 'dashboard' && createdById) {
+                  keyFileName = `id_rsa_user${createdById}_dashboard`;
+                }
+                
+                const privateKeyPath = path.join(sshDir, keyFileName);
+                const publicKeyPath = path.join(sshDir, `${keyFileName}.pub`);
 
                 // Write private key
                 await fs.writeFile(privateKeyPath, sshKey.private_key, {

@@ -22585,3 +22585,62 @@ Wenn Keys im Filesystem existieren, werden sie in die Datenbank nachgetragen
 STATUS: ✅ Existierende Keys werden automatisch in DB nachgetragen
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 23:00 - KRITISCHER FIX: SSH-Key Dateinamen-Konvention nach Restore
+
+PROBLEM:
+- SSH-Keys aus Backup wurden mit falschem Dateinamen wiederhergestellt
+- Backup speichert als: id_rsa_dashboard
+- System erwartet aber: id_rsa_user{ID}_dashboard
+- Terminal verwendete falschen Key, der nicht in authorized_keys war
+
+SYMPTOME:
+- Host "Macbook" funktionierte nicht nach Restore
+- Host "MacbookPro" funktionierte (weil localhost = bereits korrekter Key)
+- SSH-Key aus DB passte nicht zum Key im Filesystem
+
+LÖSUNG:
+SSH-Keys werden jetzt mit korrektem user-spezifischen Namen wiederhergestellt
+
+### backend/routes/backup.js - Korrekte Key-Dateinamen nach Restore
+
++PATCH backend/routes/backup.js (Zeilen 1404-1409 modifiziert)
+```javascript
+            // Restore SSH key files to filesystem
+            if (sshKey.private_key && sshKey.key_name) {
+              try {
+-                const privateKeyPath = path.join(
+-                  sshDir,
+-                  `id_rsa_${sshKey.key_name}`
+-                );
+-                const publicKeyPath = path.join(
+-                  sshDir,
+-                  `id_rsa_${sshKey.key_name}.pub`
+-                );
++                // Determine the correct filename based on the user who created it
++                let keyFileName = `id_rsa_${sshKey.key_name}`;
++                
++                // If this is a user-specific dashboard key, use the user-specific naming
++                if (sshKey.key_name === 'dashboard' && createdById) {
++                  keyFileName = `id_rsa_user${createdById}_dashboard`;
++                }
++                
++                const privateKeyPath = path.join(sshDir, keyFileName);
++                const publicKeyPath = path.join(sshDir, `${keyFileName}.pub`);
+
+                // Write private key
+                await fs.writeFile(privateKeyPath, sshKey.private_key, {
+```
+
+FUNKTIONSWEISE:
+- Normale Keys: id_rsa_{keyname}
+- User Dashboard Keys: id_rsa_user{userId}_dashboard
+- Keys werden mit dem Namen wiederhergestellt, den das System erwartet
+- Terminal verwendet automatisch den richtigen Key
+
+STATUS: ✅ SSH-Keys werden mit korrekten Dateinamen wiederhergestellt
+
+════════════════════════════════════════════════════════════════════════════════
