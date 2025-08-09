@@ -21392,3 +21392,38 @@ await syncGuacamoleConnection({
 STATUS: ✅ Guacamole-Verbindung funktioniert nach manueller Synchronisation
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-09 18:30 - Bugfix: Customer Package - QueryBuilder Import Case-Sensitivity
+
+PROBLEM:
+- Backend startet nicht im Customer Package mit Fehler:
+  `Error: Cannot find module '../utils/queryBuilder'`
+- Datei rustdeskInstall.js importierte QueryBuilder mit falschem Case
+
+URSACHE:
+- Die Datei heißt `QueryBuilder.js` (großes Q und B)
+- rustdeskInstall.js war die einzige Datei die `queryBuilder` (klein) importierte
+- Alle anderen 27 Dateien importieren korrekt `QueryBuilder`
+- Linux-Systeme sind case-sensitive bei Dateinamen
+
+LÖSUNG:
+
+### Backend: rustdeskInstall.js - Case-Korrektur für QueryBuilder Import
+
+-PATCH backend/routes/rustdeskInstall.js (Zeile 6)
+```javascript
+-const QueryBuilder = require('../utils/queryBuilder');
++const QueryBuilder = require('../utils/QueryBuilder');
+```
+
+FUNKTIONSWEISE:
+- Import verwendet jetzt korrekten Case (`QueryBuilder` statt `queryBuilder`)
+- Konsistent mit allen anderen 27 Dateien im Projekt
+- Funktioniert jetzt auf case-sensitive Filesystemen (Linux/Docker)
+
+STATUS: ✅ Customer Package Backend sollte jetzt korrekt starten
+
+════════════════════════════════════════════════════════════════════════════════
