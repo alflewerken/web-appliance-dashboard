@@ -28734,3 +28734,175 @@ prominent auf das neue umfassende Benutzerhandbuch.
 STATUS: ✅ README.md erfolgreich modernisiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-10 19:30 - SECURITY: Kritische Sicherheits-Updates vor Veröffentlichung
+
+BESCHREIBUNG:
+Wichtige Sicherheitsanpassungen für die Open-Source-Veröffentlichung durchgeführt.
+
+ÄNDERUNGEN:
+
+1. SECURITY.md - Security Email entfernt:
+   - Alte Email "security@your-domain.com" entfernt
+   - Verweis auf GitHub Security Advisories hinzugefügt
+   - Anleitung für Security Reports über GitHub
+
+2. .env.example - Beispiel-Secrets neutralisiert:
+   - JWT_SECRET durch Platzhalter ersetzt
+   - SSH_KEY_ENCRYPTION_SECRET durch Platzhalter ersetzt
+   - Anleitung zum Generieren mit openssl hinzugefügt
+
+3. LAUNCH-CHECKLIST.md erstellt:
+   - Umfassende Pre-Launch Checkliste
+   - Kritische TODOs identifiziert
+   - Repository-Settings dokumentiert
+   - Marketing-Tipps hinzugefügt
+
+SICHERHEITS-STATUS:
+✅ Keine echten Secrets mehr im Repository
+✅ Security Reporting über GitHub möglich
+✅ Projekt bereit für Open-Source Veröffentlichung
+
+NÄCHSTE SCHRITTE auf GitHub:
+1. Security Advisories aktivieren
+2. Issues & Discussions aktivieren
+3. Topics hinzufügen (homelab, dashboard, docker)
+4. Release v1.1.2 erstellen
+
+STATUS: ✅ Projekt ist jetzt sicher für die Veröffentlichung
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-10 19:35 - SECURITY: .env.example mit sicheren Beispielwerten korrigiert
+
+BESCHREIBUNG:
+Die .env.example benötigt funktionierende Werte für das Setup-Script, aber diese
+müssen trotzdem sicher sein. Lösung: Offensichtlich unsichere Beispielwerte, die
+das Setup-Script automatisch ersetzt.
+
+ÄNDERUNGEN:
+
+1. .env.example:
+   - JWT_SECRET: "INSECURE_EXAMPLE_KEY_WILL_BE_REPLACED_BY_SETUP_SCRIPT_DO_NOT_USE_IN_PRODUCTION"
+   - SSH_KEY_ENCRYPTION_SECRET: "INSECURE_EXAMPLE_KEY_WILL_BE_REPLACED_BY_SETUP"
+   - Klare Kennzeichnung als unsichere Beispielwerte
+   - Hinweis auf automatische Ersetzung durch Setup-Script
+
+2. README.md:
+   - Hinweis hinzugefügt, dass setup-env.sh automatisch sichere Werte generiert
+   - Warnung, dass Beispielwerte ersetzt werden
+
+KONZEPT:
+- .env.example enthält funktionierende aber offensichtlich unsichere Werte
+- Setup-Script (setup-env.sh) ersetzt diese automatisch mit sicheren Secrets
+- Niemand kann versehentlich die Beispielwerte in Production verwenden
+- Setup-Prozess funktioniert weiterhin reibungslos
+
+STATUS: ✅ .env.example ist jetzt sicher UND funktional
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-10 19:40 - CLEANUP: Alte Benutzerdokumentation entfernt
+
+BESCHREIBUNG:
+Die alte Legacy-Dokumentation wurde komplett entfernt, da sie durch das neue
+umfassende Benutzerhandbuch (user-guide-v2) ersetzt wurde.
+
+GELÖSCHTE DATEIEN/ORDNER:
+- docs/user-manual/ (kompletter Ordner mit allen Unterordnern und Dateien)
+  - index.html
+  - images/*.png (alle alten Screenshots)
+  - images/*.jpeg
+
+GEÄNDERTE DATEIEN:
+- README.md: Link zur alten Dokumentation entfernt
+  - "v2" aus dem Titel entfernt (es gibt jetzt nur noch eine Version)
+  - Legacy-Verweis gelöscht
+
+BEGRÜNDUNG:
+- Neue Dokumentation ist umfassender (600+ Zeilen)
+- Alte Dokumentation war veraltet
+- Screenshots waren nicht mehr aktuell
+- Vermeidung von Verwirrung durch zwei Dokumentationsversionen
+- Klarere Struktur im Repository
+
+STATUS: ✅ Nur noch eine aktuelle Dokumentation vorhanden
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-10 19:45 - DOCUMENTATION: README.en.md neu erstellt aus aktueller README.md
+
+BESCHREIBUNG:
+Die englische README wurde komplett neu aus der aktuellen deutschen Version
+übersetzt und erstellt. Die alte Version war veraltet.
+
+ÄNDERUNGEN:
+
+1. README.en.md:
+   - Komplett neu übersetzt aus der aktuellen deutschen README.md
+   - Alle Features und Updates auf v1.1.2 aktualisiert
+   - Host-First Konzept erklärt
+   - Clean UI Philosophy übersetzt
+   - Persönliche Note beibehalten
+   - Alle Screenshots-Referenzen aktualisiert
+   - Quick Start Anleitung mit Host-First
+
+2. Übersetzungen:
+   - "Von einem Homelab-Enthusiasten..." → "From a homelab enthusiast..."
+   - "Benutzerhandbuch" → "User Guide"
+   - Alle technischen Begriffe korrekt übersetzt
+   - Deutsche Dokumentationslinks beibehalten (da noch nicht übersetzt)
+
+STRUKTUR:
+- Identisch zur deutschen Version
+- Gleiche Reihenfolge der Sektionen
+- Alle Features enthalten
+- Persönliche Note am Ende
+
+STATUS: ✅ Englische README ist jetzt aktuell und synchron mit der deutschen Version
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-10 19:50 - DOCUMENTATION: Englische README als Standard gesetzt
+
+BESCHREIBUNG:
+Die README-Dateien wurden umbenannt, damit die englische Version standardmäßig
+auf GitHub angezeigt wird. Dies macht das Projekt international zugänglicher.
+
+UMBENENNUNGEN:
+- README.md → README.de.md (deutsche Version)
+- README.en.md → README.md (englische Version wird jetzt Standard)
+
+LINK-ANPASSUNGEN:
+- README.md (englisch): Link zu deutscher Version zeigt jetzt auf README.de.md
+- README.de.md (deutsch): Link zu englischer Version zeigt jetzt auf README.md
+
+BEGRÜNDUNG:
+- Internationale Reichweite des Projekts
+- Englisch als Standard-Sprache in der Open Source Community
+- Deutsche Version bleibt vollständig erhalten und zugänglich
+- GitHub zeigt automatisch README.md auf der Projektseite
+
+AUSWIRKUNG:
+- Besucher sehen zuerst die englische Version
+- Deutsche Version ist prominent verlinkt
+- Beide Versionen sind gleichwertig und aktuell
+
+STATUS: ✅ Englische README ist jetzt die Standard-Ansicht auf GitHub
+
+════════════════════════════════════════════════════════════════════════════════

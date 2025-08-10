@@ -1,6 +1,6 @@
 # Web Appliance Dashboard 🚀
 
-[🇬🇧 English](README.en.md) | 🇩🇪 Deutsch | [📖 Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.md)
+🇬🇧 English | [🇩🇪 Deutsch](README.de.md) | [📖 User Guide](docs/user-guide-v2/USER-GUIDE.md)
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
@@ -9,113 +9,113 @@
 [![Version](https://img.shields.io/badge/Version-1.1.2-brightgreen.svg)](package.json)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
-> **"Von einem Homelab-Enthusiasten für Homelab-Enthusiasten"**
+> **"From a homelab enthusiast for homelab enthusiasts"**
 
-Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs, Docker-Containern und Services. Keine Cloud-Abhängigkeiten, keine Abos - nur ein solides Tool für Ihr Homelab.
+An elegant, self-hosted dashboard for centralized management of VMs, Docker containers, and services. No cloud dependencies, no subscriptions - just a solid tool for your homelab.
 
 ![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
 
 ## 🌟 Features
 
 ### Core Features
-- **📊 Zentrales Dashboard** - Übersichtliche Verwaltung aller Services und Hosts
-- **🔐 Authentifizierung** - JWT-basierte Benutzerverwaltung mit Rollen (Admin/User)
-- **🖥️ Web Terminal** - Integriertes Terminal über ttyd mit SSH-Key Support
-- **🔑 SSH Integration** - Vollständiges SSH-Key Management mit automatischer Authentifizierung
-- **🖥️ Remote Desktop** - VNC & RDP Support über Apache Guacamole
-- **📦 Service Control** - Start/Stop/Status von Services über SSH
+- **📊 Central Dashboard** - Clear management of all services and hosts
+- **🔐 Authentication** - JWT-based user management with roles (Admin/User)
+- **🖥️ Web Terminal** - Integrated terminal via ttyd with SSH key support
+- **🔑 SSH Integration** - Complete SSH key management with automatic authentication
+- **🖥️ Remote Desktop** - VNC & RDP support via Apache Guacamole
+- **📦 Service Control** - Start/Stop/Status of services via SSH
 - **🎨 Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
-- **📱 Mobile First** - PWA-fähig, optimiert für iPhone und Tablets
+- **📱 Mobile First** - PWA-capable, optimized for iPhone and tablets
 
 ### Enterprise Features
-- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung
-- **📝 Audit Logging** - Compliance-fähig mit Undo-Funktion
-- **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
-- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP
-- **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem (in Entwicklung)
-- **🔍 Volltextsuche** - Schnelle Suche über alle Services
-- **💡 Smart Categories** - Automatische Gruppierung mit Service-Counter
+- **💾 Backup & Restore** - Complete system backup with encryption
+- **📝 Audit Logging** - Compliance-ready with undo function
+- **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
+- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP
+- **🌐 Multi-User** - User management with granular permission system (in development)
+- **🔍 Full-text Search** - Quick search across all services
+- **💡 Smart Categories** - Automatic grouping with service counter
 
-## 🆕 Neueste Updates (v1.1.2)
+## 🆕 Latest Updates (v1.1.2)
 
-### 📖 Neues Benutzerhandbuch
-- ✅ Umfassende Dokumentation mit 600+ Zeilen
-- ✅ Persönliche Entstehungsgeschichte des Projekts
-- ✅ Mobile-First Dokumentation mit iPhone Screenshots
-- ✅ Praktische Workflows statt Feature-Listen
-- ✅ Clean UI Philosophy dokumentiert
+### 📖 New User Guide
+- ✅ Comprehensive documentation with 600+ lines
+- ✅ Personal story behind the project
+- ✅ Mobile-first documentation with iPhone screenshots
+- ✅ Practical workflows instead of feature lists
+- ✅ Clean UI Philosophy documented
 
-### Host-First Konzept
-- ✅ Hosts als Grundlage für alle Services
-- ✅ Verbesserte Host-Verwaltung
-- ✅ Detaillierte Host-Konfiguration
-- ✅ SSH-Key Management pro Host
+### Host-First Concept
+- ✅ Hosts as foundation for all services
+- ✅ Improved host management
+- ✅ Detailed host configuration
+- ✅ SSH key management per host
 
-### UI/UX Verbesserungen
-- ✅ Interaktive Tooltips für kollabierte Sidebar
-- ✅ Toggle-Funktionalität für Sidepanels
-- ✅ Verbesserte Resize-Funktionalität für Panels
-- ✅ Kein horizontales Scrolling in der Sidebar
+### UI/UX Improvements
+- ✅ Interactive tooltips for collapsed sidebar
+- ✅ Toggle functionality for side panels
+- ✅ Improved resize functionality for panels
+- ✅ No horizontal scrolling in sidebar
 
-### Neue Features
-- ✅ Verschlüsselungsschlüssel-Dialog nach Backup
-- ✅ Guacamole Cache-Clear API Endpoint
-- ✅ Verbesserte SSH-Host Update-Funktionalität
-- ✅ Terminal Error Suppressor für saubere Konsole
+### New Features
+- ✅ Encryption key dialog after backup
+- ✅ Guacamole cache-clear API endpoint
+- ✅ Improved SSH host update functionality
+- ✅ Terminal error suppressor for clean console
 
 ### Bug Fixes
-- ✅ Health Check Probleme behoben (ttyd, webserver)
-- ✅ SSH File Upload bei 10% hängen behoben
-- ✅ Hostname-Duplikat Check beim Update korrigiert
-- ✅ Remote Desktop nach Logout funktioniert wieder
+- ✅ Health check issues resolved (ttyd, webserver)
+- ✅ SSH file upload hanging at 10% fixed
+- ✅ Hostname duplicate check on update corrected
+- ✅ Remote desktop after logout works again
 
 ## 📸 Screenshots
 
 <details>
-<summary><b>Alle Screenshots anzeigen</b></summary>
+<summary><b>Show all screenshots</b></summary>
 
-### Dashboard Übersicht
+### Dashboard Overview
 ![Dashboard Overview](docs/user-guide-v2/images/dashboard-overview.png)
-*Desktop Dashboard mit Clean UI*
+*Desktop dashboard with Clean UI*
 
-### Host-Verwaltung
+### Host Management
 ![Host Overview](docs/user-guide-v2/images/host-overview.png)
-*Host-Übersicht mit allen angelegten Rechnern*
+*Host overview with all configured machines*
 
 ![Host Card](docs/user-guide-v2/images/host-card.png)
-*Host-Karte mit Hover-to-Reveal Buttons*
+*Host card with hover-to-reveal buttons*
 
 ![Host Settings](docs/user-guide-v2/images/host-settings.png)
-*Detaillierte Host-Konfiguration*
+*Detailed host configuration*
 
 ### Mobile Experience
 ![Mobile Overview](docs/user-guide-v2/images/mobile-overview.jpeg)
-*iPhone Dashboard Ansicht*
+*iPhone dashboard view*
 
 ![Mobile Terminal](docs/user-guide-v2/images/mobile-terminal.jpeg)
-*SSH Terminal auf dem iPhone*
+*SSH terminal on iPhone*
 
 ![Mobile Audit](docs/user-guide-v2/images/mobile-audit.jpeg)
-*Audit Log mobil - Compliance-fähig*
+*Mobile audit log - compliance-ready*
 
 ![Mobile Sidebar](docs/user-guide-v2/images/mobile-sidebar.jpeg)
-*Kategorien mit Service-Counter*
+*Categories with service counter*
 
 </details>
 
-## 📋 Voraussetzungen
+## 📋 Prerequisites
 
 - Docker & Docker Compose (v2.0+)
-- Linux/macOS/Windows mit WSL2
-- 2GB RAM (4GB empfohlen)
-- 10GB freier Speicherplatz
+- Linux/macOS/Windows with WSL2
+- 2GB RAM (4GB recommended)
+- 10GB free disk space
 
 ## 🚀 Quick Start
 
-### Das wichtigste Konzept: Hosts zuerst!
-Services laufen auf Rechnern (Hosts). Ohne Host kein Service! Das Dashboard folgt diesem logischen Aufbau.
+### The most important concept: Hosts first!
+Services run on machines (hosts). No host, no service! The dashboard follows this logical structure.
 
-### 1. Repository klonen
+### 1. Clone repository
 ```bash
 git clone https://github.com/alflewerken/web-appliance-dashboard.git
 cd web-appliance-dashboard
@@ -125,83 +125,83 @@ cd web-appliance-dashboard
 ```bash
 ./scripts/setup-env.sh
 ```
+⚠️ **Important**: The script automatically generates secure passwords and replaces the insecure example values!
 
-### 3. Frontend bauen und Container starten
+### 3. Build frontend and start containers
 ```bash
 ./scripts/build.sh
 ```
 
-### 4. Dashboard öffnen
+### 4. Open dashboard
 ```
 http://localhost:9080
 ```
 
-Standard-Login:
-- **Benutzer**: admin
-- **Passwort**: admin123
+Default login:
+- **User**: admin
+- **Password**: admin123
 
-⚠️ **Wichtig**: Ändern Sie das Standard-Passwort sofort!
+⚠️ **Important**: Change the default password immediately!
 
-### 5. Ersten Host anlegen
-1. Klicken Sie auf "Hosts" in der Sidebar
-2. "Host hinzufügen" anklicken
-3. Host-Daten eingeben (IP, SSH-Zugangsdaten)
-4. Speichern - fertig!
+### 5. Create first host
+1. Click "Hosts" in the sidebar
+2. Click "Add host"
+3. Enter host data (IP, SSH credentials)
+4. Save - done!
 
-Ausführliche Anleitung: [📖 Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.md)
+Detailed instructions: [📖 User Guide](docs/user-guide-v2/USER-GUIDE.md)
 
-## 📚 Dokumentation
+## 📚 Documentation
 
-### 📖 Für Anwender
-- **[Benutzerhandbuch v2](docs/user-guide-v2/USER-GUIDE.md)** - Umfassende Anleitung mit persönlicher Note
-  - Entstehungsgeschichte & Motivation
-  - Schnellstart in 5 Minuten (Host-First!)
+### 📖 For Users
+- **[User Guide](docs/user-guide-v2/USER-GUIDE.md)** - Comprehensive guide with personal touch
+  - Origin story & motivation
+  - 5-minute quick start (Host-First!)
   - Mobile Experience Guide
-  - Praktische Workflows
+  - Practical workflows
   - Clean UI Philosophy
-- [Altes Benutzerhandbuch](docs/user-manual/index.html) - Web-basierte Anleitung (Legacy)
 
-### Entwickler-Dokumentation
-- [Entwicklerleitfaden](docs/developer.html) - Architektur mit Diagrammen
-- [API-Referenz](docs/api-reference-ger.md) - API-Dokumentation
-- [API Client SDKs](docs/api-client-sdks-ger.md) - Client-Beispiele
-- [Integrationsleitfaden](docs/integration-guide-ger.md) - Integration in bestehende Systeme
-- [Entwicklungsumgebung](docs/DEVELOPMENT_SETUP-ger.md) - Entwicklungsumgebung einrichten
+### Developer Documentation
+- [Developer Guide](docs/developer.html) - Architecture with diagrams
+- [API Reference](docs/api-reference-ger.md) - API documentation
+- [API Client SDKs](docs/api-client-sdks-ger.md) - Client examples
+- [Integration Guide](docs/integration-guide-ger.md) - Integration into existing systems
+- [Development Environment](docs/DEVELOPMENT_SETUP-ger.md) - Setting up development environment
 
-### Setup & Konfiguration
-- [Remote-Desktop-Einrichtung](docs/remote-desktop-setup-guide-ger.md) - Guacamole einrichten
-- [Sicherheitsleitfaden](docs/security-best-practices-guide-ger.md) - Sicherheitsrichtlinien
-- [Leistungsoptimierung](docs/performance-tuning-guide-ger.md) - Optimierung
-- [Docker-Umgebung](docs/docker-env-setup-ger.md) - Docker Konfiguration
+### Setup & Configuration
+- [Remote Desktop Setup](docs/remote-desktop-setup-guide-ger.md) - Guacamole setup
+- [Security Guide](docs/security-best-practices-guide-ger.md) - Security guidelines
+- [Performance Tuning](docs/performance-tuning-guide-ger.md) - Optimization
+- [Docker Environment](docs/docker-env-setup-ger.md) - Docker configuration
 
-### Technische Dokumentation
-- [Backend-Proxy-Implementierung](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy-Architektur
-- [OpenAPI-Spezifikation](docs/openapi.yaml) - API Spezifikation
+### Technical Documentation
+- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy architecture
+- [OpenAPI Specification](docs/openapi.yaml) - API specification
 
-## 🔒 Sicherheit
+## 🔒 Security
 
-### Integrierte Sicherheitsfunktionen
-- **JWT-Authentifizierung** - Sichere Token-basierte Authentifizierung
-- **Verschlüsselte Passwörter** - AES-256 für Remote-Host-Passwörter
-- **Rate-Limiting** - Schutz vor Brute-Force-Angriffen
-- **CORS-Schutz** - Konfigurierbare Richtlinien
-- **SQL-Injection-Schutz** - Prepared Statements
-- **XSS-Prävention** - Eingabebereinigung
+### Integrated Security Features
+- **JWT Authentication** - Secure token-based authentication
+- **Encrypted Passwords** - AES-256 for remote host passwords
+- **Rate Limiting** - Protection against brute force attacks
+- **CORS Protection** - Configurable policies
+- **SQL Injection Protection** - Prepared statements
+- **XSS Prevention** - Input sanitization
 
-### Wichtige Sicherheitshinweise
+### Important Security Notes
 
-⚠️ **Verschlüsselungsschlüssel**: 
-- Wird beim Setup generiert oder manuell eingegeben
-- Sicher aufbewahren (z.B. Passwort-Manager)
-- Benötigt für Passwort-Entschlüsselung nach Restore
+⚠️ **Encryption Key**: 
+- Generated during setup or entered manually
+- Store securely (e.g., password manager)
+- Required for password decryption after restore
 
 ⚠️ **Best Practices**:
-- Alle Standard-Passwörter ändern
-- HTTPS mit gültigem Zertifikat verwenden
-- Regelmäßige Backups erstellen
-- Firewall-Regeln konfigurieren
+- Change all default passwords
+- Use HTTPS with valid certificate
+- Create regular backups
+- Configure firewall rules
 
-## 🏗️ Architektur
+## 🏗️ Architecture
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -225,11 +225,11 @@ Ausführliche Anleitung: [📖 Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.m
                         └─────────────────┘
 ```
 
-## 🛠️ Konfiguration
+## 🛠️ Configuration
 
-### Environment Variablen
+### Environment Variables
 
-Die wichtigsten Einstellungen in der `.env` Datei:
+The most important settings in the `.env` file:
 
 ```env
 # Ports
@@ -252,7 +252,7 @@ ENABLE_AUDIT_LOG=true
 
 ### Docker Compose Override
 
-Für spezifische Anpassungen erstellen Sie eine `docker-compose.override.yml`:
+For specific customizations, create a `docker-compose.override.yml`:
 
 ```yaml
 version: '3.8'
@@ -264,30 +264,30 @@ services:
       - ./ssl:/etc/nginx/ssl:ro
 ```
 
-## 🔧 Wartung
+## 🔧 Maintenance
 
-### Backup erstellen
+### Create backup
 ```bash
-# Über die UI: Einstellungen → Backup → Backup erstellen
-# Oder via Script:
+# Via UI: Settings → Backup → Create backup
+# Or via script:
 docker exec appliance_backend npm run backup
 ```
 
-### Logs anzeigen
+### View logs
 ```bash
-# Alle Services
+# All services
 docker compose logs -f
 
-# Spezifischer Service
+# Specific service
 docker compose logs -f backend
 ```
 
-### Container neu starten
+### Restart containers
 ```bash
-# Alle Services
+# All services
 docker compose restart
 
-# Einzelner Service
+# Single service
 docker compose restart backend
 ```
 
@@ -299,53 +299,53 @@ docker compose build
 docker compose up -d
 ```
 
-## 📊 Leistung
+## 📊 Performance
 
-### System-Anforderungen
-- **CPU**: 2 Cores (4 empfohlen)
-- **RAM**: 2GB minimum (4GB empfohlen)
-- **Festplatte**: 10GB (20GB empfohlen)
+### System Requirements
+- **CPU**: 2 cores (4 recommended)
+- **RAM**: 2GB minimum (4GB recommended)
+- **Disk**: 10GB (20GB recommended)
 
-### Optimierungen
-- Redis-Cache (optional)
-- CDN für statische Ressourcen
-- Datenbankabfrage-Optimierung
-- Verbindungspooling
+### Optimizations
+- Redis cache (optional)
+- CDN for static resources
+- Database query optimization
+- Connection pooling
 
-## 🐛 Fehlerbehebung
+## 🐛 Troubleshooting
 
-### Häufige Probleme
+### Common Issues
 
-**Container startet nicht:**
+**Container won't start:**
 ```bash
 docker compose down -v
 docker compose up -d
 ```
 
-**Passwort vergessen:**
+**Forgot password:**
 ```bash
 docker exec appliance_backend npm run reset-admin-password
 ```
 
-**SSL-Zertifikat-Fehler:**
-- Prüfen Sie die Nginx-Konfiguration
-- Stellen Sie sicher, dass Port 443 verfügbar ist
+**SSL certificate error:**
+- Check Nginx configuration
+- Ensure port 443 is available
 
-### Debug-Modus
+### Debug Mode
 
-Für detaillierte Logs:
+For detailed logs:
 ```bash
-# .env anpassen
+# Adjust .env
 NODE_ENV=development
 LOG_LEVEL=debug
 
-# Container neu starten
+# Restart containers
 docker compose restart backend
 ```
 
 ## 🤝 Contributing
 
-Wir freuen uns über Beiträge! Siehe [CONTRIBUTING.md](CONTRIBUTING.md) für Details.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ### Development Setup
 ```bash
@@ -360,27 +360,27 @@ npm install
 npm run dev
 ```
 
-## 📄 Lizenz
+## 📄 License
 
-Dieses Projekt ist unter der MIT License lizenziert - siehe [LICENSE](LICENSE) für Details.
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
-## 🙏 Danksagungen
+## 🙏 Acknowledgments
 
 - [React](https://reactjs.org/) - UI Framework
 - [Express.js](https://expressjs.com/) - Backend Framework
 - [Apache Guacamole](https://guacamole.apache.org/) - Remote Desktop
 - [ttyd](https://github.com/tsl0922/ttyd) - Web Terminal
-- Alle weiteren [Open Source Projekte](package.json) die dieses Projekt ermöglichen
+- All other [Open Source Projects](package.json) that make this project possible
 
-## 💬 Über das Projekt
+## 💬 About the Project
 
-> "Nach 30 Jahren in der IT und unzähligen Tools später wollte ich einfach ein Dashboard, das funktioniert. Kein Schnickschnack, keine Cloud-Abhängigkeit, keine monatlichen Gebühren. Nur ein solides, schönes Tool für mein Homelab. Wenn es Ihnen hilft, Ihr Homelab besser zu managen - Mission erfüllt!"
+> "After 30 years in IT and countless tools later, I just wanted a dashboard that works. No frills, no cloud dependency, no monthly fees. Just a solid, beautiful tool for my homelab. If it helps you manage your homelab better - mission accomplished!"
 >
-> *- Alf, 56, IT-Enthusiast seit dem Sinclair ZX80*
+> *- Alf, 56, IT enthusiast since the C64*
 
 ---
 
 <p align="center">
   Made with ❤️ by <a href="https://github.com/alflewerken">Alf Lewerken</a><br>
-  <i>Von einem Homelab-Enthusiasten für Homelab-Enthusiasten</i>
+  <i>From a homelab enthusiast for homelab enthusiasts</i>
 </p>
