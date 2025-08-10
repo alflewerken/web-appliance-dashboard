@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated health check endpoint at /health
   - Removed dependency on local nginx config mounting
   - Improved deployment consistency across environments
+- **Comprehensive User Documentation** - 600+ lines user guide
+  - Personal story and motivation behind the project
+  - Host-First concept explained in detail
+  - Mobile Experience guide with iPhone screenshots
+  - Practical workflows instead of feature lists
+  - Clean UI Philosophy documented ("Hover-to-Reveal", "Touch-to-Show")
+  - Tips from the developer section
+  - Complete English translation of all documentation
+- **Host Management Documentation** - Clear onboarding process
+  - Hosts as foundation for all services
+  - Step-by-step host creation guide
+  - Visual guide with annotated screenshots
+  - Host card button explanations
+- **Bilingual Documentation** - Full English and German support
+  - English README as default (README.md)
+  - German README available (README.de.md)
+  - Complete English translation of User Guide (USER-GUIDE.en.md)
+  - All screenshots and references synchronized
 
 ### Fixed
 - **User Status Display** - Fixed incorrect "Account locked" display in User Panel
@@ -52,6 +70,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unused Code** - Cleaned up obsolete mapping functions
   - Removed unused mapDbToJs, mapJsToDb, mapDbToJsWithPasswords imports
   - Removed create-customer-package-v2.sh from repository tracking
+- **Legacy Documentation** - Replaced with new comprehensive guide
+  - Removed entire docs/user-manual directory
+  - Deleted outdated screenshots and HTML documentation
+  - Replaced with modern Markdown-based documentation
+- **Debug and Test Files** - Major cleanup for production readiness
+  - Removed 70,000+ lines of debug and test code
+  - Deleted all temporary scripts and development helpers
+  - Cleaned up unused nginx configurations
+  - Removed all test databases and backup files
+
+### Security
+- **Example Secrets Neutralized** - Secure defaults in .env.example
+  - JWT_SECRET and SSH_KEY_ENCRYPTION_SECRET marked as insecure examples
+  - Setup script automatically generates secure replacements
+  - Clear warnings about not using example values in production
+- **Security Contact Updated** - GitHub Security Advisories
+  - Removed placeholder email from SECURITY.md
+  - Configured to use GitHub's built-in security reporting
+  - Clear instructions for vulnerability reporting
+
+### Documentation
+- **README Overhaul** - Complete restructuring
+  - English README now default for international accessibility
+  - Updated screenshots from new user guide
+  - Personal touch with developer story
+  - Host-First concept prominently explained
+  - Clean UI Philosophy highlighted
+- **User Guide v2** - Comprehensive rewrite
+  - 600+ lines of detailed documentation
+  - Personal narrative style
+  - Mobile-first approach with real iPhone screenshots
+  - Practical workflows with time savings
+  - Troubleshooting section
+  - Roadmap and future plans
+- **Launch Preparation** - Ready for open source release
+  - LAUNCH-CHECKLIST.md created with pre-flight checks
+  - All sensitive information removed
+  - Repository cleaned and organized
+  - Version badges updated to 1.1.2
 
 ## [1.1.1] - 2025-07-27
 

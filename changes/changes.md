@@ -28906,3 +28906,93 @@ AUSWIRKUNG:
 STATUS: ✅ Englische README ist jetzt die Standard-Ansicht auf GitHub
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-10 20:00 - DOCUMENTATION: User Guide vollständig ins Englische übersetzt
+
+BESCHREIBUNG:
+Das komplette Benutzerhandbuch wurde ins Englische übersetzt (600+ Zeilen).
+Die englische README verlinkt jetzt auf die englische Version des Guides.
+
+NEUE DATEI:
+- docs/user-guide-v2/USER-GUIDE.en.md (614 Zeilen)
+
+ÜBERSETZUNG UMFASST:
+1. Die komplette persönliche Geschichte
+2. Alle technischen Anleitungen
+3. Host-First Konzept Erklärung
+4. Mobile Experience Guide
+5. Workflows und Use Cases
+6. Clean UI Philosophy
+7. Tipps vom Entwickler
+8. Troubleshooting
+9. Roadmap
+10. Persönliches Schlusswort
+
+GEÄNDERTE DATEIEN:
+- README.md: Alle Links zum User Guide zeigen jetzt auf USER-GUIDE.en.md
+  - Header Link
+  - Quick Start Link
+  - Documentation Section Link
+
+ÜBERSETZUNGSQUALITÄT:
+- Natürliches Englisch, keine wörtliche Übersetzung
+- Technische Begriffe korrekt übersetzt
+- Persönlicher Ton beibehalten
+- Screenshots-Referenzen identisch
+
+STRUKTUR:
+- Identisch zur deutschen Version
+- Alle Sections in gleicher Reihenfolge
+- Alle Code-Beispiele übernommen
+- Alle Features dokumentiert
+
+STATUS: ✅ Vollständige englische Dokumentation verfügbar
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-10 20:10 - DOCUMENTATION: CHANGELOG.md für Version 1.1.2 erweitert
+
+BESCHREIBUNG:
+Der CHANGELOG-Eintrag für Version 1.1.2 wurde um alle heutigen Arbeiten erweitert.
+Der Eintrag dokumentiert jetzt die umfassende Dokumentationsarbeit, Cleanup-Aktivitäten
+und Sicherheitsverbesserungen.
+
+GEÄNDERTE DATEI: CHANGELOG.md
+
+NEUE EINTRÄGE IN VERSION 1.1.2:
+
+Added:
+- Comprehensive User Documentation (600+ Zeilen)
+- Host Management Documentation
+- Bilingual Documentation (Englisch und Deutsch)
+
+Removed:
+- Legacy Documentation (komplettes user-manual Verzeichnis)
+- Debug and Test Files (70.000+ Zeilen)
+
+Security:
+- Example Secrets Neutralized
+- Security Contact Updated (GitHub Security Advisories)
+
+Documentation:
+- README Overhaul (Englisch als Standard)
+- User Guide v2 (Komplette Neuschreibung)
+- Launch Preparation (Repository bereit für Open Source)
+
+UMFANG:
+Der CHANGELOG zeigt jetzt die massive Arbeit des heutigen Tages:
+- Dokumentation komplett überarbeitet
+- Repository von 70.000+ Zeilen bereinigt
+- Zweisprachige Unterstützung implementiert
+- Sicherheitslücken geschlossen
+- Projekt für Veröffentlichung vorbereitet
+
+STATUS: ✅ CHANGELOG vollständig aktualisiert für Release 1.1.2
+
+════════════════════════════════════════════════════════════════════════════════

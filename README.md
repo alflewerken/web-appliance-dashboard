@@ -1,6 +1,6 @@
 # Web Appliance Dashboard 🚀
 
-🇬🇧 English | [🇩🇪 Deutsch](README.de.md) | [📖 User Guide](docs/user-guide-v2/USER-GUIDE.md)
+🇬🇧 English | [🇩🇪 Deutsch](README.de.md) | [📖 User Guide](docs/user-guide-v2/USER-GUIDE.en.md)
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
@@ -149,12 +149,12 @@ Default login:
 3. Enter host data (IP, SSH credentials)
 4. Save - done!
 
-Detailed instructions: [📖 User Guide](docs/user-guide-v2/USER-GUIDE.md)
+Detailed instructions: [📖 User Guide](docs/user-guide-v2/USER-GUIDE.en.md)
 
 ## 📚 Documentation
 
 ### 📖 For Users
-- **[User Guide](docs/user-guide-v2/USER-GUIDE.md)** - Comprehensive guide with personal touch
+- **[User Guide](docs/user-guide-v2/USER-GUIDE.en.md)** - Comprehensive guide with personal touch
   - Origin story & motivation
   - 5-minute quick start (Host-First!)
   - Mobile Experience Guide
@@ -376,7 +376,9 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 > "After 30 years in IT and countless tools later, I just wanted a dashboard that works. No frills, no cloud dependency, no monthly fees. Just a solid, beautiful tool for my homelab. If it helps you manage your homelab better - mission accomplished!"
 >
-> *- Alf, 56, IT enthusiast since the C64*
+> *- Alf, 56, IT enthusiast since the Sinclair ZX80*
+>
+> enyoy!
 
 ---
 
