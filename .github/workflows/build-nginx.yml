@@ -49,8 +49,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Removed cache options as they cause issues with the default docker driver
 
       - name: Summary
         run: |
