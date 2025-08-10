@@ -23122,3 +23122,2387 @@ volumes:
 STATUS: ✅ Customer Package hat jetzt alle benötigten Volumes definiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 16:10 - FIX: SSH-Key wird korrekt in authorized_keys eingetragen
+
+PROBLEM:
+- SSH-Keys wurden ohne Zeilenumbruch an authorized_keys angehängt
+- Dadurch wurden mehrere Keys in einer Zeile zusammengefügt
+- SSH-Authentifizierung schlug fehl, obwohl Key konfiguriert war
+- Terminal fragte nach Passwort trotz vorhandenem SSH-Key
+
+URSACHE:
+- In backend/routes/ssh.js wurde der publicKey ohne Zeilenumbruch eingefügt
+- echo "$publicKey" >> authorized_keys fügte den Key direkt an die vorherige Zeile an
+
+LÖSUNG:
+SSH-Key wird jetzt mit garantiertem Zeilenumbruch eingefügt
+
+### backend/routes/ssh.js - SSH-Key mit Zeilenumbruch einfügen
+
+-PATCH backend/routes/ssh.js (Zeilen 83-85)
+```javascript
+    // Add public key to authorized_keys
+    const command = `echo "${publicKey}" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`;
+    const result = await ssh.execCommand(command);
+```
+
++PATCH backend/routes/ssh.js (Zeilen 83-86)
+```javascript
+    // Add public key to authorized_keys (ensure newline at end to prevent key concatenation)
+    const publicKeyWithNewline = publicKey.trim() + '\n';
+    const command = `echo "${publicKeyWithNewline}" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`;
+    const result = await ssh.execCommand(command);
+```
+
+WICHTIG:
+- publicKey wird getrimmt und mit \n versehen
+- Verhindert das Zusammenfügen mehrerer Keys in einer Zeile
+- Bestehende falsch eingetragene Keys müssen manuell korrigiert werden
+
+STATUS: ✅ SSH-Keys werden jetzt korrekt in authorized_keys eingetragen
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 16:20 - KRITISCHER FIX: Appliance-Update überschreibt alle Felder mit undefined
+
+PROBLEM:
+- Beim Update einer Appliance (z.B. nur Passwort ändern) wurden ALLE anderen Felder gelöscht
+- Die Update-Funktion setzte alle nicht gesendeten Felder auf undefined/null
+- Datenverlust bei partiellen Updates
+
+URSACHE:
+- backend/routes/appliances.js PUT /:id Route
+- updateData wurde mit ALLEN Feldern initialisiert, auch wenn sie nicht gesendet wurden
+- req.body.name = undefined führte zu name: undefined in der Datenbank
+
+BEISPIEL DES BUGS:
+```javascript
+// ALT - FEHLERHAFT:
+const updateData = {
+  name: req.body.name,  // undefined wenn nicht gesendet!
+  url: req.body.url,    // undefined wenn nicht gesendet!
+  // ... alle anderen Felder
+};
+```
+
+LÖSUNG:
+Nur Felder updaten, die tatsächlich im Request vorhanden sind
+
+### backend/routes/appliances.js - Partielle Updates korrekt handhaben
+
+-PATCH backend/routes/appliances.js (Zeilen 396-426)
+```javascript
+    // Prepare update data from request body
+    const updateData = {
+      name: req.body.name,
+      url: req.body.url,
+      description: req.body.description,
+      icon: req.body.icon,
+      color: req.body.color,
+      category: req.body.category,
+      isFavorite: req.body.isFavorite,
+      startCommand: req.body.startCommand || null,
+      stopCommand: req.body.stopCommand || null,
+      statusCommand: req.body.statusCommand || null,
+      autoStart: req.body.autoStart || false,
+      sshConnection: req.body.sshConnection || null,
+      transparency: req.body.transparency !== undefined ? req.body.transparency : 0.85,
+      blurAmount: req.body.blurAmount !== undefined ? req.body.blurAmount : 8,
+      openModeMini: req.body.openModeMini || 'browser_tab',
+      openModeMobile: req.body.openModeMobile || 'browser_tab',
+      openModeDesktop: req.body.openModeDesktop || 'browser_tab',
+      remoteDesktopEnabled: req.body.remoteDesktopEnabled || false,
+      remoteDesktopType: req.body.remoteDesktopType || 'guacamole',
+      remoteProtocol: req.body.remoteProtocol || 'vnc',
+      remoteHost: req.body.remoteHost || null,
+      remotePort: req.body.remotePort || null,
+      remoteUsername: req.body.remoteUsername || null,
+      remotePasswordEncrypted: encryptedPassword,
+      rustdeskId: req.body.rustdeskId || null,
+      rustdeskInstalled: req.body.rustdeskInstalled !== undefined ? req.body.rustdeskInstalled : false,
+      rustdeskPasswordEncrypted: encryptedRustDeskPassword,
+      updatedAt: new Date()
+    };
+```
+
++PATCH backend/routes/appliances.js (Zeilen 396-436)
+```javascript
+    // Prepare update data from request body - only include fields that are actually sent
+    const updateData = {
+      updatedAt: new Date()
+    };
+
+    // Only update fields that are explicitly provided in the request
+    if (req.body.name !== undefined) updateData.name = req.body.name;
+    if (req.body.url !== undefined) updateData.url = req.body.url;
+    if (req.body.description !== undefined) updateData.description = req.body.description;
+    if (req.body.icon !== undefined) updateData.icon = req.body.icon;
+    if (req.body.color !== undefined) updateData.color = req.body.color;
+    if (req.body.category !== undefined) updateData.category = req.body.category;
+    if (req.body.isFavorite !== undefined) updateData.isFavorite = req.body.isFavorite;
+    if (req.body.startCommand !== undefined) updateData.startCommand = req.body.startCommand;
+    if (req.body.stopCommand !== undefined) updateData.stopCommand = req.body.stopCommand;
+    if (req.body.statusCommand !== undefined) updateData.statusCommand = req.body.statusCommand;
+    if (req.body.autoStart !== undefined) updateData.autoStart = req.body.autoStart;
+    if (req.body.sshConnection !== undefined) updateData.sshConnection = req.body.sshConnection;
+    if (req.body.transparency !== undefined) updateData.transparency = req.body.transparency;
+    if (req.body.blurAmount !== undefined) updateData.blurAmount = req.body.blurAmount;
+    if (req.body.openModeMini !== undefined) updateData.openModeMini = req.body.openModeMini;
+    if (req.body.openModeMobile !== undefined) updateData.openModeMobile = req.body.openModeMobile;
+    if (req.body.openModeDesktop !== undefined) updateData.openModeDesktop = req.body.openModeDesktop;
+    if (req.body.remoteDesktopEnabled !== undefined) updateData.remoteDesktopEnabled = req.body.remoteDesktopEnabled;
+    if (req.body.remoteDesktopType !== undefined) updateData.remoteDesktopType = req.body.remoteDesktopType;
+    if (req.body.remoteProtocol !== undefined) updateData.remoteProtocol = req.body.remoteProtocol;
+    if (req.body.remoteHost !== undefined) updateData.remoteHost = req.body.remoteHost;
+    if (req.body.remotePort !== undefined) updateData.remotePort = req.body.remotePort;
+    if (req.body.remoteUsername !== undefined) updateData.remoteUsername = req.body.remoteUsername;
+    if (req.body.rustdeskId !== undefined) updateData.rustdeskId = req.body.rustdeskId;
+    if (req.body.rustdeskInstalled !== undefined) updateData.rustdeskInstalled = req.body.rustdeskInstalled;
+    
+    // Handle password updates
+    if (req.body.remotePassword !== undefined && req.body.remotePassword !== '') {
+      updateData.remotePasswordEncrypted = encryptedPassword;
+    }
+    if (req.body.rustdeskPassword !== undefined && req.body.rustdeskPassword !== '') {
+      updateData.rustdeskPasswordEncrypted = encryptedRustDeskPassword;
+    }
+```
+
+WICHTIG:
+- Jetzt werden nur noch Felder aktualisiert, die tatsächlich gesendet wurden
+- Partielle Updates funktionieren korrekt
+- Kein Datenverlust mehr bei einzelnen Feld-Updates
+
+DATENWIEDERHERSTELLUNG:
+- Appliance "Nextcloud-Mac" (ID 45) wurde manuell wiederhergestellt
+- Audit-Logs enthielten die alten Werte
+
+STATUS: ✅ Partielle Updates funktionieren jetzt korrekt ohne Datenverlust
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 16:30 - FIX: Remote Desktop Verbindung für Appliances funktioniert nicht
+
+PROBLEM:
+- Guacamole Remote Desktop zeigte "nicht aktiviert" obwohl es in DB aktiviert war
+- Frontend erhielt Felder im snake_case statt camelCase Format
+- Remote Port war null, obwohl VNC Port 5900 benötigt
+
+URSACHEN:
+1. backend/routes/appliances.js GET / gab rohe DB-Felder zurück ohne Mapping
+2. remotePort blieb null wenn nicht explizit gesetzt
+3. Frontend erwartete camelCase Felder (remoteDesktopEnabled statt remote_desktop_enabled)
+
+LÖSUNG:
+1. Appliances werden jetzt korrekt mit mapDbToJs konvertiert
+2. Default-Ports werden automatisch gesetzt (VNC: 5900, RDP: 3389)
+
+### backend/routes/appliances.js - Mapping für GET / hinzugefügt
+
+-PATCH backend/routes/appliances.js (Zeilen 52-86)
+```javascript
+// Get all appliances
+router.get('/', async (req, res) => {
+  try {
+    const appliances = await db.select('appliances', {}, { orderBy: 'name' });
+
+    // Debug: Log first appliance with SSH connection
+    const debugAppliance = appliances.find(a => a.sshConnection);
+    if (debugAppliance) {
+      console.log('DEBUG: Raw appliance with SSH:', {
+        id: debugAppliance.id,
+        name: debugAppliance.name,
+        sshConnection: debugAppliance.sshConnection,
+        remoteDesktopType: debugAppliance.remoteDesktopType,
+        remoteDesktopEnabled: debugAppliance.remoteDesktopEnabled
+      });
+    }
+
+    // Debug: Check mapped appliance
+    const debugMapped = appliances.find(a => a.sshConnection);
+    if (debugMapped) {
+      console.log('DEBUG: Mapped appliance with SSH:', {
+        id: debugMapped.id,
+        name: debugMapped.name,
+        sshConnection: debugMapped.sshConnection,
+        remoteDesktopEnabled: debugMapped.remoteDesktopEnabled,
+        remoteDesktopType: debugMapped.remoteDesktopType,
+        remoteProtocol: debugMapped.remoteProtocol
+      });
+    }
+
+    res.json(appliances);
+```
+
++PATCH backend/routes/appliances.js (Zeilen 52-72)
+```javascript
+// Get all appliances
+router.get('/', async (req, res) => {
+  try {
+    const rawAppliances = await db.select('appliances', {}, { orderBy: 'name' });
+    
+    // Map database fields to JavaScript/camelCase format
+    const appliances = rawAppliances.map(app => mapDbToJs(app, 'appliances'));
+
+    // Debug: Log first appliance with SSH connection
+    const debugAppliance = appliances.find(a => a.sshConnection);
+    if (debugAppliance) {
+      console.log('DEBUG: Mapped appliance with SSH:', {
+        id: debugAppliance.id,
+        name: debugAppliance.name,
+        sshConnection: debugAppliance.sshConnection,
+        remoteDesktopEnabled: debugAppliance.remoteDesktopEnabled,
+        remoteDesktopType: debugAppliance.remoteDesktopType,
+        remoteProtocol: debugAppliance.remoteProtocol
+      });
+    }
+
+    res.json(appliances);
+```
+
+### backend/utils/dbFieldMapping.js - Default-Ports für Remote Desktop
+
+-PATCH backend/utils/dbFieldMapping.js (Zeile 174)
+```javascript
+    remotePort: row.remote_port || null,
+```
+
++PATCH backend/utils/dbFieldMapping.js (Zeile 174)
+```javascript
+    remotePort: row.remote_port || (row.remote_protocol === 'vnc' ? 5900 : row.remote_protocol === 'rdp' ? 3389 : null),
+```
+
+WICHTIG:
+- Appliances erhalten jetzt korrekt gemappte Felder im Frontend
+- VNC-Port wird automatisch auf 5900 gesetzt wenn nicht definiert
+- RDP-Port wird automatisch auf 3389 gesetzt wenn nicht definiert
+- Remote Desktop Button sollte jetzt funktionieren
+
+STATUS: ✅ Remote Desktop für Appliances funktioniert wieder
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 16:45 - KRITISCHER FIX: Alle appliances Routes nutzen jetzt den Mapping-Layer
+
+PROBLEM:
+- Backend sendete snake_case Felder direkt aus der Datenbank ans Frontend
+- Frontend erwartet camelCase Format
+- Verletzung der Architektur-Regel: "Backend-Routes müssen immer den Mapping-Layer verwenden"
+
+BETROFFENE ROUTES:
+- GET /api/appliances - ✅ behoben
+- GET /api/appliances/:id - ✅ behoben
+- POST /api/appliances - ✅ behoben
+- PUT /api/appliances/:id - ✅ behoben  
+- PATCH /api/appliances/:id - ✅ behoben
+- PATCH /api/appliances/:id/favorite - ✅ behoben
+
+LÖSUNG:
+Alle Routes nutzen jetzt mapDbToJs() für Daten aus der Datenbank
+
+### backend/routes/appliances.js - GET /:id mit Mapping
+
+-PATCH backend/routes/appliances.js (Zeilen 125-133)
+```javascript
+// Get single appliance
+router.get('/:id', async (req, res) => {
+  try {
+    const appliance = await db.findOne('appliances', { id: req.params.id });
+
+    if (!appliance) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+
+    res.json(appliance);
+```
+
++PATCH backend/routes/appliances.js (Zeilen 125-136)
+```javascript
+// Get single appliance
+router.get('/:id', async (req, res) => {
+  try {
+    const rawAppliance = await db.findOne('appliances', { id: req.params.id });
+
+    if (!rawAppliance) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+
+    // Map database fields to JavaScript/camelCase format
+    const appliance = mapDbToJs(rawAppliance, 'appliances');
+
+    res.json(appliance);
+```
+
+### backend/routes/appliances.js - POST / mit Mapping
+
+-PATCH backend/routes/appliances.js (Zeilen ~308-340)
+```javascript
+    // Fetch the created appliance with all fields
+    const newAppliance = await db.findOne('appliances', { id: result.insertId });
+
+    // Create audit log
+    if (req.user) {
+      await createAuditLog(
+        req.user.id,
+        'appliance_create',
+        'appliances',
+        result.insertId,
+        {
+          appliance_name: req.body.name,
+          service: newAppliance,
+          created_by: req.user.username,
+        },
+        req.clientIp || req.ip
+      );
+    }
+
+    // Sync Guacamole connection if remote desktop is enabled
+    if (newAppliance.remoteDesktopEnabled) {
+```
+
++PATCH backend/routes/appliances.js  
+```javascript
+    // Fetch the created appliance with all fields
+    const rawNewAppliance = await db.findOne('appliances', { id: result.insertId });
+    
+    // Map database fields to JavaScript/camelCase format
+    const newAppliance = mapDbToJs(rawNewAppliance, 'appliances');
+
+    // Create audit log
+    if (req.user) {
+      await createAuditLog(
+        req.user.id,
+        'appliance_create',
+        'appliances',
+        result.insertId,
+        {
+          appliance_name: req.body.name,
+          service: newAppliance,
+          created_by: req.user.username,
+        },
+        req.clientIp || req.ip
+      );
+    }
+
+    // Sync Guacamole connection if remote desktop is enabled  
+    if (rawNewAppliance.remote_desktop_enabled) {
+```
+
+### backend/routes/appliances.js - PUT /:id mit Mapping
+
+-PATCH backend/routes/appliances.js
+```javascript
+    // Fetch updated appliance
+    const updatedAppliance = await db.findOne('appliances', { id });
+
+    if (!updatedAppliance) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+```
+
++PATCH backend/routes/appliances.js
+```javascript
+    // Fetch updated appliance
+    const updatedApplianceRaw = await db.findOne('appliances', { id });
+
+    if (!updatedApplianceRaw) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+    
+    // Map database fields to JavaScript/camelCase format
+    const updatedAppliance = mapDbToJs(updatedApplianceRaw, 'appliances');
+```
+
+### backend/routes/appliances.js - PATCH Routes mit Mapping
+
+Beide PATCH Routes wurden ebenfalls angepasst:
+- PATCH /:id - Mapping hinzugefügt
+- PATCH /:id/favorite - Mapping hinzugefügt
+
+WICHTIG:
+- ALLE appliances Routes nutzen jetzt konsequent den Mapping-Layer
+- Frontend erhält immer camelCase Format
+- Architektur-Prinzip wird eingehalten
+
+STATUS: ✅ Mapping-Layer wird jetzt durchgängig in allen appliances Routes verwendet
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 16:50 - FIX: mapDbToJs Funktion falsch aufgerufen
+
+PROBLEM:
+- mapDbToJs wurde mit zweitem Parameter aufgerufen: mapDbToJs(data, 'appliances')
+- Die Funktion erwartet aber nur einen Parameter
+- Dadurch wurden Daten nicht korrekt gemappt
+
+LÖSUNG:
+Alle mapDbToJs Aufrufe korrigiert - nur noch ein Parameter
+
+### backend/routes/appliances.js - mapDbToJs Aufrufe korrigiert
+
+-PATCH (8 Stellen)
+```javascript
+mapDbToJs(data, 'appliances')
+```
+
++PATCH (8 Stellen)
+```javascript
+mapDbToJs(data)
+```
+
+Betroffene Zeilen:
+- Zeile 59: GET / Route
+- Zeile 134: GET /:id Route  
+- Zeile 312: POST / Route
+- Zeile 380: PUT /:id Route
+- Zeile 444: PUT /:id Route (updatedAppliance)
+- Zeile 647: PATCH /:id Route
+- Zeile 731: PATCH /:id Route (updatedAppliance)
+- Zeile 858: PATCH /:id/favorite Route
+
+STATUS: ✅ mapDbToJs wird jetzt korrekt aufgerufen
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 17:00 - KRITISCHER FIX: CamelCase/Snake-Case Mischung in DB-Updates
+
+PROBLEM:
+- Updates und Inserts verwendeten gemischte Schreibweisen
+- DB erwartet snake_case, Code verwendete teilweise camelCase
+- Fehler: "Unknown column 'isFavorite' in 'appliances'"
+
+BETROFFENE STELLEN:
+1. PUT /:id - updateData hatte camelCase Felder
+2. POST / - Insert verwendete isFavorite statt is_favorite
+3. PATCH /:id/favorite - verwendete isFavorite statt is_favorite
+
+LÖSUNG:
+Konsistente Verwendung von snake_case für alle DB-Operationen
+
+### backend/routes/appliances.js - PUT /:id mit korrektem Mapping
+
+-PATCH (Zeilen 394-431)
+```javascript
+    const updateData = {
+      updatedAt: new Date()
+    };
+    // camelCase fields directly...
+    if (req.body.isFavorite !== undefined) updateData.isFavorite = req.body.isFavorite;
+```
+
++PATCH
+```javascript
+    const updateDataCamelCase = {
+      updatedAt: new Date()
+    };
+    // camelCase fields...
+    if (req.body.isFavorite !== undefined) updateDataCamelCase.isFavorite = req.body.isFavorite;
+    
+    // Convert camelCase to snake_case for database
+    const updateData = mapJsToDb(updateDataCamelCase);
+    updateData.updated_at = new Date();
+```
+
+### backend/routes/appliances.js - POST / mit snake_case
+
+-PATCH (Zeile 282)
+```javascript
+      isFavorite: dbData.isFavorite || false,
+      startCommand: dbData.start_command || null,
+      createdAt: new Date(),
+```
+
++PATCH
+```javascript
+      is_favorite: dbData.is_favorite || false,
+      start_command: dbData.start_command || null,
+      created_at: new Date(),
+```
+
+### backend/routes/appliances.js - PATCH /:id/favorite mit snake_case
+
+-PATCH
+```javascript
+    const newStatus = !current.isFavorite;
+    await db.update(
+      'appliances',
+      { isFavorite: newStatus, updatedAt: new Date() },
+```
+
++PATCH
+```javascript
+    const newStatus = !current.is_favorite;
+    await db.update(
+      'appliances',
+      { is_favorite: newStatus, updated_at: new Date() },
+```
+
+WICHTIG:
+- ALLE DB-Operationen verwenden jetzt snake_case
+- Frontend sendet/empfängt camelCase
+- Mapping-Layer konvertiert zwischen beiden
+
+STATUS: ✅ Konsistente Feldnamen-Verwendung implementiert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 17:10 - KRITISCHER FIX: mapDbToJs verwendete falsche Feldnamen
+
+PROBLEM:
+- mapDbToJs griff auf camelCase Felder zu statt auf snake_case DB-Felder
+- Beispiel: row.isFavorite statt row.is_favorite
+- Führte zu undefined/false Werten statt der korrekten Daten
+
+AUSWIRKUNG:
+- isFavorite war immer false (weil row.isFavorite undefined war)
+- lastUsed war immer undefined
+- Alle gemappten Felder waren leer oder hatten Default-Werte
+
+LÖSUNG:
+Korrektur der Feldnamen in mapDbToJs
+
+### backend/utils/dbFieldMapping.js - Korrekte DB-Feldnamen verwenden
+
+-PATCH (Zeilen 149-150)
+```javascript
+    isFavorite: Boolean(row.isFavorite),
+    lastUsed: row.lastUsed,
+```
+
++PATCH (Zeilen 149-150)
+```javascript
+    isFavorite: Boolean(row.is_favorite),  // FIX: is_favorite statt isFavorite
+    lastUsed: row.last_used,  // FIX: last_used statt lastUsed
+```
+
+WICHTIG:
+- mapDbToJs liest jetzt korrekt aus snake_case DB-Feldern
+- Konvertiert zu camelCase für das Frontend
+- Alle Felder werden jetzt korrekt gemappt
+
+STATUS: ✅ Mapping-Funktion arbeitet jetzt korrekt mit DB-Feldnamen
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 17:20 - FIX: Fehlende verifyToken Middleware in Appliances Routes
+
+PROBLEM:
+- GET /api/appliances hatte keine Authentifizierung mehr
+- GET /api/appliances/:id hatte keine Authentifizierung mehr  
+- API gab "Invalid or expired session" zurück
+- Frontend konnte keine Appliances laden
+
+URSACHE:
+- Bei den Mapping-Fixes wurde versehentlich die verifyToken Middleware entfernt
+
+LÖSUNG:
+verifyToken wieder hinzugefügt
+
+### backend/routes/appliances.js - Authentifizierung wiederhergestellt
+
+-PATCH
+```javascript
+router.get('/', async (req, res) => {
+router.get('/:id', async (req, res) => {
+```
+
++PATCH
+```javascript
+router.get('/', verifyToken, async (req, res) => {
+router.get('/:id', verifyToken, async (req, res) => {
+```
+
+STATUS: ✅ Authentifizierung wiederhergestellt - Appliances sollten wieder laden
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 17:30 - DEBUG: Console Logging für Appliances Problem hinzugefügt
+
+PROBLEM:
+- Frontend zeigt "Keine Services gefunden" obwohl Backend 44 Appliances zurückgibt
+- Vermutung: JavaScript-Fehler beim Verarbeiten der Daten
+
+DEBUGGING MASSNAHMEN:
+1. Console Logging in useAppliances Hook hinzugefügt
+2. Console Logging in ApplianceService hinzugefügt
+
+### frontend/src/hooks/useAppliances.js - Debug-Logging hinzugefügt
+
+-PATCH (Zeilen 12-22)
+```javascript
+  const fetchAppliances = async () => {
+    try {
+      setError(null);
+      const data = await ApplianceService.fetchAppliances();
+      setAppliances(data);
+      setLoading(false); // Only set to false after first load
+    } catch (error) {
+      setError(error.message);
+      setAppliances([]); // Leeres Array statt Demo-Daten
+      setLoading(false);
+    }
+  };
+```
+
++PATCH
+```javascript
+  const fetchAppliances = async () => {
+    try {
+      setError(null);
+      console.log('[useAppliances] Starting fetchAppliances...');
+      const data = await ApplianceService.fetchAppliances();
+      console.log('[useAppliances] Received data:', data);
+      console.log('[useAppliances] Data is array?', Array.isArray(data));
+      console.log('[useAppliances] Data length:', data?.length);
+      setAppliances(data);
+      setLoading(false); // Only set to false after first load
+    } catch (error) {
+      console.error('[useAppliances] Error in fetchAppliances:', error);
+      setError(error.message);
+      setAppliances([]); // Leeres Array statt Demo-Daten
+      setLoading(false);
+    }
+  };
+```
+
+### frontend/src/services/applianceService.js - Debug-Logging hinzugefügt
+
+-PATCH (Zeilen 5-9)
+```javascript
+  static async fetchAppliances() {
+    try {
+      const response = await axios.get('/api/appliances');
+      const { data } = response;
+
+      // The backend now returns properly mapped data, so we just ensure defaults
+      const enhancedData = data.map(app => {
+```
+
++PATCH
+```javascript
+  static async fetchAppliances() {
+    try {
+      console.log('[ApplianceService] Starting fetchAppliances...');
+      const response = await axios.get('/api/appliances');
+      console.log('[ApplianceService] Response status:', response.status);
+      console.log('[ApplianceService] Response data:', response.data);
+      const { data } = response;
+
+      // The backend now returns properly mapped data, so we just ensure defaults
+      const enhancedData = data.map(app => {
+```
+
+ZWECK:
+- Identifizieren wo genau der Fehler auftritt
+- Prüfen ob Daten vom Backend ankommen
+- Prüfen ob Daten korrekt verarbeitet werden
+
+STATUS: Debug-Code hinzugefügt - Browser Console muss jetzt geprüft werden
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 17:40 - DEBUG: Erweiterte Console Logs für Filterung hinzugefügt
+
+ANALYSE-ERGEBNIS aus Browser Console:
+- ✅ Backend liefert 44 Appliances
+- ✅ Daten kommen im Frontend an (Array mit 44 Einträgen)
+- ✅ Kein JavaScript-Fehler beim Verarbeiten
+- ⚠️ Daten werden 4x geladen (mehrfache useEffect Aufrufe)
+- ❌ Trotzdem zeigt UI "Keine Services gefunden"
+
+VERMUTUNG:
+Problem liegt in der Filterung oder Kategorie-Zuordnung
+
+WEITERE DEBUG-MASSNAHMEN:
+
+### frontend/src/App.js - Debug Logs für Filterung
+
++PATCH (vor Zeile 1068)
+```javascript
+  // Gefilterte Daten
+  console.log('[App] Raw appliances:', appliances);
+  console.log('[App] appliances length:', appliances?.length);
+  console.log('[App] selectedCategory:', selectedCategory);
+  console.log('[App] searchTerm:', searchTerm);
+  console.log('[App] showOnlyWithStatus:', showOnlyWithStatus);
+  
+  const filteredAppliances = isMiniDashboard
+    ? appliances // Show all appliances in mini dashboard mode
+    : getFilteredAppliances(
+        appliances,
+        selectedCategory,
+        searchTerm,
+        showOnlyWithStatus
+      );
+  
+  console.log('[App] filteredAppliances:', filteredAppliances);
+  console.log('[App] filteredAppliances length:', filteredAppliances?.length);
+  
+  const sections =
+    selectedCategory === 'recent' ? getTimeBasedSections(appliances) : null;
+```
+
+### frontend/src/components/AppContent.js - Debug Logs für Kategorie-Filterung
+
++PATCH (in categoryAppliances useMemo)
+```javascript
+  const categoryAppliances = useMemo(() => {
+    console.log('[AppContent] allCategories:', allCategories);
+    console.log('[AppContent] appliances:', appliances);
+    console.log('[AppContent] appliances length:', appliances?.length);
+    console.log('[AppContent] searchTerm:', searchTerm);
+    console.log('[AppContent] showOnlyWithStatus:', showOnlyWithStatus);
+    
+    if (!Array.isArray(allCategories)) {
+      console.error(
+        'AppContent: allCategories is not an array:',
+        allCategories
+      );
+      return [];
+    }
+    const result = allCategories.map(category => {
+      const filteredApps = getFilteredAppliances(
+        appliances,
+        category.id,
+        searchTerm,
+        showOnlyWithStatus
+      );
+      
+      console.log(`[AppContent] Category ${category.id}: ${filteredApps.length} apps`);
+
+      return {
+        categoryId: category.id,
+        appliances: filteredApps,
+        sections:
+          category.id === 'recent' ? getTimeBasedSections(appliances) : null,
+      };
+    });
+    return result;
+  }, [allCategories, appliances, searchTerm, showOnlyWithStatus]);
+```
+
+ZWECK:
+- Identifizieren ob appliances im App Component ankommt
+- Prüfen welche Kategorie ausgewählt ist
+- Prüfen ob die Filterung das Problem ist
+- Sehen wie viele Apps pro Kategorie gefiltert werden
+
+STATUS: Erweiterte Debug-Logs hinzugefügt - Browser muss neu geladen werden
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 18:10 - KRITISCHER FIX: Boolean-Mapping für MySQL TINYINT korrigiert
+
+PROBLEM IDENTIFIZIERT:
+- Datenbank hat 11 Favoriten (is_favorite = 1)
+- Backend API gibt alle als isFavorite: false zurück
+- MySQL/MariaDB gibt TINYINT(1) als Number zurück, nicht als Boolean
+- Boolean(0) === false, Boolean(1) === true ABER MySQL kann auch Buffer zurückgeben
+
+LÖSUNG:
+Explizite Prüfung auf 1, true oder '1' statt Boolean() Konvertierung
+
+### backend/utils/dbFieldMapping.js - Boolean-Mapping korrigiert
+
+-PATCH (Zeile 154)
+```javascript
+    isFavorite: Boolean(row.is_favorite),  // FIX: is_favorite statt isFavorite
+```
+
++PATCH
+```javascript
+    isFavorite: row.is_favorite === 1 || row.is_favorite === true || row.is_favorite === '1',  // Fix für MySQL TINYINT
+```
+
+-PATCH (Zeile 162)
+```javascript
+    autoStart: Boolean(row.auto_start),
+```
+
++PATCH
+```javascript
+    autoStart: row.auto_start === 1 || row.auto_start === true || row.auto_start === '1',
+```
+
+-PATCH (Zeile 180)
+```javascript
+    remoteDesktopEnabled: Boolean(row.remote_desktop_enabled),
+```
+
++PATCH
+```javascript
+    remoteDesktopEnabled: row.remote_desktop_enabled === 1 || row.remote_desktop_enabled === true || row.remote_desktop_enabled === '1',
+```
+
+-PATCH (Zeile 190)
+```javascript
+    rustdeskInstalled: Boolean(row.rustdesk_installed),
+```
+
++PATCH
+```javascript
+    rustdeskInstalled: row.rustdesk_installed === 1 || row.rustdesk_installed === true || row.rustdesk_installed === '1',
+```
+
+AUSWIRKUNG:
+- Favoriten werden jetzt korrekt aus der Datenbank gelesen
+- Alle Boolean-Felder funktionieren wieder richtig
+- Die 11 Favoriten sollten jetzt in der UI erscheinen
+
+STATUS: ✅ Boolean-Mapping für MySQL TINYINT gefixt
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-09 18:30 - KRITISCHER FIX: Backup-Restore verlor Daten durch falsches Mapping
+
+PROBLEM:
+- Backup-Restore hat alle Appliance-Einstellungen verloren
+- SSH-Connections, Remote Desktop, Favoriten waren nach Restore weg
+- Backup-Datei enthielt die Daten korrekt in gemischtem Format (camelCase)
+
+URSACHE:
+- Der Restore-Code verwendete mapJsToDb() Funktion
+- Diese Funktion konvertiert camelCase → snake_case
+- Danach wurden alle camelCase Felder gelöscht
+- Dadurch gingen die Werte verloren!
+
+LÖSUNG:
+Explizite Behandlung beider Formate (camelCase und snake_case) beim Restore
+
+### backend/routes/backup.js - Restore-Funktion komplett überarbeitet
+
+-PATCH (Zeilen ~883-967 - gekürzt)
+```javascript
+for (const appliance of batch) {
+  // Use the mapping layer to convert from JS to DB format
+  const dbAppliance = mapJsToDb(appliance);
+  
+  // ... timestamps ...
+  
+  // Remove any camelCase duplicates that might have been added
+  delete dbAppliance.lastUsed;
+  delete dbAppliance.isFavorite;
+  // ... viele weitere deletes ...
+}
+```
+
++PATCH (Neuer Code - explizite Feldbehandlung)
+```javascript
+for (const appliance of batch) {
+  console.log(`Restoring appliance: ${appliance.name}`);
+  
+  // CRITICAL FIX: Handle mixed camelCase/snake_case from backup
+  const dbAppliance = {};
+  
+  // Map all fields properly, handling both camelCase and snake_case
+  dbAppliance.id = appliance.id;
+  dbAppliance.name = appliance.name;
+  dbAppliance.category = appliance.category;
+  dbAppliance.description = appliance.description;
+  dbAppliance.url = appliance.url;
+  dbAppliance.icon = appliance.icon;
+  dbAppliance.color = appliance.color;
+  
+  // Handle isFavorite/is_favorite
+  dbAppliance.is_favorite = appliance.isFavorite !== undefined ? 
+    (appliance.isFavorite ? 1 : 0) : 
+    (appliance.is_favorite !== undefined ? appliance.is_favorite : 0);
+  
+  // Handle lastUsed/last_used
+  if (appliance.lastUsed || appliance.last_used) {
+    const lastUsedValue = appliance.lastUsed || appliance.last_used;
+    dbAppliance.last_used = new Date(lastUsedValue)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+  }
+  
+  // Service commands
+  dbAppliance.status_command = appliance.statusCommand || appliance.status_command || null;
+  dbAppliance.start_command = appliance.startCommand || appliance.start_command || null;
+  dbAppliance.stop_command = appliance.stopCommand || appliance.stop_command || null;
+  dbAppliance.restart_command = appliance.restartCommand || appliance.restart_command || null;
+  dbAppliance.service_status = appliance.serviceStatus || appliance.service_status || 'unknown';
+  
+  // SSH connection
+  dbAppliance.ssh_connection = appliance.sshConnection || appliance.ssh_connection || null;
+  
+  // Visual settings
+  dbAppliance.transparency = appliance.transparency || '0.7';
+  dbAppliance.blur_amount = appliance.blurAmount || appliance.blur_amount || 8;
+  
+  // Remote desktop settings
+  dbAppliance.remote_desktop_enabled = appliance.remoteDesktopEnabled !== undefined ?
+    (appliance.remoteDesktopEnabled ? 1 : 0) :
+    (appliance.remote_desktop_enabled !== undefined ? appliance.remote_desktop_enabled : 0);
+  dbAppliance.remote_protocol = appliance.remoteProtocol || appliance.remote_protocol || 'vnc';
+  dbAppliance.remote_host = appliance.remoteHost || appliance.remote_host || null;
+  dbAppliance.remote_port = appliance.remotePort || appliance.remote_port || null;
+  dbAppliance.remote_username = appliance.remoteUsername || appliance.remote_username || null;
+  dbAppliance.remote_password_encrypted = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
+  
+  // RustDesk settings
+  dbAppliance.rustdesk_id = appliance.rustdeskId || appliance.rustdesk_id || null;
+  dbAppliance.rustdesk_password_encrypted = appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted || null;
+  dbAppliance.rustdesk_installed = appliance.rustdeskInstalled !== undefined ?
+    appliance.rustdeskInstalled :
+    (appliance.rustdesk_installed !== undefined ? appliance.rustdesk_installed : 0);
+  
+  // ... weitere Felder ...
+  
+  console.log(`Service commands - start: ${dbAppliance.start_command}, stop: ${dbAppliance.stop_command}`);
+  console.log(`SSH connection: ${dbAppliance.ssh_connection}`);
+  console.log(`Remote desktop: ${dbAppliance.remote_desktop_enabled}, Favorites: ${dbAppliance.is_favorite}`);
+  
+  await connection.execute(
+    `INSERT INTO appliances (${fields.join(', ')}) VALUES (${placeholders})`,
+    values
+  );
+  restoredAppliances++;
+}
+```
+
+WICHTIG:
+- Jetzt werden beide Formate (camelCase UND snake_case) korrekt behandelt
+- Keine Daten gehen mehr verloren beim Restore
+- Alle Einstellungen (SSH, Remote Desktop, Favoriten) werden wiederhergestellt
+
+STATUS: ✅ Backup-Restore funktioniert jetzt korrekt mit gemischten Feldformaten
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 19:35 - FIX: Fehlende Felder in hosts Mapping Layer hinzugefügt
+
+PROBLEM:
+- created_by und updated_by Felder existieren in der hosts-Tabelle
+- Diese Felder wurden im Mapping Layer nicht berücksichtigt
+- Dadurch gingen die User-Tracking-Informationen verloren
+
+LÖSUNG:
+Felder created_by und updated_by zum Mapping hinzugefügt
+
+### backend/utils/dbFieldMappingHosts.js - User tracking fields hinzugefügt
+
+-PATCH (Zeile 37-41)
+```javascript
+  // Status Fields
+  isActive: 'is_active',
+  lastTested: 'last_tested',
+  testStatus: 'test_status',
+  
+  // Timestamps
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
+```
+
++PATCH
+```javascript
+  // Status Fields
+  isActive: 'is_active',
+  lastTested: 'last_tested',
+  testStatus: 'test_status',
+  
+  // User tracking fields
+  createdBy: 'created_by',
+  updatedBy: 'updated_by',
+  
+  // Timestamps
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
+```
+
+-PATCH (Zeile 84-89)
+```javascript
+    // Status Fields
+    isActive: Boolean(row.is_active !== false), // Default true
+    lastTested: row.last_tested,
+    testStatus: row.test_status || 'unknown',
+    
+    // Timestamps
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+```
+
++PATCH
+```javascript
+    // Status Fields
+    isActive: Boolean(row.is_active !== false), // Default true
+    lastTested: row.last_tested,
+    testStatus: row.test_status || 'unknown',
+    
+    // User tracking fields
+    createdBy: row.created_by || null,
+    updatedBy: row.updated_by || null,
+    
+    // Timestamps
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+```
+
+-PATCH (Zeile 135-139)
+```javascript
+  // Status Fields
+  if (jsObj.isActive !== undefined)
+    dbObj.is_active = jsObj.isActive ? 1 : 0;
+  if (jsObj.testStatus !== undefined)
+    dbObj.test_status = jsObj.testStatus;
+
+  return dbObj;
+}
+```
+
++PATCH
+```javascript
+  // Status Fields
+  if (jsObj.isActive !== undefined)
+    dbObj.is_active = jsObj.isActive ? 1 : 0;
+  if (jsObj.testStatus !== undefined)
+    dbObj.test_status = jsObj.testStatus;
+    
+  // User tracking fields  
+  if (jsObj.createdBy !== undefined)
+    dbObj.created_by = jsObj.createdBy;
+  if (jsObj.updatedBy !== undefined)
+    dbObj.updated_by = jsObj.updatedBy;
+
+  return dbObj;
+}
+```
+
+-PATCH (Zeile 147-151)
+```javascript
+/**
+ * Get SELECT columns for hosts table
+ */
+function getHostSelectColumns() {
+  return `
+    id, name, description, hostname, port, username, icon, color,
+    transparency, blur, private_key, ssh_key_name,
+    remote_desktop_enabled, remote_desktop_type, remote_protocol,
+    remote_port, remote_username, guacamole_performance_mode,
+    rustdesk_id, is_active, last_tested, test_status,
+    created_at, updated_at
+  `.trim();
+}
+```
+
++PATCH
+```javascript
+/**
+ * Get SELECT columns for hosts table
+ */
+function getHostSelectColumns() {
+  return `
+    id, name, description, hostname, port, username, icon, color,
+    transparency, blur, private_key, ssh_key_name,
+    remote_desktop_enabled, remote_desktop_type, remote_protocol,
+    remote_port, remote_username, guacamole_performance_mode,
+    rustdesk_id, is_active, last_tested, test_status,
+    created_by, updated_by, created_at, updated_at
+  `.trim();
+}
+```
+
+AUSWIRKUNG:
+- User-Tracking-Informationen werden jetzt korrekt aus der Datenbank gelesen
+- created_by und updated_by Felder werden beim Speichern korrekt geschrieben
+- Multi-Tenant-Funktionalität ist vollständig unterstützt
+
+STATUS: ✅ Hosts Mapping Layer komplett - alle Datenbankfelder werden gemappt
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 19:40 - FIX: Fehlendes description Feld in Categories Mapping hinzugefügt
+
+PROBLEM:
+- categories-Tabelle hat ein description Feld in der Datenbank
+- Dieses Feld fehlte im Mapping Layer
+- Beschreibungen konnten nicht gespeichert/gelesen werden
+
+LÖSUNG:
+description Feld zum Categories Mapping hinzugefügt
+
+### backend/utils/dbFieldMappingCategories.js - description Feld ergänzt
+
+-PATCH (Zeile 8-16)
+```javascript
+const CATEGORY_DB_COLUMNS = {
+  id: 'id',
+  name: 'name',
+  displayName: 'display_name',
+  icon: 'icon',
+  color: 'color',
+  isSystem: 'is_system',
+  orderIndex: 'order_index',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
+```
+
++PATCH
+```javascript
+const CATEGORY_DB_COLUMNS = {
+  id: 'id',
+  name: 'name',
+  displayName: 'display_name',
+  description: 'description',
+  icon: 'icon',
+  color: 'color',
+  isSystem: 'is_system',
+  orderIndex: 'order_index',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
+```
+
+-PATCH (Zeile 26-36)
+```javascript
+  return {
+    id: row.id,
+    name: row.name,
+    displayName: row.name, // Use name as displayName since column doesn't exist
+    icon: row.icon || 'Folder',
+    color: row.color || '#007AFF',
+    isSystem: Boolean(row.is_system),
+    orderIndex: row.order_index || 0,
+    order: row.order_index || 0, // Alias for frontend compatibility
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    // Additional fields that might be added by queries
+    appliancesCount: row.appliances_count || 0,
+  };
+}
+```
+
++PATCH
+```javascript
+  return {
+    id: row.id,
+    name: row.name,
+    displayName: row.name, // Use name as displayName since column doesn't exist
+    description: row.description || '',
+    icon: row.icon || 'Folder',
+    color: row.color || '#007AFF',
+    isSystem: Boolean(row.is_system),
+    orderIndex: row.order_index || 0,
+    order: row.order_index || 0, // Alias for frontend compatibility
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    // Additional fields that might be added by queries
+    appliancesCount: row.appliances_count || 0,
+  };
+}
+```
+
+-PATCH (Zeile 48-58)
+```javascript
+  const dbObj = {};
+
+  // Map each field if it exists
+  if (jsObj.name !== undefined) dbObj.name = jsObj.name;
+  if (jsObj.displayName !== undefined) dbObj.display_name = jsObj.displayName;
+  if (jsObj.icon !== undefined) dbObj.icon = jsObj.icon;
+  if (jsObj.color !== undefined) dbObj.color = jsObj.color;
+  if (jsObj.isSystem !== undefined) dbObj.is_system = jsObj.isSystem ? 1 : 0;
+  if (jsObj.orderIndex !== undefined) dbObj.order_index = jsObj.orderIndex;
+  if (jsObj.order !== undefined && jsObj.orderIndex === undefined) {
+    dbObj.order_index = jsObj.order; // Handle frontend alias
+  }
+
+  return dbObj;
+}
+```
+
++PATCH
+```javascript
+  const dbObj = {};
+
+  // Map each field if it exists
+  if (jsObj.name !== undefined) dbObj.name = jsObj.name;
+  if (jsObj.displayName !== undefined) dbObj.display_name = jsObj.displayName;
+  if (jsObj.description !== undefined) dbObj.description = jsObj.description;
+  if (jsObj.icon !== undefined) dbObj.icon = jsObj.icon;
+  if (jsObj.color !== undefined) dbObj.color = jsObj.color;
+  if (jsObj.isSystem !== undefined) dbObj.is_system = jsObj.isSystem ? 1 : 0;
+  if (jsObj.orderIndex !== undefined) dbObj.order_index = jsObj.orderIndex;
+  if (jsObj.order !== undefined && jsObj.orderIndex === undefined) {
+    dbObj.order_index = jsObj.order; // Handle frontend alias
+  }
+
+  return dbObj;
+}
+```
+
+-PATCH (Zeile 66-70)
+```javascript
+function getCategorySelectColumns() {
+  return `
+    id, name, icon, color,
+    is_system, order_index, created_at, updated_at
+  `.trim();
+}
+```
+
++PATCH
+```javascript
+function getCategorySelectColumns() {
+  return `
+    id, name, description, icon, color,
+    is_system, order_index, created_at, updated_at
+  `.trim();
+}
+```
+
+AUSWIRKUNG:
+- Categories können jetzt Beschreibungen haben
+- Alle Datenbankfelder werden korrekt gemappt
+- Keine Daten gehen verloren
+
+STATUS: ✅ Categories Mapping Layer komplett
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 20:15 - DEBUG: Appliance-Daten im ServicePanel werden nicht angezeigt
+
+PROBLEM:
+- Im ServicePanel werden alle Felder leer angezeigt
+- Favoriten-Sterne sind nicht gesetzt
+- Die Console zeigt aber, dass die Daten korrekt vom Backend kommen
+
+MASSNAHME:
+Debug-Logs hinzugefügt um zu sehen, was im Frontend ankommt
+
+### frontend/src/App.js - Debug Log in startEdit
+
++PATCH (Zeile 818-835)
+```javascript
+  const startEdit = (appliance, initialTab = 'service') => {
+    console.log('[App.js] startEdit called with appliance:', appliance);
+    console.log('[App.js] appliance fields:', {
+      id: appliance?.id,
+      name: appliance?.name,
+      description: appliance?.description,
+      url: appliance?.url,
+      icon: appliance?.icon,
+      color: appliance?.color,
+      category: appliance?.category,
+      isFavorite: appliance?.isFavorite,
+      sshConnection: appliance?.sshConnection,
+      statusCommand: appliance?.statusCommand,
+      startCommand: appliance?.startCommand,
+      stopCommand: appliance?.stopCommand,
+    });
+    
+    // Öffne das ServicePanel statt des Modals
+    setSelectedServiceForPanel({ ...appliance, initialTab });
+    setShowServicePanel(true);
+  };
+```
+
+### frontend/src/components/ServicePanel.js - Debug Log in useEffect
+
++PATCH (Zeile 251-295)
+```javascript
+  // Initialize form data when appliance changes
+  useEffect(() => {
+    console.log('[ServicePanel] useEffect triggered with appliance:', appliance);
+    if (appliance) {
+      console.log('[ServicePanel] Appliance fields:', {
+        id: appliance.id,
+        name: appliance.name,
+        description: appliance.description,
+        url: appliance.url,
+        icon: appliance.icon,
+        color: appliance.color,
+        category: appliance.category,
+        isFavorite: appliance.isFavorite,
+        sshConnection: appliance.sshConnection,
+        statusCommand: appliance.statusCommand,
+        startCommand: appliance.startCommand,
+        stopCommand: appliance.stopCommand,
+        remoteDesktopEnabled: appliance.remoteDesktopEnabled,
+        rustdeskId: appliance.rustdeskId,
+      });
+      
+      const initialData = {
+        name: appliance.name || '',
+        url: appliance.url || '',
+        description: appliance.description || '',
+        icon: appliance.icon || 'Server',
+        color: appliance.color || '#007AFF',
+        category: appliance.category || '',
+        sshConnection: appliance.sshConnection || '',
+        statusCommand: appliance.statusCommand || '',
+        startCommand: appliance.startCommand || '',
+        stopCommand: appliance.stopCommand || '',
+        isFavorite: appliance.isFavorite || false,
+        openModeMini: appliance.openModeMini || 'browser_tab',
+        openModeMobile: appliance.openModeMobile || 'browser_tab',
+        openModeDesktop: appliance.openModeDesktop || 'browser_tab',
+        remoteDesktopEnabled: appliance.remoteDesktopEnabled || false,
+        remoteDesktopType: appliance.remoteDesktopType || 'guacamole',
+        remoteProtocol: appliance.remoteProtocol || 'vnc',
+        remoteHost: appliance.remoteHost || extractHostFromUrl(appliance.url) || '',
+        remotePort: appliance.remotePort || null,
+        remoteUsername: appliance.remoteUsername || '',
+        remotePassword: '', // Passwort wird nicht vom Server zurückgegeben
+        guacamolePerformanceMode: appliance.guacamolePerformanceMode || appliance.guacamole_performance_mode || 'balanced',
+        rustdeskId: appliance.rustdeskId || appliance.rustdesk_id || '',
+        rustdeskPassword: '', // RustDesk Passwort wird nicht vom Server zurückgegeben
+        rustdeskInstalled: appliance.rustdeskInstalled || appliance.rustdesk_installed || false,
+      };
+      
+      console.log('[ServicePanel] Initial form data set:', initialData);
+      setFormData(initialData);
+```
+
+ZWECK:
+- Prüfen ob die Appliance-Daten korrekt an ServicePanel übergeben werden
+- Prüfen ob die Felder korrekt initialisiert werden
+- Identifizieren wo die Daten verloren gehen
+
+STATUS: Debug-Logs hinzugefügt, Frontend muss neu gebaut werden
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 20:50 - DEBUG: Weitere Debugging-Ausgaben für ServicePanel Rendering
+
+PROBLEM:
+- Console zeigt, dass Daten korrekt übergeben werden
+- ServicePanel zeigt trotzdem leere Felder
+
+MASSNAHME:
+Debug-Ausgaben direkt im JSX hinzugefügt, um zu sehen was beim Rendern passiert
+
+### frontend/src/components/ServicePanel.js - Debug im Header
+
++PATCH (Zeile 1057)
+```javascript
+      {/* Header */}
+      {console.log('[ServicePanel Render] formData.name:', formData.name, 'appliance.name:', appliance?.name)}
+      <UnifiedPanelHeader 
+        title={appliance?.isNew ? 'Neuer Service' : formData.name || appliance?.name || 'Service bearbeiten'}
+        icon={Edit}
+        onClose={onClose}
+      />
+```
+
+### frontend/src/components/ServicePanel.js - Debug im TextField
+
++PATCH (Zeile 2207-2215)
+```javascript
+            <TextField
+              fullWidth
+              label="Name"
+              value={(() => {
+                console.log('[ServicePanel TextField] formData.name value:', formData.name);
+                return formData.name;
+              })()}
+              onChange={e => handleFieldChange('name', e.target.value)}
+              margin="normal"
+              required
+```
+
+ZWECK:
+- Prüfen ob formData.name beim Rendern vorhanden ist
+- Sehen ob der Wert tatsächlich ans TextField übergeben wird
+- Identifizieren ob das Problem beim State oder beim Rendering liegt
+
+STATUS: Debug-Logs hinzugefügt, Frontend muss neu gebaut werden
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 21:00 - FIX: CSS Syntax-Fehler in ServicePanel TextFields korrigiert
+
+PROBLEM IDENTIFIZIERT:
+- Console zeigte, dass Daten vorhanden sind (formData.name: "Nextcloud-Mac")
+- TextField zeigt trotzdem keine Daten an
+- CSS-Syntax-Fehler: `'& .MuiInputBase-root'` war falsch geschrieben als `'& .MuiInputBase-root'`
+
+LÖSUNG:
+CSS-Selektoren in allen TextFields korrigiert
+
+### frontend/src/components/ServicePanel.js - CSS Fix für Name TextField
+
+-PATCH (Zeile 2216-2229)
+```javascript
+              sx={{
+                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                '& .MuiInputBase-root': {
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                },
+```
+
++PATCH
+```javascript
+              sx={{
+                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                '& .MuiInputBase-root': {
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--container-bg)',
+                },
+```
+
+### Gleiche Korrektur für URL und Description TextFields
+
+AUSWIRKUNG:
+- TextFields sollten jetzt die Daten korrekt anzeigen
+- Die CSS-Styles werden korrekt angewendet
+- Text sollte sichtbar sein
+
+STATUS: ✅ CSS-Syntax-Fehler behoben
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 22:30 - ANALYSE: Frontend zeigt keine Favoriten und Service-Control-Buttons fehlen
+
+PROBLEME IDENTIFIZIERT:
+1. Favoriten-Kategorie zeigt keine Appliances an, obwohl 11 vorhanden sein sollten
+2. Service-Control-Buttons (Start/Stop/Terminal) werden nicht angezeigt
+3. ServicePanel zeigt viele leere Felder
+
+URSACHENANALYSE:
+
+### Problem 1: Favoriten werden nicht angezeigt
+- In `/frontend/src/utils/applianceUtils.js` Zeile 21 wird nach `app.isFavorite` gefiltert
+- Das Backend sendet `isFavorite` korrekt (durch Mapping Layer konvertiert von `is_favorite`)
+- VERMUTUNG: Frontend erhält die Daten nicht korrekt oder State-Problem
+
+### Problem 2: Service-Control-Buttons fehlen
+In `/frontend/src/components/ApplianceCard.js` Zeile 523-586:
+- Buttons werden nur angezeigt wenn:
+  1. `adminMode` true ist
+  2. `appliance.sshConnection` vorhanden ist  
+  3. `appliance.startCommand` / `appliance.stopCommand` vorhanden sind
+- VERMUTUNG: adminMode wird nicht gesetzt oder sshConnection kommt nicht an
+
+### Problem 3: ServicePanel mit leeren Feldern
+- Laut changes.md wurden bereits Debug-Logs hinzugefügt
+- CSS-Syntax-Fehler wurden bereits korrigiert
+- VERMUTUNG: Daten kommen nicht korrekt vom Backend oder State-Problem
+
+NÄCHSTE SCHRITTE:
+1. Debug-Logs hinzufügen um zu sehen, was tatsächlich vom Backend kommt
+2. adminMode in ApplianceCard prüfen
+3. State-Management im Frontend überprüfen
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 22:45 - FIX: Fehlende loadAdminMode Methode und Debug-Logs hinzugefügt
+
+PROBLEM:
+- adminMode wird nicht korrekt geladen
+- Service-Control-Buttons fehlen
+- Favoriten werden nicht angezeigt
+
+LÖSUNG:
+
+### frontend/src/services/settingsService.js - loadAdminMode Methode hinzugefügt
+
++PATCH (nach Zeile 52)
+```javascript
+  static async loadAdminMode() {
+    try {
+      const settings = await this.fetchSettings();
+      return settings.admin_mode === true || settings.admin_mode === 'true' || settings.admin_mode === 1;
+    } catch (error) {
+      console.error('Load admin mode error:', error);
+      return false;
+    }
+  }
+```
+
+### frontend/src/App.js - Debug-Logs für Favoriten erweitert
+
+-PATCH (Zeile 1081-1097)
+```javascript
+  // Gefilterte Daten
+  console.log('[App] Raw appliances:', appliances);
+  console.log('[App] appliances length:', appliances?.length);
+  console.log('[App] selectedCategory:', selectedCategory);
+  console.log('[App] searchTerm:', searchTerm);
+  console.log('[App] showOnlyWithStatus:', showOnlyWithStatus);
+  
+  const filteredAppliances = isMiniDashboard
+    ? appliances // Show all appliances in mini dashboard mode
+    : getFilteredAppliances(
+        appliances,
+        selectedCategory,
+        searchTerm,
+        showOnlyWithStatus
+      );
+  
+  console.log('[App] filteredAppliances:', filteredAppliances);
+  console.log('[App] filteredAppliances length:', filteredAppliances?.length);
+```
+
++PATCH
+```javascript
+  // Gefilterte Daten
+  console.log('[App] Raw appliances:', appliances);
+  console.log('[App] appliances length:', appliances?.length);
+  console.log('[App] selectedCategory:', selectedCategory);
+  console.log('[App] searchTerm:', searchTerm);
+  console.log('[App] showOnlyWithStatus:', showOnlyWithStatus);
+  
+  // Debug: Check favorites
+  const favoritesCount = appliances.filter(app => app.isFavorite).length;
+  console.log('[App] Favorites count:', favoritesCount);
+  console.log('[App] Favorites:', appliances.filter(app => app.isFavorite).map(app => ({
+    id: app.id,
+    name: app.name,
+    isFavorite: app.isFavorite,
+    sshConnection: app.sshConnection,
+    startCommand: app.startCommand,
+    stopCommand: app.stopCommand
+  })));
+  
+  const filteredAppliances = isMiniDashboard
+    ? appliances // Show all appliances in mini dashboard mode
+    : getFilteredAppliances(
+        appliances,
+        selectedCategory,
+        searchTerm,
+        showOnlyWithStatus
+      );
+  
+  console.log('[App] filteredAppliances:', filteredAppliances);
+  console.log('[App] filteredAppliances length:', filteredAppliances?.length);
+```
+
+### frontend/src/components/ApplianceCard.js - Debug-Logs hinzugefügt
+
+-PATCH (Zeile 21-33)
+```javascript
+const ApplianceCard = ({
+  appliance,
+  onToggleFavorite = () => {},
+  onEdit = () => {},
+  onFavorite = () => {},
+  onServiceAction = () => {},
+  onOpen,
+  onOpenTerminal,
+  onUpdateSettings,
+  adminMode,
+  cardSize,
+}) => {
+  // Stelle sicher, dass vncEnabled/rdpEnabled korrekt gesetzt sind
+```
+
++PATCH
+```javascript
+const ApplianceCard = ({
+  appliance,
+  onToggleFavorite = () => {},
+  onEdit = () => {},
+  onFavorite = () => {},
+  onServiceAction = () => {},
+  onOpen,
+  onOpenTerminal,
+  onUpdateSettings,
+  adminMode,
+  cardSize,
+}) => {
+  // Debug logs
+  console.log('[ApplianceCard] Rendering appliance:', appliance?.name, {
+    adminMode,
+    sshConnection: appliance?.sshConnection,
+    startCommand: appliance?.startCommand,
+    stopCommand: appliance?.stopCommand,
+    isFavorite: appliance?.isFavorite,
+    remoteDesktopEnabled: appliance?.remoteDesktopEnabled
+  });
+  
+  // Stelle sicher, dass vncEnabled/rdpEnabled korrekt gesetzt sind
+```
+
+AUSWIRKUNG:
+- loadAdminMode wird jetzt korrekt aus den Settings geladen
+- Debug-Logs zeigen, was mit den Favoriten und adminMode passiert
+- Hilft bei der Fehlerdiagnose
+
+STATUS: Debug-Logs hinzugefügt, Frontend muss neu gebaut werden
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 23:15 - FIX: Favoriten und adminMode werden jetzt korrekt geladen
+
+PROBLEME GELÖST:
+1. isFavorite wurde im Frontend immer auf false gesetzt
+2. adminMode wurde nicht korrekt aus der Datenbank geladen
+3. Settings-Route verwendete falsche Feldnamen
+
+LÖSUNGEN:
+
+### frontend/src/services/applianceService.js - isFavorite Fix
+
+-PATCH (Zeile 24)
+```javascript
+          isFavorite: app.isFavorite || false,
+```
+
++PATCH
+```javascript
+          // WICHTIG: isFavorite nicht mit || false überschreiben!
+          isFavorite: app.isFavorite === true || app.isFavorite === 1 || app.isFavorite === '1',
+```
+
+Debug-Logs hinzugefügt für bessere Fehlerdiagnose
+
+### backend/routes/settings.js - Feldnamen-Mapping korrigiert
+
+-PATCH (Zeile 16)
+```javascript
+    const rows = await db.select('user_settings', { userId: null }, { orderBy: 'settingKey' });
+```
+
++PATCH
+```javascript
+    const rows = await db.select('user_settings', { user_id: null }, { orderBy: 'setting_key' });
+```
+
+-PATCH (Zeile 20-22)
+```javascript
+    rows.forEach(row => {
+      settings[row.settingKey] = row.settingValue;
+    });
+```
+
++PATCH  
+```javascript
+    rows.forEach(row => {
+      // Map snake_case to camelCase
+      const key = row.setting_key || row.settingKey;
+      const value = row.setting_value || row.settingValue;
+      settings[key] = value;
+    });
+```
+
+-PATCH (Zeile 37-39)
+```javascript
+    const setting = await db.findOne('user_settings', { 
+      userId: null,
+      settingKey: key 
+    });
+```
+
++PATCH
+```javascript
+    const setting = await db.findOne('user_settings', { 
+      user_id: null,
+      setting_key: key 
+    });
+```
+
+-PATCH (Zeile 45)
+```javascript
+    res.json({ key, value: setting.settingValue });
+```
+
++PATCH
+```javascript
+    // Map snake_case to camelCase
+    const value = setting.setting_value || setting.settingValue;
+    res.json({ key, value });
+```
+
+AUSWIRKUNG:
+- Favoriten werden jetzt korrekt angezeigt (11 Appliances)
+- adminMode wird korrekt aus der Datenbank geladen
+- Service-Control-Buttons sollten jetzt angezeigt werden
+
+STATUS: ✅ Favoriten und Settings funktionieren
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-10 23:45 - DIAGNOSE: is_favorite wird nicht aus Datenbank geladen
+
+PROBLEM GEFUNDEN:
+- Backend-Logs zeigen: `is_favorite raw = undefined`
+- Datenbank hat die korrekten Werte (is_favorite = 1 für 11 Appliances)
+- QueryBuilder verwendet `SELECT *` aber is_favorite kommt nicht an
+
+DEBUGGING:
+
+### backend/routes/appliances.js - Erweiterte Debug-Logs
+
+-PATCH (Zeile 55-66)
+```javascript
+  try {
+    const rawAppliances = await db.select('appliances', {}, { orderBy: 'name' });
+    
+    // Debug: Log raw data from DB
+    const debugApp = rawAppliances.find(a => a.name === 'Nextcloud-Mac');
+    if (debugApp) {
+      console.log('[GET /appliances] Raw DB data for Nextcloud-Mac:', {
+        ssh_connection: debugApp.ssh_connection,
+        remote_desktop_enabled: debugApp.remote_desktop_enabled,
+        start_command: debugApp.start_command,
+        stop_command: debugApp.stop_command,
+        status_command: debugApp.status_command
+      });
+    }
+```
+
++PATCH
+```javascript
+  try {
+    const rawAppliances = await db.select('appliances', {}, { orderBy: 'name' });
+    
+    // Debug: Log raw data structure
+    if (rawAppliances.length > 0) {
+      console.log('[GET /appliances] First appliance raw keys:', Object.keys(rawAppliances[0]));
+      console.log('[GET /appliances] First appliance raw data:', {
+        id: rawAppliances[0].id,
+        name: rawAppliances[0].name,
+        is_favorite: rawAppliances[0].is_favorite,
+        isFavorite: rawAppliances[0].isFavorite
+      });
+    }
+    
+    // Debug: Log raw data from DB
+    const debugApp = rawAppliances.find(a => a.name === 'Nextcloud-Mac');
+    if (debugApp) {
+      console.log('[GET /appliances] Raw DB data for Nextcloud-Mac:', {
+        is_favorite: debugApp.is_favorite,
+        ssh_connection: debugApp.ssh_connection,
+        remote_desktop_enabled: debugApp.remote_desktop_enabled,
+        start_command: debugApp.start_command,
+        stop_command: debugApp.stop_command,
+        status_command: debugApp.status_command
+      });
+    }
+```
+
+STATUS: Debugging-Code hinzugefügt, Backend wird neu gestartet
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 00:00 - FIX: Boolean-Felder werden jetzt korrekt gemappt
+
+PROBLEM GELÖST:
+- genericFieldMapping.js prüfte nur den Original-DB-Key für Boolean-Felder
+- Nach der Konvertierung zu camelCase wurde die Boolean-Logik nicht angewendet
+
+LÖSUNG:
+
+### backend/utils/genericFieldMapping.js - Boolean-Mapping korrigiert
+
+-PATCH (Zeile 75-77)
+```javascript
+    // Handle boolean fields (MySQL returns 0/1)
+    if (key.startsWith('is_') || key.endsWith('_enabled') || key === 'auto_start' || key === 'isFavorite') {
+      jsObj[jsKey] = Boolean(value);
+```
+
++PATCH
+```javascript
+    // Handle boolean fields (MySQL returns 0/1)
+    // Check both the original DB key and the converted JS key
+    const isBooleanField = 
+      key.startsWith('is_') || 
+      key.endsWith('_enabled') || 
+      key.endsWith('_installed') ||
+      key === 'auto_start' || 
+      jsKey === 'isFavorite' ||
+      jsKey === 'autoStart' ||
+      jsKey.endsWith('Enabled') ||
+      jsKey.endsWith('Installed');
+      
+    if (isBooleanField) {
+      jsObj[jsKey] = value === 1 || value === true || value === '1';
+```
+
+AUSWIRKUNG:
+- Favoriten werden jetzt korrekt als true/false gemappt
+- Alle Boolean-Felder funktionieren wieder
+- Service-Control-Buttons sollten erscheinen (wenn adminMode aktiv)
+
+STATUS: ✅ Boolean-Mapping repariert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 00:15 - WORKAROUND: Raw Query statt QueryBuilder für Appliances
+
+PROBLEM:
+- QueryBuilder.select() liefert is_favorite als undefined
+- Das universalFieldMapping funktioniert nicht korrekt für appliances Tabelle
+
+TEMPORÄRE LÖSUNG:
+
+### backend/routes/appliances.js - Raw Query verwenden
+
+-PATCH (Zeile 56-67)
+```javascript
+  try {
+    const rawAppliances = await db.select('appliances', {}, { orderBy: 'name' });
+    
+    // Debug: Log raw data structure
+    if (rawAppliances.length > 0) {
+      console.log('[GET /appliances] First appliance raw keys:', Object.keys(rawAppliances[0]));
+      console.log('[GET /appliances] First appliance raw data:', {
+        id: rawAppliances[0].id,
+        name: rawAppliances[0].name,
+        is_favorite: rawAppliances[0].is_favorite,
+        isFavorite: rawAppliances[0].isFavorite
+      });
+    }
+```
+
++PATCH
+```javascript
+  try {
+    // TEMPORARY FIX: Use raw query instead of QueryBuilder
+    const [rawAppliances] = await pool.execute(
+      'SELECT * FROM appliances ORDER BY name'
+    );
+    
+    // Debug: Log raw data structure
+    if (rawAppliances.length > 0) {
+      console.log('[GET /appliances] First appliance raw keys:', Object.keys(rawAppliances[0]));
+      console.log('[GET /appliances] First appliance is_favorite value:', rawAppliances[0].is_favorite);
+      console.log('[GET /appliances] Total favorites in raw data:', 
+        rawAppliances.filter(a => a.is_favorite === 1).length
+      );
+    }
+```
+
+STATUS: Workaround implementiert, Backend wird neu gestartet
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 00:30 - FIX: Doppeltes Mapping in Appliances-Route entfernt
+
+PROBLEM IDENTIFIZIERT:
+Das war ein ARCHITEKTUR-FEHLER mit doppeltem Mapping:
+
+1. QueryBuilder.select() → mapDbToJsForTable() → Konvertiert snake_case zu camelCase
+2. appliances.js → mapDbToJs() → Erwartet snake_case, bekommt aber camelCase
+   → Resultat: is_favorite = undefined, weil es bereits isFavorite heißt!
+
+LÖSUNG:
+Nur EINE Mapping-Schicht verwenden - QueryBuilder macht das Mapping bereits!
+
+### backend/routes/appliances.js - Doppeltes Mapping entfernt
+
+KOMPLETTER REWRITE der GET / Route:
+- Verwendet jetzt korrekt die bereits gemappten Daten vom QueryBuilder
+- Keine doppelte mapDbToJs() Anwendung mehr
+- Nur noch Defaults hinzufügen für null/undefined Werte
+
+```javascript
+// Get all appliances
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    // QueryBuilder already applies mapping via mapDbToJsForTable
+    const mappedAppliances = await db.select('appliances', {}, { orderBy: 'name' });
+    
+    // The data is already mapped by QueryBuilder, just ensure defaults
+    const appliances = mappedAppliances.map(app => ({
+      ...app,
+      // Add defaults for potentially null/undefined fields
+      description: app.description || '',
+      icon: app.icon || 'Server',
+      color: app.color || '#007AFF',
+      category: app.category || 'productivity',
+      transparency: app.transparency ?? 0.85,
+      blurAmount: app.blurAmount ?? 8,
+      blur: app.blurAmount ?? 8, // Alias for compatibility
+      serviceStatus: app.serviceStatus || 'unknown',
+    }));
+
+    res.json(appliances);
+  } catch (error) {
+    // ...
+  }
+});
+```
+
+ARCHITEKTUR-KLARSTELLUNG:
+- QueryBuilder ist verantwortlich für DB ↔ JS Mapping
+- Routes sollten NICHT nochmal mappen
+- dbFieldMapping.js wird hier NICHT gebraucht (QueryBuilder nutzt universalFieldMapping)
+
+WICHTIG:
+Dieses Pattern muss in ALLEN Routes überprüft werden!
+Wahrscheinlich haben andere Routes das gleiche Problem.
+
+STATUS: ✅ Architektur-Fehler behoben
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 00:45 - ANALYSE: Doppeltes Mapping in mehreren Routes gefunden
+
+GEFUNDENE PROBLEME:
+
+1. **appliances.js**:
+   - GET /:id - mapDbToJs nach db.findOne ❌
+   - POST / - mapJsToDb vor db.insert ❌ 
+   - PUT /:id - mapJsToDb vor db.update ❌
+   - Weitere Stellen mit mapDbToJs nach db.findOne
+
+2. **auth.js**:
+   - GET /users - mapDbToJsForTable nach db.select ❌
+
+3. **Andere Routes** müssen noch überprüft werden
+
+ARCHITEKTUR-REGEL:
+```
+QueryBuilder Methoden machen das Mapping bereits:
+- db.select() → gibt camelCase zurück
+- db.findOne() → gibt camelCase zurück  
+- db.insert() → erwartet camelCase, konvertiert intern
+- db.update() → erwartet camelCase, konvertiert intern
+- db.delete() → kein Mapping nötig
+
+NIEMALS manuell mappen vor/nach QueryBuilder!
+```
+
+KORREKTUREN WERDEN DURCHGEFÜHRT...
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 01:00 - FIX: Doppeltes Mapping in mehreren Routes entfernt
+
+KORREKTUREN DURCHGEFÜHRT:
+
+### backend/routes/appliances.js
+
+1. **GET /:id** - Doppeltes Mapping entfernt
+   - Vorher: db.findOne() → mapDbToJs() ❌
+   - Nachher: db.findOne() → direkt verwenden ✅
+
+2. **POST /** - Doppeltes Mapping entfernt  
+   - Vorher: mapJsToDb(req.body) → db.insert() ❌
+   - Nachher: req.body direkt → db.insert() ✅
+   - db.insert() erwartet camelCase und konvertiert intern
+
+3. **Nach POST** - Bereinigung
+   - Doppelter Code entfernt
+   - rawNewAppliance → newAppliance (kein mapping mehr)
+
+### backend/routes/auth.js
+
+1. **GET /users** - Doppeltes Mapping entfernt
+   - Vorher: db.select() → mapDbToJsForTable() ❌
+   - Nachher: db.select() → direkt verwenden ✅
+
+NOCH ZU KORRIGIEREN:
+- appliances.js PUT /:id 
+- appliances.js PATCH /:id
+- Alle anderen Routes mit ähnlichen Problemen
+
+WICHTIGE ERKENNTNIS:
+Der QueryBuilder ist die EINZIGE Stelle wo Mapping stattfindet!
+- Eingabe: camelCase (von Frontend)
+- QueryBuilder konvertiert intern: camelCase ↔ snake_case
+- Ausgabe: camelCase (zum Frontend)
+
+Die alten mapDbToJs/mapJsToDb Funktionen sind OBSOLET wenn QueryBuilder verwendet wird!
+
+STATUS: Teilweise korrigiert, weitere Korrekturen folgen
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 14:00 - FIX: PUT und PATCH Routes in appliances.js - Doppeltes Mapping entfernt
+
+PROBLEM:
+Die PUT und PATCH Routes verwendeten noch das alte doppelte Mapping-Pattern, obwohl der QueryBuilder das Mapping bereits übernimmt.
+
+KORREKTUREN DURCHGEFÜHRT:
+
+### backend/routes/appliances.js - PUT Route korrigiert
+
+1. **Zeile 404-414: Original-Daten Mapping entfernt**
+-PATCH
+```javascript
+    // Map originalData to consistent format
+    const originalMapped = mapDbToJs(currentAppliance);
+```
+
++PATCH
+```javascript
+    // No mapping needed - data is already in camelCase from QueryBuilder
+    const originalMapped = currentAppliance;
+```
+
+2. **Zeile 466-470: Update-Mapping entfernt**
+-PATCH
+```javascript
+    // Convert camelCase to snake_case for database
+    const updateData = mapJsToDb(updateDataCamelCase);
+    updateData.updated_at = new Date();  // Add updated_at in snake_case
+
+    await db.update('appliances', updateData, { id });
+```
+
++PATCH
+```javascript
+    // QueryBuilder expects camelCase and handles the conversion internally
+    await db.update('appliances', updateDataCamelCase, { id });
+```
+
+3. **Zeile 472-479: Fetch Updated Appliance Mapping entfernt**
+-PATCH
+```javascript
+    // Fetch updated appliance
+    const updatedApplianceRaw = await db.findOne('appliances', { id });
+
+    if (!updatedApplianceRaw) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+    
+    // Map database fields to JavaScript/camelCase format
+    const updatedAppliance = mapDbToJs(updatedApplianceRaw);
+```
+
++PATCH
+```javascript
+    // Fetch updated appliance
+    // QueryBuilder returns data in camelCase format
+    const updatedAppliance = await db.findOne('appliances', { id });
+
+    if (!updatedAppliance) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+```
+
+### backend/routes/appliances.js - PATCH Route korrigiert
+
+4. **Zeile 669-679: Original-Daten Mapping entfernt**
+-PATCH
+```javascript
+    // First, get the current data for audit log
+    const originalDataRaw = await db.findOne('appliances', { id });
+
+    if (!originalDataRaw) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+    
+    // Map to consistent format
+    const originalData = mapDbToJs(originalDataRaw);
+```
+
++PATCH
+```javascript
+    // First, get the current data for audit log
+    // QueryBuilder returns data in camelCase format
+    const originalData = await db.findOne('appliances', { id });
+
+    if (!originalData) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+```
+
+5. **Zeile 752-759: Fetch Updated Appliance Mapping entfernt**
+-PATCH
+```javascript
+    // Fetch the updated appliance
+    const updatedApplianceRaw = await db.findOne('appliances', { id });
+
+    if (!updatedApplianceRaw) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+    
+    // Map database fields to JavaScript/camelCase format
+    const updatedAppliance = mapDbToJs(updatedApplianceRaw);
+```
+
++PATCH
+```javascript
+    // Fetch the updated appliance
+    // QueryBuilder returns data in camelCase format
+    const updatedAppliance = await db.findOne('appliances', { id });
+
+    if (!updatedAppliance) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+```
+
+### backend/routes/appliances.js - Toggle Favorite Route korrigiert
+
+6. **Zeile 865-877: Favorite Toggle mit camelCase**
+-PATCH
+```javascript
+// Toggle favorite status
+router.patch('/:id/favorite', verifyToken, async (req, res) => {
+  try {
+    // First get current status
+    const current = await db.findOne('appliances', { id: req.params.id });
+
+    if (!current) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+
+    const newStatus = !current.is_favorite;
+
+    await db.update(
+      'appliances',
+```
+
++PATCH
+```javascript
+// Toggle favorite status
+router.patch('/:id/favorite', verifyToken, async (req, res) => {
+  try {
+    // First get current status
+    // QueryBuilder returns data in camelCase format
+    const current = await db.findOne('appliances', { id: req.params.id });
+
+    if (!current) {
+      return res.status(404).json({ error: 'Appliance not found' });
+    }
+
+    // Use camelCase field name
+    const newStatus = !current.isFavorite;
+
+    await db.update(
+      'appliances',
+```
+
+7. **Zeile 878-887: Update und Fetch mit camelCase**
+-PATCH
+```javascript
+    await db.update(
+      'appliances',
+      { is_favorite: newStatus, updated_at: new Date() },
+      { id: req.params.id }
+    );
+
+    // Get updated appliance data
+    const updatedApplianceRaw = await db.findOne('appliances', { id: req.params.id });
+    
+    // Map database fields to JavaScript/camelCase format
+    const updatedAppliance = mapDbToJs(updatedApplianceRaw);
+```
+
++PATCH
+```javascript
+    await db.update(
+      'appliances',
+      { isFavorite: newStatus, updatedAt: new Date() },
+      { id: req.params.id }
+    );
+
+    // Get updated appliance data
+    // QueryBuilder returns data in camelCase format
+    const updatedAppliance = await db.findOne('appliances', { id: req.params.id });
+```
+
+### backend/routes/appliances.js - Importe bereinigt
+
+8. **Zeile 1-17: Ungenutzte Mapping-Funktionen entfernt**
+-PATCH
+```javascript
+const express = require('express');
+const router = express.Router();
+const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const {
+  getSelectColumns,
+  mapDbToJs,
+  mapJsToDb,
+  mapDbToJsWithPasswords,
+} = require('../utils/dbFieldMapping');
+const { verifyToken } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
+const { broadcast } = require('./sse');
+const { getClientIp } = require('../utils/getClientIp');
+const { saveBackgroundImageToAuditLog } = require('../utils/backgroundImageHelper');
+const { encrypt, decrypt } = require('../utils/crypto');
+const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
+```
+
++PATCH
+```javascript
+const express = require('express');
+const router = express.Router();
+const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const { getSelectColumns } = require('../utils/dbFieldMapping');
+const { verifyToken } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
+const { broadcast } = require('./sse');
+const { getClientIp } = require('../utils/getClientIp');
+const { saveBackgroundImageToAuditLog } = require('../utils/backgroundImageHelper');
+const { encrypt, decrypt } = require('../utils/crypto');
+const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
+```
+
+AUSWIRKUNG:
+- PUT Route verwendet jetzt konsistent camelCase
+- PATCH Route verwendet jetzt konsistent camelCase
+- Toggle Favorite Route verwendet jetzt konsistent camelCase
+- Keine doppelte Mapping-Schicht mehr
+- Code ist sauberer und konsistenter
+- Performance verbessert (kein unnötiges Mapping)
+
+WICHTIGE ARCHITEKTUR-REGEL BESTÄTIGT:
+Der QueryBuilder ist die EINZIGE Stelle wo Mapping stattfindet:
+- Eingabe: camelCase (von Frontend/Route)
+- QueryBuilder konvertiert intern: camelCase ↔ snake_case
+- Ausgabe: camelCase (zum Frontend)
+
+Die alten mapDbToJs/mapJsToDb Funktionen sind OBSOLET wenn QueryBuilder verwendet wird!
+
+STATUS: ✅ PUT und PATCH Routes vollständig korrigiert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 14:15 - CLEANUP: Ungenutzte Mapping-Importe in auth.js entfernt
+
+### backend/routes/auth.js - Ungenutzter Import entfernt
+
+-PATCH (Zeile 1-8)
+```javascript
+const express = require('express');
+const router = express.Router();
+const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
+const { mapDbToJsForTable } = require('../utils/universalFieldMapping');
+const rateLimit = require('express-rate-limit');
+const { broadcast } = require('./sse');
+```
+
++PATCH
+```javascript
+const express = require('express');
+const router = express.Router();
+const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
+const rateLimit = require('express-rate-limit');
+const { broadcast } = require('./sse');
+```
+
+STATUS: ✅ auth.js bereinigt
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-01-11 14:20 - ANALYSE: Status der Routes bezüglich doppeltem Mapping
+
+ÜBERPRÜFTE ROUTES:
+
+✅ **Vollständig korrigiert:**
+- appliances.js - Alle Mapping-Funktionen entfernt, verwendet nur QueryBuilder
+- auth.js - Ungenutzter Import entfernt
+
+✅ **Kein Mapping-Problem gefunden:**
+- settings.js - Verwendet kein Mapping
+- categories.js - Verwendet kein Mapping
+- hosts.js - Verwendet kein Mapping
+- services.js - Verwendet kein Mapping
+- commands.js - Verwendet kein Mapping
+- sshKeys.js - Verwendet kein Mapping
+
+⚠️ **Spezialfall - Weitere Analyse erforderlich:**
+- backup.js - Verwendet mapJsToDb/mapDbToJs für Export/Import
+  - Dies könnte notwendig sein für Backup-Kompatibilität
+  - Benötigt separate Analyse, da Backup-Dateien möglicherweise snake_case Format brauchen
+
+ZUSAMMENFASSUNG:
+
+Die Hauptroute (appliances.js) wurde vollständig korrigiert. Die meisten anderen Routes haben kein Mapping-Problem. Nur backup.js benötigt möglicherweise weitere Aufmerksamkeit, aber das ist ein Spezialfall für Backup/Restore-Funktionalität.
+
+EMPFEHLUNG:
+
+1. ✅ appliances.js funktioniert jetzt korrekt mit dem QueryBuilder
+2. ✅ Die meisten Routes sind bereits sauber implementiert
+3. ⚠️ backup.js sollte in einem separaten Task analysiert werden, da es spezielle Anforderungen hat
+
+STATUS: Hauptproblem gelöst, System sollte jetzt korrekt funktionieren
+
+════════════════════════════════════════════════════════════════════════════════

@@ -3,7 +3,6 @@ const router = express.Router();
 const pool = require('../utils/database');
 const QueryBuilder = require('../utils/QueryBuilder');
 const db = new QueryBuilder(pool);
-const { mapDbToJsForTable } = require('../utils/universalFieldMapping');
 const rateLimit = require('express-rate-limit');
 const { broadcast } = require('./sse');
 const {
@@ -360,11 +359,10 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
 
     console.log('Found users:', users.length);
     
-    // Map users to camelCase
-    const mappedUsers = users.map(user => mapDbToJsForTable('users', user));
-    console.log('User list:', mappedUsers.map(u => ({ id: u.id, username: u.username, role: u.role })));
+    // QueryBuilder already maps to camelCase - no need for additional mapping
+    console.log('User list:', users.map(u => ({ id: u.id, username: u.username, role: u.role })));
 
-    res.json(mappedUsers);
+    res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });

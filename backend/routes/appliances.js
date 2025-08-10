@@ -2,12 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
 const QueryBuilder = require('../utils/QueryBuilder');
-const {
-  getSelectColumns,
-  mapDbToJs,
-  mapJsToDb,
-  mapDbToJsWithPasswords,
-} = require('../utils/dbFieldMapping');
+const { getSelectColumns } = require('../utils/dbFieldMapping');
 const { verifyToken } = require('../utils/auth');
 const { createAuditLog } = require('../utils/auditLogger');
 const { broadcast } = require('./sse');
@@ -51,32 +46,49 @@ const db = new QueryBuilder(pool);
  *               $ref: '#/components/schemas/Error'
  */
 // Get all appliances
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
-    const appliances = await db.select('appliances', {}, { orderBy: 'name' });
-
-    // Debug: Log first appliance with SSH connection
-    const debugAppliance = appliances.find(a => a.sshConnection);
-    if (debugAppliance) {
-      console.log('DEBUG: Raw appliance with SSH:', {
-        id: debugAppliance.id,
-        name: debugAppliance.name,
-        sshConnection: debugAppliance.sshConnection,
-        remoteDesktopType: debugAppliance.remoteDesktopType,
-        remoteDesktopEnabled: debugAppliance.remoteDesktopEnabled
+    // QueryBuilder already applies mapping via mapDbToJsForTable
+    const mappedAppliances = await db.select('appliances', {}, { orderBy: 'name' });
+    
+    // Debug: Verify mapping from QueryBuilder
+    if (mappedAppliances.length > 0) {
+      const first = mappedAppliances[0];
+      console.log('[GET /appliances] QueryBuilder output (already in camelCase):', {
+        id: first.id,
+        name: first.name,
+        isFavorite: first.isFavorite,
+        sshConnection: first.sshConnection,
+        remoteDesktopEnabled: first.remoteDesktopEnabled
       });
+      console.log('[GET /appliances] Total favorites:', 
+        mappedAppliances.filter(a => a.isFavorite).length
+      );
     }
+    
+    // The data is already mapped by QueryBuilder, just ensure defaults
+    const appliances = mappedAppliances.map(app => ({
+      ...app,
+      // Add defaults for potentially null/undefined fields
+      description: app.description || '',
+      icon: app.icon || 'Server',
+      color: app.color || '#007AFF',
+      category: app.category || 'productivity',
+      transparency: app.transparency ?? 0.85,
+      blurAmount: app.blurAmount ?? 8,
+      blur: app.blurAmount ?? 8, // Alias for compatibility
+      serviceStatus: app.serviceStatus || 'unknown',
+    }));
 
-    // Debug: Check mapped appliance
-    const debugMapped = appliances.find(a => a.sshConnection);
-    if (debugMapped) {
-      console.log('DEBUG: Mapped appliance with SSH:', {
-        id: debugMapped.id,
-        name: debugMapped.name,
-        sshConnection: debugMapped.sshConnection,
-        remoteDesktopEnabled: debugMapped.remoteDesktopEnabled,
-        remoteDesktopType: debugMapped.remoteDesktopType,
-        remoteProtocol: debugMapped.remoteProtocol
+    // Debug: Check specific appliance
+    const debugApp = appliances.find(a => a.name === 'Nextcloud-Mac');
+    if (debugApp) {
+      console.log('[GET /appliances] Nextcloud-Mac after processing:', {
+        isFavorite: debugApp.isFavorite,
+        sshConnection: debugApp.sshConnection,
+        remoteDesktopEnabled: debugApp.remoteDesktopEnabled,
+        startCommand: debugApp.startCommand,
+        stopCommand: debugApp.stopCommand,
       });
     }
 
@@ -131,15 +143,26 @@ router.get('/', async (req, res) => {
  *               $ref: '#/components/schemas/Error'
  */
 // Get single appliance
-router.get('/:id', async (req, res) => {
+router.get('/:id', verifyToken, async (req, res) => {
   try {
+    // QueryBuilder already applies mapping
     const appliance = await db.findOne('appliances', { id: req.params.id });
 
     if (!appliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    res.json(appliance);
+    // Data is already mapped by QueryBuilder, just ensure defaults
+    const enhancedAppliance = {
+      ...appliance,
+      description: appliance.description || '',
+      icon: appliance.icon || 'Server',
+      color: appliance.color || '#007AFF',
+      transparency: appliance.transparency ?? 0.85,
+      blurAmount: appliance.blurAmount ?? 8,
+    };
+
+    res.json(enhancedAppliance);
   } catch (error) {
     console.error('Error fetching appliance:', error);
     res.status(500).json({
@@ -259,53 +282,51 @@ router.get('/:id', async (req, res) => {
  */
 // Create appliance
 router.post('/', verifyToken, async (req, res) => {
-  const dbData = mapJsToDb(req.body);
-
-  // Ensure required fields
-  if (!dbData.name || !dbData.url) {
+  // Validate required fields
+  if (!req.body.name || !req.body.url) {
     return res.status(400).json({ error: 'Name and URL are required' });
   }
 
-  // Encrypt remote password if provided
+  // Encrypt passwords if provided
   let encryptedPassword = null;
   if (req.body.remotePassword) {
     encryptedPassword = encrypt(req.body.remotePassword);
   }
   
-  // Encrypt RustDesk password if provided
   let encryptedRustDeskPassword = null;
   if (req.body.rustdeskPassword) {
     encryptedRustDeskPassword = encrypt(req.body.rustdeskPassword);
   }
 
   try {
+    // QueryBuilder handles mapping - use camelCase field names
     const result = await db.insert('appliances', {
-      name: dbData.name,
-      url: dbData.url,
-      description: dbData.description || '',
-      icon: dbData.icon || 'Server',
-      color: dbData.color || '#007AFF',
-      category: dbData.category || 'productivity',
-      isFavorite: dbData.isFavorite || false,
-      startCommand: dbData.start_command || null,
-      stopCommand: dbData.stop_command || null,
-      statusCommand: dbData.status_command || null,
-      autoStart: dbData.auto_start || false,
-      sshConnection: dbData.ssh_connection || null,
-      transparency: dbData.transparency !== undefined ? dbData.transparency : 0.85,
-      blurAmount: dbData.blur_amount !== undefined ? dbData.blur_amount : 8,
-      openModeMini: dbData.open_mode_mini || 'browser_tab',
-      openModeMobile: dbData.open_mode_mobile || 'browser_tab',
-      openModeDesktop: dbData.open_mode_desktop || 'browser_tab',
-      remoteDesktopEnabled: dbData.remote_desktop_enabled || false,
-      remoteDesktopType: dbData.remote_desktop_type || 'guacamole',
-      remoteProtocol: dbData.remote_protocol || 'vnc',
-      remoteHost: dbData.remote_host || null,
-      remotePort: dbData.remote_port || null,
-      remoteUsername: dbData.remote_username || null,
+      name: req.body.name,
+      url: req.body.url,
+      description: req.body.description || '',
+      icon: req.body.icon || 'Server',
+      color: req.body.color || '#007AFF',
+      category: req.body.category || 'productivity',
+      isFavorite: req.body.isFavorite || false,
+      startCommand: req.body.startCommand || null,
+      stopCommand: req.body.stopCommand || null,
+      statusCommand: req.body.statusCommand || null,
+      autoStart: req.body.autoStart || false,
+      sshConnection: req.body.sshConnection || null,
+      transparency: req.body.transparency ?? 0.85,
+      blurAmount: req.body.blurAmount ?? 8,
+      openModeMini: req.body.openModeMini || 'browser_tab',
+      openModeMobile: req.body.openModeMobile || 'browser_tab',
+      openModeDesktop: req.body.openModeDesktop || 'browser_tab',
+      remoteDesktopEnabled: req.body.remoteDesktopEnabled || false,
+      remoteDesktopType: req.body.remoteDesktopType || 'guacamole',
+      remoteProtocol: req.body.remoteProtocol || 'vnc',
+      remoteHost: req.body.remoteHost || null,
+      remotePort: req.body.remotePort || null,
+      remoteUsername: req.body.remoteUsername || null,
       remotePasswordEncrypted: encryptedPassword,
-      rustdeskId: dbData.rustdesk_id || null,
-      rustdeskInstalled: dbData.rustdesk_installed || false,
+      rustdeskId: req.body.rustdeskId || null,
+      rustdeskInstalled: req.body.rustdeskInstalled || false,
       rustdeskPasswordEncrypted: encryptedRustDeskPassword,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -313,6 +334,10 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Fetch the created appliance with all fields
     const newAppliance = await db.findOne('appliances', { id: result.insertId });
+    
+    if (!newAppliance) {
+      return res.status(500).json({ error: 'Failed to fetch created appliance' });
+    }
 
     // Create audit log
     if (req.user) {
@@ -330,16 +355,16 @@ router.post('/', verifyToken, async (req, res) => {
       );
     }
 
-    // Sync Guacamole connection if remote desktop is enabled
-    if (newAppliance.remoteDesktopEnabled) {
-      // Use the appliance data directly for Guacamole sync
+    // Sync Guacamole connection if remote desktop is enabled  
+    if (rawNewAppliance.remote_desktop_enabled) {
+      // Use the raw appliance data for Guacamole sync
       const dbAppliance = {
         id: result.insertId,
         remote_desktop_enabled: 1,
-        remote_protocol: newAppliance.remoteProtocol,
-        remote_host: newAppliance.remoteHost,
-        remote_port: newAppliance.remotePort,
-        remote_username: newAppliance.remoteUsername,
+        remote_protocol: rawNewAppliance.remote_protocol,
+        remote_host: rawNewAppliance.remote_host,
+        remote_port: rawNewAppliance.remote_port,
+        remote_username: rawNewAppliance.remote_username,
         remote_password_encrypted: encryptedPassword
       };
       syncGuacamoleConnection(dbAppliance).catch(err => 
@@ -373,14 +398,15 @@ router.put('/:id', verifyToken, async (req, res) => {
 
   try {
     // Get current data for audit log
+    // QueryBuilder already returns data in camelCase format
     const currentAppliance = await db.findOne('appliances', { id });
 
     if (!currentAppliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    // Map originalData to consistent format
-    const originalMapped = mapDbToJs(currentAppliance, 'appliances');
+    // No mapping needed - data is already in camelCase from QueryBuilder
+    const originalMapped = currentAppliance;
 
     // Handle password encryption
     let encryptedPassword = currentAppliance.remotePasswordEncrypted; // Keep existing if not changed
@@ -394,61 +420,71 @@ router.put('/:id', verifyToken, async (req, res) => {
       encryptedRustDeskPassword = encrypt(req.body.rustdeskPassword);
     }
 
-    // Prepare update data from request body
-    const updateData = {
-      name: req.body.name,
-      url: req.body.url,
-      description: req.body.description,
-      icon: req.body.icon,
-      color: req.body.color,
-      category: req.body.category,
-      isFavorite: req.body.isFavorite,
-      startCommand: req.body.startCommand || null,
-      stopCommand: req.body.stopCommand || null,
-      statusCommand: req.body.statusCommand || null,
-      autoStart: req.body.autoStart || false,
-      sshConnection: req.body.sshConnection || null,
-      transparency: req.body.transparency !== undefined ? req.body.transparency : 0.85,
-      blurAmount: req.body.blurAmount !== undefined ? req.body.blurAmount : 8,
-      openModeMini: req.body.openModeMini || 'browser_tab',
-      openModeMobile: req.body.openModeMobile || 'browser_tab',
-      openModeDesktop: req.body.openModeDesktop || 'browser_tab',
-      remoteDesktopEnabled: req.body.remoteDesktopEnabled || false,
-      remoteDesktopType: req.body.remoteDesktopType || 'guacamole',
-      remoteProtocol: req.body.remoteProtocol || 'vnc',
-      remoteHost: req.body.remoteHost || null,
-      remotePort: req.body.remotePort || null,
-      remoteUsername: req.body.remoteUsername || null,
-      remotePasswordEncrypted: encryptedPassword,
-      rustdeskId: req.body.rustdeskId || null,
-      rustdeskInstalled: req.body.rustdeskInstalled !== undefined ? req.body.rustdeskInstalled : false,
-      rustdeskPasswordEncrypted: encryptedRustDeskPassword,
+    // Prepare update data from request body - only include fields that are actually sent
+    const updateDataCamelCase = {
       updatedAt: new Date()
     };
 
-    await db.update('appliances', updateData, { id });
+    // Only update fields that are explicitly provided in the request
+    if (req.body.name !== undefined) updateDataCamelCase.name = req.body.name;
+    if (req.body.url !== undefined) updateDataCamelCase.url = req.body.url;
+    if (req.body.description !== undefined) updateDataCamelCase.description = req.body.description;
+    if (req.body.icon !== undefined) updateDataCamelCase.icon = req.body.icon;
+    if (req.body.color !== undefined) updateDataCamelCase.color = req.body.color;
+    if (req.body.category !== undefined) updateDataCamelCase.category = req.body.category;
+    if (req.body.isFavorite !== undefined) updateDataCamelCase.isFavorite = req.body.isFavorite;
+    if (req.body.startCommand !== undefined) updateDataCamelCase.startCommand = req.body.startCommand;
+    if (req.body.stopCommand !== undefined) updateDataCamelCase.stopCommand = req.body.stopCommand;
+    if (req.body.statusCommand !== undefined) updateDataCamelCase.statusCommand = req.body.statusCommand;
+    if (req.body.autoStart !== undefined) updateDataCamelCase.autoStart = req.body.autoStart;
+    if (req.body.sshConnection !== undefined) updateDataCamelCase.sshConnection = req.body.sshConnection;
+    if (req.body.transparency !== undefined) updateDataCamelCase.transparency = req.body.transparency;
+    if (req.body.blurAmount !== undefined) updateDataCamelCase.blurAmount = req.body.blurAmount;
+    if (req.body.openModeMini !== undefined) updateDataCamelCase.openModeMini = req.body.openModeMini;
+    if (req.body.openModeMobile !== undefined) updateDataCamelCase.openModeMobile = req.body.openModeMobile;
+    if (req.body.openModeDesktop !== undefined) updateDataCamelCase.openModeDesktop = req.body.openModeDesktop;
+    if (req.body.remoteDesktopEnabled !== undefined) updateDataCamelCase.remoteDesktopEnabled = req.body.remoteDesktopEnabled;
+    if (req.body.remoteDesktopType !== undefined) updateDataCamelCase.remoteDesktopType = req.body.remoteDesktopType;
+    if (req.body.remoteProtocol !== undefined) updateDataCamelCase.remoteProtocol = req.body.remoteProtocol;
+    if (req.body.remoteHost !== undefined) updateDataCamelCase.remoteHost = req.body.remoteHost;
+    if (req.body.remotePort !== undefined) updateDataCamelCase.remotePort = req.body.remotePort;
+    if (req.body.remoteUsername !== undefined) updateDataCamelCase.remoteUsername = req.body.remoteUsername;
+    if (req.body.rustdeskId !== undefined) updateDataCamelCase.rustdeskId = req.body.rustdeskId;
+    if (req.body.rustdeskInstalled !== undefined) updateDataCamelCase.rustdeskInstalled = req.body.rustdeskInstalled;
+    
+    // Handle password updates
+    if (req.body.remotePassword !== undefined && req.body.remotePassword !== '') {
+      updateDataCamelCase.remotePasswordEncrypted = encryptedPassword;
+    }
+    if (req.body.rustdeskPassword !== undefined && req.body.rustdeskPassword !== '') {
+      updateDataCamelCase.rustdeskPasswordEncrypted = encryptedRustDeskPassword;
+    }
+
+    // QueryBuilder expects camelCase and handles the conversion internally
+    await db.update('appliances', updateDataCamelCase, { id });
 
     // Fetch updated appliance
+    // QueryBuilder returns data in camelCase format
     const updatedAppliance = await db.findOne('appliances', { id });
 
     if (!updatedAppliance) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
-    // Calculate changed fields - only include fields that actually changed
+    // Calculate changed fields - compare using camelCase
     const changedFields = {};
     const oldValues = {};
     
     console.log('PUT Debug - Comparing fields for appliance', id);
-    console.log('PUT Debug - updateData keys:', Object.keys(updateData));
+    console.log('PUT Debug - updateDataCamelCase keys:', Object.keys(updateDataCamelCase));
     
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateDataCamelCase).forEach(key => {
       // Skip updatedAt and password fields
       if (key === 'updatedAt' || key.includes('Password')) return;
       
       // Use mapped original data for consistent comparison
       const oldVal = originalMapped[key];
-      const newVal = updateData[key];
+      const newVal = updateDataCamelCase[key];
       
       console.log(`PUT Debug - Field ${key}: old="${oldVal}" (${typeof oldVal}), new="${newVal}" (${typeof newVal})`);
       
@@ -527,7 +563,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       req.body.remotePassword; // Password was changed
 
     if (remoteDesktopFieldsChanged) {
-      // Convert to DB format for Guacamole sync
+      // Guacamole helper expects snake_case format
       const dbAppliance = {
         id: parseInt(id),
         remote_desktop_enabled: updatedAppliance.remoteDesktopEnabled ? 1 : 0,
@@ -629,14 +665,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
 
   try {
     // First, get the current data for audit log
-    const originalDataRaw = await db.findOne('appliances', { id });
+    // QueryBuilder returns data in camelCase format
+    const originalData = await db.findOne('appliances', { id });
 
-    if (!originalDataRaw) {
+    if (!originalData) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
-    
-    // Map to consistent format
-    const originalData = mapDbToJs(originalDataRaw, 'appliances');
 
     // Prepare update data
     const updateData = {};
@@ -713,6 +747,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
     }
 
     // Fetch the updated appliance
+    // QueryBuilder returns data in camelCase format
     const updatedAppliance = await db.findOne('appliances', { id });
 
     if (!updatedAppliance) {
@@ -826,12 +861,14 @@ router.patch('/:id', verifyToken, async (req, res) => {
 router.patch('/:id/favorite', verifyToken, async (req, res) => {
   try {
     // First get current status
+    // QueryBuilder returns data in camelCase format
     const current = await db.findOne('appliances', { id: req.params.id });
 
     if (!current) {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
+    // Use camelCase field name
     const newStatus = !current.isFavorite;
 
     await db.update(
@@ -841,6 +878,7 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
     );
 
     // Get updated appliance data
+    // QueryBuilder returns data in camelCase format
     const updatedAppliance = await db.findOne('appliances', { id: req.params.id });
 
     // Create audit log
@@ -853,7 +891,7 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
         {
           appliance_name: updatedAppliance.name,
           changes: { isFavorite: newStatus },
-          oldValues: { isFavorite: current.isFavorite },
+          oldValues: { isFavorite: current.is_favorite },
           field_updated: 'isFavorite',
           updated_by: req.user.username,
         },
