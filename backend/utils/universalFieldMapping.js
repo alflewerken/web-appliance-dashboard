@@ -54,12 +54,59 @@ const fieldMappings = {
     encryptedFields: ['passphrase_hash']
   },
   
-  // Appliances table
+  // Appliances table - COMPLETE MAPPING
   appliances: {
-    booleanFields: ['is_custom'],
-    dateFields: ['created_at', 'updated_at', 'last_used'],
-    intFields: ['order_index', 'created_by', 'updated_by'],
-    jsonFields: ['ports']
+    booleanFields: [
+      'is_favorite', 
+      'remote_desktop_enabled', 
+      'auto_start',
+      'rustdesk_installed'
+    ],
+    dateFields: [
+      'created_at', 
+      'updated_at', 
+      'last_used',
+      'last_status_check',
+      'rustdesk_installation_date'
+    ],
+    intFields: [
+      'order_index', 
+      'created_by', 
+      'updated_by',
+      'blur_amount',
+      'remote_port'
+    ],
+    encryptedFields: [
+      'remote_password_encrypted',
+      'rustdesk_password_encrypted'
+    ],
+    // These fields should be passed through as-is
+    passthroughFields: [
+      'id',
+      'name',
+      'category',
+      'description',
+      'url',
+      'icon',
+      'color',
+      'status_command',
+      'start_command',
+      'stop_command',
+      'restart_command',
+      'service_status',
+      'ssh_connection',
+      'transparency',
+      'background_image',
+      'open_mode_mini',
+      'open_mode_mobile',
+      'open_mode_desktop',
+      'remote_protocol',
+      'remote_host',
+      'remote_username',
+      'remote_desktop_type',
+      'rustdesk_id',
+      'guacamole_performance_mode'
+    ]
   },
   
   // Services table

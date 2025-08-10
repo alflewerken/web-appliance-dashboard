@@ -1,9 +1,12 @@
 #!/bin/bash
 
 # Enhanced Build Script with Remote Desktop Support (Default)
-# Version 3.1 - Added --help and --refresh options
+# Reads version from VERSION file
 
-echo "🚀 Web Appliance Dashboard Build Script"
+# Read version from VERSION file
+VERSION=$(cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "unknown")
+
+echo "🚀 Web Appliance Dashboard Build Script v$VERSION"
 echo "======================================="
 
 # Color codes for better output
@@ -27,7 +30,7 @@ print_status() {
 # Function to show help
 show_help() {
     echo ""
-    print_status "blue" "Web Appliance Dashboard Build Script - Help"
+    print_status "blue" "Web Appliance Dashboard Build Script v$VERSION - Help"
     echo "============================================"
     echo ""
     echo "Usage: $0 [OPTIONS]"
@@ -502,21 +505,6 @@ if ! wait_for_healthy "appliance_db"; then
     echo "📋 Database logs:"
     docker logs appliance_db --tail 50
     exit 1
-fi
-
-# Run database migrations
-print_status "info" "Running database migrations..."
-if [ -f "./scripts/migrate-db.sh" ]; then
-    print_status "info" "Applying database migrations..."
-    ./scripts/migrate-db.sh || {
-        print_status "warning" "Migration script failed, but continuing..."
-    }
-fi
-if [ -f "./scripts/migrate-remote-desktop.sh" ]; then
-    print_status "info" "Applying Remote Desktop migration..."
-    ./scripts/migrate-remote-desktop.sh || {
-        print_status "warning" "Migration might have already been applied"
-    }
 fi
 
 # 2. Start backend (depends on database)

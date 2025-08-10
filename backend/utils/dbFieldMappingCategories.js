@@ -8,6 +8,7 @@ const CATEGORY_DB_COLUMNS = {
   id: 'id',
   name: 'name',
   displayName: 'display_name',
+  description: 'description',
   icon: 'icon',
   color: 'color',
   isSystem: 'is_system',
@@ -26,6 +27,7 @@ function mapCategoryDbToJs(row) {
     id: row.id,
     name: row.name,
     displayName: row.name, // Use name as displayName since column doesn't exist
+    description: row.description || '',
     icon: row.icon || 'Folder',
     color: row.color || '#007AFF',
     isSystem: Boolean(row.is_system),
@@ -49,6 +51,7 @@ function mapCategoryJsToDb(jsObj) {
   // Map each field if it exists
   if (jsObj.name !== undefined) dbObj.name = jsObj.name;
   if (jsObj.displayName !== undefined) dbObj.display_name = jsObj.displayName;
+  if (jsObj.description !== undefined) dbObj.description = jsObj.description;
   if (jsObj.icon !== undefined) dbObj.icon = jsObj.icon;
   if (jsObj.color !== undefined) dbObj.color = jsObj.color;
   if (jsObj.isSystem !== undefined) dbObj.is_system = jsObj.isSystem ? 1 : 0;
@@ -65,7 +68,7 @@ function mapCategoryJsToDb(jsObj) {
  */
 function getCategorySelectColumns() {
   return `
-    id, name, icon, color,
+    id, name, description, icon, color,
     is_system, order_index, created_at, updated_at
   `.trim();
 }

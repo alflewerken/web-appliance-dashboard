@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import '../styles/mobile-swipeable-panels.css';
+// Mobile swipeable styles are now in mobile-consolidated.css
 
 const MobileSwipeableWrapper = ({ 
   children, 

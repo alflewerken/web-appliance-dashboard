@@ -24,7 +24,10 @@ terminal-app/build/
 .env.test.local
 .env.production.local
 
-# Backup directories
+# Backup directories and files
+backups/*.json
+backups/*.sql
+backups/*.tar.gz
 *-backup-*/
 *.backup.*
 src-backup*/

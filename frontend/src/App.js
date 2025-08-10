@@ -62,20 +62,12 @@ import './App.css';
 import './theme.css';
 import './mobile.css';
 import './styles/panel-layout.css'; // Multi-panel layout system
-import './styles/mobile-panels.css'; // Mobile panel safe area support
-import './styles/mobile-panel-overflow-fix.css'; // Mobile panel overflow fix
-import './styles/mobile-panel-scroll-fix.css'; // Mobile panel scroll fix
-import './styles/mobile-swipeable-panels.css'; // Mobile swipeable panels
-import './styles/enhanced-mobile-swipe.css'; // Enhanced swipe support
+import './styles/mobile-consolidated.css'; // CONSOLIDATED mobile styles (replaces 11 files)
 import './styles/transparent-panels-mode.css'; // Transparent Panels Toggle
 import './styles/header-unification.css'; // Header height unification
-import './styles/macos-input-fix.css'; // macOS input alignment fix
+import './styles/macos-input-fix.css'; // macOS input alignment fix (keep for now)
 import './styles/service-panel-header.css'; // Service panel header unification
-import './styles/safari-theme-fix.css';
-import './styles/ipad-swipe.css';
-import './styles/ios-scroll-fix.css';
-import './styles/mobile-content-fix.css';
-import './styles/mobile-override-fix.css';
+import './styles/safari-theme-fix.css'; // Safari-specific fixes (keep for now)
 import './styles/mini-dashboard.css';
 import './styles/Auth.css';
 import './styles/text-colors-fix.css'; // Text und Label Farben für Dark/Light Mode
@@ -816,7 +808,22 @@ function Dashboard() {
   };
 
   const startEdit = (appliance, initialTab = 'service') => {
-
+    console.log('[App.js] startEdit called with appliance:', appliance);
+    console.log('[App.js] appliance fields:', {
+      id: appliance?.id,
+      name: appliance?.name,
+      description: appliance?.description,
+      url: appliance?.url,
+      icon: appliance?.icon,
+      color: appliance?.color,
+      category: appliance?.category,
+      isFavorite: appliance?.isFavorite,
+      sshConnection: appliance?.sshConnection,
+      statusCommand: appliance?.statusCommand,
+      startCommand: appliance?.startCommand,
+      stopCommand: appliance?.stopCommand,
+    });
+    
     // Öffne das ServicePanel statt des Modals
     setSelectedServiceForPanel({ ...appliance, initialTab });
     setShowServicePanel(true);
@@ -1073,6 +1080,7 @@ function Dashboard() {
         searchTerm,
         showOnlyWithStatus
       );
+  
   const sections =
     selectedCategory === 'recent' ? getTimeBasedSections(appliances) : null;
 

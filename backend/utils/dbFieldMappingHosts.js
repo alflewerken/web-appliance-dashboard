@@ -41,6 +41,10 @@ const HOST_DB_COLUMNS = {
   lastTested: 'last_tested',
   testStatus: 'test_status',
   
+  // User tracking fields
+  createdBy: 'created_by',
+  updatedBy: 'updated_by',
+  
   // Timestamps
   createdAt: 'created_at',
   updatedAt: 'updated_at',
@@ -85,6 +89,10 @@ function mapHostDbToJs(row) {
     isActive: Boolean(row.is_active !== false), // Default true
     lastTested: row.last_tested,
     testStatus: row.test_status || 'unknown',
+    
+    // User tracking fields
+    createdBy: row.created_by || null,
+    updatedBy: row.updated_by || null,
     
     // Timestamps
     createdAt: row.created_at,
@@ -145,6 +153,12 @@ function mapHostJsToDb(jsObj) {
     dbObj.is_active = jsObj.isActive ? 1 : 0;
   if (jsObj.testStatus !== undefined)
     dbObj.test_status = jsObj.testStatus;
+    
+  // User tracking fields  
+  if (jsObj.createdBy !== undefined)
+    dbObj.created_by = jsObj.createdBy;
+  if (jsObj.updatedBy !== undefined)
+    dbObj.updated_by = jsObj.updatedBy;
 
   return dbObj;
 }
@@ -159,7 +173,7 @@ function getHostSelectColumns() {
     remote_desktop_enabled, remote_desktop_type, remote_protocol,
     remote_port, remote_username, guacamole_performance_mode,
     rustdesk_id, is_active, last_tested, test_status,
-    created_at, updated_at
+    created_by, updated_by, created_at, updated_at
   `.trim();
 }
 

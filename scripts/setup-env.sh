@@ -4,7 +4,10 @@
 
 set -e
 
-echo "🔧 Web Appliance Dashboard - Environment Setup"
+# Read version from VERSION file
+VERSION=$(cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "unknown")
+
+echo "🔧 Web Appliance Dashboard v$VERSION - Environment Setup"
 echo "============================================="
 
 # Prüfe ob .env bereits existiert
@@ -382,7 +385,7 @@ REACT_APP_GUACAMOLE_URL=$REACT_APP_GUACAMOLE_URL
 
 # Application Settings
 REACT_APP_NAME=Web Appliance Dashboard
-REACT_APP_VERSION=1.1.0
+REACT_APP_VERSION=$VERSION
 REACT_APP_ENVIRONMENT=$NODE_ENV
 
 # Feature Flags

@@ -93,18 +93,19 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 40s
 
-  # Nginx Web Server
+  # Nginx Web Server with custom image
   webserver:
-    image: nginx:alpine
+    build: ./nginx
     container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
     restart: always
     ports:
       - "${NGINX_HTTP_PORT:-9080}:80"
       - "${NGINX_HTTPS_PORT:-9443}:443"
     volumes:
-      - ./nginx/nginx-docker-with-optional-guacamole.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Mount frontend build as read-only
       - ./frontend/build:/usr/share/nginx/html:ro
+      # Override conf.d if needed for development
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - backend
       - ttyd

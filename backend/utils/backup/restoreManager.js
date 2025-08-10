@@ -492,14 +492,8 @@ class RestoreManager {
       }
     }
 
-    // Fix SSH permissions
-    await this.fixSSHPermissions();
-
-    // Regenerate SSH config
-    await this.regenerateSSHConfig();
-    
-    // Regenerate SSH keys for all users
-    await this.regenerateUserSSHKeys(connection);
+    // Fix terminal connections (SSH keys and config)
+    await this.fixTerminalConnections(connection);
 
     // Recreate Guacamole connections for remote desktop
     await this.recreateGuacamoleConnections();
@@ -538,80 +532,153 @@ class RestoreManager {
     }
   }
 
-  // Regenerate SSH config
-  async regenerateSSHConfig() {
+  // Fix terminal connections - comprehensive SSH restoration
+  async fixTerminalConnections(connection) {
     try {
-      const regenerateScript = path.join(__dirname, '../../regenerate-ssh-config.js');
-      execSync(`node ${regenerateScript}`, { timeout: 30000 });
-      this.log('info', '  ✓ SSH config regenerated');
-    } catch (error) {
-      this.log('warn', '  ⚠️ Could not regenerate SSH config:', error.message);
-    }
-  }
-
-  // Regenerate SSH keys for all users after restore
-  async regenerateUserSSHKeys(connection) {
-    try {
-      this.log('info', '  🔑 Regenerating SSH keys for all users...');
-      
-      // Get all users from database
-      const [users] = await connection.execute('SELECT id, username FROM users');
-      
-      if (users.length === 0) {
-        this.log('info', '    ℹ️ No users found to regenerate keys for');
-        return;
-      }
+      this.log('info', '🔧 Fixing terminal connections after restore...');
       
       const sshDir = '/root/.ssh';
-      const { exec } = require('child_process');
-      const { promisify } = require('util');
-      const execAsync = promisify(exec);
+      const sshConfigPath = '/root/.ssh/config';
       
-      // Ensure SSH directory exists
+      // 1. Ensure SSH directory exists with correct permissions
       await fs.mkdir(sshDir, { recursive: true, mode: 0o700 });
+      await fs.chmod(sshDir, 0o700);
+      this.log('info', '  ✓ SSH directory setup complete');
       
-      let keysGenerated = 0;
-      let keysFailed = 0;
+      // 2. Restore SSH keys from database to filesystem
+      const [sshKeys] = await connection.execute(`
+        SELECT id, key_name, private_key, public_key, created_by
+        FROM ssh_keys
+        WHERE private_key IS NOT NULL
+      `);
       
-      for (const user of users) {
+      this.log('info', `  🔑 Restoring ${sshKeys.length} SSH keys from database...`);
+      
+      for (const key of sshKeys) {
         try {
-          const privateKeyPath = path.join(sshDir, `id_rsa_user${user.id}_dashboard`);
-          const publicKeyPath = `${privateKeyPath}.pub`;
-          
-          // Check if key already exists
-          const keyExists = await fs.access(privateKeyPath).then(() => true).catch(() => false);
-          
-          if (!keyExists) {
-            // Generate new key
-            const keygenCmd = `ssh-keygen -t rsa -b 2048 -f "${privateKeyPath}" -N "" -C "dashboard@${user.username}"`;
-            await execAsync(keygenCmd, { timeout: 10000 });
-            
-            // Set proper permissions
-            await fs.chmod(privateKeyPath, 0o600);
-            await fs.chmod(publicKeyPath, 0o644);
-            
-            keysGenerated++;
-            this.log('info', `    ✓ Generated SSH key for user ${user.username} (ID: ${user.id})`);
+          // Determine filename
+          let filename;
+          if (key.created_by && key.created_by !== 1) {
+            filename = `id_rsa_user${key.created_by}_${key.key_name}`;
           } else {
-            this.log('info', `    ℹ️ SSH key already exists for user ${user.username} (ID: ${user.id})`);
+            filename = `id_rsa_${key.key_name}`;
           }
+          
+          const privateKeyPath = path.join(sshDir, filename);
+          const publicKeyPath = path.join(sshDir, `${filename}.pub`);
+          
+          // Write private key
+          await fs.writeFile(privateKeyPath, key.private_key, { mode: 0o600 });
+          
+          // Write public key if available
+          if (key.public_key) {
+            await fs.writeFile(publicKeyPath, key.public_key, { mode: 0o644 });
+          }
+          
+          this.log('info', `    ✓ Restored: ${filename}`);
         } catch (error) {
-          keysFailed++;
-          this.log('warn', `    ⚠️ Failed to generate SSH key for user ${user.username}: ${error.message}`);
+          this.log('warn', `    ⚠️ Failed to restore key "${key.key_name}": ${error.message}`);
         }
       }
       
-      if (keysGenerated > 0) {
-        this.log('info', `  ✓ Generated ${keysGenerated} SSH keys`);
-      }
-      if (keysFailed > 0) {
-        this.log('warn', `  ⚠️ Failed to generate ${keysFailed} SSH keys`);
+      // 3. Generate SSH config
+      this.log('info', '  📄 Generating SSH config...');
+      
+      const baseConfig = `# SSH Config auto-generated by Web Appliance Dashboard
+# Generated after restore
+
+Host *
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel QUIET
+    ConnectTimeout 10
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+    PasswordAuthentication no
+    PubkeyAuthentication yes
+    IdentitiesOnly yes`;
+
+      const configs = [baseConfig];
+      
+      // Get all hosts with SSH configuration
+      const [hosts] = await connection.execute(`
+        SELECT id, name, hostname, port, username, ssh_key_name
+        FROM hosts 
+        WHERE is_active = 1 
+          AND ssh_key_name IS NOT NULL 
+          AND ssh_key_name != ''
+        ORDER BY name
+      `);
+      
+      this.log('info', `  📋 Found ${hosts.length} hosts with SSH configuration`);
+      
+      for (const host of hosts) {
+        const hostConfig = `
+# ${host.name}
+Host ${host.hostname}
+    HostName ${host.hostname}
+    Port ${host.port || 22}
+    User ${host.username}
+    IdentityFile ${sshDir}/id_rsa_${host.ssh_key_name}`;
+        
+        configs.push(hostConfig);
+        this.log('info', `    ✓ Added config for: ${host.name} (${host.hostname})`);
       }
       
+      // Write SSH config
+      const configContent = configs.join('\n');
+      await fs.writeFile(sshConfigPath, configContent, { mode: 0o600 });
+      this.log('info', '  ✓ SSH config written successfully');
+      
+      // 4. Verify hosts have proper SSH keys
+      const [hostsWithoutKeys] = await connection.execute(`
+        SELECT id, name, hostname 
+        FROM hosts 
+        WHERE is_active = 1 
+          AND (ssh_key_name IS NULL OR ssh_key_name = '')
+      `);
+      
+      if (hostsWithoutKeys.length > 0) {
+        this.log('warn', `  ⚠️ Found ${hostsWithoutKeys.length} hosts without SSH keys`);
+        
+        // Try to assign dashboard key if available
+        const dashboardKeyPath = path.join(sshDir, 'id_rsa_dashboard');
+        const dashboardKeyExists = await fs.access(dashboardKeyPath).then(() => true).catch(() => false);
+        
+        if (dashboardKeyExists) {
+          for (const host of hostsWithoutKeys) {
+            await connection.execute(
+              `UPDATE hosts SET ssh_key_name = 'dashboard' WHERE id = ?`,
+              [host.id]
+            );
+            this.log('info', `    ✓ Assigned 'dashboard' key to ${host.name}`);
+          }
+        }
+      }
+      
+      // 5. Fix permissions on all SSH files
+      const files = await fs.readdir(sshDir);
+      for (const file of files) {
+        const filePath = path.join(sshDir, file);
+        
+        if (file === 'config') {
+          await fs.chmod(filePath, 0o600);
+        } else if (file.startsWith('id_rsa') && !file.endsWith('.pub')) {
+          await fs.chmod(filePath, 0o600);
+        } else if (file.endsWith('.pub')) {
+          await fs.chmod(filePath, 0o644);
+        }
+      }
+      
+      this.log('info', '  ✓ SSH file permissions corrected');
+      this.log('info', '✅ Terminal connections fixed successfully');
+      
     } catch (error) {
-      this.log('error', `  ❌ Error regenerating user SSH keys: ${error.message}`);
+      this.log('error', `❌ Error fixing terminal connections: ${error.message}`);
+      // Don't throw - allow restore to continue even if SSH fix fails
     }
   }
+
 
   // Recreate Guacamole connections
   async recreateGuacamoleConnections() {

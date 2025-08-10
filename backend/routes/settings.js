@@ -12,13 +12,16 @@ const db = new QueryBuilder(pool);
 // Get all user settings
 router.get('/', async (req, res) => {
   try {
-    // Get global settings (user_id = NULL)
-    const rows = await db.select('user_settings', { userId: null }, { orderBy: 'settingKey' });
+    // Get global settings (user_id = NULL) - use snake_case for database
+    const rows = await db.select('user_settings', { user_id: null }, { orderBy: 'setting_key' });
 
-    // Convert to key-value object for easier frontend usage
+    // Convert to key-value object for easier frontend usage  
     const settings = {};
     rows.forEach(row => {
-      settings[row.settingKey] = row.settingValue;
+      // Map snake_case to camelCase
+      const key = row.setting_key || row.settingKey;
+      const value = row.setting_value || row.settingValue;
+      settings[key] = value;
     });
 
     res.json(settings);
@@ -33,17 +36,19 @@ router.get('/:key', async (req, res) => {
   try {
     const { key } = req.params;
 
-    // Get global setting (user_id = NULL)
+    // Get global setting (user_id = NULL) - use snake_case for database
     const setting = await db.findOne('user_settings', { 
-      userId: null,
-      settingKey: key 
+      user_id: null,
+      setting_key: key 
     });
 
     if (!setting) {
       return res.status(404).json({ error: 'Setting not found' });
     }
 
-    res.json({ key, value: setting.settingValue });
+    // Map snake_case to camelCase
+    const value = setting.setting_value || setting.settingValue;
+    res.json({ key, value });
   } catch (error) {
     console.error('Error fetching setting:', error);
     res.status(500).json({ error: 'Failed to fetch setting' });

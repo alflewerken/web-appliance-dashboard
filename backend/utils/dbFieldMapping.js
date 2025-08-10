@@ -138,6 +138,11 @@ const JS_PROPERTIES = {
 function mapDbToJs(row) {
   if (!row) return null;
 
+  // Debug: Log the raw is_favorite value for first few rows
+  if (row.id <= 5) {
+    console.log(`[mapDbToJs] ID ${row.id}: is_favorite raw =`, row.is_favorite, 'type =', typeof row.is_favorite, 'Boolean =', Boolean(row.is_favorite));
+  }
+
   return {
     // Primary fields
     id: row.id,
@@ -147,15 +152,15 @@ function mapDbToJs(row) {
     color: row.color || '#007AFF',
     description: row.description || '',
     category: row.category || 'productivity',
-    isFavorite: Boolean(row.isFavorite),
-    lastUsed: row.lastUsed,
+    isFavorite: row.is_favorite === 1 || row.is_favorite === true || row.is_favorite === '1',  // Fix für MySQL TINYINT
+    lastUsed: row.last_used,  // FIX: last_used statt lastUsed
 
     // Service Control Fields
     startCommand: row.start_command || null,
     stopCommand: row.stop_command || null,
     statusCommand: row.status_command || null,
     restartCommand: row.restart_command || null,
-    autoStart: Boolean(row.auto_start),
+    autoStart: row.auto_start === 1 || row.auto_start === true || row.auto_start === '1',
     serviceStatus: row.service_status || 'unknown',
     lastStatusCheck: row.last_status_check,
 
@@ -174,17 +179,17 @@ function mapDbToJs(row) {
     openModeDesktop: row.open_mode_desktop || 'browser_tab',
 
     // Remote Desktop Settings
-    remoteDesktopEnabled: Boolean(row.remote_desktop_enabled),
+    remoteDesktopEnabled: row.remote_desktop_enabled === 1 || row.remote_desktop_enabled === true || row.remote_desktop_enabled === '1',
     remoteProtocol: row.remote_protocol || 'vnc',
     remoteHost: row.remote_host || null,
-    remotePort: row.remote_port || null,
+    remotePort: row.remote_port || (row.remote_protocol === 'vnc' ? 5900 : row.remote_protocol === 'rdp' ? 3389 : null),
     remoteUsername: row.remote_username || null,
     // Password is not returned for security
     
     // RustDesk Fields
     remoteDesktopType: row.remote_desktop_type || 'guacamole',
     rustdeskId: row.rustdesk_id || null,
-    rustdeskInstalled: Boolean(row.rustdesk_installed),
+    rustdeskInstalled: row.rustdesk_installed === 1 || row.rustdesk_installed === true || row.rustdesk_installed === '1',
     rustdeskInstallationDate: row.rustdesk_installation_date || null,
     
     // Guacamole Settings

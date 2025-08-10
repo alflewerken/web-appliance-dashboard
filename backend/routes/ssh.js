@@ -82,8 +82,9 @@ router.post('/setup', verifyToken, async (req, res) => {
     // Create .ssh directory if it doesn't exist
     await ssh.execCommand('mkdir -p ~/.ssh && chmod 700 ~/.ssh');
 
-    // Add public key to authorized_keys
-    const command = `echo "${publicKey}" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`;
+    // Add public key to authorized_keys (ensure newline at end to prevent key concatenation)
+    const publicKeyWithNewline = publicKey.trim() + '\n';
+    const command = `echo "${publicKeyWithNewline}" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`;
     const result = await ssh.execCommand(command);
 
     if (result.code !== 0) {

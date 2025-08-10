@@ -19,7 +19,10 @@ export class ApplianceService {
             new Date(
               Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
             ).toISOString(),
-          isFavorite: app.isFavorite || false,
+          // WICHTIG: isFavorite nicht mit || false überschreiben!
+          // Prüfe beide möglichen Feldnamen
+          isFavorite: app.isFavorite === true || app.isFavorite === 1 || app.isFavorite === '1' ||
+                     app.is_favorite === true || app.is_favorite === 1 || app.is_favorite === '1',
           color: app.color || '#007AFF',
           icon: app.icon || 'Server',
           transparency: app.transparency !== undefined ? app.transparency : 0.7,
@@ -45,11 +48,6 @@ export class ApplianceService {
           remoteDesktopEnabled: app.remoteDesktopEnabled || false,
           remoteProtocol: app.remoteProtocol || 'vnc',
         };
-        
-        // Debug logging für Nextcloud
-        if (app.name && app.name.includes('Nextcloud')) {
-
-        }
         
         return enhanced;
       });

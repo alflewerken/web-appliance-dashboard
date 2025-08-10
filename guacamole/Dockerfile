@@ -25,10 +25,9 @@ RUN cd /home/guacamole/.guacamole/extensions && \
         ln -sf "$ext" . ; \
     done
 
-# Kopiere das SFTP Startup-Script
-COPY startup-sftp.sh /opt/guacamole/startup-sftp.sh
+# Kopiere das Enhanced Startup-Script
 COPY startup-enhanced.sh /opt/guacamole/startup-enhanced.sh
-RUN chmod +x /opt/guacamole/startup-sftp.sh /opt/guacamole/startup-enhanced.sh
+RUN chmod +x /opt/guacamole/startup-enhanced.sh
 
 # Erstelle ein Wrapper-Script für den Start
 RUN echo '#!/bin/bash\n\

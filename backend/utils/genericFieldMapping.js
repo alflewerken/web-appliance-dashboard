@@ -76,8 +76,19 @@ function genericMapDbToJs(dbRow) {
     const jsKey = key.includes('_') ? snakeToCamel(key) : key;
     
     // Handle boolean fields (MySQL returns 0/1)
-    if (key.startsWith('is_') || key.endsWith('_enabled') || key === 'auto_start' || key === 'isFavorite') {
-      jsObj[jsKey] = Boolean(value);
+    // Check both the original DB key and the converted JS key
+    const isBooleanField = 
+      key.startsWith('is_') || 
+      key.endsWith('_enabled') || 
+      key.endsWith('_installed') ||
+      key === 'auto_start' || 
+      jsKey === 'isFavorite' ||
+      jsKey === 'autoStart' ||
+      jsKey.endsWith('Enabled') ||
+      jsKey.endsWith('Installed');
+      
+    if (isBooleanField) {
+      jsObj[jsKey] = value === 1 || value === true || value === '1';
     } else {
       jsObj[jsKey] = value;
     }

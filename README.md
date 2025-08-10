@@ -1,46 +1,55 @@
 # Web Appliance Dashboard 🚀
 
-[🇬🇧 English](README.en.md) | 🇩🇪 Deutsch
+[🇬🇧 English](README.en.md) | 🇩🇪 Deutsch | [📖 Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.md)
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.1-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.2-brightgreen.svg)](package.json)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
-Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwachung von Web-Appliances, Services und Servern mit integrierter SSH-Funktionalität, Web-Terminal und Remote Desktop Support.
+> **"Von einem Homelab-Enthusiasten für Homelab-Enthusiasten"**
 
-![Web Appliance Dashboard](docs/user-manual/images/Desktop%20Ansicht.png)
+Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs, Docker-Containern und Services. Keine Cloud-Abhängigkeiten, keine Abos - nur ein solides Tool für Ihr Homelab.
+
+![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
 
 ## 🌟 Features
 
 ### Core Features
-- **📊 Zentrales Dashboard** - Übersichtliche Verwaltung aller Appliances mit Kategorisierung
+- **📊 Zentrales Dashboard** - Übersichtliche Verwaltung aller Services und Hosts
 - **🔐 Authentifizierung** - JWT-basierte Benutzerverwaltung mit Rollen (Admin/User)
 - **🖥️ Web Terminal** - Integriertes Terminal über ttyd mit SSH-Key Support
 - **🔑 SSH Integration** - Vollständiges SSH-Key Management mit automatischer Authentifizierung
 - **🖥️ Remote Desktop** - VNC & RDP Support über Apache Guacamole
 - **📦 Service Control** - Start/Stop/Status von Services über SSH
-- **🎨 Anpassbares Design** - Dark/Light Mode, Custom Backgrounds, Glassmorphism
-- **📱 Responsive** - Optimiert für Desktop, Tablet und Mobile (PWA-ready)
+- **🎨 Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
+- **📱 Mobile First** - PWA-fähig, optimiert für iPhone und Tablets
 
-### Erweiterte Features
-- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung und Key-Dialog
-- **📝 Audit Logging** - Nachvollziehbare Aktionsprotokolle mit Export
+### Enterprise Features
+- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung
+- **📝 Audit Logging** - Compliance-fähig mit Undo-Funktion
 - **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
-- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP, keine Debug-Endpoints
-- **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem
-- **🔍 Volltextsuche** - Schnelle Suche über alle Appliances
-- **💡 Smart UI** - Tooltips, Toggle-Panels, Resize-fähige Sidebars
+- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP
+- **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem (in Entwicklung)
+- **🔍 Volltextsuche** - Schnelle Suche über alle Services
+- **💡 Smart Categories** - Automatische Gruppierung mit Service-Counter
 
-## 🆕 Neueste Updates (v1.1.1)
+## 🆕 Neueste Updates (v1.1.2)
 
-### Sicherheitsverbesserungen
-- ✅ Alle Debug-Dateien und -Ordner entfernt
-- ✅ Keine öffentlich zugänglichen Debug-Endpoints mehr
-- ✅ Saubere Browser-Konsole ohne Debug-Ausgaben
-- ✅ Reduzierte Angriffsfläche für Production
+### 📖 Neues Benutzerhandbuch
+- ✅ Umfassende Dokumentation mit 600+ Zeilen
+- ✅ Persönliche Entstehungsgeschichte des Projekts
+- ✅ Mobile-First Dokumentation mit iPhone Screenshots
+- ✅ Praktische Workflows statt Feature-Listen
+- ✅ Clean UI Philosophy dokumentiert
+
+### Host-First Konzept
+- ✅ Hosts als Grundlage für alle Services
+- ✅ Verbesserte Host-Verwaltung
+- ✅ Detaillierte Host-Konfiguration
+- ✅ SSH-Key Management pro Host
 
 ### UI/UX Verbesserungen
 - ✅ Interaktive Tooltips für kollabierte Sidebar
@@ -65,49 +74,32 @@ Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwach
 <details>
 <summary><b>Alle Screenshots anzeigen</b></summary>
 
-### Dashboard & Navigation
-![Dashboard Desktop](docs/user-manual/images/Desktop%20View.png)
-*Desktop Dashboard Übersicht*
+### Dashboard Übersicht
+![Dashboard Overview](docs/user-guide-v2/images/dashboard-overview.png)
+*Desktop Dashboard mit Clean UI*
 
-![Mobile Dashboard](docs/user-manual/images/Mobile.jpeg)
-*Mobile Ansicht*
+### Host-Verwaltung
+![Host Overview](docs/user-guide-v2/images/host-overview.png)
+*Host-Übersicht mit allen angelegten Rechnern*
 
-![iPad View](docs/user-manual/images/iPad%20View.png)
-*Tablet/iPad Ansicht*
+![Host Card](docs/user-guide-v2/images/host-card.png)
+*Host-Karte mit Hover-to-Reveal Buttons*
 
-### Service Management
-![Service Card Running](docs/user-manual/images/Service%20Card%20Detail%20View%20(green%20statusbar%20service%20running).png)
-*Service Card - Service läuft (grün)*
+![Host Settings](docs/user-guide-v2/images/host-settings.png)
+*Detaillierte Host-Konfiguration*
 
-![Service Card Stopped](docs/user-manual/images/Service%20Card%20without%20Details%20(red%20statusbar%20service%20not%20running).png)
-*Service Card - Service gestoppt (rot)*
+### Mobile Experience
+![Mobile Overview](docs/user-guide-v2/images/mobile-overview.jpeg)
+*iPhone Dashboard Ansicht*
 
-![Create Service](docs/user-manual/images/Create%20Service.png)
-*Neuen Service anlegen*
+![Mobile Terminal](docs/user-guide-v2/images/mobile-terminal.jpeg)
+*SSH Terminal auf dem iPhone*
 
-### Terminal & Remote Access
-![Terminal View](docs/images/terminal-view.png)
-*Integriertes Web-Terminal*
+![Mobile Audit](docs/user-guide-v2/images/mobile-audit.jpeg)
+*Audit Log mobil - Compliance-fähig*
 
-![Custom Commands](docs/user-manual/images/Custom%20Commands.jpeg)
-*Custom SSH Commands*
-
-### Administration
-![User Management](docs/user-manual/images/User%20Management.png)
-*Benutzerverwaltung*
-
-![Audit Log](docs/user-manual/images/Audit%20Log.png)
-*Audit Log Übersicht*
-
-### Einstellungen
-![Settings Categories](docs/user-manual/images/Settings%20Categories.png)
-*Kategorien verwalten*
-
-![Settings Background](docs/user-manual/images/Settings%20Background.png)
-*Hintergrundbild anpassen*
-
-![Backup Restore](docs/user-manual/images/Settings%20Backup%20Restore.png)
-*Backup & Restore*
+![Mobile Sidebar](docs/user-guide-v2/images/mobile-sidebar.jpeg)
+*Kategorien mit Service-Counter*
 
 </details>
 
@@ -120,6 +112,9 @@ Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwach
 
 ## 🚀 Quick Start
 
+### Das wichtigste Konzept: Hosts zuerst!
+Services laufen auf Rechnern (Hosts). Ohne Host kein Service! Das Dashboard folgt diesem logischen Aufbau.
+
 ### 1. Repository klonen
 ```bash
 git clone https://github.com/alflewerken/web-appliance-dashboard.git
@@ -130,21 +125,11 @@ cd web-appliance-dashboard
 ```bash
 ./scripts/setup-env.sh
 ```
-Das Script:
-- Erstellt sichere Passwörter
-- Konfiguriert die .env Datei
-- Fragt nach Verschlüsselungsschlüssel
-- Bereitet die Docker-Umgebung vor
 
 ### 3. Frontend bauen und Container starten
 ```bash
 ./scripts/build.sh
 ```
-Das Build-Script:
-- Installiert alle Dependencies
-- Baut das React Frontend
-- Erstellt die Docker Images
-- Startet alle Container
 
 ### 4. Dashboard öffnen
 ```
@@ -155,12 +140,26 @@ Standard-Login:
 - **Benutzer**: admin
 - **Passwort**: admin123
 
-⚠️ **Wichtig**: Ändern Sie das Standard-Passwort sofort nach dem ersten Login!
+⚠️ **Wichtig**: Ändern Sie das Standard-Passwort sofort!
+
+### 5. Ersten Host anlegen
+1. Klicken Sie auf "Hosts" in der Sidebar
+2. "Host hinzufügen" anklicken
+3. Host-Daten eingeben (IP, SSH-Zugangsdaten)
+4. Speichern - fertig!
+
+Ausführliche Anleitung: [📖 Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.md)
 
 ## 📚 Dokumentation
 
-### Benutzer-Dokumentation
-- [Benutzerhandbuch](docs/user-manual/index.html) - Web-basierte Anleitung
+### 📖 Für Anwender
+- **[Benutzerhandbuch v2](docs/user-guide-v2/USER-GUIDE.md)** - Umfassende Anleitung mit persönlicher Note
+  - Entstehungsgeschichte & Motivation
+  - Schnellstart in 5 Minuten (Host-First!)
+  - Mobile Experience Guide
+  - Praktische Workflows
+  - Clean UI Philosophy
+- [Altes Benutzerhandbuch](docs/user-manual/index.html) - Web-basierte Anleitung (Legacy)
 
 ### Entwickler-Dokumentation
 - [Entwicklerleitfaden](docs/developer.html) - Architektur mit Diagrammen
@@ -373,8 +372,15 @@ Dieses Projekt ist unter der MIT License lizenziert - siehe [LICENSE](LICENSE) f
 - [ttyd](https://github.com/tsl0922/ttyd) - Web Terminal
 - Alle weiteren [Open Source Projekte](package.json) die dieses Projekt ermöglichen
 
+## 💬 Über das Projekt
+
+> "Nach 30 Jahren in der IT und unzähligen Tools später wollte ich einfach ein Dashboard, das funktioniert. Kein Schnickschnack, keine Cloud-Abhängigkeit, keine monatlichen Gebühren. Nur ein solides, schönes Tool für mein Homelab. Wenn es Ihnen hilft, Ihr Homelab besser zu managen - Mission erfüllt!"
+>
+> *- Alf, 56, IT-Enthusiast seit dem Sinclair ZX80*
+
 ---
 
 <p align="center">
-  Made with ❤️ by <a href="https://github.com/alflewerken">Alf Lewerken</a>
+  Made with ❤️ by <a href="https://github.com/alflewerken">Alf Lewerken</a><br>
+  <i>Von einem Homelab-Enthusiasten für Homelab-Enthusiasten</i>
 </p>

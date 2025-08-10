@@ -16,6 +16,7 @@ export const useAppliances = () => {
       setAppliances(data);
       setLoading(false); // Only set to false after first load
     } catch (error) {
+      console.error('[useAppliances] Error in fetchAppliances:', error);
       setError(error.message);
       setAppliances([]); // Leeres Array statt Demo-Daten
       setLoading(false);

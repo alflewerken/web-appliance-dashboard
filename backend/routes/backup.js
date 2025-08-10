@@ -886,78 +886,102 @@ router.post('/restore', verifyToken, async (req, res) => {
         for (const appliance of batch) {
           console.log(`Restoring appliance: ${appliance.name}`);
           
-          // Use the mapping layer to convert from JS to DB format
-          const dbAppliance = mapJsToDb(appliance);
+          // CRITICAL FIX: Handle mixed camelCase/snake_case from backup
+          // The backup may contain either format, so we need to normalize
+          const dbAppliance = {};
           
-          // Handle timestamps - these need special formatting for MySQL
-          dbAppliance.created_at = appliance.created_at || appliance.createdAt
-            ? new Date(appliance.created_at || appliance.createdAt)
-                .toISOString()
-                .slice(0, 19)
-                .replace('T', ' ')
-            : new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-          dbAppliance.updated_at = appliance.updated_at || appliance.updatedAt
-            ? new Date(appliance.updated_at || appliance.updatedAt)
-                .toISOString()
-                .slice(0, 19)
-                .replace('T', ' ')
-            : dbAppliance.created_at;
-
-          // last_used is already handled by mapJsToDb with proper formatting
-          // Only set it here if mapJsToDb didn't handle it
-          if (!dbAppliance.last_used && (appliance.lastUsed || appliance.last_used)) {
+          // Map all fields properly, handling both camelCase and snake_case
+          dbAppliance.id = appliance.id;
+          dbAppliance.name = appliance.name;
+          dbAppliance.category = appliance.category;
+          dbAppliance.description = appliance.description;
+          dbAppliance.url = appliance.url;
+          dbAppliance.icon = appliance.icon;
+          dbAppliance.color = appliance.color;
+          
+          // Handle isFavorite/is_favorite
+          dbAppliance.is_favorite = appliance.isFavorite !== undefined ? 
+            (appliance.isFavorite ? 1 : 0) : 
+            (appliance.is_favorite !== undefined ? appliance.is_favorite : 0);
+          
+          // Handle lastUsed/last_used
+          if (appliance.lastUsed || appliance.last_used) {
             const lastUsedValue = appliance.lastUsed || appliance.last_used;
             dbAppliance.last_used = new Date(lastUsedValue)
                 .toISOString()
                 .slice(0, 19)
                 .replace('T', ' ');
           }
-                
-          // Handle last_status_check
-          if (appliance.last_status_check || appliance.lastStatusCheck) {
+          
+          // Service commands
+          dbAppliance.status_command = appliance.statusCommand || appliance.status_command || null;
+          dbAppliance.start_command = appliance.startCommand || appliance.start_command || null;
+          dbAppliance.stop_command = appliance.stopCommand || appliance.stop_command || null;
+          dbAppliance.restart_command = appliance.restartCommand || appliance.restart_command || null;
+          dbAppliance.service_status = appliance.serviceStatus || appliance.service_status || 'unknown';
+          
+          // SSH connection
+          dbAppliance.ssh_connection = appliance.sshConnection || appliance.ssh_connection || null;
+          
+          // Visual settings
+          dbAppliance.transparency = appliance.transparency || '0.7';
+          dbAppliance.blur_amount = appliance.blurAmount || appliance.blur_amount || 8;
+          dbAppliance.background_image = appliance.backgroundImage || appliance.background_image || null;
+          
+          // Remote desktop settings
+          dbAppliance.remote_desktop_enabled = appliance.remoteDesktopEnabled !== undefined ?
+            (appliance.remoteDesktopEnabled ? 1 : 0) :
+            (appliance.remote_desktop_enabled !== undefined ? appliance.remote_desktop_enabled : 0);
+          dbAppliance.remote_protocol = appliance.remoteProtocol || appliance.remote_protocol || 'vnc';
+          dbAppliance.remote_host = appliance.remoteHost || appliance.remote_host || null;
+          dbAppliance.remote_port = appliance.remotePort || appliance.remote_port || null;
+          dbAppliance.remote_username = appliance.remoteUsername || appliance.remote_username || null;
+          dbAppliance.remote_password_encrypted = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
+          dbAppliance.remote_desktop_type = appliance.remoteDesktopType || appliance.remote_desktop_type || 'guacamole';
+          
+          // RustDesk settings
+          dbAppliance.rustdesk_id = appliance.rustdeskId || appliance.rustdesk_id || null;
+          dbAppliance.rustdesk_password_encrypted = appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted || null;
+          dbAppliance.rustdesk_installed = appliance.rustdeskInstalled !== undefined ?
+            appliance.rustdeskInstalled :
+            (appliance.rustdesk_installed !== undefined ? appliance.rustdesk_installed : 0);
+          dbAppliance.rustdesk_installation_date = appliance.rustdeskInstallationDate || appliance.rustdesk_installation_date || null;
+          
+          // Other settings
+          dbAppliance.auto_start = appliance.autoStart !== undefined ?
+            (appliance.autoStart ? 1 : 0) :
+            (appliance.auto_start !== undefined ? appliance.auto_start : 0);
+          dbAppliance.open_mode_mini = appliance.openModeMini || appliance.open_mode_mini || '_self';
+          dbAppliance.open_mode_mobile = appliance.openModeMobile || appliance.open_mode_mobile || '_self';
+          dbAppliance.open_mode_desktop = appliance.openModeDesktop || appliance.open_mode_desktop || '_self';
+          dbAppliance.order_index = appliance.orderIndex || appliance.order_index || 0;
+          dbAppliance.guacamole_performance_mode = appliance.guacamolePerformanceMode || appliance.guacamole_performance_mode || 'balanced';
+          
+          // Handle timestamps
+          // Handle timestamps
+          dbAppliance.created_at = appliance.createdAt || appliance.created_at
+            ? new Date(appliance.createdAt || appliance.created_at)
+                .toISOString()
+                .slice(0, 19)
+                .replace('T', ' ')
+            : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+          dbAppliance.updated_at = appliance.updatedAt || appliance.updated_at
+            ? new Date(appliance.updatedAt || appliance.updated_at)
+                .toISOString()
+                .slice(0, 19)
+                .replace('T', ' ')
+            : dbAppliance.created_at;
+
+          // Handle lastStatusCheck
+          if (appliance.lastStatusCheck || appliance.last_status_check) {
             dbAppliance.last_status_check = new Date(
-              appliance.last_status_check || appliance.lastStatusCheck
+              appliance.lastStatusCheck || appliance.last_status_check
             )
               .toISOString()
               .slice(0, 19)
               .replace('T', ' ');
           }
-          
-          // Ensure ID is preserved
-          dbAppliance.id = appliance.id;
-          
-          // Remove any camelCase duplicates that might have been added
-          delete dbAppliance.lastUsed;  // Remove camelCase version
-          delete dbAppliance.isFavorite;  // Remove camelCase version
-          delete dbAppliance.createdAt;  // Remove camelCase version
-          delete dbAppliance.updatedAt;  // Remove camelCase version
-          delete dbAppliance.rustdeskId;  // Remove camelCase version
-          delete dbAppliance.rustdeskPassword;  // Remove camelCase version
-          delete dbAppliance.rustdeskInstalled;  // Remove camelCase version
-          delete dbAppliance.rustdeskInstallationDate;  // Remove camelCase version
-          delete dbAppliance.remoteDesktopEnabled;  // Remove camelCase version
-          delete dbAppliance.remoteProtocol;  // Remove camelCase version
-          delete dbAppliance.remoteHost;  // Remove camelCase version
-          delete dbAppliance.remotePort;  // Remove camelCase version
-          delete dbAppliance.remoteUsername;  // Remove camelCase version
-          delete dbAppliance.remotePassword;  // Remove camelCase version
-          delete dbAppliance.remoteDesktopType;  // Remove camelCase version
-          delete dbAppliance.statusCommand;  // Remove camelCase version
-          delete dbAppliance.startCommand;  // Remove camelCase version
-          delete dbAppliance.stopCommand;  // Remove camelCase version
-          delete dbAppliance.restartCommand;  // Remove camelCase version
-          delete dbAppliance.sshConnection;  // Remove camelCase version
-          delete dbAppliance.serviceStatus;  // Remove camelCase version
-          delete dbAppliance.lastStatusCheck;  // Remove camelCase version
-          delete dbAppliance.autoStart;  // Remove camelCase version
-          delete dbAppliance.blurAmount;  // Remove camelCase version
-          delete dbAppliance.backgroundImage;  // Remove camelCase version
-          delete dbAppliance.openModeMini;  // Remove camelCase version
-          delete dbAppliance.openModeMobile;  // Remove camelCase version
-          delete dbAppliance.openModeDesktop;  // Remove camelCase version
-          delete dbAppliance.orderIndex;  // Remove camelCase version
-          delete dbAppliance.guacamolePerformanceMode;  // Remove camelCase version
           
           // Generate field list and values from mapped object
           const fields = Object.keys(dbAppliance);
@@ -966,6 +990,7 @@ router.post('/restore', verifyToken, async (req, res) => {
           
           console.log(`Service commands - start: ${dbAppliance.start_command}, stop: ${dbAppliance.stop_command}, status: ${dbAppliance.status_command}`);
           console.log(`SSH connection: ${dbAppliance.ssh_connection}`);
+          console.log(`Remote desktop: ${dbAppliance.remote_desktop_enabled}, Favorites: ${dbAppliance.is_favorite}`);
 
           await connection.execute(
             `INSERT INTO appliances (${fields.join(', ')}) VALUES (${placeholders})`,

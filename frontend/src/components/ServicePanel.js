@@ -249,7 +249,25 @@ const ServicePanel = ({
 
   // Initialize form data when appliance changes
   useEffect(() => {
+    console.log('[ServicePanel] useEffect triggered with appliance:', appliance);
     if (appliance) {
+      console.log('[ServicePanel] Appliance fields:', {
+        id: appliance.id,
+        name: appliance.name,
+        description: appliance.description,
+        url: appliance.url,
+        icon: appliance.icon,
+        color: appliance.color,
+        category: appliance.category,
+        isFavorite: appliance.isFavorite,
+        sshConnection: appliance.sshConnection,
+        statusCommand: appliance.statusCommand,
+        startCommand: appliance.startCommand,
+        stopCommand: appliance.stopCommand,
+        remoteDesktopEnabled: appliance.remoteDesktopEnabled,
+        rustdeskId: appliance.rustdeskId,
+      });
+      
       const initialData = {
         name: appliance.name || '',
         url: appliance.url || '',
@@ -278,6 +296,7 @@ const ServicePanel = ({
         rustdeskInstalled: appliance.rustdeskInstalled || appliance.rustdesk_installed || false,
       };
       
+      console.log('[ServicePanel] Initial form data set:', initialData);
       setFormData(initialData);
       
       // Store original data for comparison when saving
@@ -1035,6 +1054,7 @@ const ServicePanel = ({
       </Box>
 
       {/* Header */}
+      {console.log('[ServicePanel Render] formData.name:', formData.name, 'appliance.name:', appliance?.name)}
       <UnifiedPanelHeader 
         title={appliance?.isNew ? 'Neuer Service' : formData.name || appliance?.name || 'Service bearbeiten'}
         icon={Edit}
@@ -2186,7 +2206,10 @@ const ServicePanel = ({
             <TextField
               fullWidth
               label="Name"
-              value={formData.name}
+              value={(() => {
+                console.log('[ServicePanel TextField] formData.name value:', formData.name);
+                return formData.name;
+              })()}
               onChange={e => handleFieldChange('name', e.target.value)}
               margin="normal"
               required

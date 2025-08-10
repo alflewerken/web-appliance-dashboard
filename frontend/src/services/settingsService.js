@@ -52,4 +52,14 @@ export class SettingsService {
       );
     }
   }
+
+  static async loadAdminMode() {
+    try {
+      const settings = await this.fetchSettings();
+      return settings.admin_mode === true || settings.admin_mode === 'true' || settings.admin_mode === 1;
+    } catch (error) {
+      console.error('Load admin mode error:', error);
+      return false;
+    }
+  }
 }
