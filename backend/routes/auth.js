@@ -334,7 +334,7 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
     console.log('GET /users - User:', req.user.username, 'Role:', req.user.role);
     
     // Get users with their last activity from sessions - Complex query requires raw
-    const users = await db.raw(`
+    const rawUsers = await db.raw(`
             SELECT 
                 u.id, 
                 u.username, 
@@ -357,10 +357,23 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
             ORDER BY u.created_at DESC
         `);
 
-    console.log('Found users:', users.length);
+    console.log('Found users:', rawUsers.length);
     
-    // QueryBuilder already maps to camelCase - no need for additional mapping
-    console.log('User list:', users.map(u => ({ id: u.id, username: u.username, role: u.role })));
+    // Manual mapping needed for raw queries - QueryBuilder doesn't auto-map raw results
+    const users = rawUsers.map(u => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      role: u.role,
+      isActive: u.is_active,  // snake_case to camelCase
+      lastLogin: u.last_login,  // snake_case to camelCase
+      createdAt: u.created_at,  // snake_case to camelCase
+      updatedAt: u.updated_at,  // snake_case to camelCase
+      lastActivity: u.last_activity,  // already in correct format
+      isOnline: u.is_online  // snake_case to camelCase
+    }));
+    
+    console.log('User list:', users.map(u => ({ id: u.id, username: u.username, role: u.role, isActive: u.isActive })));
 
     res.json(users);
   } catch (error) {
@@ -724,7 +737,7 @@ router.put(
 
       res.json({
         message: `User ${newStatus ? 'activated' : 'deactivated'} successfully`,
-        is_active: newStatus,
+        isActive: newStatus,  // Changed from is_active to isActive for consistency
       });
 
       // Debug logging

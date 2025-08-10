@@ -1,31 +1,36 @@
-# Nginx with Lua JWT support for Guacamole proxy
-FROM openresty/openresty:alpine
+# Simplified Nginx Docker image for Web Appliance Dashboard
+FROM nginx:alpine
 
-# Install required packages including perl for opm
-RUN apk add --no-cache \
-    curl \
-    bash \
-    openssl \
-    perl \
-    perl-dev \
-    build-base
+# Install additional packages for health checks
+RUN apk add --no-cache curl
 
-# Install Lua JWT library
-RUN opm get SkyLothar/lua-resty-jwt
-
-# Copy configuration files
+# Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY conf.d/ /etc/nginx/conf.d/
 
-# Create log directory
-RUN mkdir -p /var/log/nginx
+# Copy static files and assets
+COPY *.png *.ico *.svg /usr/share/nginx/html/
+COPY manifest.json terminal-manifest.json /usr/share/nginx/html/
+COPY *.html /usr/share/nginx/html/
+COPY *.js /usr/share/nginx/html/
+COPY theme-handler.js /usr/share/nginx/html/
+
+# Create necessary directories
+RUN mkdir -p /var/log/nginx /usr/share/nginx/html/static /usr/share/nginx/html/js
+
+# Copy directories if they exist
+COPY static/ /usr/share/nginx/html/static/
+COPY js/ /usr/share/nginx/html/js/
+
+# Set proper permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html
 
 # Expose port
-EXPOSE 8070
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
-    CMD curl -f http://localhost:8070/health || exit 1
+    CMD curl -f http://localhost/health || exit 1
 
 # Start Nginx
 CMD ["nginx", "-g", "daemon off;"]

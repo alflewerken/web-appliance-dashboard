@@ -5,6 +5,54 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-08-10
+
+### Added
+- **Custom Nginx Docker Image** - Containerized nginx configuration
+  - Created custom nginx:alpine-based Docker image with all configurations
+  - Integrated health check endpoint at /health
+  - Removed dependency on local nginx config mounting
+  - Improved deployment consistency across environments
+
+### Fixed
+- **User Status Display** - Fixed incorrect "Account locked" display in User Panel
+  - Added proper snake_case to camelCase mapping for raw SQL queries
+  - Fixed `isActive` field mapping in GET /users endpoint
+  - Corrected toggle-active response to use camelCase
+  - All user accounts now show correct active/locked status
+- **Nginx Configuration Errors** - Resolved multiple nginx startup issues
+  - Fixed location directives outside server blocks
+  - Removed duplicate client_max_body_size and proxy_http_version directives
+  - Renamed .conf files to .inc for include-only configurations
+  - Restructured configuration hierarchy for proper nginx loading
+- **QueryBuilder Mapping** - Resolved double mapping issues in appliances routes
+  - Removed redundant mapDbToJs/mapJsToDb calls when using QueryBuilder
+  - QueryBuilder now handles all snake_case to camelCase conversions automatically
+  - Fixed undefined fields issue caused by double mapping (e.g., isFavorite)
+  - Cleaned up unused mapping function imports
+
+### Changed
+- **Frontend Performance** - Removed all debug console.log statements
+  - Cleaned up debug logs from App.js, AppContent.js, ApplianceCard.js
+  - Removed logging from applianceUtils.js, applianceService.js, useAppliances.js
+  - Reduced bundle size and improved browser console clarity
+  - Better performance with fewer console API calls
+- **Code Architecture** - Simplified data flow between database and frontend
+  - Established QueryBuilder as the single source of truth for field mapping
+  - Routes now consistently use camelCase for all data handling
+  - Improved performance by eliminating unnecessary mapping operations
+
+### Technical
+- **QueryBuilder Clarification** - Documented raw query mapping requirements
+  - Raw SQL queries (db.raw) require manual snake_case to camelCase mapping
+  - QueryBuilder methods (select, findOne, update) handle mapping automatically
+  - Added explicit mapping for all raw query results to maintain consistency
+
+### Removed
+- **Unused Code** - Cleaned up obsolete mapping functions
+  - Removed unused mapDbToJs, mapJsToDb, mapDbToJsWithPasswords imports
+  - Removed create-customer-package-v2.sh from repository tracking
+
 ## [1.1.1] - 2025-07-27
 
 ### Added
