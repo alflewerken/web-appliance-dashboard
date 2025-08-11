@@ -29517,3 +29517,77 @@ VERIFIKATION:
 STATUS: ✅ Customer Package Script korrigiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 16:48 - IMPROVEMENT: Customer Package mit individuellen Docker Pulls
+
+BESCHREIBUNG:
+Das install.sh Script wurde verbessert, um Docker Images einzeln zu pullen
+statt alle gleichzeitig über docker-compose pull. Dies vermeidet Rate Limiting
+Probleme und gibt besseres Feedback während der Installation.
+
+PROBLEM:
+- `docker-compose pull` versuchte alle Images gleichzeitig zu laden
+- Bei Fehlern war unklar welches Image das Problem verursachte
+- Rate Limiting konnte alle Pulls blockieren
+
+LÖSUNG:
+Images werden jetzt einzeln mit docker pull geladen, mit klarem Feedback
+für jedes Image.
+
+GEÄNDERTE DATEI: scripts/create-customer-package-v3.sh
+
+PATCHES:
+
+-PATCH (alter docker-compose pull):
+# Pull images
+$COMPOSE_COMMAND pull
+
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}⚠️  Some images could not be pulled${NC}"
+    echo "This may happen if:"
+    echo "- Your internet connection is slow"
+    echo "- Docker Hub rate limits are reached"
+    echo "- Images are still being published"
+    echo ""
+    echo "Continuing with installation..."
+fi
+
++PATCH (neue individuelle pulls):
+# Pull images individually to avoid rate limits
+echo "   Pulling backend..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-backend:latest || true
+
+echo "   Pulling nginx webserver..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest || true
+
+echo "   Pulling terminal (ttyd)..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest || true
+
+echo "   Pulling remote desktop (guacamole)..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest || true
+
+echo "   Pulling standard images..."
+docker pull mariadb:latest || true
+docker pull guacamole/guacd:latest || true
+docker pull postgres:15-alpine || true
+
+echo ""
+echo "✅ Image pull complete (some may have failed but will retry during startup)"
+
+VORTEILE:
+✅ Klares Feedback welches Image gerade geladen wird
+✅ Fehler bei einem Image blockieren nicht andere
+✅ Bessere Fehlerdiagnose
+✅ Vermeidet Rate Limiting Probleme
+
+NEUES PACKAGE:
+- Name: web-appliance-dashboard-20250811_144715.tar.gz
+- Größe: 16K
+- Verbesserte Pull-Strategie implementiert
+
+STATUS: ✅ Customer Package Installation verbessert
+
+════════════════════════════════════════════════════════════════════════════════

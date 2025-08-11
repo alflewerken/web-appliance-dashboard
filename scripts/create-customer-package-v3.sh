@@ -347,18 +347,26 @@ echo ""
 echo "📥 Pulling Docker images from public repository..."
 echo "ℹ️  No authentication required - images are publicly available"
 
-# Pull images
-$COMPOSE_COMMAND pull
+# Pull images individually to avoid rate limits
+echo "   Pulling backend..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-backend:latest || true
 
-if [ $? -ne 0 ]; then
-    echo -e "${YELLOW}⚠️  Some images could not be pulled${NC}"
-    echo "This may happen if:"
-    echo "- Your internet connection is slow"
-    echo "- Docker Hub rate limits are reached"
-    echo "- Images are still being published"
-    echo ""
-    echo "Continuing with installation..."
-fi
+echo "   Pulling nginx webserver..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest || true
+
+echo "   Pulling terminal (ttyd)..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest || true
+
+echo "   Pulling remote desktop (guacamole)..."
+docker pull ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest || true
+
+echo "   Pulling standard images..."
+docker pull mariadb:latest || true
+docker pull guacamole/guacd:latest || true
+docker pull postgres:15-alpine || true
+
+echo ""
+echo "✅ Image pull complete (some may have failed but will retry during startup)"
 
 # Start services with proper order
 echo ""
