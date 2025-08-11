@@ -68,3 +68,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The image is now available for deployment!" >> $GITHUB_STEP_SUMMARY
           echo "**Visibility:** Public (Open Source)" >> $GITHUB_STEP_SUMMARY
+
+# Initial build triggered on 2025-08-11 to publish Docker images
