@@ -75,3 +75,5 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+# Initial build triggered on 2025-08-11 to publish Docker images
