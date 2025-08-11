@@ -29785,3 +29785,140 @@ NÄCHSTE SCHRITTE:
 STATUS: ✅ Lua-Abhängigkeiten erfolgreich entfernt und gepusht
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 17:35 - FIX: install.sh verbessert für vollständige .env Konfiguration
+
+BESCHREIBUNG:
+Der One-Line-Installer (install.sh) hat eine unvollständige .env Datei erstellt,
+was zu Fehlern beim Start der Container führte. Alle notwendigen Umgebungsvariablen
+wurden ergänzt und die Installation um wichtige Schritte erweitert.
+
+PROBLEM:
+Bei der Installation mit `curl | bash` fehlten wichtige Variablen:
+- MYSQL_ROOT_PASSWORD, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
+- DB_HOST, DB_PORT
+- SSH_KEY_ENCRYPTION_SECRET
+- GUACAMOLE_URL, GUACAMOLE_PROXY_URL
+- EXTERNAL_URL
+
+LÖSUNG:
+1. Vollständige .env Datei mit allen benötigten Variablen
+2. Konsistente Passwörter zwischen DB_PASSWORD und MYSQL_PASSWORD
+3. Download der init.sql Datei
+4. Erstellung notwendiger Verzeichnisse
+
+GEÄNDERTE DATEI: install.sh
+
+PATCHES:
+
+-PATCH (alte unvollständige .env):
+# Create .env file with secure defaults
+echo "🔐 Generating secure configuration..."
+cat > .env << EOF
+# Auto-generated secure configuration
+DB_ROOT_PASSWORD=$(openssl rand -base64 32)
+DB_NAME=appliance_db
+DB_USER=appliance_user
+DB_PASSWORD=$(openssl rand -base64 24)
+JWT_SECRET=$(openssl rand -base64 48)
+SESSION_SECRET=$(openssl rand -base64 48)
+CORS_ORIGIN=http://localhost,https://localhost
+HTTP_PORT=80
+HTTPS_PORT=443
+TTYD_USERNAME=admin
+TTYD_PASSWORD=$(openssl rand -base64 16)
+GUACAMOLE_DB_PASSWORD=$(openssl rand -base64 24)
+EOF
+
++PATCH (neue vollständige .env):
+# Create .env file with secure defaults
+echo "🔐 Generating secure configuration..."
+
+# Generate passwords once to ensure consistency
+DB_PASS=$(openssl rand -base64 24)
+ROOT_PASS=$(openssl rand -base64 32)
+JWT=$(openssl rand -base64 48)
+SESSION=$(openssl rand -base64 48)
+SSH_KEY=$(openssl rand -base64 32)
+TTYD_PASS=$(openssl rand -base64 16)
+GUAC_DB_PASS=$(openssl rand -base64 24)
+
+cat > .env << EOF
+# Auto-generated secure configuration
+# Database Configuration
+DB_HOST=appliance_db
+DB_PORT=3306
+DB_NAME=appliance_db
+DB_USER=appliance_user
+DB_PASSWORD=${DB_PASS}
+MYSQL_ROOT_PASSWORD=${ROOT_PASS}
+MYSQL_DATABASE=appliance_db
+MYSQL_USER=appliance_user
+MYSQL_PASSWORD=${DB_PASS}
+
+# Security
+JWT_SECRET=${JWT}
+SESSION_SECRET=${SESSION}
+SSH_KEY_ENCRYPTION_SECRET=${SSH_KEY}
+
+# CORS Settings
+ALLOWED_ORIGINS=http://localhost,https://localhost
+
+# Network Configuration  
+HTTP_PORT=80
+HTTPS_PORT=443
+EXTERNAL_URL=http://localhost
+
+# TTYD Configuration
+TTYD_USERNAME=admin
+TTYD_PASSWORD=${TTYD_PASS}
+
+# Guacamole Configuration
+GUACAMOLE_URL=http://guacamole:8080/guacamole
+GUACAMOLE_PROXY_URL=/guacamole/
+GUACAMOLE_DB_HOST=appliance_guacamole_db
+GUACAMOLE_DB_NAME=guacamole_db
+GUACAMOLE_DB_USER=guacamole_user
+GUACAMOLE_DB_PASSWORD=${GUAC_DB_PASS}
+EOF
+
+-PATCH (fehlende Downloads):
+# Download docker-compose.yml directly from GitHub
+echo "📥 Downloading configuration..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
+    -o docker-compose.yml
+
++PATCH (erweiterte Downloads und Verzeichnisse):
+# Download docker-compose.yml directly from GitHub
+echo "📥 Downloading configuration..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
+    -o docker-compose.yml
+
+# Create necessary directories
+mkdir -p init-db ssl uploads logs terminal_sessions
+
+# Download database initialization script
+echo "📥 Downloading database schema..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
+    -o init-db/01-init.sql
+
+VORTEILE:
+✅ Keine WARN Meldungen mehr beim docker compose up
+✅ Alle Container-Umgebungsvariablen vollständig definiert
+✅ Konsistente Passwörter zwischen Backend und MariaDB
+✅ Datenbank-Schema wird automatisch heruntergeladen
+✅ Alle benötigten Verzeichnisse werden erstellt
+
+AUSWIRKUNG:
+Der One-Line-Installer funktioniert jetzt komplett ohne manuelle Nacharbeit:
+```bash
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+```
+
+STATUS: ✅ install.sh vollständig und funktionsfähig
+
+════════════════════════════════════════════════════════════════════════════════

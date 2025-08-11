@@ -34,22 +34,63 @@ echo "📥 Downloading configuration..."
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
     -o docker-compose.yml
 
+# Create necessary directories
+mkdir -p init-db ssl uploads logs terminal_sessions
+
+# Download database initialization script
+echo "📥 Downloading database schema..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
+    -o init-db/01-init.sql
+
 # Create .env file with secure defaults
 echo "🔐 Generating secure configuration..."
+
+# Generate passwords once to ensure consistency
+DB_PASS=$(openssl rand -base64 24)
+ROOT_PASS=$(openssl rand -base64 32)
+JWT=$(openssl rand -base64 48)
+SESSION=$(openssl rand -base64 48)
+SSH_KEY=$(openssl rand -base64 32)
+TTYD_PASS=$(openssl rand -base64 16)
+GUAC_DB_PASS=$(openssl rand -base64 24)
+
 cat > .env << EOF
 # Auto-generated secure configuration
-DB_ROOT_PASSWORD=$(openssl rand -base64 32)
+# Database Configuration
+DB_HOST=appliance_db
+DB_PORT=3306
 DB_NAME=appliance_db
 DB_USER=appliance_user
-DB_PASSWORD=$(openssl rand -base64 24)
-JWT_SECRET=$(openssl rand -base64 48)
-SESSION_SECRET=$(openssl rand -base64 48)
-CORS_ORIGIN=http://localhost,https://localhost
+DB_PASSWORD=${DB_PASS}
+MYSQL_ROOT_PASSWORD=${ROOT_PASS}
+MYSQL_DATABASE=appliance_db
+MYSQL_USER=appliance_user
+MYSQL_PASSWORD=${DB_PASS}
+
+# Security
+JWT_SECRET=${JWT}
+SESSION_SECRET=${SESSION}
+SSH_KEY_ENCRYPTION_SECRET=${SSH_KEY}
+
+# CORS Settings
+ALLOWED_ORIGINS=http://localhost,https://localhost
+
+# Network Configuration  
 HTTP_PORT=80
 HTTPS_PORT=443
+EXTERNAL_URL=http://localhost
+
+# TTYD Configuration
 TTYD_USERNAME=admin
-TTYD_PASSWORD=$(openssl rand -base64 16)
-GUACAMOLE_DB_PASSWORD=$(openssl rand -base64 24)
+TTYD_PASSWORD=${TTYD_PASS}
+
+# Guacamole Configuration
+GUACAMOLE_URL=http://guacamole:8080/guacamole
+GUACAMOLE_PROXY_URL=/guacamole/
+GUACAMOLE_DB_HOST=appliance_guacamole_db
+GUACAMOLE_DB_NAME=guacamole_db
+GUACAMOLE_DB_USER=guacamole_user
+GUACAMOLE_DB_PASSWORD=${GUAC_DB_PASS}
 EOF
 
 # Generate SSL certificates
