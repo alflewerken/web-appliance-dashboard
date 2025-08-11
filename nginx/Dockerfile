@@ -4,6 +4,9 @@ FROM nginx:alpine
 # Install additional packages for health checks
 RUN apk add --no-cache curl
 
+# Remove the default nginx config that causes conflicts
+RUN rm -f /etc/nginx/conf.d/default.conf
+
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY conf.d/ /etc/nginx/conf.d/
