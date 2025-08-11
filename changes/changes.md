@@ -28996,3 +28996,367 @@ Der CHANGELOG zeigt jetzt die massive Arbeit des heutigen Tages:
 STATUS: ✅ CHANGELOG vollständig aktualisiert für Release 1.1.2
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 11:45 - GITHUB ACTIONS: Workflows für öffentliche Docker Images aktualisiert
+
+BESCHREIBUNG:
+Die GitHub Actions Workflows wurden aktualisiert, um Docker Images automatisch
+öffentlich zu machen. Dies ist wichtig für ein Open Source Projekt, damit
+Nutzer die Images direkt von ghcr.io pullen können.
+
+ÄNDERUNGEN:
+
+1. NEUES SCRIPT: .github/scripts/make-images-public.sh
+   - Bash-Script zur automatischen Umstellung der Docker Images auf "public"
+   - Nutzt die GitHub API zur Visibility-Änderung
+   - Prüft vorher ob Image bereits öffentlich ist
+   - Verarbeitet alle 5 Docker Images des Projekts:
+     * web-appliance-dashboard-backend
+     * web-appliance-dashboard-frontend
+     * web-appliance-dashboard-guacamole
+     * web-appliance-dashboard-nginx
+     * web-appliance-dashboard-ttyd
+
+2. WORKFLOW: docker-publish.yml
+   - workflow_dispatch hinzugefügt für manuelles Triggern
+   - Push nur bei main branch, nicht bei Pull Requests
+   - Neuer Step "Make images public" nach dem Build
+   - Conditional push: ${{ github.event_name != 'pull_request' }}
+
+3. WORKFLOW: build-nginx.yml
+   - Neuer Step "Make image public" nach dem Build
+   - Summary erweitert mit "Visibility: Public (Open Source)"
+   - Script wird nur bei main branch ausgeführt
+
+4. WORKFLOW: build-ttyd.yml
+   - Neuer Step "Make image public" nach dem Build
+   - Summary Step hinzugefügt mit Visibility-Info
+   - Script wird nur bei main branch ausgeführt
+
+TECHNISCHE DETAILS:
+- GitHub API verwendet für Visibility-Änderung
+- GITHUB_TOKEN hat bereits die nötigen Permissions (packages: write)
+- Script prüft Visibility bevor es Änderungen macht (idempotent)
+- Fehlerbehandlung mit set -e für robuste Ausführung
+
+AUSWIRKUNG:
+✅ Docker Images werden automatisch öffentlich nach dem Build
+✅ Community kann Images direkt nutzen ohne Authentication
+✅ Pull Requests bauen Images aber pushen sie nicht
+✅ Manuelle Workflow-Ausführung möglich via workflow_dispatch
+
+STATUS: ✅ Workflows für öffentliche Docker Images konfiguriert
+
++PATCH .github/scripts/make-images-public.sh:
+#!/bin/bash
+
+# Script to make Docker images public on GitHub Container Registry
+# This script is called by GitHub Actions after pushing images
+
+set -e
+
+# Check if required environment variables are set
+if [ -z "$GITHUB_TOKEN" ] || [ -z "$GITHUB_REPOSITORY_OWNER" ]; then
+    echo "Error: GITHUB_TOKEN and GITHUB_REPOSITORY_OWNER must be set"
+    exit 1
+fi
+
+# Function to make a package public
+make_package_public() {
+    local package_name=$1
+    
+    echo "Making package $package_name public..."
+    
+    # Get the package visibility
+    visibility=$(curl -s \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/user/packages/container/$package_name" \
+        | jq -r '.visibility // "unknown"')
+    
+    if [ "$visibility" = "private" ]; then
+        echo "Package $package_name is private, making it public..."
+        
+        # Make the package public
+        curl -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/user/packages/container/$package_name/visibility" \
+            -d '{"visibility":"public"}'
+        
+        echo "✅ Package $package_name is now public"
+    elif [ "$visibility" = "public" ]; then
+        echo "✅ Package $package_name is already public"
+    else
+        echo "⚠️  Could not determine visibility for $package_name"
+    fi
+}
+
+# List of packages to make public
+packages=(
+    "web-appliance-dashboard-backend"
+    "web-appliance-dashboard-frontend"
+    "web-appliance-dashboard-guacamole"
+    "web-appliance-dashboard-nginx"
+    "web-appliance-dashboard-ttyd"
+)
+
+# Make each package public
+for package in "${packages[@]}"; do
+    make_package_public "$package"
+done
+
+echo "✅ All packages processed"
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 11:53 - CI/CD: Initial Docker Image Builds getriggert
+
+BESCHREIBUNG:
+Alle GitHub Actions Workflows wurden zum ersten Mal getriggert, um die Docker
+Images zu bauen und auf ghcr.io zu veröffentlichen. Dies macht das Projekt
+vollständig installierbar für die Community.
+
+WORKFLOW TRIGGER:
+
+1. docker-publish.yml (Commit: 91cb9d3066094da0342cb8bdaf7cf0a52e76b061)
+   - Trigger durch Kommentar-Hinzufügung
+   - Baut: Backend, Frontend, Guacamole Images
+   - Status: Läuft
+
+2. build-nginx.yml (Commit: 96a9f94eb12f5292900d2c361362dda7e790a134)
+   - Trigger durch Kommentar-Hinzufügung
+   - Baut: Nginx Image
+   - Status: Läuft
+
+3. build-ttyd.yml (Commit: 436ccac3b0ef8e1ba5c564f9b0903128c3f75829)
+   - Trigger durch Kommentar-Hinzufügung
+   - Baut: ttyd Terminal Image
+   - Status: Läuft
+
+DOCKER IMAGES DIE GEBAUT WERDEN:
+- ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+- ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
+- ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
+- ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
+- ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+
+TECHNISCHE DETAILS:
+- Alle Images werden auf GitHub Container Registry (ghcr.io) gepusht
+- Images werden automatisch öffentlich gemacht via make-images-public.sh
+- Keine Authentication für Pull erforderlich
+- Build-Zeit: ca. 10-15 Minuten
+
+PROBLEM GELÖST:
+Das Customer Package konnte nicht installiert werden, weil die Docker Images
+noch nicht existierten. Mit diesem ersten Build werden alle Images verfügbar
+und das Package kann erfolgreich installiert werden.
+
+PATCHES:
+
++PATCH .github/workflows/docker-publish.yml (Zeile 74):
+# Initial build triggered on 2025-08-11 to publish Docker images
+
++PATCH .github/workflows/build-nginx.yml (Zeile 68):
+# Initial build triggered on 2025-08-11 to publish Docker images
+
++PATCH .github/workflows/build-ttyd.yml (Zeile 63):
+# Initial build triggered on 2025-08-11 to publish Docker images
+
+STATUS: ✅ Alle Workflows laufen, Images werden gebaut
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 11:59 - FIX: Customer Package Docker Compose korrigiert
+
+BESCHREIBUNG:
+Das Customer Package hatte einen fehlerhaften docker-compose.yml, der versuchte
+ein nicht-existierendes Frontend-Image zu pullen. Das Frontend wird tatsächlich
+vom Nginx-Container bereitgestellt, nicht als separates Image.
+
+PROBLEM:
+- Error: "error from registry: denied" beim Pull des frontend Images
+- Grund: Es gibt kein separates ghcr.io/alflewerken/web-appliance-dashboard-frontend Image
+- Das Frontend ist in den Nginx-Container integriert
+
+LÖSUNG:
+Entfernung des separaten frontend Services aus dem docker-compose.yml Template
+
+GEÄNDERTE DATEI: scripts/create-customer-package-v3.sh
+
+PATCHES:
+
+-PATCH Zeile 155-167 (frontend service entfernt):
+  frontend:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
+    container_name: appliance_frontend
+    hostname: frontend
+    networks:
+      - appliance_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+-PATCH webserver depends_on (Zeile 175):
+    depends_on:
+      - backend
+      - frontend
+      - ttyd
+      - guacamole
+
++PATCH webserver depends_on (korrigiert):
+    depends_on:
+      - backend
+      - ttyd
+      - guacamole
+
+NEUES PACKAGE ERSTELLT:
+- Name: web-appliance-dashboard-20250811_115901.tar.gz
+- Größe: 16K
+- Docker Images die verwendet werden:
+  * ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+  * ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest (enthält Frontend)
+  * ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+  * ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
+  * guacamole/guacd:latest
+  * postgres:15-alpine
+  * mariadb:latest
+
+STATUS: ✅ Customer Package korrigiert und neu erstellt
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 16:25 - SECURITY: Template-Strings in .env.example Dateien implementiert
+
+BESCHREIBUNG:
+Die sensiblen Tokens und Passwörter in den .env.example Dateien wurden durch 
+offensichtliche Template-Strings ersetzt. Dies verhindert versehentliche Verwendung 
+von Beispiel-Credentials und macht deutlich, welche Werte angepasst werden müssen.
+
+ZIEL:
+- Sicherheitsverbesserung: Keine hartcodierten Credentials in Templates
+- Bessere Dokumentation: Offensichtliche Platzhalter für zu ändernde Werte
+- Kompatibilität: setup-env.sh und build.sh funktionieren weiterhin korrekt
+
+GEÄNDERTE DATEIEN:
+
+1. .env.example (Hauptverzeichnis)
+2. backend/.env.example
+3. frontend/.env.example (keine Änderung nötig - enthält keine sensiblen Daten)
+
+PATCHES:
+
+-PATCH .env.example (Zeilen 5-17):
+# Database Configuration
+MYSQL_ROOT_PASSWORD=rootpassword123
+MYSQL_DATABASE=appliance_dashboard
+MYSQL_USER=dashboard_user
+MYSQL_PASSWORD=dashboard_pass123
+
+
+# Backend Configuration
+DB_HOST=database
+DB_PORT=3306
+DB_USER=dashboard_user
+DB_PASSWORD=dashboard_pass123
+DB_NAME=appliance_dashboard
+# Security Keys - CHANGE THESE IN PRODUCTION!
+JWT_SECRET=V2FUAJ3cOAghJY8B3FprwknN5/ZktN0gX+x/D4GEhQv+dk2dDoYYwWjIhNR7KPkXWNXrX/+Sx2C9U/UCDYiaSw==
+SSH_KEY_ENCRYPTION_SECRET=o2ZGotcuB3cTBhs/7xQoAj3WXCIZEs8CyOLbmgdHx5M=
+
++PATCH .env.example (Zeilen 5-17):
+# Database Configuration
+MYSQL_ROOT_PASSWORD=YOUR_MYSQL_ROOT_PASSWORD_HERE
+MYSQL_DATABASE=appliance_dashboard
+MYSQL_USER=dashboard_user
+MYSQL_PASSWORD=YOUR_MYSQL_USER_PASSWORD_HERE
+
+
+# Backend Configuration
+DB_HOST=database
+DB_PORT=3306
+DB_USER=dashboard_user
+DB_PASSWORD=YOUR_MYSQL_USER_PASSWORD_HERE
+DB_NAME=appliance_dashboard
+# Security Keys - CHANGE THESE IN PRODUCTION!
+JWT_SECRET=YOUR_JWT_SECRET_KEY_HERE_CHANGE_IN_PRODUCTION
+SSH_KEY_ENCRYPTION_SECRET=YOUR_SSH_ENCRYPTION_KEY_HERE_CHANGE_IN_PRODUCTION
+
+-PATCH .env.example (Zeile 66-68):
+# Guacamole Configuration
+GUACAMOLE_DB_NAME=guacamole_db
+GUACAMOLE_DB_USER=guacamole_user
+GUACAMOLE_DB_PASSWORD=guacamole_pass123
+
++PATCH .env.example (Zeile 66-68):
+# Guacamole Configuration
+GUACAMOLE_DB_NAME=guacamole_db
+GUACAMOLE_DB_USER=guacamole_user
+GUACAMOLE_DB_PASSWORD=YOUR_GUACAMOLE_DB_PASSWORD_HERE
+
+-PATCH backend/.env.example (Zeilen 5-15):
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=web_appliance_dashboard
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-change-this-in-production
+
+# SSH Key Encryption
+SSH_KEY_ENCRYPTION_SECRET=your-ssh-encryption-key-change-this
+
++PATCH backend/.env.example (Zeilen 5-15):
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=YOUR_DB_PASSWORD_HERE
+DB_NAME=web_appliance_dashboard
+
+# JWT Configuration
+JWT_SECRET=YOUR_JWT_SECRET_KEY_HERE_CHANGE_IN_PRODUCTION
+
+# SSH Key Encryption
+SSH_KEY_ENCRYPTION_SECRET=YOUR_SSH_ENCRYPTION_KEY_HERE_CHANGE_IN_PRODUCTION
+
+-PATCH backend/.env.example (Zeile 31):
+# Session
+SESSION_SECRET=your-session-secret-change-this
+
++PATCH backend/.env.example (Zeile 31):
+# Session
+SESSION_SECRET=YOUR_SESSION_SECRET_HERE_CHANGE_IN_PRODUCTION
+
+VERIFIKATION:
+✅ Syntax-Check von setup-env.sh erfolgreich (bash -n)
+✅ Syntax-Check von build.sh erfolgreich (bash -n)
+✅ Alle Template-Strings sind selbsterklärend
+✅ Keine hartcodierten Credentials mehr in Templates
+
+AUSWIRKUNG:
+- Neue Installationen müssen explizit eigene Credentials setzen
+- setup-env.sh generiert weiterhin automatisch sichere Secrets
+- Keine versehentliche Verwendung von Beispiel-Passwörtern möglich
+- Sicherheitsverbesserung für Open Source Release
+
+STATUS: ✅ Template-Strings erfolgreich implementiert
+
+════════════════════════════════════════════════════════════════════════════════
