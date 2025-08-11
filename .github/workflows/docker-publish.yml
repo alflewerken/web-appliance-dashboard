@@ -66,6 +66,22 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-guacamole:latest
         labels: ${{ steps.meta.outputs.labels }}
+
+    - name: Build and push Nginx Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./nginx
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-nginx:latest
+        labels: ${{ steps.meta.outputs.labels }}
+
+    - name: Build and push TTYD Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./ttyd
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-ttyd:latest
+        labels: ${{ steps.meta.outputs.labels }}
     
     - name: Make images public
       if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

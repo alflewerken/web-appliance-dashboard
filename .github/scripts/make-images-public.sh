@@ -24,17 +24,25 @@ make_package_public() {
         "https://api.github.com/user/packages/container/$package_name" \
         | jq -r '.visibility // "unknown"')
     
-    if [ "$visibility" = "private" ]; then
-        echo "Package $package_name is private, making it public..."
+    if [ "$visibility" = "private" ] || [ "$visibility" = "unknown" ]; then
+        echo "Package $package_name needs to be made public..."
         
-        # Make the package public
-        curl -X PATCH \
+        # Make the package public using the correct endpoint
+        response=$(curl -X PATCH \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/user/packages/container/$package_name/visibility" \
-            -d '{"visibility":"public"}'
+            "https://api.github.com/user/packages/container/$package_name" \
+            -d '{"visibility":"public"}' \
+            -w "\n%{http_code}")
         
-        echo "✅ Package $package_name is now public"
+        http_code=$(echo "$response" | tail -n1)
+        
+        if [ "$http_code" = "200" ] || [ "$http_code" = "204" ]; then
+            echo "✅ Package $package_name is now public"
+        else
+            echo "❌ Failed to make $package_name public (HTTP $http_code)"
+            echo "Response: $(echo "$response" | head -n-1)"
+        fi
     elif [ "$visibility" = "public" ]; then
         echo "✅ Package $package_name is already public"
     else

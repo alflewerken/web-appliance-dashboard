@@ -30019,3 +30019,94 @@ Development-Version zurück.
 STATUS: ✅ Production-ready docker-compose.prod.yml erstellt
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 18:10 - CRITICAL FIX: GitHub Actions für alle Docker Images
+
+BESCHREIBUNG:
+Die GitHub Actions Workflow baute nur 3 von 5 benötigten Docker Images.
+Dies führte dazu, dass nginx und ttyd Images nicht auf ghcr.io verfügbar waren
+und der One-Liner Installer fehlschlug.
+
+PROBLEM:
+- Nur backend, frontend und guacamole wurden gebaut
+- nginx und ttyd Images fehlten komplett
+- make-images-public.sh verwendete falschen API Endpoint
+
+LÖSUNG:
+1. GitHub Actions erweitert um nginx und ttyd Builds
+2. make-images-public.sh korrigiert für richtigen API Endpoint
+3. Bessere Fehlerbehandlung im Script
+
+GEÄNDERTE DATEIEN:
+
+1. .github/workflows/docker-publish.yml
+PATCHES:
+
++PATCH (neue Build-Steps hinzugefügt):
+    - name: Build and push Nginx Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./nginx
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-nginx:latest
+        labels: ${{ steps.meta.outputs.labels }}
+
+    - name: Build and push TTYD Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./ttyd
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-ttyd:latest
+        labels: ${{ steps.meta.outputs.labels }}
+
+2. .github/scripts/make-images-public.sh
+PATCHES:
+
+-PATCH (alter falscher Endpoint):
+        curl -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/user/packages/container/$package_name/visibility" \
+            -d '{"visibility":"public"}'
+
++PATCH (korrigierter Endpoint mit Fehlerbehandlung):
+        response=$(curl -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/user/packages/container/$package_name" \
+            -d '{"visibility":"public"}' \
+            -w "\n%{http_code}")
+        
+        http_code=$(echo "$response" | tail -n1)
+        
+        if [ "$http_code" = "200" ] || [ "$http_code" = "204" ]; then
+            echo "✅ Package $package_name is now public"
+        else
+            echo "❌ Failed to make $package_name public (HTTP $http_code)"
+            echo "Response: $(echo "$response" | head -n-1)"
+        fi
+
+WICHTIGE ÄNDERUNGEN:
+- Alle 5 Docker Images werden jetzt gebaut und gepusht
+- Korrekter API Endpoint für Visibility-Änderung
+- Bessere Fehlerbehandlung mit HTTP Status Codes
+- Unknown Packages werden auch als private behandelt
+
+AUSWIRKUNG:
+✅ Alle Docker Images werden auf ghcr.io verfügbar sein
+✅ Images werden automatisch öffentlich gemacht
+✅ One-Liner Installation funktioniert unabhängig
+✅ Keine Abhängigkeit von Entwicklungsmaschine
+
+NÄCHSTE SCHRITTE:
+- Push triggert neuen Build mit allen Images
+- Nach ca. 5 Minuten sind alle Images öffentlich verfügbar
+- One-Liner kann dann überall funktionieren
+
+STATUS: ✅ GitHub Actions komplett für alle Images
+
+════════════════════════════════════════════════════════════════════════════════
