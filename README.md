@@ -15,6 +15,51 @@ An elegant, self-hosted dashboard for centralized management of VMs, Docker cont
 
 ![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
 
+## 🚀 Quick Start - One-Line Installation
+
+Install the complete dashboard with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+```
+
+That's it! The installer will:
+- ✅ Check Docker prerequisites
+- ✅ Download all configuration files
+- ✅ Generate secure passwords automatically
+- ✅ Create SSL certificates
+- ✅ Pull and start all containers
+- ✅ Set up the database
+
+After installation, access your dashboard at:
+- 🌐 **http://localhost**
+- 🔒 **https://localhost** (self-signed certificate)
+
+## 🗑️ Complete Uninstall
+
+To completely remove the Web Appliance Dashboard:
+
+```bash
+# Navigate to installation directory
+cd ~/web-appliance-dashboard
+
+# Stop and remove all containers, volumes, and networks
+docker compose down -v
+
+# Remove the installation directory
+cd ~ && rm -rf web-appliance-dashboard
+
+# Optional: Remove Docker images
+docker images | grep ghcr.io/alflewerken | awk '{print $3}' | xargs docker rmi -f
+```
+
+This will remove:
+- All containers
+- All volumes (including data)
+- All networks
+- All configuration files
+- All Docker images (optional)
+
 ## 🌟 Features
 
 ### Core Features
@@ -110,23 +155,25 @@ An elegant, self-hosted dashboard for centralized management of VMs, Docker cont
 - 2GB RAM (4GB recommended)
 - 10GB free disk space
 
-## 🚀 Quick Start
+## 🛠️ Installation Methods
 
-### The most important concept: Hosts first!
-Services run on machines (hosts). No host, no service! The dashboard follows this logical structure.
+### Method 1: One-Line Installation (Recommended)
+The easiest way - see [Quick Start](#-quick-start---one-line-installation) above.
 
-### 1. Clone repository
+### Method 2: Manual Installation (for Development)
+
+#### 1. Clone repository
 ```bash
 git clone https://github.com/alflewerken/web-appliance-dashboard.git
 cd web-appliance-dashboard
 ```
 
-### 2. Build and start (one command!)
+#### 2. Build and start
 ```bash
 ./scripts/build.sh --nocache
 ```
 
-This single command:
+This command:
 - ✅ Automatically creates all .env files with secure passwords
 - ✅ Builds the frontend application
 - ✅ Creates and starts all Docker containers

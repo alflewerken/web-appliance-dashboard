@@ -15,6 +15,51 @@ Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs,
 
 ![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
 
+## 🚀 Schnellstart - Ein-Zeilen-Installation
+
+Installieren Sie das komplette Dashboard mit einem einzigen Befehl:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+```
+
+Das war's! Der Installer wird:
+- ✅ Docker-Voraussetzungen prüfen
+- ✅ Alle Konfigurationsdateien herunterladen
+- ✅ Sichere Passwörter automatisch generieren
+- ✅ SSL-Zertifikate erstellen
+- ✅ Alle Container herunterladen und starten
+- ✅ Die Datenbank einrichten
+
+Nach der Installation erreichen Sie Ihr Dashboard unter:
+- 🌐 **http://localhost**
+- 🔒 **https://localhost** (selbst-signiertes Zertifikat)
+
+## 🗑️ Vollständige Deinstallation
+
+Um das Web Appliance Dashboard komplett zu entfernen:
+
+```bash
+# Zum Installationsverzeichnis wechseln
+cd ~/web-appliance-dashboard
+
+# Alle Container, Volumes und Netzwerke stoppen und entfernen
+docker compose down -v
+
+# Installationsverzeichnis entfernen
+cd ~ && rm -rf web-appliance-dashboard
+
+# Optional: Docker Images entfernen
+docker images | grep ghcr.io/alflewerken | awk '{print $3}' | xargs docker rmi -f
+```
+
+Dies entfernt:
+- Alle Container
+- Alle Volumes (inklusive Daten)
+- Alle Netzwerke
+- Alle Konfigurationsdateien
+- Alle Docker Images (optional)
+
 ## 🌟 Features
 
 ### Core Features
@@ -110,23 +155,25 @@ Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs,
 - 2GB RAM (4GB empfohlen)
 - 10GB freier Speicherplatz
 
-## 🚀 Quick Start
+## 🛠️ Installationsmethoden
 
-### Das wichtigste Konzept: Hosts zuerst!
-Services laufen auf Rechnern (Hosts). Ohne Host kein Service! Das Dashboard folgt diesem logischen Aufbau.
+### Methode 1: Ein-Zeilen-Installation (Empfohlen)
+Der einfachste Weg - siehe [Schnellstart](#-schnellstart---ein-zeilen-installation) oben.
 
-### 1. Repository klonen
+### Methode 2: Manuelle Installation (für Entwicklung)
+
+#### 1. Repository klonen
 ```bash
 git clone https://github.com/alflewerken/web-appliance-dashboard.git
 cd web-appliance-dashboard
 ```
 
-### 2. Bauen und starten (ein Befehl!)
+#### 2. Bauen und starten
 ```bash
 ./scripts/build.sh --nocache
 ```
 
-Dieser eine Befehl:
+Dieser Befehl:
 - ✅ Erstellt automatisch alle .env Dateien mit sicheren Passwörtern
 - ✅ Baut die Frontend-Anwendung
 - ✅ Erstellt und startet alle Docker-Container

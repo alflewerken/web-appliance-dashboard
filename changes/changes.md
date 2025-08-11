@@ -30110,3 +30110,125 @@ NÄCHSTE SCHRITTE:
 STATUS: ✅ GitHub Actions komplett für alle Images
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 18:55 - DOCUMENTATION: README Updates für One-Line Installation
+
+BESCHREIBUNG:
+Beide README-Dateien (englisch und deutsch) wurden aktualisiert, um die neue
+One-Line Installation als primäre Installationsmethode zu dokumentieren.
+Zusätzlich wurde die komplette Deinstallation dokumentiert.
+
+HAUPTÄNDERUNGEN:
+
+1. One-Line Installation als Hauptmethode
+- Prominent am Anfang der README platziert
+- Einfacher Befehl: curl | bash
+- Automatische Installation ohne weitere Interaktion
+
+2. Vollständige Deinstallation dokumentiert
+- Schritt-für-Schritt Anleitung
+- Entfernt alle Container, Volumes, Netzwerke
+- Optional: Docker Images entfernen
+
+3. Installationsmethoden reorganisiert
+- Methode 1: One-Line Installation (empfohlen)
+- Methode 2: Manuelle Installation (für Entwicklung)
+
+GEÄNDERTE DATEIEN:
+
+1. README.md (Englisch)
+PATCHES:
+
++PATCH (neuer Quick Start Abschnitt):
+## 🚀 Quick Start - One-Line Installation
+
+Install the complete dashboard with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+```
+
+That's it! The installer will:
+- ✅ Check Docker prerequisites
+- ✅ Download all configuration files
+- ✅ Generate secure passwords automatically
+- ✅ Create SSL certificates
+- ✅ Pull and start all containers
+- ✅ Set up the database
+
+After installation, access your dashboard at:
+- 🌐 **http://localhost**
+- 🔒 **https://localhost** (self-signed certificate)
+
++PATCH (Deinstallation):
+## 🗑️ Complete Uninstall
+
+To completely remove the Web Appliance Dashboard:
+
+```bash
+# Navigate to installation directory
+cd ~/web-appliance-dashboard
+
+# Stop and remove all containers, volumes, and networks
+docker compose down -v
+
+# Remove the installation directory
+cd ~ && rm -rf web-appliance-dashboard
+
+# Optional: Remove Docker images
+docker images | grep ghcr.io/alflewerken | awk '{print $3}' | xargs docker rmi -f
+```
+
+2. README.de.md (Deutsch)
+PATCHES:
+
++PATCH (neuer Schnellstart Abschnitt):
+## 🚀 Schnellstart - Ein-Zeilen-Installation
+
+Installieren Sie das komplette Dashboard mit einem einzigen Befehl:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+```
+
+Das war's! Der Installer wird:
+- ✅ Docker-Voraussetzungen prüfen
+- ✅ Alle Konfigurationsdateien herunterladen
+- ✅ Sichere Passwörter automatisch generieren
+- ✅ SSL-Zertifikate erstellen
+- ✅ Alle Container herunterladen und starten
+- ✅ Die Datenbank einrichten
+
++PATCH (Deinstallation):
+## 🗑️ Vollständige Deinstallation
+
+Um das Web Appliance Dashboard komplett zu entfernen:
+
+```bash
+# Zum Installationsverzeichnis wechseln
+cd ~/web-appliance-dashboard
+
+# Alle Container, Volumes und Netzwerke stoppen und entfernen
+docker compose down -v
+
+# Installationsverzeichnis entfernen
+cd ~ && rm -rf web-appliance-dashboard
+
+# Optional: Docker Images entfernen
+docker images | grep ghcr.io/alflewerken | awk '{print $3}' | xargs docker rmi -f
+```
+
+VORTEILE:
+✅ Installation so einfach wie möglich
+✅ Keine Git-Kenntnisse erforderlich
+✅ Keine manuellen Schritte
+✅ Klare Deinstallationsanleitung
+✅ Zweisprachige Dokumentation
+
+STATUS: ✅ README-Dokumentation aktualisiert
+
+════════════════════════════════════════════════════════════════════════════════
