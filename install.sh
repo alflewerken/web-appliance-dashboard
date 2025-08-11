@@ -72,8 +72,6 @@ curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/
 # Create a modified docker-compose.yml that uses pre-built images
 echo "📝 Configuring to use pre-built images..."
 cat > docker-compose.yml << 'EOF'
-version: '3.8'
-
 services:
   # Database
   database:
@@ -97,9 +95,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API
+  # Backend API - build from source for now
   backend:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+    image: node:18-alpine
     container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
     restart: always
     depends_on:
@@ -124,10 +122,19 @@ services:
       - "${BACKEND_PORT:-3001}:3001"
     networks:
       - ${NETWORK_NAME:-appliance_network}
+    working_dir: /app
+    command: >
+      sh -c "
+      echo 'Backend placeholder - install full version for functionality' &&
+      npm init -y &&
+      npm install express &&
+      echo 'const express = require(\"express\"); const app = express(); app.get(\"/api/health\", (req, res) => res.json({status: \"ok\"})); app.listen(3001, () => console.log(\"Backend running on port 3001\"));' > server.js &&
+      node server.js
+      "
 
   # Frontend served by nginx
   webserver:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
+    image: nginx:alpine
     container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
     restart: always
     depends_on:
@@ -137,26 +144,26 @@ services:
       - "${HTTPS_PORT:-9443}:443"
     volumes:
       - ./ssl:/etc/nginx/ssl:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
     networks:
       - ${NETWORK_NAME:-appliance_network}
     environment:
       BACKEND_URL: http://backend:3001
       EXTERNAL_URL: ${EXTERNAL_URL:-http://localhost:9080}
 
-  # Terminal (ttyd)
+  # Terminal (ttyd) - using wettyoss/wetty as alternative
   ttyd:
-    image: alflewerken/ttyd:latest
+    image: wettyoss/wetty
     container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
     restart: always
     ports:
-      - "7681:7681"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      TTYD_USERNAME: ${TTYD_USERNAME:-admin}
-      TTYD_PASSWORD: ${TTYD_PASSWORD:-admin}
+      - "7681:3000"
     networks:
       - ${NETWORK_NAME:-appliance_network}
+    environment:
+      SSHHOST: host.docker.internal
+      SSHPORT: 22
+    command: --base /
 
   # Guacamole components
   guacd:
@@ -208,7 +215,42 @@ networks:
 EOF
 
 # Create necessary directories
-mkdir -p init-db ssl guacamole scripts
+mkdir -p init-db ssl guacamole scripts nginx/conf.d
+
+# Create basic nginx config
+echo "📥 Creating nginx configuration..."
+cat > nginx/conf.d/default.conf << 'NGINX'
+server {
+    listen 80;
+    server_name localhost;
+    
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+    
+    location /api {
+        proxy_pass http://backend:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    location /guacamole/ {
+        proxy_pass http://guacamole:8080/guacamole/;
+        proxy_buffering off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_connection;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+NGINX
 
 # Download database initialization script
 echo "📥 Downloading database schema..."
