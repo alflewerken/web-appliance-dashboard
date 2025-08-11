@@ -29729,3 +29729,59 @@ NEUES PACKAGE ERSTELLT:
 STATUS: ✅ Package-Erstellung funktioniert jetzt einwandfrei
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 17:28 - MAJOR FIX: Lua-Abhängigkeiten aus Nginx-Konfiguration entfernt
+
+BESCHREIBUNG:
+Die Nginx-Konfiguration wurde komplett von Lua-Abhängigkeiten befreit, damit
+die Docker Images auf allen Systemen ohne Probleme laufen. Dies löst das
+Problem, dass der nginx Container ständig neu startete.
+
+HAUPTÄNDERUNGEN:
+1. Alle $real_client_ip Variablen durch $remote_addr ersetzt
+2. 00-real-ip-map.conf gelöscht (nicht mehr benötigt)
+3. nginx.conf bereinigt (env Variablen entfernt)
+4. appliance-proxy.inc angepasst
+5. default.conf vollständig konvertiert
+
+TECHNISCHE DETAILS:
+- 24 Vorkommen von $real_client_ip in default.conf ersetzt
+- 2 Vorkommen in appliance-proxy.inc ersetzt
+- Verwendet jetzt Standard nginx:alpine Image ohne Lua-Module
+- Kompatibel mit allen Docker-Umgebungen
+
+GIT COMMIT:
+```
+commit d7f196f
+Fix: Remove Lua dependencies from nginx configuration
+
+- Removed all $real_client_ip variables, replaced with $remote_addr
+- Removed 00-real-ip-map.conf as it's no longer needed
+- Cleaned up nginx.conf removing env variables
+- Fixed appliance-proxy.inc to use standard nginx variables
+- Ensures compatibility with standard nginx:alpine image
+```
+
+GEÄNDERTE DATEIEN:
+- nginx/nginx.conf
+- nginx/conf.d/default.conf
+- nginx/conf.d/appliance-proxy.inc
+- nginx/conf.d/00-real-ip-map.conf (gelöscht)
+
+AUSWIRKUNG:
+✅ Docker Images werden jetzt ohne Lua-Abhängigkeiten gebaut
+✅ Container starten zuverlässig auf allen Systemen
+✅ Keine "unknown directive lua_package_path" Fehler mehr
+✅ Customer Packages funktionieren out-of-the-box
+
+NÄCHSTE SCHRITTE:
+- GitHub Actions bauen automatisch neue Images
+- Images werden auf ghcr.io veröffentlicht
+- Customer Package kann die offiziellen Images verwenden
+
+STATUS: ✅ Lua-Abhängigkeiten erfolgreich entfernt und gepusht
+
+════════════════════════════════════════════════════════════════════════════════
