@@ -29922,3 +29922,100 @@ curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/
 STATUS: ✅ install.sh vollständig und funktionsfähig
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 18:05 - MAJOR: Production docker-compose.prod.yml mit Named Volumes
+
+BESCHREIBUNG:
+Eine separate docker-compose.prod.yml wurde erstellt, die für Production-
+Installationen optimiert ist. Alle Bind Mounts wurden durch Named Volumes
+ersetzt, um Probleme mit fehlenden lokalen Verzeichnissen zu vermeiden.
+
+PROBLEM:
+Die ursprüngliche docker-compose.yml verwendet Bind Mounts wie:
+- ./backend:/app
+- ./frontend/build:/usr/share/nginx/html
+- ./nginx/conf.d:/etc/nginx/conf.d
+Diese Verzeichnisse existieren bei einer frischen Installation nicht.
+
+LÖSUNG:
+1. Neue docker-compose.prod.yml mit ausschließlich Named Volumes
+2. install.sh versucht erst die prod-Version herunterzuladen
+3. Alle Services verwenden die offiziellen ghcr.io Images
+4. Neue Named Volumes für backend_app, frontend_build, nginx_conf, ttyd_scripts
+
+NEUE DATEI: docker-compose.prod.yml
+
+HAUPTUNTERSCHIEDE zur docker-compose.yml:
+1. ALLE Services verwenden Images statt build:
+   - backend: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+   - webserver: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
+   - ttyd: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+   - guacamole: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
+
+2. BIND MOUNTS ersetzt durch NAMED VOLUMES:
+   - ./backend:/app → backend_app:/app
+   - ./frontend/build:/usr/share/nginx/html → frontend_build:/usr/share/nginx/html
+   - ./nginx/conf.d:/etc/nginx/conf.d → nginx_conf:/etc/nginx/conf.d
+   - ./scripts:/scripts → ttyd_scripts:/scripts
+
+3. NEUE VOLUMES definiert:
+   - backend_app: Backend Application Code
+   - frontend_build: Frontend Static Files
+   - nginx_conf: Nginx Configuration
+   - ttyd_scripts: TTYD Scripts
+
+GEÄNDERTE DATEI: install.sh
+
+PATCH:
+-# Download docker-compose.yml directly from GitHub
+echo "📥 Downloading configuration..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
+    -o docker-compose.yml
+
++# Download docker-compose.yml directly from GitHub
+echo "📥 Downloading configuration..."
+# Try to download production compose file first, fallback to main
+if ! curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.prod.yml \
+    -o docker-compose.yml 2>/dev/null; then
+    echo "⚠️  Production config not found, using development version..."
+    curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
+        -o docker-compose.yml
+fi
+
+VORTEILE:
+✅ Keine fehlenden Verzeichnisse mehr bei Installation
+✅ Docker erstellt automatisch alle Named Volumes
+✅ Saubere Trennung zwischen Development und Production
+✅ Einfachere Installation ohne lokale Code-Abhängigkeiten
+✅ Volumes können einfach gesichert/wiederhergestellt werden
+
+VOLUME STRUKTUR:
+```
+Named Volumes (automatisch von Docker erstellt):
+- db_data: MariaDB Datenbank
+- ssh_keys: SSH Schlüssel
+- uploads: Upload-Verzeichnis
+- terminal_sessions: Terminal Session Daten
+- backend_app: Backend Application Code
+- frontend_build: Frontend Static Files  
+- nginx_conf: Nginx Konfiguration
+- ttyd_scripts: TTYD Scripts
+- guacamole_db: Guacamole PostgreSQL
+- guacamole_drive: Guacamole File Transfer
+- guacamole_record: Guacamole Recordings
+- guacamole_home: Guacamole Config
+- rustdesk_data: RustDesk Daten
+```
+
+INSTALLATION:
+Der install.sh lädt jetzt bevorzugt docker-compose.prod.yml herunter und
+benennt sie in docker-compose.yml um. Bei Fehler fällt er auf die
+Development-Version zurück.
+
+STATUS: ✅ Production-ready docker-compose.prod.yml erstellt
+
+════════════════════════════════════════════════════════════════════════════════

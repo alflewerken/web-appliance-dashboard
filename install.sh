@@ -31,16 +31,24 @@ cd "$INSTALL_DIR"
 
 # Download docker-compose.yml directly from GitHub
 echo "📥 Downloading configuration..."
-curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
-    -o docker-compose.yml
+# Try to download production compose file first, fallback to main
+if ! curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.prod.yml \
+    -o docker-compose.yml 2>/dev/null; then
+    echo "⚠️  Production config not found, using development version..."
+    curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
+        -o docker-compose.yml
+fi
 
-# Create necessary directories
-mkdir -p init-db ssl uploads logs terminal_sessions
+# Create necessary directories for configs that need files
+mkdir -p init-db ssl
 
 # Download database initialization script
 echo "📥 Downloading database schema..."
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
     -o init-db/01-init.sql
+
+# Note: Docker will automatically create all named volumes when starting:
+# db_data, ssh_keys, uploads, terminal_sessions, guacamole_db, etc.
 
 # Create .env file with secure defaults
 echo "🔐 Generating secure configuration..."
