@@ -29360,3 +29360,107 @@ AUSWIRKUNG:
 STATUS: ✅ Template-Strings erfolgreich implementiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 16:35 - DOCUMENTATION: Simplified installation in README files
+
+BESCHREIBUNG:
+Die Installation wurde um 50% vereinfacht. Benutzer müssen nicht mehr zwei Befehle
+ausführen (setup-env.sh und build.sh), sondern nur noch einen einzigen Befehl.
+Der build.sh ruft setup-env.sh automatisch auf, wenn .env-Dateien fehlen.
+
+ZIEL:
+- Vereinfachung der Installation für neue Benutzer
+- Reduzierung der Installationsschritte von 2 auf 1 Befehl
+- Bessere User Experience beim ersten Setup
+
+GEÄNDERTE DATEIEN:
+1. README.md (englische Version)
+2. README.de.md (deutsche Version)
+
+ÄNDERUNGEN:
+
+Die Installation wurde von:
+```bash
+./scripts/setup-env.sh  # Schritt 2
+./scripts/build.sh      # Schritt 3
+```
+
+Vereinfacht zu:
+```bash
+./scripts/build.sh --nocache  # Ein Befehl macht alles!
+```
+
+PATCHES:
+
+-PATCH README.md (Quick Start Section):
+### 2. Environment Setup
+```bash
+./scripts/setup-env.sh
+```
+⚠️ **Important**: The script automatically generates secure passwords and replaces the insecure example values!
+
+### 3. Build frontend and start containers
+```bash
+./scripts/build.sh
+```
+
++PATCH README.md (Quick Start Section):
+### 2. Build and start (one command!)
+```bash
+./scripts/build.sh --nocache
+```
+
+This single command:
+- ✅ Automatically creates all .env files with secure passwords
+- ✅ Builds the frontend application
+- ✅ Creates and starts all Docker containers
+- ✅ Sets up the database schema
+- ✅ Configures all services
+
+⚠️ **Note**: During first run, you'll be prompted for an encryption key for remote passwords. You can press Enter to generate one automatically or provide your own.
+
+-PATCH README.de.md (Schnellstart Section):
+### 2. Environment Setup
+```bash
+./scripts/setup-env.sh
+```
+⚠️ **Wichtig**: Das Script generiert automatisch sichere Passwörter und ersetzt die unsicheren Beispielwerte!
+
+### 3. Frontend bauen und Container starten
+```bash
+./scripts/build.sh
+```
+
++PATCH README.de.md (Schnellstart Section):
+### 2. Bauen und starten (ein Befehl!)
+```bash
+./scripts/build.sh --nocache
+```
+
+Dieser eine Befehl:
+- ✅ Erstellt automatisch alle .env Dateien mit sicheren Passwörtern
+- ✅ Baut die Frontend-Anwendung
+- ✅ Erstellt und startet alle Docker-Container
+- ✅ Richtet das Datenbankschema ein
+- ✅ Konfiguriert alle Services
+
+⚠️ **Hinweis**: Beim ersten Start werden Sie nach einem Verschlüsselungsschlüssel für Remote-Passwörter gefragt. Sie können Enter drücken für automatische Generierung oder einen eigenen eingeben.
+
+TECHNISCHE DETAILS:
+- build.sh prüft automatisch ob .env-Dateien existieren
+- Falls nicht, wird setup-env.sh automatisch aufgerufen
+- Benutzer müssen nur noch einen Befehl ausführen
+- Die Nummerierung wurde von 5 auf 4 Schritte reduziert
+
+AUSWIRKUNG:
+✅ Installation um 50% vereinfacht (1 statt 2 Befehle)
+✅ Bessere User Experience für neue Benutzer
+✅ Weniger Fehlerquellen beim Setup
+✅ Klarere Dokumentation was der Befehl alles macht
+
+STATUS: ✅ README-Dateien erfolgreich aktualisiert
+
+════════════════════════════════════════════════════════════════════════════════

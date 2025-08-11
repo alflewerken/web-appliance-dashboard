@@ -121,18 +121,21 @@ git clone https://github.com/alflewerken/web-appliance-dashboard.git
 cd web-appliance-dashboard
 ```
 
-### 2. Environment Setup
+### 2. Bauen und starten (ein Befehl!)
 ```bash
-./scripts/setup-env.sh
-```
-⚠️ **Wichtig**: Das Script generiert automatisch sichere Passwörter und ersetzt die unsicheren Beispielwerte!
-
-### 3. Frontend bauen und Container starten
-```bash
-./scripts/build.sh
+./scripts/build.sh --nocache
 ```
 
-### 4. Dashboard öffnen
+Dieser eine Befehl:
+- ✅ Erstellt automatisch alle .env Dateien mit sicheren Passwörtern
+- ✅ Baut die Frontend-Anwendung
+- ✅ Erstellt und startet alle Docker-Container
+- ✅ Richtet das Datenbankschema ein
+- ✅ Konfiguriert alle Services
+
+⚠️ **Hinweis**: Beim ersten Start werden Sie nach einem Verschlüsselungsschlüssel für Remote-Passwörter gefragt. Sie können Enter drücken für automatische Generierung oder einen eigenen eingeben.
+
+### 3. Dashboard öffnen
 ```
 http://localhost:9080
 ```
@@ -143,7 +146,7 @@ Standard-Login:
 
 ⚠️ **Wichtig**: Ändern Sie das Standard-Passwort sofort!
 
-### 5. Ersten Host anlegen
+### 4. Ersten Host anlegen
 1. Klicken Sie auf "Hosts" in der Sidebar
 2. "Host hinzufügen" anklicken
 3. Host-Daten eingeben (IP, SSH-Zugangsdaten)
