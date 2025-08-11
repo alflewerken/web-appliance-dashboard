@@ -123,13 +123,26 @@ services:
     networks:
       - ${NETWORK_NAME:-appliance_network}
 
-  # Frontend served by nginx - using ghcr.io image
+  # Frontend - using ghcr.io image
+  frontend:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
+    container_name: ${FRONTEND_CONTAINER_NAME:-appliance_frontend}
+    restart: always
+    depends_on:
+      - backend
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    environment:
+      - REACT_APP_API_URL=http://backend:3001
+
+  # Nginx webserver - using ghcr.io image
   webserver:
     image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
     container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
     restart: always
     depends_on:
       - backend
+      - frontend
     ports:
       - "${HTTP_PORT:-9080}:80"
       - "${HTTPS_PORT:-9443}:443"
@@ -181,7 +194,7 @@ services:
       - ${NETWORK_NAME:-appliance_network}
 
   guacamole:
-    image: guacamole/guacamole:latest
+    image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
     container_name: ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole}
     restart: always
     depends_on:
