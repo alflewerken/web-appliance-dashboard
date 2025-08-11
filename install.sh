@@ -64,81 +64,156 @@ cd "$INSTALL_DIR"
 # Download docker-compose.yml
 echo "📥 Downloading configuration..."
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
-    -o docker-compose.yml || {
+    -o docker-compose.original.yml || {
     echo "❌ Failed to download docker-compose.yml"
     exit 1
 }
 
-# Modify docker-compose.yml to use pre-built images instead of building locally
+# Create a modified docker-compose.yml that uses pre-built images
 echo "📝 Configuring to use pre-built images..."
-sed -i.bak 's|build: ./frontend|image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest|g' docker-compose.yml
-sed -i.bak 's|build: ./backend|image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest|g' docker-compose.yml
-sed -i.bak 's|build: ./nginx|image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest|g' docker-compose.yml
-sed -i.bak 's|build:|#build:|g' docker-compose.yml
-rm -f docker-compose.yml.bak
+cat > docker-compose.yml << 'EOF'
+version: '3.8'
+
+services:
+  # Database
+  database:
+    image: mariadb:10.11
+    container_name: ${DB_CONTAINER_NAME:-appliance_db}
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "${DB_EXTERNAL_PORT:-3306}:3306"
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+    container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-database}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
+      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      NODE_ENV: production
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${HOME}/.ssh:/root/.ssh
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+  # Frontend served by nginx
+  webserver:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
+    container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-9080}:80"
+      - "${HTTPS_PORT:-9443}:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    environment:
+      BACKEND_URL: http://backend:3001
+      EXTERNAL_URL: ${EXTERNAL_URL:-http://localhost:9080}
+
+  # Terminal (ttyd)
+  ttyd:
+    image: alflewerken/ttyd:latest
+    container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
+    restart: always
+    ports:
+      - "7681:7681"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      TTYD_USERNAME: ${TTYD_USERNAME:-admin}
+      TTYD_PASSWORD: ${TTYD_PASSWORD:-admin}
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+  # Guacamole components
+  guacd:
+    image: guacamole/guacd:latest
+    container_name: ${GUACD_CONTAINER_NAME:-appliance_guacd}
+    restart: always
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    environment:
+      GUACD_LOG_LEVEL: info
+
+  guacamole_db:
+    image: postgres:13
+    container_name: ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db}
+    restart: always
+    environment:
+      POSTGRES_DB: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+    volumes:
+      - guacamole_db_data:/var/lib/postgresql/data
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+  guacamole:
+    image: guacamole/guacamole:latest
+    container_name: ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole}
+    restart: always
+    depends_on:
+      - guacd
+      - guacamole_db
+    environment:
+      GUACD_HOSTNAME: guacd
+      POSTGRES_HOSTNAME: ${GUACAMOLE_DB_HOST:-guacamole_db}
+      POSTGRES_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+      GUACAMOLE_HOME: /etc/guacamole
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+volumes:
+  db_data:
+  guacamole_db_data:
+
+networks:
+  appliance_network:
+    driver: bridge
+EOF
 
 # Create necessary directories
-mkdir -p init-db ssl guacamole scripts nginx/conf.d frontend backend
+mkdir -p init-db ssl guacamole scripts
 
 # Download database initialization script
 echo "📥 Downloading database schema..."
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
     -o init-db/01-init.sql 2>/dev/null || echo "⚠️  DB init script not found, will use defaults"
-
-# Download nginx configuration files
-echo "📥 Downloading nginx configuration..."
-curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/nginx/Dockerfile \
-    -o nginx/Dockerfile 2>/dev/null || {
-    # Create minimal nginx Dockerfile if download fails
-    cat > nginx/Dockerfile << 'DOCKERFILE'
-FROM nginx:alpine
-COPY conf.d /etc/nginx/conf.d
-RUN rm -f /etc/nginx/conf.d/default.conf
-DOCKERFILE
-}
-
-curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/nginx/conf.d/default.conf \
-    -o nginx/conf.d/default.conf 2>/dev/null || {
-    # Create minimal nginx config if download fails
-    cat > nginx/conf.d/default.conf << 'NGINX'
-server {
-    listen 80;
-    server_name localhost;
-    
-    location / {
-        root /usr/share/nginx/html;
-        try_files $uri $uri/ /index.html;
-    }
-    
-    location /api {
-        proxy_pass http://backend:3001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-NGINX
-}
-
-curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/nginx/conf.d/guacamole-websocket.inc \
-    -o nginx/conf.d/guacamole-websocket.inc 2>/dev/null || true
-
-# Create minimal frontend and backend Dockerfiles
-echo "📥 Setting up application structure..."
-cat > frontend/Dockerfile << 'DOCKERFILE'
-FROM node:18-alpine as builder
-WORKDIR /app
-RUN echo '<!DOCTYPE html><html><body><h1>Web Appliance Dashboard</h1><p>Frontend will be built here</p></body></html>' > index.html
-
-FROM nginx:alpine
-COPY --from=builder /app/index.html /usr/share/nginx/html/
-DOCKERFILE
-
-cat > backend/Dockerfile << 'DOCKERFILE'
-FROM node:18-alpine
-WORKDIR /app
-RUN echo '{"name":"backend","version":"1.0.0"}' > package.json
-CMD ["node", "-e", "console.log('Backend placeholder running')"]
-DOCKERFILE
 
 # Download Guacamole schema files
 echo "📥 Downloading Guacamole configuration..."
