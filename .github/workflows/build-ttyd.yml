@@ -66,3 +66,5 @@ jobs:
         echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Visibility:** Public (Open Source)" >> $GITHUB_STEP_SUMMARY
+
+# Initial build triggered on 2025-08-11 to publish Docker images
