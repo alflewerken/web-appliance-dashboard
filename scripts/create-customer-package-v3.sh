@@ -1,99 +1,382 @@
 #!/bin/bash
-# Create Customer Package Script v3.0
-# Open-source version for public repository (no authentication required)
 
-set -euo pipefail
+# Web Appliance Dashboard Customer Package Creator v3.0
+# Open Source Edition (MIT License)
+# Creates a deployment package without authentication requirements
+
+set -e
 
 # Colors for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Configuration
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PACKAGE_DIR="${PROJECT_ROOT}/customer-package"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+PACKAGE_NAME="web-appliance-dashboard-${TIMESTAMP}"
+PACKAGE_PATH="${PACKAGE_DIR}/${PACKAGE_NAME}"
 
+# Print header
 echo -e "${GREEN}=== Web Appliance Dashboard Customer Package Creator v3.0 ===${NC}"
 echo -e "${GREEN}=== Open Source Edition (MIT License) ===${NC}"
 echo ""
 
-# Validate required files
+# Validate project structure
 echo "🔍 Validating project structure..."
+if [ ! -f "${PROJECT_ROOT}/docker-compose.yml" ]; then
+    echo -e "${RED}❌ Error: docker-compose.yml not found in project root${NC}"
+    exit 1
+fi
 
-required_files=(
-    "init.sql"
-    "docker-compose.yml"
-)
-
-for file in "${required_files[@]}"; do
-    if [ ! -f "${PROJECT_ROOT}/${file}" ]; then
-        echo -e "${RED}❌ Missing required file: ${file}${NC}"
-        exit 1
-    fi
-done
+if [ ! -d "${PROJECT_ROOT}/init-db" ]; then
+    echo -e "${RED}❌ Error: init-db directory not found${NC}"
+    exit 1
+fi
 
 # Create package directory
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-PACKAGE_NAME="web-appliance-dashboard-${TIMESTAMP}"
-PACKAGE_DIR="${PROJECT_ROOT}/customer-package/${PACKAGE_NAME}"
-
 echo "📦 Creating package: ${PACKAGE_NAME}"
-mkdir -p "${PACKAGE_DIR}"
-cd "${PACKAGE_DIR}"
+rm -rf "${PACKAGE_PATH}"
+mkdir -p "${PACKAGE_PATH}"
 
-# Create directory structure
-mkdir -p init-db ssl
-
-# Copy init.sql as database initialization script
+# Copy database initialization
 echo "📄 Copying database schema..."
-cp "${PROJECT_ROOT}/init.sql" init-db/01-init-schema.sql
+cp -r "${PROJECT_ROOT}/init-db" "${PACKAGE_PATH}/"
 
-# Add admin password update to ensure admin123 works
-cat >> init-db/01-init-schema.sql << 'EOF'
+# Create SSL directory and generate self-signed certificate
+echo "🔐 Generating self-signed SSL certificate..."
+mkdir -p "${PACKAGE_PATH}/ssl"
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout "${PACKAGE_PATH}/ssl/key.pem" \
+    -out "${PACKAGE_PATH}/ssl/cert.pem" \
+    -subj "/C=DE/ST=State/L=City/O=Organization/CN=localhost" \
+    2>/dev/null
 
--- Ensure admin user has correct password (admin123)
-UPDATE users SET password_hash='$2a$10$ZU7Jq5cGnGSkrm2Y3HNVF.jFpRcF5Q1Sc0YW1XqBvxVBx8rFpjPLq' WHERE username='admin';
+# Create nginx configuration directory
+mkdir -p "${PACKAGE_PATH}/nginx"
+
+# Create nginx.conf without Lua
+cat > "${PACKAGE_PATH}/nginx/nginx.conf" << 'EOF'
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    
+    access_log /var/log/nginx/access.log main;
+    
+    sendfile on;
+    keepalive_timeout 65;
+    
+    # Include additional configurations
+    include /etc/nginx/conf.d/*.conf;
+}
 EOF
 
-# Generate single password for all DB connections
-DB_PASSWORD=$(openssl rand -hex 32)
-DB_ROOT_PASSWORD=$(openssl rand -hex 32)
-JWT_SECRET=$(openssl rand -hex 32)
-SSH_KEY_SECRET=$(openssl rand -hex 32)
-GUAC_DB_PWD=$(openssl rand -hex 32)
+# Create default.conf without Lua variables
+cat > "${PACKAGE_PATH}/nginx/default.conf" << 'EOF'
+server {
+    listen 80 default_server;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
 
-# Create .env with consistent passwords
-cat > .env << EOF
-# Database Configuration - SINGLE PASSWORD FOR ALL
-DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD
-DB_NAME=appliance_dashboard
-DB_USER=appliance_user
-DB_PASSWORD=$DB_PASSWORD
+    # Increase body size limit for large background images and backup files
+    client_max_body_size 50G;
 
-# Security Keys
-JWT_SECRET=$JWT_SECRET
-SSH_KEY_ENCRYPTION_SECRET=$SSH_KEY_SECRET
+    # Frontend routes
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
 
-# CORS Configuration (will be updated during installation)
-ALLOWED_ORIGINS=http://localhost,https://localhost
+    # WebSocket proxy for terminal connections
+    location ~ ^/api/terminal/(.*)$ {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_connect_timeout 10s;
+    }
 
-# Guacamole Database
-GUACAMOLE_DB_NAME=guacamole_db
-GUACAMOLE_DB_USER=guacamole_user
-GUACAMOLE_DB_PASSWORD=$GUAC_DB_PWD
+    # WebSocket proxy for terminal-session
+    location = /api/terminal-session {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_connect_timeout 10s;
+    }
 
-# Admin User
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+    # Server-Sent Events (SSE) proxy
+    location /api/sse/stream {
+        proxy_pass http://backend:3001/api/sse/stream$is_args$args;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        proxy_set_header Connection '';
+        
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        chunked_transfer_encoding on;
+        proxy_set_header X-Accel-Buffering no;
+        keepalive_timeout 86400s;
+    }
 
-# Ports (can be customized if needed)
-HTTP_PORT=80
-HTTPS_PORT=443
+    # API routes
+    location /api/ {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        proxy_set_header Connection "";
+        
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+        
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # ttyd proxy (Terminal)
+    location /ttyd/ {
+        proxy_pass http://ttyd:7681/;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
+    }
+
+    # Guacamole proxy (Remote Desktop)
+    location /guacamole/ {
+        proxy_pass http://guacamole:8080/guacamole/;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_connection;
+        
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+        
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_cookie_path /guacamole/ /guacamole/;
+    }
+
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+
+# HTTPS server configuration
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SSL configuration
+    ssl_certificate /etc/nginx/ssl/cert.pem;
+    ssl_certificate_key /etc/nginx/ssl/key.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 50G;
+
+    # Same locations as HTTP server
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~ ^/api/terminal/(.*)$ {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_connect_timeout 10s;
+    }
+
+    location = /api/terminal-session {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_connect_timeout 10s;
+    }
+
+    location /api/sse/stream {
+        proxy_pass http://backend:3001/api/sse/stream$is_args$args;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        proxy_set_header Connection '';
+        
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        chunked_transfer_encoding on;
+        proxy_set_header X-Accel-Buffering no;
+        keepalive_timeout 86400s;
+    }
+
+    location /api/ {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $server_name;
+        proxy_set_header Connection "";
+        
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+        
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    location /ttyd/ {
+        proxy_pass http://ttyd:7681/;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
+    }
+
+    location /guacamole/ {
+        proxy_pass http://guacamole:8080/guacamole/;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_connection;
+        
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+        
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_cookie_path /guacamole/ /guacamole/;
+    }
+
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
 EOF
 
-# Create simplified docker-compose.yml
-cat > docker-compose.yml << 'EOF'
+# Create docker-compose.yml with corrected health check
+cat > "${PACKAGE_PATH}/docker-compose.yml" << 'EOF'
+version: '3.8'
+
 services:
   database:
     image: mariadb:latest
@@ -111,11 +394,11 @@ services:
       - appliance_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 30
-      start_period: 30s
+      retries: 10
+      start_period: 10s
 
   backend:
     image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
@@ -131,14 +414,22 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-      # Security
-      JWT_SECRET: ${JWT_SECRET}
-      SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
-      # CORS
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-      # Features
-      SSH_AUTO_INIT: "true"
+      # App Configuration
       NODE_ENV: production
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      # Feature Flags
+      ENABLE_CORS: "true"
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      REQUIRE_AUTH: "false"
+      # Guacamole Integration
+      GUACAMOLE_URL: http://guacamole:8080/guacamole
+      GUACAMOLE_DB_HOST: guacamole-postgres
+      GUACAMOLE_DB_PORT: 5432
+      GUACAMOLE_DB_NAME: guacamole_db
+      GUACAMOLE_DB_USER: guacamole_user
+      GUACAMOLE_DB_PASSWORD: ${GUACAMOLE_DB_PASSWORD}
     volumes:
       - backend_uploads:/app/uploads
       - backend_logs:/app/logs
@@ -147,23 +438,26 @@ services:
       - appliance_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
 
   webserver:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
+    image: nginx:alpine
     container_name: appliance_webserver
     hostname: webserver
     ports:
       - "${HTTP_PORT}:80"
       - "${HTTPS_PORT}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - frontend_data:/usr/share/nginx/html:ro
     depends_on:
       - backend
-      - ttyd
-      - guacamole
     networks:
       - appliance_network
     restart: unless-stopped
@@ -172,31 +466,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   ttyd:
     image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
     container_name: appliance_ttyd
     hostname: ttyd
-    command: >
-      ttyd
-      --writable
-      --port 7681
-      --base-path /
-      --terminal-type xterm-256color
-      /scripts/ttyd-ssh-wrapper.sh
     environment:
-      SSH_PORT: 22
+      TTYD_USERNAME: ${TTYD_USERNAME}
+      TTYD_PASSWORD: ${TTYD_PASSWORD}
+      TTYD_PORT: 7681
+    volumes:
+      - terminal_sessions:/var/lib/ttyd
     networks:
       - appliance_network
-    volumes:
-      - ssh_keys:/root/.ssh
-      - terminal_sessions:/tmp/terminal-sessions
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "sh", "-c", "pidof ttyd || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:7681/"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   guacd:
     image: guacamole/guacd:latest
@@ -206,18 +496,19 @@ services:
       - appliance_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4822 || exit 1"]
+      test: ["CMD", "nc", "-z", "localhost", "4822"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   guacamole-postgres:
     image: postgres:15-alpine
     container_name: appliance_guacamole_db
     hostname: guacamole-postgres
     environment:
-      POSTGRES_DB: ${GUACAMOLE_DB_NAME}
-      POSTGRES_USER: ${GUACAMOLE_DB_USER}
+      POSTGRES_DB: guacamole_db
+      POSTGRES_USER: guacamole_user
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD}
     volumes:
       - guacamole_postgres_data:/var/lib/postgresql/data
@@ -225,10 +516,11 @@ services:
       - appliance_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${GUACAMOLE_DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U guacamole_user -d guacamole_db"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   guacamole:
     image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
@@ -239,21 +531,22 @@ services:
       - guacamole-postgres
     environment:
       GUACD_HOSTNAME: guacd
+      GUACD_PORT: 4822
+      POSTGRES_DATABASE: guacamole_db
       POSTGRES_HOSTNAME: guacamole-postgres
-      POSTGRES_DATABASE: ${GUACAMOLE_DB_NAME}
-      POSTGRES_USER: ${GUACAMOLE_DB_USER}
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD}
-      GUACAMOLE_HOME: /guacamole-home
+      POSTGRES_USER: guacamole_user
+      POSTGRES_PORT: 5432
     volumes:
-      - guacamole_home:/guacamole-home
+      - guacamole_home:/opt/guacamole/home
     networks:
       - appliance_network
     restart: unless-stopped
 
 networks:
   appliance_network:
-    name: appliance_network
     driver: bridge
+    name: appliance_network
 
 volumes:
   db_data:
@@ -263,28 +556,54 @@ volumes:
   terminal_sessions:
   guacamole_home:
   guacamole_postgres_data:
-  rustdesk_data:
+  frontend_data:
 EOF
 
-# No nginx.conf needed - using custom Docker image
+# Create .env file
+cat > "${PACKAGE_PATH}/.env" << EOF
+# Database Configuration
+DB_ROOT_PASSWORD=$(openssl rand -base64 32)
+DB_NAME=appliance_db
+DB_USER=appliance_user
+DB_PASSWORD=$(openssl rand -base64 24)
 
-# Generate self-signed SSL certificate
-echo "🔐 Generating self-signed SSL certificate..."
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout ssl/key.pem \
-    -out ssl/cert.pem \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" \
-    2>/dev/null
+# Application Secrets
+JWT_SECRET=$(openssl rand -base64 48)
+SESSION_SECRET=$(openssl rand -base64 48)
 
-# Create install script
-cat > install.sh << 'EOF'
+# CORS Configuration (will be updated by install script)
+CORS_ORIGIN=http://localhost,https://localhost
+
+# Port Configuration
+HTTP_PORT=80
+HTTPS_PORT=443
+
+# Terminal (ttyd) Configuration
+TTYD_USERNAME=admin
+TTYD_PASSWORD=$(openssl rand -base64 16)
+
+# Guacamole Database
+GUACAMOLE_DB_PASSWORD=$(openssl rand -base64 24)
+
+# Service URLs (internal Docker network)
+BACKEND_URL=http://backend:3001
+TTYD_URL=http://ttyd:7681
+GUACAMOLE_URL=http://guacamole:8080/guacamole
+EOF
+
+# Create install script with nginx extraction
+cat > "${PACKAGE_PATH}/install.sh" << 'INSTALL_SCRIPT'
 #!/bin/bash
-set -euo pipefail
+
+# Web Appliance Dashboard Installer
+# Open Source Edition
+
+set -e
 
 # Colors
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${GREEN}=== Web Appliance Dashboard Installer ===${NC}"
@@ -292,386 +611,376 @@ echo -e "${GREEN}=== Open Source Edition (MIT License) ===${NC}"
 echo ""
 
 # Check Docker
-if ! command -v docker &> /dev/null; then
+DOCKER_CMD=""
+if command -v docker &> /dev/null; then
+    DOCKER_CMD="docker"
+elif [ -f "/usr/local/bin/docker" ]; then
+    DOCKER_CMD="/usr/local/bin/docker"
+else
     echo -e "${RED}❌ Docker is not installed!${NC}"
     echo "Please install Docker first: https://docs.docker.com/get-docker/"
     exit 1
 fi
 
 # Check Docker Compose
-COMPOSE_COMMAND=""
+COMPOSE_CMD=""
 if command -v docker-compose &> /dev/null; then
-    COMPOSE_COMMAND="docker-compose"
-elif docker compose version &> /dev/null 2>&1; then
-    COMPOSE_COMMAND="docker compose"
+    COMPOSE_CMD="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+elif [ -f "/usr/local/bin/docker-compose" ]; then
+    COMPOSE_CMD="/usr/local/bin/docker-compose"
+elif [ -f "/usr/local/bin/docker" ] && /usr/local/bin/docker compose version &> /dev/null; then
+    COMPOSE_CMD="/usr/local/bin/docker compose"
 else
     echo -e "${RED}❌ Docker Compose is not installed!${NC}"
     exit 1
 fi
 
-echo "✅ Using Docker Compose command: $COMPOSE_COMMAND"
+# Add PATH for commands
+export PATH="/usr/local/bin:$PATH"
+
+echo "✅ Using Docker command: $DOCKER_CMD"
+echo "✅ Using Docker Compose command: $COMPOSE_CMD"
 
 # Detect hostname and update CORS
-HOSTNAME=$(hostname)
-HOSTNAME_FQDN=$(hostname -f 2>/dev/null || hostname)
+HOSTNAME=$(hostname -f 2>/dev/null || hostname)
+FQDN=$(hostname -A 2>/dev/null | awk '{print $1}' || echo $HOSTNAME)
 
 echo "🌐 Detected hostname: $HOSTNAME"
-echo "🌐 Detected FQDN: $HOSTNAME_FQDN"
+echo "🌐 Detected FQDN: $FQDN"
 
-# Update ALLOWED_ORIGINS in .env - include both lowercase and original case
+# Get local IP addresses
+LOCAL_IPS=$(hostname -I 2>/dev/null | tr ' ' ',' || echo "")
+
+# Update CORS origins in .env
 echo "📝 Updating CORS configuration..."
-HOSTNAME_LOWER=$(echo "$HOSTNAME" | tr '[:upper:]' '[:lower:]')
-HOSTNAME_FQDN_LOWER=$(echo "$HOSTNAME_FQDN" | tr '[:upper:]' '[:lower:]')
-
-# Build ALLOWED_ORIGINS with both cases
-ALLOWED_ORIGINS="http://localhost,https://localhost"
-ALLOWED_ORIGINS="${ALLOWED_ORIGINS},http://$HOSTNAME,https://$HOSTNAME"
-ALLOWED_ORIGINS="${ALLOWED_ORIGINS},http://$HOSTNAME_LOWER,https://$HOSTNAME_LOWER"
-if [ "$HOSTNAME" != "$HOSTNAME_FQDN" ]; then
-    ALLOWED_ORIGINS="${ALLOWED_ORIGINS},http://$HOSTNAME_FQDN,https://$HOSTNAME_FQDN"
-    ALLOWED_ORIGINS="${ALLOWED_ORIGINS},http://$HOSTNAME_FQDN_LOWER,https://$HOSTNAME_FQDN_LOWER"
+CORS_ORIGINS="http://localhost,https://localhost,http://127.0.0.1,https://127.0.0.1"
+CORS_ORIGINS="${CORS_ORIGINS},http://${HOSTNAME},https://${HOSTNAME}"
+if [ "$FQDN" != "$HOSTNAME" ]; then
+    CORS_ORIGINS="${CORS_ORIGINS},http://${FQDN},https://${FQDN}"
+fi
+if [ ! -z "$LOCAL_IPS" ]; then
+    for IP in $(echo $LOCAL_IPS | tr ',' ' '); do
+        if [ ! -z "$IP" ]; then
+            CORS_ORIGINS="${CORS_ORIGINS},http://${IP},https://${IP}"
+        fi
+    done
 fi
 
-sed -i.bak "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$ALLOWED_ORIGINS|" .env
+# Update .env file
+if grep -q "^CORS_ORIGIN=" .env; then
+    sed -i.bak "s|^CORS_ORIGIN=.*|CORS_ORIGIN=${CORS_ORIGINS}|" .env
+else
+    echo "CORS_ORIGIN=${CORS_ORIGINS}" >> .env
+fi
 
-# Update SSL certificate with correct CN
-echo "🔐 Regenerating SSL certificate for $HOSTNAME..."
+# Regenerate SSL certificate for the actual hostname
+echo "🔐 Regenerating SSL certificate for ${FQDN}..."
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout ssl/key.pem \
     -out ssl/cert.pem \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=$HOSTNAME" \
+    -subj "/C=DE/ST=State/L=City/O=Organization/CN=${FQDN}" \
     2>/dev/null
 
-# NO LOGIN REQUIRED FOR PUBLIC IMAGES
+# Extract frontend from nginx image
 echo ""
-echo "📥 Pulling Docker images from public repository..."
+echo "📥 Extracting frontend files..."
+# Try to pull the nginx image first
+if $DOCKER_CMD pull ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest; then
+    echo "   Creating temporary container for frontend extraction..."
+    $DOCKER_CMD create --name temp-nginx ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest >/dev/null 2>&1
+    mkdir -p frontend
+    if $DOCKER_CMD cp temp-nginx:/usr/share/nginx/html/. frontend/ 2>/dev/null; then
+        echo "   ✅ Frontend files extracted successfully"
+    else
+        echo -e "${YELLOW}   ⚠️  Could not extract frontend files${NC}"
+    fi
+    $DOCKER_CMD rm temp-nginx >/dev/null 2>&1
+else
+    echo -e "${YELLOW}   ⚠️  Could not pull nginx image for frontend extraction${NC}"
+    echo "   Frontend will need to be added manually"
+fi
+
+# Create frontend volume and copy files
+echo "📂 Setting up frontend volume..."
+$DOCKER_CMD volume create web-appliance-dashboard-frontend >/dev/null 2>&1 || true
+if [ -d "frontend" ] && [ "$(ls -A frontend)" ]; then
+    # Create a temporary container to copy files
+    $DOCKER_CMD run --rm -v web-appliance-dashboard-frontend:/data -v "$(pwd)/frontend:/source" alpine cp -r /source/. /data/ 2>/dev/null || {
+        echo -e "${YELLOW}⚠️  Could not copy frontend to volume${NC}"
+    }
+fi
+
+# Pull images
+echo ""
+echo "📥 Pulling Docker images..."
 echo "ℹ️  No authentication required - images are publicly available"
 
-# Pull images individually to avoid rate limits
-echo "   Pulling backend..."
-docker pull ghcr.io/alflewerken/web-appliance-dashboard-backend:latest || true
+# Pull custom images
+for IMAGE in backend nginx ttyd guacamole; do
+    echo "   Pulling $IMAGE..."
+    if $DOCKER_CMD pull ghcr.io/alflewerken/web-appliance-dashboard-${IMAGE}:latest; then
+        echo "   ✅ $IMAGE pulled successfully"
+    else
+        echo -e "${YELLOW}   ⚠️  Could not pull $IMAGE image (may not exist or network issue)${NC}"
+    fi
+done
 
-echo "   Pulling nginx webserver..."
-docker pull ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest || true
-
-echo "   Pulling terminal (ttyd)..."
-docker pull ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest || true
-
-echo "   Pulling remote desktop (guacamole)..."
-docker pull ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest || true
-
+# Pull standard images
 echo "   Pulling standard images..."
-docker pull mariadb:latest || true
-docker pull guacamole/guacd:latest || true
-docker pull postgres:15-alpine || true
+$DOCKER_CMD pull mariadb:latest || echo "   ⚠️ Could not pull mariadb"
+$DOCKER_CMD pull guacamole/guacd:latest || echo "   ⚠️ Could not pull guacd"
+$DOCKER_CMD pull postgres:15-alpine || echo "   ⚠️ Could not pull postgres"
+$DOCKER_CMD pull nginx:alpine || echo "   ⚠️ Could not pull nginx:alpine"
 
 echo ""
-echo "✅ Image pull complete (some may have failed but will retry during startup)"
+echo "✅ Image pull complete"
 
-# Start services with proper order
+# Start services
 echo ""
 echo "🚀 Starting services..."
 
+# Stop any existing containers
+$COMPOSE_CMD down 2>/dev/null || true
+
 # Start database first
 echo "   Starting database..."
-$COMPOSE_COMMAND up -d database
+$COMPOSE_CMD up -d database
 
-# Wait for database to be ready
+# Wait for database
 echo "   Waiting for database to be ready..."
-sleep 10
-
-# Load DB password from .env
-DB_ROOT_PWD=$(grep "^DB_ROOT_PASSWORD=" .env | cut -d'=' -f2)
-
-# Check if database is healthy
+sleep 5
 for i in {1..30}; do
-    if $COMPOSE_COMMAND exec database mariadb -u root -p${DB_ROOT_PWD} -e "SELECT 1" &>/dev/null; then
+    if $DOCKER_CMD exec appliance_db mysqladmin ping -h localhost --silent 2>/dev/null; then
         echo -e "${GREEN}   ✅ Database is ready${NC}"
         break
     fi
-    echo "   Waiting for database... ($i/30)"
+    echo -n "."
     sleep 2
 done
 
-# Start core services
+# Start all other services
 echo "   Starting core services..."
-$COMPOSE_COMMAND up -d backend webserver
+$COMPOSE_CMD up -d
 
-# Start optional services (continue even if they fail)
-echo "   Starting optional services..."
-$COMPOSE_COMMAND up -d ttyd || echo -e "${YELLOW}   ⚠️  Terminal service failed to start${NC}"
-$COMPOSE_COMMAND up -d guacd guacamole-postgres guacamole || echo -e "${YELLOW}   ⚠️  Remote desktop service failed to start${NC}"
+# Wait for services to be ready
+echo "   Waiting for services to start..."
+sleep 10
 
-# Final check
+# Check service status
 echo ""
 echo "🔍 Checking service status..."
-$COMPOSE_COMMAND ps
+$DOCKER_CMD ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" | grep -E "(NAMES|appliance_)" || true
 
-# Check if services are actually running
-BACKEND_RUNNING=$($COMPOSE_COMMAND ps | grep "appliance_backend" | grep -c "Up\|running")
-WEBSERVER_RUNNING=$($COMPOSE_COMMAND ps | grep "appliance_webserver" | grep -c "Up\|running")
-
-if [ "$BACKEND_RUNNING" -eq 1 ] && [ "$WEBSERVER_RUNNING" -eq 1 ]; then
-    echo ""
-    echo -e "${GREEN}✅ Installation complete!${NC}"
-    echo ""
-    echo "🌐 Access the dashboard at:"
-    echo "   - http://localhost"
-    echo "   - http://$HOSTNAME"
-    echo "   - http://$HOSTNAME_LOWER"
-    if [ "$HOSTNAME" != "$HOSTNAME_FQDN" ]; then
-        echo "   - http://$HOSTNAME_FQDN"
-        echo "   - http://$HOSTNAME_FQDN_LOWER"
-    fi
-    echo ""
-    echo "👤 Default login:"
-    echo "   Username: admin"
-    echo "   Password: admin123"
-    echo ""
-    echo "📝 Logs: $COMPOSE_COMMAND logs -f"
-    echo "🛑 Stop: $COMPOSE_COMMAND down"
-    echo ""
-    echo "📖 Source Code: https://github.com/alflewerken/web-appliance-dashboard"
-    echo "📄 License: MIT"
-else
-    echo ""
-    echo -e "${RED}❌ Some services failed to start properly${NC}"
-    echo "Check logs with: $COMPOSE_COMMAND logs"
-    exit 1
+# Show access information
+echo ""
+echo -e "${GREEN}✅ Installation complete!${NC}"
+echo ""
+echo "📱 Access the dashboard at:"
+echo "   HTTP:  http://${FQDN}"
+echo "   HTTPS: https://${FQDN}"
+if [ ! -z "$LOCAL_IPS" ]; then
+    for IP in $(echo $LOCAL_IPS | tr ',' ' '); do
+        if [ ! -z "$IP" ]; then
+            echo "   HTTP:  http://${IP}"
+            echo "   HTTPS: https://${IP}"
+        fi
+    done
 fi
-EOF
+echo ""
+echo "🔐 Default credentials:"
+echo "   No authentication required (Open Source Edition)"
+echo ""
+echo "📚 Documentation:"
+echo "   https://github.com/alflewerken/web-appliance-dashboard"
+echo ""
+echo -e "${YELLOW}⚠️  Note: HTTPS uses a self-signed certificate.${NC}"
+echo -e "${YELLOW}    Your browser will show a security warning.${NC}"
+INSTALL_SCRIPT
 
-chmod +x install.sh
+chmod +x "${PACKAGE_PATH}/install.sh"
 
 # Create uninstall script
-cat > uninstall.sh << 'EOF'
+cat > "${PACKAGE_PATH}/uninstall.sh" << 'UNINSTALL_SCRIPT'
 #!/bin/bash
-set -euo pipefail
 
-RED='\033[0;31m'
+# Web Appliance Dashboard Uninstaller
+
+set -e
+
+# Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${YELLOW}=== Web Appliance Dashboard Uninstaller ===${NC}"
 echo ""
+echo -e "${RED}⚠️  Warning: This will remove all containers and data!${NC}"
+echo -n "Are you sure you want to continue? (yes/no): "
+read CONFIRM
 
-# Detect Docker Compose command
-COMPOSE_COMMAND=""
-if command -v docker-compose &> /dev/null; then
-    COMPOSE_COMMAND="docker-compose"
-elif docker compose version &> /dev/null 2>&1; then
-    COMPOSE_COMMAND="docker compose"
-else
-    echo -e "${RED}❌ Docker Compose is not found!${NC}"
-    exit 1
-fi
-
-read -p "⚠️  This will stop and remove all containers. Continue? [y/N] " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Cancelled."
+if [ "$CONFIRM" != "yes" ]; then
+    echo "Uninstall cancelled."
     exit 0
 fi
 
-echo "🛑 Stopping services..."
-$COMPOSE_COMMAND down
-
-read -p "⚠️  Remove all data volumes? [y/N] " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "🗑️  Removing volumes..."
-    $COMPOSE_COMMAND down -v
-fi
-
-echo -e "${GREEN}✅ Uninstall complete${NC}"
-EOF
-
-chmod +x uninstall.sh
-
-# Create troubleshoot script
-cat > troubleshoot.sh << 'EOF'
-#!/bin/bash
-# Troubleshooting script for Web Appliance Dashboard
-
-echo "=== Web Appliance Dashboard Troubleshooting ==="
-echo ""
-
-# Detect Docker Compose
-COMPOSE_COMMAND=""
+# Find docker-compose command
+COMPOSE_CMD=""
 if command -v docker-compose &> /dev/null; then
-    COMPOSE_COMMAND="docker-compose"
-elif docker compose version &> /dev/null 2>&1; then
-    COMPOSE_COMMAND="docker compose"
+    COMPOSE_CMD="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+elif [ -f "/usr/local/bin/docker-compose" ]; then
+    COMPOSE_CMD="/usr/local/bin/docker-compose"
+elif [ -f "/usr/local/bin/docker" ] && /usr/local/bin/docker compose version &> /dev/null; then
+    COMPOSE_CMD="/usr/local/bin/docker compose"
 fi
 
-echo "1. Container Status:"
-$COMPOSE_COMMAND ps
+export PATH="/usr/local/bin:$PATH"
+
+echo "🗑️  Stopping and removing containers..."
+$COMPOSE_CMD down -v
+
+echo "🗑️  Removing frontend volume..."
+docker volume rm web-appliance-dashboard-frontend 2>/dev/null || true
+
+echo ""
+echo -e "${GREEN}✅ Uninstall complete!${NC}"
+UNINSTALL_SCRIPT
+
+chmod +x "${PACKAGE_PATH}/uninstall.sh"
+
+# Create troubleshooting script
+cat > "${PACKAGE_PATH}/troubleshoot.sh" << 'TROUBLESHOOT_SCRIPT'
+#!/bin/bash
+
+# Web Appliance Dashboard Troubleshooting Script
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo -e "${YELLOW}=== Web Appliance Dashboard Troubleshooting ===${NC}"
 echo ""
 
-echo "2. Recent Backend Logs:"
-$COMPOSE_COMMAND logs --tail=20 backend
-echo ""
+# Add PATH
+export PATH="/usr/local/bin:$PATH"
 
-echo "3. Database Connection Test:"
-DB_ROOT_PWD=$(grep "^DB_ROOT_PASSWORD=" .env | cut -d'=' -f2)
-$COMPOSE_COMMAND exec database mariadb -u root -p${DB_ROOT_PWD} -e "SELECT COUNT(*) as user_count FROM appliance_dashboard.users;" 2>&1
-echo ""
+# Find docker command
+DOCKER_CMD=""
+if command -v docker &> /dev/null; then
+    DOCKER_CMD="docker"
+elif [ -f "/usr/local/bin/docker" ]; then
+    DOCKER_CMD="/usr/local/bin/docker"
+fi
 
-echo "4. Network Connectivity:"
-$COMPOSE_COMMAND exec backend ping -c 1 database || echo "Cannot reach database"
-echo ""
+echo "📊 Container Status:"
+$DOCKER_CMD ps -a --format "table {{.Names}}\t{{.Status}}" | grep -E "(NAMES|appliance_)" || echo "No containers found"
 
-echo "5. Port Bindings:"
-netstat -tln | grep -E ":(80|443|3001|3306)\s" || ss -tln | grep -E ":(80|443|3001|3306)\s"
 echo ""
+echo "📝 Recent logs from each service:"
+for SERVICE in appliance_db appliance_backend appliance_webserver appliance_ttyd appliance_guacamole; do
+    echo ""
+    echo "--- $SERVICE ---"
+    $DOCKER_CMD logs $SERVICE --tail 10 2>&1 || echo "Container $SERVICE not found"
+done
 
-echo "6. CORS Configuration:"
-grep ALLOWED_ORIGINS .env
 echo ""
+echo "🌐 Network Configuration:"
+$DOCKER_CMD network inspect appliance_network 2>/dev/null | grep -A 3 "Containers" || echo "Network not found"
 
-echo "7. Backend Environment:"
-$COMPOSE_COMMAND exec backend env | grep -E "(ALLOWED_ORIGINS|DB_|NODE_ENV)"
 echo ""
+echo "💾 Volumes:"
+$DOCKER_CMD volume ls | grep appliance || echo "No volumes found"
 
-echo "💡 Common Issues:"
-echo "- Port 80/443 already in use: Change HTTP_PORT/HTTPS_PORT in .env"
-echo "- Cannot connect to database: Wait for database to fully start"
-echo "- Login fails: Ensure database is initialized (check logs)"
-echo "- CORS errors: Check that hostname matches ALLOWED_ORIGINS"
-echo "- Services not starting: Check 'docker-compose logs [service]'"
 echo ""
-echo "📖 For more help, visit: https://github.com/alflewerken/web-appliance-dashboard"
-EOF
+echo -e "${GREEN}Troubleshooting complete!${NC}"
+TROUBLESHOOT_SCRIPT
 
-chmod +x troubleshoot.sh
+chmod +x "${PACKAGE_PATH}/troubleshoot.sh"
 
 # Create README
-cat > README.md << 'EOF'
+cat > "${PACKAGE_PATH}/README.md" << 'README'
 # Web Appliance Dashboard - Customer Package
 
-## 🎉 Open Source Edition (MIT License)
+## Open Source Edition (MIT License)
 
-This is the open-source version of Web Appliance Dashboard. No authentication or tokens required!
+This package contains everything needed to deploy the Web Appliance Dashboard.
 
-## Quick Start
+## Prerequisites
 
-1. Extract the package
+- Docker and Docker Compose installed
+- Ports 80 and 443 available
+- Minimum 2GB RAM recommended
+
+## Installation
+
+1. Extract the package:
+   ```bash
+   tar -xzf web-appliance-dashboard-*.tar.gz
+   cd web-appliance-dashboard-*
+   ```
+
 2. Run the installer:
    ```bash
    ./install.sh
    ```
+
 3. Access the dashboard:
-   - http://localhost
-   - http://[your-hostname]
-
-Default credentials:
-- Username: `admin`
-- Password: `admin123`
-
-## Requirements
-
-- Docker Engine 20.10+
-- Docker Compose 2.0+ (or docker-compose 1.29+)
-- Ports 80 and 443 available (configurable in .env)
-
-## Commands
-
-- **Start services**: `docker compose up -d`
-- **Stop services**: `docker compose down`
-- **View logs**: `docker compose logs -f`
-- **Restart a service**: `docker compose restart [service]`
-- **Troubleshoot**: `./troubleshoot.sh`
+   - HTTP: http://your-server
+   - HTTPS: https://your-server (self-signed certificate)
 
 ## Configuration
 
-Edit `.env` file to customize:
-- Database passwords
-- Port numbers
-- CORS origins
-- Admin credentials
+All configuration is stored in the `.env` file. Key settings:
+- `HTTP_PORT`: HTTP port (default: 80)
+- `HTTPS_PORT`: HTTPS port (default: 443)
+- `CORS_ORIGIN`: Allowed origins (automatically configured)
 
-## Services Included
+## Services
 
-- **Frontend**: React-based web interface
-- **Backend**: Node.js API server
-- **Database**: MariaDB
-- **Terminal**: Web-based terminal (ttyd)
-- **Remote Desktop**: Guacamole (VNC/RDP)
-- **Reverse Proxy**: Nginx
+The dashboard includes:
+- **Backend API**: Node.js application server
+- **Database**: MariaDB for data storage
+- **Web Server**: Nginx for frontend and proxy
+- **Terminal**: Web-based terminal access (ttyd)
+- **Remote Desktop**: Guacamole for RDP/VNC connections
 
 ## Troubleshooting
 
-1. **Login fails**: 
-   - Check if database is running: `docker compose ps`
-   - Check backend logs: `docker compose logs backend`
-   - Run `./troubleshoot.sh` for diagnostics
-
-2. **CORS errors**:
-   - Check browser console for the exact origin
-   - Verify ALLOWED_ORIGINS in `.env` includes your access URL
-   - Restart backend after changes: `docker compose restart backend`
-
-3. **Port conflicts**:
-   - Edit `.env` and change HTTP_PORT/HTTPS_PORT
-   - Restart services
-
-4. **Services not starting**:
-   - Run `./troubleshoot.sh` for diagnostics
-   - Check individual service logs
-
-## Building from Source
-
-If you want to build the images yourself instead of using pre-built ones:
-
+Run the troubleshooting script:
 ```bash
-git clone https://github.com/alflewerken/web-appliance-dashboard.git
-cd web-appliance-dashboard
-./scripts/build.sh --all
+./troubleshoot.sh
 ```
 
 ## Uninstall
 
-To remove the installation:
+To completely remove the installation:
 ```bash
 ./uninstall.sh
 ```
 
-## Support & Contributing
+⚠️ **Warning**: This will delete all data!
 
-- **GitHub**: https://github.com/alflewerken/web-appliance-dashboard
-- **Issues**: https://github.com/alflewerken/web-appliance-dashboard/issues
-- **License**: MIT
+## Support
 
-We welcome contributions! Please feel free to submit pull requests.
-
-## Security Notes
-
-- Default installation uses self-signed SSL certificates
-- Change the admin password after first login
-- Review and update security keys in `.env` for production use
-- All images are publicly available on GitHub Container Registry
-
-## Version
-
-This is v3.0 of the customer package:
-- Open source edition (MIT License)
-- No authentication required for pulling images
-- Full database schema compatibility
-- Automatic CORS configuration
-- Robust error handling
-- Built-in troubleshooting tools
+- GitHub: https://github.com/alflewerken/web-appliance-dashboard
+- Issues: https://github.com/alflewerken/web-appliance-dashboard/issues
 
 ## License
 
-MIT License - See https://github.com/alflewerken/web-appliance-dashboard/blob/main/LICENSE
-EOF
+MIT License - See LICENSE file for details.
+README
 
 # Create LICENSE file
-cat > LICENSE << 'EOF'
+cat > "${PACKAGE_PATH}/LICENSE" << 'LICENSE'
 MIT License
 
-Copyright (c) 2024 Alf Lewerken
+Copyright (c) 2024 Web Appliance Dashboard
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -690,35 +999,37 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-EOF
+LICENSE
 
 # Create the package
-cd ..
 echo ""
 echo "📦 Creating tar.gz package..."
+cd "${PACKAGE_DIR}"
 tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
 
-# Cleanup
-rm -rf "${PACKAGE_NAME}"
+# Clean up directory
+rm -rf "${PACKAGE_PATH}"
 
-# Final message
+# Show summary
 echo ""
 echo -e "${GREEN}✅ Package created successfully!${NC}"
 echo ""
-echo "📦 Package location: ${PACKAGE_DIR}.tar.gz"
-echo "📏 Package size: $(du -h "${PACKAGE_NAME}.tar.gz" | cut -f1)"
+echo "📦 Package location: ${PACKAGE_DIR}/${PACKAGE_NAME}.tar.gz"
+echo "📏 Package size: $(du -h "${PACKAGE_DIR}/${PACKAGE_NAME}.tar.gz" | cut -f1)"
 echo ""
 echo "📋 Installation instructions:"
 echo "1. Copy the package to the target server"
 echo "2. Extract: tar -xzf ${PACKAGE_NAME}.tar.gz"
 echo "3. Install: cd ${PACKAGE_NAME} && ./install.sh"
 echo ""
-echo -e "${GREEN}🎉 Open Source Edition Features:${NC}"
-echo "- No authentication required for Docker images"
-echo "- Public GitHub Container Registry access"
-echo "- MIT License included"
-echo "- Full source code available at: https://github.com/alflewerken/web-appliance-dashboard"
+echo -e "${GREEN}🎉 Package includes:${NC}"
+echo "- Nginx configuration without Lua dependencies"
+echo "- Corrected health check endpoints"
+echo "- Frontend extraction from original image"
+echo "- Automatic SSL certificate generation"
+echo "- Support for standard nginx:alpine image"
+echo "- Full troubleshooting script"
 echo ""
 echo -e "${YELLOW}📖 Note:${NC}"
-echo "This version pulls images from the public ghcr.io registry."
-echo "No tokens or login required!"
+echo "This package uses standard nginx:alpine instead of custom image"
+echo "to avoid Lua dependency issues."

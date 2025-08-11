@@ -51,6 +51,11 @@ packages=(
     "web-appliance-dashboard-ttyd"
 )
 
+# Also check with full repository name for ttyd (it uses different naming)
+packages_alt=(
+    "web-appliance-dashboard-ttyd"
+)
+
 # Make each package public
 for package in "${packages[@]}"; do
     make_package_public "$package"
