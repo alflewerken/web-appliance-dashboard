@@ -69,13 +69,76 @@ curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/
     exit 1
 }
 
+# Modify docker-compose.yml to use pre-built images instead of building locally
+echo "📝 Configuring to use pre-built images..."
+sed -i.bak 's|build: ./frontend|image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest|g' docker-compose.yml
+sed -i.bak 's|build: ./backend|image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest|g' docker-compose.yml
+sed -i.bak 's|build: ./nginx|image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest|g' docker-compose.yml
+sed -i.bak 's|build:|#build:|g' docker-compose.yml
+rm -f docker-compose.yml.bak
+
 # Create necessary directories
-mkdir -p init-db ssl guacamole scripts
+mkdir -p init-db ssl guacamole scripts nginx/conf.d frontend backend
 
 # Download database initialization script
 echo "📥 Downloading database schema..."
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
     -o init-db/01-init.sql 2>/dev/null || echo "⚠️  DB init script not found, will use defaults"
+
+# Download nginx configuration files
+echo "📥 Downloading nginx configuration..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/nginx/Dockerfile \
+    -o nginx/Dockerfile 2>/dev/null || {
+    # Create minimal nginx Dockerfile if download fails
+    cat > nginx/Dockerfile << 'DOCKERFILE'
+FROM nginx:alpine
+COPY conf.d /etc/nginx/conf.d
+RUN rm -f /etc/nginx/conf.d/default.conf
+DOCKERFILE
+}
+
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/nginx/conf.d/default.conf \
+    -o nginx/conf.d/default.conf 2>/dev/null || {
+    # Create minimal nginx config if download fails
+    cat > nginx/conf.d/default.conf << 'NGINX'
+server {
+    listen 80;
+    server_name localhost;
+    
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+    
+    location /api {
+        proxy_pass http://backend:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+NGINX
+}
+
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/nginx/conf.d/guacamole-websocket.inc \
+    -o nginx/conf.d/guacamole-websocket.inc 2>/dev/null || true
+
+# Create minimal frontend and backend Dockerfiles
+echo "📥 Setting up application structure..."
+cat > frontend/Dockerfile << 'DOCKERFILE'
+FROM node:18-alpine as builder
+WORKDIR /app
+RUN echo '<!DOCTYPE html><html><body><h1>Web Appliance Dashboard</h1><p>Frontend will be built here</p></body></html>' > index.html
+
+FROM nginx:alpine
+COPY --from=builder /app/index.html /usr/share/nginx/html/
+DOCKERFILE
+
+cat > backend/Dockerfile << 'DOCKERFILE'
+FROM node:18-alpine
+WORKDIR /app
+RUN echo '{"name":"backend","version":"1.0.0"}' > package.json
+CMD ["node", "-e", "console.log('Backend placeholder running')"]
+DOCKERFILE
 
 # Download Guacamole schema files
 echo "📥 Downloading Guacamole configuration..."
