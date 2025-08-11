@@ -111,3 +111,4 @@ electron-builder.yml
 # Customer Package
 customer-package/
 /scripts/create-customer-package-v2.sh
+/scripts/create-customer-package-v3.sh

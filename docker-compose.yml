@@ -14,7 +14,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init-db:/docker-entrypoint-initdb.d
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
@@ -30,9 +30,10 @@ services:
       dockerfile: Dockerfile
     container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
     restart: always
-    # Backend sollte nur intern erreichbar sein
-    # ports:
-    #   - "${BACKEND_PORT:-3001}:3001"
+    # Backend sollte nur intern erreichbar sein (Production)
+    # Für Entwicklung: Port aktivieren
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
     environment:
       # Database Configuration
       DB_HOST: ${DB_HOST}
@@ -195,7 +196,9 @@ services:
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
     volumes:
       - guacamole_db:/var/lib/postgresql/data
-      - ./guacamole/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+      - ./guacamole/001-create-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./guacamole/002-create-admin-user.sql:/docker-entrypoint-initdb.d/02-admin.sql:ro
+      - ./guacamole/custom-sftp.sql:/docker-entrypoint-initdb.d/03-custom-sftp.sql:ro
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:

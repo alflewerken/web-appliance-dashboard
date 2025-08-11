@@ -29,97 +29,167 @@ echo "📁 Installing to: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# Download docker-compose.yml directly from GitHub
+# Download docker-compose.yml
 echo "📥 Downloading configuration..."
-# Try to download production compose file first, fallback to main
-if ! curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.prod.yml \
-    -o docker-compose.yml 2>/dev/null; then
-    echo "⚠️  Production config not found, using development version..."
-    curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
-        -o docker-compose.yml
-fi
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
+    -o docker-compose.yml || {
+    echo "❌ Failed to download docker-compose.yml"
+    exit 1
+}
 
-# Create necessary directories for configs that need files
-mkdir -p init-db ssl
+# Create necessary directories
+mkdir -p init-db ssl guacamole scripts
 
 # Download database initialization script
 echo "📥 Downloading database schema..."
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
-    -o init-db/01-init.sql
+    -o init-db/01-init.sql 2>/dev/null || echo "⚠️  DB init script not found, will use defaults"
 
-# Note: Docker will automatically create all named volumes when starting:
-# db_data, ssh_keys, uploads, terminal_sessions, guacamole_db, etc.
+# Download Guacamole schema files
+echo "📥 Downloading Guacamole configuration..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/guacamole/001-create-schema.sql \
+    -o guacamole/001-create-schema.sql 2>/dev/null || echo "⚠️  Guacamole schema will be initialized later"
+
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/guacamole/002-create-admin-user.sql \
+    -o guacamole/002-create-admin-user.sql 2>/dev/null || true
+
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/guacamole/custom-sftp.sql \
+    -o guacamole/custom-sftp.sql 2>/dev/null || true
+
+# Download build script for maintenance
+echo "📥 Downloading maintenance scripts..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/scripts/build.sh \
+    -o scripts/build.sh 2>/dev/null && chmod +x scripts/build.sh
+
+# Download setup-env script (used by build.sh for environment setup)
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/scripts/setup-env.sh \
+    -o scripts/setup-env.sh 2>/dev/null && chmod +x scripts/setup-env.sh
 
 # Create .env file with secure defaults
 echo "🔐 Generating secure configuration..."
 
-# Generate passwords once to ensure consistency
-DB_PASS=$(openssl rand -base64 24)
-ROOT_PASS=$(openssl rand -base64 32)
-JWT=$(openssl rand -base64 48)
-SESSION=$(openssl rand -base64 48)
-SSH_KEY=$(openssl rand -base64 32)
-TTYD_PASS=$(openssl rand -base64 16)
-GUAC_DB_PASS=$(openssl rand -base64 24)
+# Generate passwords
+DB_PASS=$(openssl rand -base64 24 2>/dev/null || echo "dashboard_pass123")
+ROOT_PASS=$(openssl rand -base64 32 2>/dev/null || echo "root_pass123")
+JWT=$(openssl rand -hex 32 2>/dev/null || echo "default-jwt-secret-change-in-production")
+SESSION=$(openssl rand -hex 32 2>/dev/null || echo "default-session-secret-change-in-production")
+SSH_KEY=$(openssl rand -hex 32 2>/dev/null || echo "default-ssh-secret-change-in-production")
+TTYD_PASS=$(openssl rand -base64 16 2>/dev/null || echo "ttyd_pass123")
 
 cat > .env << EOF
 # Auto-generated secure configuration
 # Database Configuration
-DB_HOST=appliance_db
+DB_HOST=database
 DB_PORT=3306
-DB_NAME=appliance_db
-DB_USER=appliance_user
+DB_NAME=appliance_dashboard
+DB_USER=dashboard_user
 DB_PASSWORD=${DB_PASS}
 MYSQL_ROOT_PASSWORD=${ROOT_PASS}
-MYSQL_DATABASE=appliance_db
-MYSQL_USER=appliance_user
+MYSQL_DATABASE=appliance_dashboard
+MYSQL_USER=dashboard_user
 MYSQL_PASSWORD=${DB_PASS}
 
 # Security
 JWT_SECRET=${JWT}
 SESSION_SECRET=${SESSION}
 SSH_KEY_ENCRYPTION_SECRET=${SSH_KEY}
+ENCRYPTION_SECRET=${SSH_KEY}
 
 # CORS Settings
 ALLOWED_ORIGINS=http://localhost,https://localhost
 
 # Network Configuration  
-HTTP_PORT=80
-HTTPS_PORT=443
-EXTERNAL_URL=http://localhost
+HTTP_PORT=9080
+HTTPS_PORT=9443
+EXTERNAL_URL=http://localhost:9080
 
 # TTYD Configuration
 TTYD_USERNAME=admin
 TTYD_PASSWORD=${TTYD_PASS}
 
-# Guacamole Configuration
-GUACAMOLE_URL=http://guacamole:8080/guacamole
+# Guacamole Configuration (CRITICAL: Use correct password!)
+GUACAMOLE_URL=http://localhost:9080/guacamole
 GUACAMOLE_PROXY_URL=/guacamole/
 GUACAMOLE_DB_HOST=appliance_guacamole_db
 GUACAMOLE_DB_NAME=guacamole_db
 GUACAMOLE_DB_USER=guacamole_user
-GUACAMOLE_DB_PASSWORD=${GUAC_DB_PASS}
+GUACAMOLE_DB_PASSWORD=guacamole_pass123
+
+# Container Names
+DB_CONTAINER_NAME=appliance_db
+BACKEND_CONTAINER_NAME=appliance_backend
+WEBSERVER_CONTAINER_NAME=appliance_webserver
+TTYD_CONTAINER_NAME=appliance_ttyd
+GUACAMOLE_CONTAINER_NAME=appliance_guacamole
+GUACAMOLE_DB_CONTAINER_NAME=appliance_guacamole_db
+GUACD_CONTAINER_NAME=appliance_guacd
+
+# Network
+NETWORK_NAME=appliance_network
 EOF
 
 # Generate SSL certificates
 echo "🔒 Generating SSL certificates..."
-mkdir -p ssl
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout ssl/key.pem \
     -out ssl/cert.pem \
     -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" \
-    2>/dev/null
+    2>/dev/null || {
+    echo "⚠️  Could not generate SSL certificates, using HTTP only"
+}
 
-# Pull and start services
-echo "🐳 Starting services..."
-docker compose pull
+# Pull images
+echo "🐳 Pulling Docker images..."
+docker compose pull 2>/dev/null || echo "⚠️  Some images couldn't be pulled"
+
+# Start services
+echo "🚀 Starting services..."
 docker compose up -d
 
-# Wait for services
-echo "⏳ Waiting for services to be ready..."
-sleep 15
+# Wait for database
+echo "⏳ Waiting for database to be ready..."
+for i in {1..30}; do
+    if docker exec appliance_db mysqladmin ping -h localhost -u root -p${ROOT_PASS} &>/dev/null; then
+        echo "✅ Database is ready"
+        break
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
 
-# Check status
+# Initialize Guacamole database if needed
+echo "🔧 Checking Guacamole database..."
+sleep 5
+
+# Check if Guacamole tables exist
+TABLES_EXIST=$(docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
+    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
+
+if [ "$TABLES_EXIST" = "f" ]; then
+    echo "📝 Initializing Guacamole database..."
+    
+    # Try to load local schema files first
+    if [ -f "guacamole/001-create-schema.sql" ]; then
+        docker exec -i appliance_guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+            < guacamole/001-create-schema.sql >/dev/null 2>&1
+        
+        if [ -f "guacamole/002-create-admin-user.sql" ]; then
+            docker exec -i appliance_guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+                < guacamole/002-create-admin-user.sql >/dev/null 2>&1
+        fi
+        
+        echo "✅ Guacamole database initialized"
+    else
+        echo "⚠️  Guacamole schema files not found - Remote Desktop may not work initially"
+        echo "   Run: cd $INSTALL_DIR && ./scripts/build.sh"
+    fi
+    
+    # Restart Guacamole
+    docker compose restart guacamole >/dev/null 2>&1
+fi
+
+# Final status check
 echo ""
 echo "📊 Service Status:"
 docker compose ps
@@ -128,13 +198,17 @@ echo ""
 echo "✅ Installation complete!"
 echo ""
 echo "📱 Access your dashboard at:"
-echo "   http://localhost"
-echo "   https://localhost (self-signed certificate)"
+echo "   🌐 http://localhost:9080"
+echo "   🔒 https://localhost:9443 (self-signed certificate)"
 echo ""
-echo "📁 Installation directory: $INSTALL_DIR"
-echo "📝 Configuration file: $INSTALL_DIR/.env"
+echo "📝 Default Credentials:"
+echo "   Dashboard: admin / admin123"
+echo "   Guacamole: guacadmin / guacadmin"
 echo ""
-echo "🛑 To stop services: cd $INSTALL_DIR && docker compose down"
-echo "🔄 To update: cd $INSTALL_DIR && docker compose pull && docker compose up -d"
+echo "📁 Installation: $INSTALL_DIR"
+echo "🛠️  Maintenance: cd $INSTALL_DIR && ./scripts/build.sh --help"
+echo ""
+echo "🛑 Stop: cd $INSTALL_DIR && docker compose down"
+echo "🔄 Update: cd $INSTALL_DIR && docker compose pull && docker compose up -d"
 echo ""
 echo "🎉 Enjoy your Web Appliance Dashboard!"

@@ -10,6 +10,8 @@ const bcrypt = require('bcryptjs');
 const sseManager = require('../utils/sseManager');
 const { getClientIp } = require('../utils/getClientIp');
 const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
+const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
+const { Pool } = require('pg');
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
@@ -731,6 +733,8 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
         // Generate Guacamole URL
         const baseUrl = getGuacamoleUrl(req);
         const guacamoleUrl = `${baseUrl}/guacamole/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
+        
+        logger.info(`Generated Guacamole URL for host ${hostId}: ${guacamoleUrl}`);
         
         // Create audit log
         await createAuditLog(

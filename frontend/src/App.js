@@ -1279,36 +1279,62 @@ function Dashboard() {
                       });
                       
                       if (response.data.success) {
-                        let guacamoleUrl = response.data.guacamoleUrl;
-                        
-                        // Fix URL if port is missing
-                        // Check if URL contains the host but no port
-                        if (!guacamoleUrl.includes(':9080') && !guacamoleUrl.includes(':9443')) {
-                          // Extract protocol and host from URL
-                          const urlMatch = guacamoleUrl.match(/^(https?:\/\/)([^\/]+)(\/.*)?$/);
-                          if (urlMatch) {
-                            const protocol = urlMatch[1];
-                            const hostPart = urlMatch[2];
-                            const pathPart = urlMatch[3] || '';
-                            
-                            // If hostPart doesn't contain a port, add :9080
-                            if (!hostPart.includes(':')) {
-                              guacamoleUrl = `${protocol}${hostPart}:9080${pathPart}`;
+                        // Check if it's RustDesk or Guacamole
+                        if (response.data.type === 'rustdesk') {
+                          // RustDesk connection
+                          const rustdeskId = response.data.rustdeskId;
+                          if (rustdeskId) {
+                            // Show RustDesk ID to user
+                            if (window.showNotification) {
+                              window.showNotification(`RustDesk ID: ${rustdeskId}`, 'info');
+                            }
+                            alert(`Bitte verwenden Sie RustDesk Client mit folgender ID:\n\n${rustdeskId}\n\nStellen Sie sicher, dass RustDesk auf dem Zielgerät läuft.`);
+                          } else {
+                            throw new Error('RustDesk ID nicht verfügbar');
+                          }
+                        } else if (response.data.type === 'guacamole') {
+                          // Guacamole connection
+                          let guacamoleUrl = response.data.guacamoleUrl;
+                          
+                          if (!guacamoleUrl) {
+                            throw new Error('Guacamole URL nicht verfügbar');
+                          }
+                          
+                          console.log('Original Guacamole URL:', guacamoleUrl);
+                          
+                          // Fix URL if port is missing
+                          // Check if URL contains the host but no port
+                          if (!guacamoleUrl.includes(':9080') && !guacamoleUrl.includes(':9443')) {
+                            // Extract protocol and host from URL
+                            const urlMatch = guacamoleUrl.match(/^(https?:\/\/)([^\/]+)(\/.*)?$/);
+                            if (urlMatch) {
+                              const protocol = urlMatch[1];
+                              const hostPart = urlMatch[2];
+                              const pathPart = urlMatch[3] || '';
+                              
+                              // If hostPart doesn't contain a port, add :9080
+                              if (!hostPart.includes(':')) {
+                                guacamoleUrl = `${protocol}${hostPart}:9080${pathPart}`;
+                              }
                             }
                           }
+                          
+                          console.log('Final Guacamole URL:', guacamoleUrl);
+                          
+                          // Open in new window with specific dimensions
+                          const width = 1280;
+                          const height = 800;
+                          const left = (window.screen.width - width) / 2;
+                          const top = (window.screen.height - height) / 2;
+                          
+                          window.open(
+                            guacamoleUrl, 
+                            `RemoteDesktop_Host_${host.id}`,
+                            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=yes`
+                          );
+                        } else {
+                          throw new Error(`Unbekannter Remote Desktop Typ: ${response.data.type}`);
                         }
-                        
-                        // Open in new window with specific dimensions
-                        const width = 1280;
-                        const height = 800;
-                        const left = (window.screen.width - width) / 2;
-                        const top = (window.screen.height - height) / 2;
-                        
-                        window.open(
-                          guacamoleUrl, 
-                          `RemoteDesktop_Host_${host.id}`,
-                          `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=yes`
-                        );
                       }
                     } catch (error) {
                       console.error('Error getting remote desktop token:', error);
