@@ -10,6 +10,38 @@ echo "🚀 Web Appliance Dashboard - Quick Installer"
 echo "==========================================="
 echo ""
 
+# Function to check if a port is in use
+check_port() {
+    local port=$1
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        return 0  # Port is in use
+    elif netstat -tuln 2>/dev/null | grep -q ":$port "; then
+        return 0  # Port is in use
+    elif ss -tuln 2>/dev/null | grep -q ":$port "; then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
+}
+
+# Function to find an available port
+find_available_port() {
+    local base_port=$1
+    local port=$base_port
+    local max_tries=100
+    
+    for i in $(seq 0 $max_tries); do
+        if ! check_port $port; then
+            echo $port
+            return 0
+        fi
+        port=$((base_port + i))
+    done
+    
+    echo "❌ Could not find available port starting from $base_port" >&2
+    return 1
+}
+
 # Check for Docker
 if ! command -v docker &> /dev/null; then
     echo "❌ Docker is not installed!"
@@ -65,6 +97,75 @@ curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/scripts/setup-env.sh \
     -o scripts/setup-env.sh 2>/dev/null && chmod +x scripts/setup-env.sh
 
+# Check and find available ports
+echo "🔍 Checking port availability..."
+
+# Default ports
+DEFAULT_HTTP_PORT=9080
+DEFAULT_HTTPS_PORT=9443
+DEFAULT_BACKEND_PORT=3001
+DEFAULT_DB_PORT=3306
+DEFAULT_RUSTDESK_ID_PORT=21116
+DEFAULT_RUSTDESK_RELAY_PORT=21117
+DEFAULT_RUSTDESK_WEB_PORT=21118
+DEFAULT_RUSTDESK_API_PORT=21119
+DEFAULT_RUSTDESK_WS_PORT=21120
+
+# Find available ports
+HTTP_PORT=$(find_available_port $DEFAULT_HTTP_PORT)
+HTTPS_PORT=$(find_available_port $DEFAULT_HTTPS_PORT)
+BACKEND_PORT=$(find_available_port $DEFAULT_BACKEND_PORT)
+DB_PORT=$(find_available_port $DEFAULT_DB_PORT)
+
+# RustDesk ports - if any is in use, shift all RustDesk ports together
+if check_port $DEFAULT_RUSTDESK_ID_PORT || check_port $DEFAULT_RUSTDESK_RELAY_PORT || \
+   check_port $DEFAULT_RUSTDESK_WEB_PORT || check_port $DEFAULT_RUSTDESK_API_PORT || \
+   check_port $DEFAULT_RUSTDESK_WS_PORT; then
+    echo "⚠️  RustDesk ports conflict detected, finding alternative port range..."
+    
+    # Find a base port where 5 consecutive ports are free
+    BASE_PORT=22116
+    for attempt in $(seq 0 20); do
+        TEST_BASE=$((BASE_PORT + (attempt * 10)))
+        if ! check_port $TEST_BASE && ! check_port $((TEST_BASE + 1)) && \
+           ! check_port $((TEST_BASE + 2)) && ! check_port $((TEST_BASE + 3)) && \
+           ! check_port $((TEST_BASE + 4)); then
+            RUSTDESK_ID_PORT=$TEST_BASE
+            RUSTDESK_RELAY_PORT=$((TEST_BASE + 1))
+            RUSTDESK_WEB_PORT=$((TEST_BASE + 2))
+            RUSTDESK_API_PORT=$((TEST_BASE + 3))
+            RUSTDESK_WS_PORT=$((TEST_BASE + 4))
+            echo "✅ Found alternative RustDesk ports: $RUSTDESK_ID_PORT-$RUSTDESK_WS_PORT"
+            break
+        fi
+    done
+    
+    # If still not found, disable RustDesk
+    if [ -z "$RUSTDESK_ID_PORT" ]; then
+        echo "⚠️  Could not find 5 consecutive free ports for RustDesk"
+        echo "   RustDesk will be disabled. You can enable it later by editing docker-compose.yml"
+        RUSTDESK_ID_PORT=""
+        RUSTDESK_RELAY_PORT=""
+        RUSTDESK_WEB_PORT=""
+        RUSTDESK_API_PORT=""
+        RUSTDESK_WS_PORT=""
+    fi
+else
+    RUSTDESK_ID_PORT=$DEFAULT_RUSTDESK_ID_PORT
+    RUSTDESK_RELAY_PORT=$DEFAULT_RUSTDESK_RELAY_PORT
+    RUSTDESK_WEB_PORT=$DEFAULT_RUSTDESK_WEB_PORT
+    RUSTDESK_API_PORT=$DEFAULT_RUSTDESK_API_PORT
+    RUSTDESK_WS_PORT=$DEFAULT_RUSTDESK_WS_PORT
+fi
+
+# Report port configuration
+if [ "$HTTP_PORT" != "$DEFAULT_HTTP_PORT" ]; then
+    echo "⚠️  Port $DEFAULT_HTTP_PORT is in use, using port $HTTP_PORT for HTTP"
+fi
+if [ "$HTTPS_PORT" != "$DEFAULT_HTTPS_PORT" ]; then
+    echo "⚠️  Port $DEFAULT_HTTPS_PORT is in use, using port $HTTPS_PORT for HTTPS"
+fi
+
 # Create .env file with secure defaults
 echo "🔐 Generating secure configuration..."
 
@@ -99,16 +200,25 @@ ENCRYPTION_SECRET=${SSH_KEY}
 ALLOWED_ORIGINS=http://localhost,https://localhost
 
 # Network Configuration  
-HTTP_PORT=9080
-HTTPS_PORT=9443
-EXTERNAL_URL=http://localhost:9080
+HTTP_PORT=${HTTP_PORT}
+HTTPS_PORT=${HTTPS_PORT}
+BACKEND_PORT=${BACKEND_PORT}
+DB_EXTERNAL_PORT=${DB_PORT}
+EXTERNAL_URL=http://localhost:${HTTP_PORT}
+
+# RustDesk Ports (if available)
+${RUSTDESK_ID_PORT:+RUSTDESK_ID_PORT=${RUSTDESK_ID_PORT}}
+${RUSTDESK_RELAY_PORT:+RUSTDESK_RELAY_PORT=${RUSTDESK_RELAY_PORT}}
+${RUSTDESK_WEB_PORT:+RUSTDESK_WEB_PORT=${RUSTDESK_WEB_PORT}}
+${RUSTDESK_API_PORT:+RUSTDESK_API_PORT=${RUSTDESK_API_PORT}}
+${RUSTDESK_WEBSOCKET_PORT:+RUSTDESK_WEBSOCKET_PORT=${RUSTDESK_WS_PORT}}
 
 # TTYD Configuration
 TTYD_USERNAME=admin
 TTYD_PASSWORD=${TTYD_PASS}
 
 # Guacamole Configuration (CRITICAL: Use correct password!)
-GUACAMOLE_URL=http://localhost:9080/guacamole
+GUACAMOLE_URL=http://localhost:${HTTP_PORT}/guacamole
 GUACAMOLE_PROXY_URL=/guacamole/
 GUACAMOLE_DB_HOST=appliance_guacamole_db
 GUACAMOLE_DB_NAME=guacamole_db
@@ -141,6 +251,14 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 # Pull images
 echo "🐳 Pulling Docker images..."
 docker compose pull 2>/dev/null || echo "⚠️  Some images couldn't be pulled"
+
+# If RustDesk ports are not available, remove RustDesk services from docker-compose
+if [ -z "$RUSTDESK_ID_PORT" ]; then
+    echo "📝 Disabling RustDesk services in docker-compose.yml..."
+    # Comment out RustDesk services
+    sed -i.bak '/rustdesk-server:/,/^[[:space:]]*$/{s/^/#/}' docker-compose.yml
+    sed -i.bak '/rustdesk-relay:/,/^[[:space:]]*$/{s/^/#/}' docker-compose.yml
+fi
 
 # Start services
 echo "🚀 Starting services..."
@@ -198,13 +316,22 @@ echo ""
 echo "✅ Installation complete!"
 echo ""
 echo "📱 Access your dashboard at:"
-echo "   🌐 http://localhost:9080"
-echo "   🔒 https://localhost:9443 (self-signed certificate)"
+echo "   🌐 http://localhost:${HTTP_PORT}"
+if [ -f "ssl/cert.pem" ]; then
+    echo "   🔒 https://localhost:${HTTPS_PORT} (self-signed certificate)"
+fi
 echo ""
 echo "📝 Default Credentials:"
 echo "   Dashboard: admin / admin123"
 echo "   Guacamole: guacadmin / guacadmin"
 echo ""
+if [ -n "$RUSTDESK_ID_PORT" ]; then
+    echo "🖥️  RustDesk Ports:"
+    echo "   ID Server: ${RUSTDESK_ID_PORT}"
+    echo "   Relay: ${RUSTDESK_RELAY_PORT}"
+    echo "   Web: ${RUSTDESK_WEB_PORT}"
+    echo ""
+fi
 echo "📁 Installation: $INSTALL_DIR"
 echo "🛠️  Maintenance: cd $INSTALL_DIR && ./scripts/build.sh --help"
 echo ""
