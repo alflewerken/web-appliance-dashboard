@@ -29464,3 +29464,56 @@ AUSWIRKUNG:
 STATUS: ✅ README-Dateien erfolgreich aktualisiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+2025-08-11 16:40 - FIX: Customer Package korrigiert - frontend Service entfernt
+
+BESCHREIBUNG:
+Das Customer Package Script hatte einen Fehler im install.sh, wo versucht wurde
+einen nicht-existierenden "frontend" Service zu starten. Das Frontend ist 
+tatsächlich im nginx Container integriert, es gibt kein separates frontend Image.
+
+PROBLEM:
+- Im install.sh wurde versucht: `$COMPOSE_COMMAND up -d backend frontend webserver`
+- Es gibt aber kein `ghcr.io/alflewerken/web-appliance-dashboard-frontend` Image
+- Das Frontend ist Teil des nginx Images
+
+LÖSUNG:
+Entfernung des "frontend" aus dem docker compose up Befehl im install.sh
+
+VERIFIZIERTE DOCKER IMAGES auf ghcr.io:
+- ✅ web-appliance-dashboard-backend
+- ✅ web-appliance-dashboard-guacamole  
+- ✅ web-appliance-dashboard-nginx (enthält das Frontend!)
+- ✅ web-appliance-dashboard-ttyd
+- ❌ web-appliance-dashboard-frontend (existiert NICHT!)
+
+GEÄNDERTE DATEI: scripts/create-customer-package-v3.sh
+
+PATCHES:
+
+-PATCH Zeile 393 (falscher frontend Service):
+# Start core services
+echo "   Starting core services..."
+$COMPOSE_COMMAND up -d backend frontend webserver
+
++PATCH Zeile 393 (korrigiert):
+# Start core services
+echo "   Starting core services..."
+$COMPOSE_COMMAND up -d backend webserver
+
+NEUES PACKAGE ERSTELLT:
+- Name: web-appliance-dashboard-20250811_143711.tar.gz
+- Größe: 16K
+- install.sh jetzt korrekt ohne frontend Service
+
+VERIFIKATION:
+✅ Package erfolgreich erstellt
+✅ install.sh enthält keinen frontend Service mehr
+✅ Alle referenzierten Docker Images existieren auf ghcr.io
+
+STATUS: ✅ Customer Package Script korrigiert
+
+════════════════════════════════════════════════════════════════════════════════
