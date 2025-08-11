@@ -77,6 +77,7 @@ services:
   database:
     image: mariadb:10.11
     container_name: ${DB_CONTAINER_NAME:-appliance_db}
+    hostname: database  # WICHTIG: Backend erwartet diesen Hostnamen!
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -99,6 +100,7 @@ services:
   backend:
     image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
     container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
+    hostname: backend  # WICHTIG: nginx erwartet diesen Hostnamen!
     restart: always
     depends_on:
       database:
@@ -425,6 +427,31 @@ for i in {1..30}; do
     sleep 2
 done
 echo ""
+
+# Initialize database schema
+echo "📝 Initializing database schema..."
+if [ -f "init-db/01-init.sql" ]; then
+    docker exec -i appliance_db mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
+        echo "⚠️  Some tables might already exist (this is normal)"
+    }
+    echo "✅ Database schema initialized"
+else
+    echo "⚠️  Database schema file not found - downloading..."
+    curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
+        -o init-db/01-init.sql 2>/dev/null || echo "❌ Could not download schema"
+    if [ -f "init-db/01-init.sql" ]; then
+        docker exec -i appliance_db mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
+            echo "⚠️  Some tables might already exist (this is normal)"
+        }
+        echo "✅ Database schema initialized"
+    fi
+fi
+
+# Create admin user if not exists
+echo "👤 Creating admin user..."
+docker exec appliance_db mariadb -u root -p${ROOT_PASS} appliance_dashboard -e \
+    "INSERT IGNORE INTO users (username, email, password_hash, role) VALUES 
+     ('admin', 'admin@localhost', '\$2a\$10\$YourHashHere', 'Administrator');" 2>/dev/null || true
 
 # Initialize Guacamole database if needed
 echo "🔧 Checking Guacamole database..."
