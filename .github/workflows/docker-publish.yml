@@ -6,6 +6,7 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
 
 env:
   REGISTRY: ghcr.io
@@ -46,7 +47,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./backend
-        push: true
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-backend:latest
         labels: ${{ steps.meta.outputs.labels }}
 
@@ -54,7 +55,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
-        push: true
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-frontend:latest
         labels: ${{ steps.meta.outputs.labels }}
 
@@ -62,6 +63,15 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./guacamole
-        push: true
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-guacamole:latest
         labels: ${{ steps.meta.outputs.labels }}
+    
+    - name: Make images public
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      run: |
+        chmod +x .github/scripts/make-images-public.sh
+        .github/scripts/make-images-public.sh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}

@@ -50,6 +50,15 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Removed cache options as they cause issues with the default docker driver
+      
+      - name: Make image public
+        if: github.ref == 'refs/heads/main'
+        run: |
+          chmod +x .github/scripts/make-images-public.sh
+          .github/scripts/make-images-public.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
 
       - name: Summary
         run: |
@@ -58,3 +67,4 @@ jobs:
           echo "**Image:** \`${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The image is now available for deployment!" >> $GITHUB_STEP_SUMMARY
+          echo "**Visibility:** Public (Open Source)" >> $GITHUB_STEP_SUMMARY

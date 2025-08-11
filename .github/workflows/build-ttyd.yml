@@ -49,3 +49,20 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+    
+    - name: Make image public
+      if: github.ref == 'refs/heads/main'
+      run: |
+        chmod +x .github/scripts/make-images-public.sh
+        .github/scripts/make-images-public.sh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+    
+    - name: Summary
+      run: |
+        echo "### ✅ ttyd Image Built and Pushed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Visibility:** Public (Open Source)" >> $GITHUB_STEP_SUMMARY
