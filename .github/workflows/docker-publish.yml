@@ -23,6 +23,29 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v5
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build Frontend
+      working-directory: ./frontend
+      run: |
+        echo "Building frontend in frontend directory..."
+        npm ci
+        npm run build
+        echo "Frontend built successfully"
+
+    - name: Copy Frontend Build to Nginx
+      run: |
+        echo "Copying frontend build to nginx directory..."
+        # Remove old static files
+        rm -rf nginx/static
+        # Copy new build files
+        cp -r frontend/build/static nginx/
+        cp frontend/build/*.* nginx/ 2>/dev/null || true
+        echo "Frontend files copied to nginx directory"
+
     - name: Log in to the Container registry
       uses: docker/login-action@v3
       with:
