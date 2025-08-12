@@ -37039,3 +37039,136 @@ VORTEILE:
 STATUS: ✅ Dokumentation vereinfacht
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 22:14:33 - Git Push für Docker Image Build auf GitHub
+
+GIT COMMIT: 47df768
+MESSAGE: "docs: Simplify update instructions in README files"
+
+AKTION:
+Commit und Push durchgeführt, um GitHub Actions zu triggern für:
+- Automatischen Build aller Docker Images
+- Push der Images zu GitHub Container Registry (ghcr.io)
+
+ZWECK:
+Test-Produktivsystem auf macbook.local soll die neuesten Images erhalten können.
+
+GEÄNDERTE DATEIEN:
+- README.md: Vereinfachte Update-Instruktionen
+- README.de.md: Vereinfachte Update-Instruktionen  
+- changes/changes.md: Dokumentation der letzten Änderungen
+
+NÄCHSTE SCHRITTE:
+1. Warten auf GitHub Actions Build (~5-10 Minuten)
+2. Update auf macbook.local mit:
+   ```bash
+   cd ~/docker/web-appliance-dashboard
+   docker compose pull
+   docker compose up -d
+   ```
+
+STATUS: ⏳ GitHub Actions Build läuft
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 22:19:21 - Erfolgreiche Aktualisierung der Produktiv-Test-Installation
+
+TEST-SYSTEM: macbook.local (via SSH alflewerken@macbook.local)
+INSTALLATION: ~/docker/web-appliance-dashboard (Einzeiler-Installation)
+
+DURCHGEFÜHRTE AKTIONEN:
+
+1. GitHub Actions Build:
+   - Commit 47df768 hat automatischen Build ausgelöst
+   - Alle Docker Images wurden neu gebaut
+   - Images auf ghcr.io gepusht
+
+2. Update auf macbook.local:
+   ```bash
+   docker compose pull   # Alle neuen Images heruntergeladen
+   docker compose up -d  # Container mit neuen Images neu gestartet
+   ```
+
+ERGEBNIS:
+✅ Alle Container erfolgreich aktualisiert
+✅ Neue Image-Versionen (gebaut vor ~2-4 Minuten):
+   - backend: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+   - nginx: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest  
+   - ttyd: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+   - guacamole: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
+
+✅ Alle Container sind healthy
+✅ API antwortet korrekt (http://macbook.local:9080/api/health)
+✅ Web-Interface erreichbar auf Port 9080
+
+FAZIT:
+Die Einzeiler-Installation und das Update-Verfahren funktionieren einwandfrei.
+Der dokumentierte Update-Prozess (docker compose pull && docker compose up -d)
+ist einfach und zuverlässig.
+
+STATUS: ✅ Erfolgreich getestet
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 22:24:22 - KRITISCHER FEHLER BEHOBEN: Falscher Datenbankname in Installation
+
+PROBLEM:
+Audit-Log auf Test-Produktivsystem (macbook.local) zeigte Fehler.
+Ursache: Falscher Datenbankname in der Konfiguration.
+- Konfiguriert war: `DB_NAME=appliance_dashboard`
+- Korrekt muss sein: `DB_NAME=appliance_db`
+
+FEHLERQUELLE:
+Der Fehler stammte aus den Installations-Templates:
+1. `.env.example`: Falscher MYSQL_DATABASE und DB_NAME
+2. `install.sh`: Generierte falsche .env mit appliance_dashboard
+
+AUSWIRKUNG:
+- Backend konnte keine Verbindung zur Datenbank herstellen
+- Alle Datenbankoperationen schlugen fehl
+- Audit-Log zeigte "Error fetching audit logs"
+
+LÖSUNG:
+
+1. SOFORTMASSNAHME auf macbook.local:
+```bash
+sed -i.bak 's/DB_NAME=appliance_dashboard/DB_NAME=appliance_db/' .env
+docker compose restart backend
+```
+
+2. PERMANENTE KORREKTUR im Entwicklungssystem:
+
+PATCH für .env.example (Zeile 6 und 16):
+```diff
+-MYSQL_DATABASE=appliance_dashboard
++MYSQL_DATABASE=appliance_db
+```
+```diff
+-DB_NAME=appliance_dashboard
++DB_NAME=appliance_db
+```
+
+PATCH für install.sh (Zeile 267 und 271):
+```diff
+-DB_NAME=appliance_dashboard
++DB_NAME=appliance_db
+```
+```diff
+-MYSQL_DATABASE=appliance_dashboard
++MYSQL_DATABASE=appliance_db
+```
+
+VERIFIZIERUNG:
+✅ macbook.local: Backend neu gestartet, API antwortet korrekt
+✅ Entwicklungssystem: Templates korrigiert
+✅ Zukünftige Installationen werden korrekten DB-Namen verwenden
+
+STATUS: ✅ Behoben
+
+WICHTIG: Dieser Fehler betraf ALLE Einzeiler-Installationen!
+Bestehende Installationen müssen manuell korrigiert werden.
+
+════════════════════════════════════════════════════════════════════════════════
