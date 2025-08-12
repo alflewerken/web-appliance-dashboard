@@ -6,7 +6,7 @@ Das Backend des Web Appliance Dashboard ist eine RESTful API basierend auf Node.
 
 ## 📋 Version
 
-**Aktuelle Version:** 1.1.0
+**Aktuelle Version:** 1.1.2
 
 ## 🛠️ Technologie-Stack
 
