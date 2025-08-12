@@ -9,6 +9,9 @@ set -e
 echo "🚀 Web Appliance Dashboard - Quick Installer"
 echo "==========================================="
 echo ""
+echo "Usage: curl -sSL <url> | bash        # Installs in ./web-appliance-dashboard"
+echo "       curl -sSL <url> | bash -s /path/to/install   # Custom install path"
+echo ""
 
 # Function to check if a port is in use
 check_port() {
@@ -55,11 +58,39 @@ if ! docker compose version &> /dev/null 2>&1 && ! command -v docker-compose &> 
     exit 1
 fi
 
+# Determine installation directory
+# Use current directory if provided via argument or environment, otherwise use current working directory
+if [ -n "$1" ]; then
+    INSTALL_DIR="$1"
+elif [ -n "$INSTALL_PATH" ]; then
+    INSTALL_DIR="$INSTALL_PATH"
+else
+    INSTALL_DIR="$(pwd)/web-appliance-dashboard"
+fi
+
+# Ensure the directory path is absolute
+INSTALL_DIR=$(cd "$(dirname "$INSTALL_DIR")" 2>/dev/null && pwd)/$(basename "$INSTALL_DIR")
+
+echo "📁 Installation directory: $INSTALL_DIR"
+echo ""
+
+# Ask for confirmation if directory exists
+if [ -d "$INSTALL_DIR" ]; then
+    echo "⚠️  Directory already exists: $INSTALL_DIR"
+    read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Installation cancelled."
+        exit 1
+    fi
+fi
+
 # Create installation directory
-INSTALL_DIR="${HOME}/web-appliance-dashboard"
-echo "📁 Installing to: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
-cd "$INSTALL_DIR"
+cd "$INSTALL_DIR" || exit 1
+
+echo "✅ Working in: $(pwd)"
+echo ""
 
 # Create necessary directories
 mkdir -p init-db ssl guacamole scripts

@@ -32848,3 +32848,100 @@ RESULTAT:
 STATUS: ✅ Install-Script mit interaktiver Konfiguration und Download-Fortschritt verbessert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 09:50:00 - Install-Script: Installation im aktuellen Verzeichnis statt Home
+
+PROBLEM:
+Das Install-Script installierte die Anwendung immer in `~/web-appliance-dashboard`, 
+unabhängig davon, von wo aus es aufgerufen wurde. Dies war unflexibel und nicht intuitiv.
+
+LÖSUNG:
+Das Install-Script installiert jetzt standardmäßig im aktuellen Arbeitsverzeichnis:
+- Standard: `$(pwd)/web-appliance-dashboard`
+- Mit Argument: `curl -sSL <url> | bash -s /custom/path`
+- Mit Environment-Variable: `INSTALL_PATH=/custom/path curl -sSL <url> | bash`
+
+GEÄNDERTE DATEIEN:
+
+install.sh:
+PATCH:
+```bash
+-# Create installation directory
+-INSTALL_DIR="${HOME}/web-appliance-dashboard"
+-echo "📁 Installing to: $INSTALL_DIR"
+-mkdir -p "$INSTALL_DIR"
+-cd "$INSTALL_DIR"
++# Determine installation directory
++# Use current directory if provided via argument or environment, otherwise use current working directory
++if [ -n "$1" ]; then
++    INSTALL_DIR="$1"
++elif [ -n "$INSTALL_PATH" ]; then
++    INSTALL_DIR="$INSTALL_PATH"
++else
++    INSTALL_DIR="$(pwd)/web-appliance-dashboard"
++fi
++
++# Ensure the directory path is absolute
++INSTALL_DIR=$(cd "$(dirname "$INSTALL_DIR")" 2>/dev/null && pwd)/$(basename "$INSTALL_DIR")
++
++echo "📁 Installation directory: $INSTALL_DIR"
++echo ""
++
++# Ask for confirmation if directory exists
++if [ -d "$INSTALL_DIR" ]; then
++    echo "⚠️  Directory already exists: $INSTALL_DIR"
++    read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r
++    echo ""
++    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
++        echo "Installation cancelled."
++        exit 1
++    fi
++fi
++
++# Create installation directory
++mkdir -p "$INSTALL_DIR"
++cd "$INSTALL_DIR" || exit 1
++
++echo "✅ Working in: $(pwd)"
++echo ""
+```
+
+Zusätzlich wurde eine Nutzungsanleitung am Anfang hinzugefügt:
+```bash
++echo "Usage: curl -sSL <url> | bash        # Installs in ./web-appliance-dashboard"
++echo "       curl -sSL <url> | bash -s /path/to/install   # Custom install path"
++echo ""
+```
+
+NEUE FEATURES:
+✅ Installation im aktuellen Verzeichnis statt immer in ~/
+✅ Unterstützung für custom Installationspfade via Argument
+✅ Unterstützung für INSTALL_PATH Environment-Variable
+✅ Bestätigung wenn Zielverzeichnis bereits existiert
+✅ Absolute Pfad-Konvertierung für Konsistenz
+✅ Klare Nutzungsanleitung im Script
+
+VERWENDUNGSBEISPIELE:
+```bash
+# Installation im aktuellen Verzeichnis
+cd /opt/applications
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+
+# Installation mit custom Pfad
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash -s /opt/web-dashboard
+
+# Installation mit Environment-Variable
+INSTALL_PATH=/var/apps/dashboard curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+```
+
+RESULTAT:
+- Flexiblere Installation an beliebigen Orten
+- Bessere Integration in bestehende Infrastrukturen
+- Intuitives Verhalten (installiert dort, wo man es erwartet)
+- Keine unerwünschten Installationen im Home-Verzeichnis
+
+STATUS: ✅ Install-Script mit flexibler Verzeichniswahl implementiert
+
+════════════════════════════════════════════════════════════════════════════════
