@@ -36890,3 +36890,39 @@ RESULTAT:
 STATUS: ✅ Bereinigung durchgeführt
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 19:59:00 - Git Commit: Projekt-Bereinigung und Dokumentations-Update
+
+GIT COMMIT: ed92702
+MESSAGE: "chore: Clean up scripts directory and update documentation"
+
+ZUSAMMENFASSUNG:
+Großer Cleanup-Commit mit Bereinigung des scripts/ Verzeichnisses und
+Aktualisierung der gesamten Dokumentation.
+
+GEÄNDERTE DATEIEN:
+- 17 Dateien geändert
+- 672 Zeilen hinzugefügt (+)
+- 529 Zeilen entfernt (-)
+- 7 Scripts gelöscht
+
+GELÖSCHTE SCRIPTS:
+1. scripts/check-sftp-password.sh (SFTP-Config jetzt automatisch)
+2. scripts/fix-macos-vnc.sh (Temporärer Fix, nicht mehr nötig)
+3. scripts/fix-nginx-temp.sh (Temporärer Fix, nicht mehr nötig)
+4. scripts/fix-vnc-connection.sh (Temporärer Fix, nicht mehr nötig)
+5. scripts/make-images-public.sh (Deployment-Script, nicht dokumentiert)
+6. scripts/make-packages-public.sh (Deployment-Script, nicht dokumentiert)
+7. scripts/push-nginx-image.sh (Deployment-Script, nicht dokumentiert)
+
+DOKUMENTATIONS-UPDATES:
+- README.md & README.de.md: Backup-Warnung vor Updates hinzugefügt
+- README.md & README.de.md: "Latest Updates" auf Version 1.1.3 aktualisiert
+- CHANGELOG.md: Version 1.1.3 Einträge
+- VERSION: 1.1.3
+- Alle Package.json Dateien: Version 1.1.3
+
+STATUS: ✅ Committed (noch nicht gepusht)
+
+════════════════════════════════════════════════════════════════════════════════
