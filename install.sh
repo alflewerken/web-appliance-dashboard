@@ -77,7 +77,17 @@ echo ""
 # Ask for confirmation if directory exists
 if [ -d "$INSTALL_DIR" ]; then
     echo "⚠️  Directory already exists: $INSTALL_DIR"
-    read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r
+    
+    # Read confirmation from /dev/tty for piped input
+    if [ -t 0 ]; then
+        read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r
+    elif [ -e /dev/tty ]; then
+        read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r </dev/tty
+    else
+        echo "Cannot prompt for confirmation in non-interactive mode. Exiting."
+        exit 1
+    fi
+    
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Installation cancelled."
@@ -167,41 +177,52 @@ fi
 
 # Ask user for hostname configuration
 echo ""
-echo "🌐 Configure Access URLs"
+echo "🌐 Configure Access Domain"
 echo "========================"
 echo "The dashboard needs to know how it will be accessed."
 echo "This is important for CORS configuration and reverse proxy setups."
 echo ""
-echo "Detected system information:"
+echo "Detected system information (for reference):"
 echo "  Hostname: $SYSTEM_HOSTNAME"
 if [ -n "$PRIMARY_IP" ]; then
     echo "  Primary IP: $PRIMARY_IP"
 fi
 echo ""
-echo "How will you access this dashboard? (separate multiple with commas)"
-echo "Examples:"
-echo "  - Local only: localhost"
-echo "  - LAN access: 192.168.1.100,macbook.local"
-echo "  - With domain: dashboard.example.com"
-echo "  - Behind proxy: app.company.com,192.168.1.100"
+echo "Enter the domain or IP address where this dashboard will be accessed."
+echo "For production behind a reverse proxy, use your actual domain."
 echo ""
-read -p "Enter hostname(s) [default: localhost,$SYSTEM_HOSTNAME,$PRIMARY_IP]: " USER_HOSTNAMES
+echo "Examples:"
+echo "  - Production with domain: dashboard.example.com"
+echo "  - Production with subdomain: appliances.company.internal"
+echo "  - Local development: localhost"
+echo "  - LAN access by IP: 192.168.1.100"
+echo "  - Multiple access points: app.company.com,192.168.1.100"
+echo ""
+
+# When piped through bash, stdin is already used, so we need to read from /dev/tty
+if [ -t 0 ]; then
+    # Interactive mode (script run directly)
+    read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES
+elif [ -e /dev/tty ]; then
+    # Piped mode (curl | bash) - read from terminal
+    read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES </dev/tty
+else
+    # Non-interactive mode
+    echo "⚠️  Non-interactive mode detected. Using default: localhost"
+    USER_HOSTNAMES=""
+fi
 
 # Process user input
 if [ -z "$USER_HOSTNAMES" ]; then
-    # Use defaults
-    HOSTNAMES=("localhost" "$SYSTEM_HOSTNAME")
-    if [ -n "$PRIMARY_IP" ]; then
-        HOSTNAMES+=("$PRIMARY_IP")
-    fi
+    # User pressed Enter - use only localhost
+    HOSTNAMES=("localhost")
 else
     # Parse user input
     IFS=',' read -ra HOSTNAMES <<< "$USER_HOSTNAMES"
-fi
-
-# Always include localhost
-if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
-    HOSTNAMES+=("localhost")
+    # Always include localhost for local access
+    if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
+        HOSTNAMES+=("localhost")
+    fi
 fi
 
 # Remove duplicates and clean up
@@ -220,10 +241,11 @@ for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
 done
 
 echo ""
-echo "✅ Configured access URLs:"
+echo "✅ Configured for access via:"
 for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
-    echo "   - $HOST"
+    echo "   • $HOST"
 done
+echo ""
 
 # Generate passwords
 DB_PASS=$(openssl rand -base64 24 2>/dev/null || echo "dashboard_pass123")
