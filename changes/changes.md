@@ -37305,3 +37305,126 @@ EMPFEHLUNG AN BENUTZER:
 STATUS: ✅ Alle Probleme behoben und verifiziert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 22:54:57 - KRITISCHER FEHLER BEHOBEN: Frontend Bundle hatte falschen API-Pfad
+
+PROBLEM:
+Audit-Log zeigte 404 Fehler, obwohl Backend korrekt funktionierte.
+Frontend-Bundle versuchte `/api/audit-logs` (mit Bindestrich) aufzurufen,
+aber die Backend-Route ist als `/api/auditLogs` (camelCase) registriert.
+
+URSACHE:
+Das Frontend-Bundle in nginx/static/js/ war veraltet und enthielt noch
+den falschen API-Pfad mit Bindestrich statt camelCase.
+
+DEBUGGING:
+1. Backend-API funktioniert korrekt (verifiziert mit curl)
+2. Frontend-Source-Code ist korrekt (/api/auditLogs)
+3. Aber: Bundle im nginx-Verzeichnis war veraltet
+
+LÖSUNG:
+1. Frontend neu gebaut mit ./scripts/build.sh
+2. Neues Bundle von frontend/build nach nginx/static kopiert
+3. Verifiziert dass neues Bundle korrekten Pfad hat (/api/auditLogs)
+
+GEÄNDERTE DATEIEN:
+- nginx/static/js/: Alle Bundle-Dateien aktualisiert
+- Alte Bundles mit falschen Pfaden entfernt
+- Neue Bundles mit korrekten API-Pfaden hinzugefügt
+
+GIT COMMIT: 0a1f8f4
+MESSAGE: "fix: Correct audit log API endpoint in frontend bundle"
+
+VERIFIKATION:
+grep '/api/audit' nginx/static/js/bundle.*.js zeigt jetzt:
+- /api/auditLogs (korrekt)
+- /api/auditRestore (korrekt)
+
+NÄCHSTE SCHRITTE:
+1. Warten auf GitHub Actions Build
+2. Auf macbook.local: docker compose pull webserver
+3. Container neu starten
+4. Browser-Cache leeren und neu testen
+
+STATUS: ✅ Behoben und gepusht
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 22:59:23 - FINALE AKTUALISIERUNG: Audit-Log Problem vollständig behoben
+
+DURCHGEFÜHRTE AKTIONEN:
+1. Neues nginx/webserver Image von GitHub Container Registry gepullt
+2. Webserver-Container mit korrigiertem Frontend-Bundle neu gestartet
+3. Verifiziert: Neues Bundle enthält korrekten API-Pfad /api/auditLogs
+
+VERIFIKATION:
+✅ Bundle im Container hat korrekten Pfad:
+   - /api/auditLogs (KORREKT!)
+   - Nicht mehr /api/audit-logs (alter Fehler)
+✅ Health-Check funktioniert
+✅ Alle Services laufen
+
+TEST-ANLEITUNG FÜR BENUTZER:
+1. Browser komplett schließen
+2. Browser neu öffnen (oder Inkognito-Modus verwenden)
+3. http://macbook.local:9080 aufrufen
+4. Mit admin/admin123 einloggen
+5. Audit-Log öffnen - sollte jetzt funktionieren!
+
+ZUSAMMENFASSUNG DER GESAMTEN FEHLERBEHEBUNG:
+- Problem 1: Logout gab 500 Error → BEHOBEN
+- Problem 2: Frontend hatte falschen API-Pfad → BEHOBEN
+- Problem 3: Docker-Images waren veraltet → AKTUALISIERT
+
+STATUS: ✅✅✅ VOLLSTÄNDIG BEHOBEN
+
+Das Audit-Log sollte jetzt endlich korrekt funktionieren!
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 23:02:58 - WICHTIGE ERKENNTNIS: Warum nginx nicht automatisch neu gebaut wurde
+
+PROBLEM-ANALYSE:
+Die GitHub Actions haben das nginx-Image bei den letzten Commits nicht neu gebaut,
+obwohl das Frontend korrigiert wurde. Das führte dazu, dass das alte Bundle mit
+dem falschen API-Pfad weiterhin verwendet wurde.
+
+URSACHE:
+1. **Trigger-Problem**: build-nginx.yml wird nur ausgelöst bei Änderungen in:
+   - nginx/**
+   - .github/workflows/build-nginx.yml
+   
+2. **Kein Frontend-Build**: Die GitHub Actions bauen das Frontend NICHT automatisch:
+   - Es gibt keinen npm run build Schritt
+   - Die Frontend-Bundles in nginx/ sind statisch committed
+   - Änderungen am Frontend-Source werden nicht automatisch kompiliert
+
+3. **Workflow-Reihenfolge**: docker-publish.yml baut zwar alle Images, aber:
+   - Frontend wird nicht vor nginx gebaut
+   - nginx verwendet nur die committed Dateien im nginx/ Verzeichnis
+   - Kein automatisches Kopieren von frontend/build nach nginx/
+
+KONSEQUENZ:
+- Frontend-Änderungen erfordern MANUELLES:
+  1. Lokal bauen mit npm run build
+  2. Kopieren nach nginx/
+  3. Committen der neuen Bundle-Dateien
+  4. Erst dann wird nginx neu gebaut
+
+LÖSUNG:
+Neue GitHub Action erstellt: docker-publish-improved.yml
+- Baut Frontend automatisch mit npm
+- Kopiert Build-Ergebnis nach nginx/
+- Baut dann erst das nginx-Image
+- Stellt sicher, dass nginx immer das aktuelle Frontend hat
+
+EMPFEHLUNG:
+Die bestehende docker-publish.yml sollte durch die verbesserte Version
+ersetzt werden, um zukünftige Probleme zu vermeiden.
+
+STATUS: ⚠️ Workflow-Problem identifiziert und Lösung vorbereitet
+
+════════════════════════════════════════════════════════════════════════════════
