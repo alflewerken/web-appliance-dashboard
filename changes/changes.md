@@ -32324,3 +32324,304 @@ ohne manuell die CORS-Konfiguration anpassen zu müssen.
 STATUS: ✅ Automatische CORS-Konfiguration im Install-Script implementiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 09:10:00 - Entfernung der veralteten docker-compose.prod.yml
+
+PROBLEM:
+Die Datei `docker-compose.prod.yml` wurde nicht mehr verwendet und war redundant.
+
+HINTERGRUND:
+- Die Datei wurde am 2025-08-11 erstellt, als das Install-Script noch Konfigurationsdateien von GitHub herunterlud
+- Das aktuelle Install-Script erstellt die docker-compose.yml direkt inline mit allen benötigten Einstellungen
+- Es gibt keine Referenzen mehr zu docker-compose.prod.yml im gesamten Projekt
+
+LÖSUNG:
+Entfernung der nicht mehr benötigten docker-compose.prod.yml Datei.
+
+VORTEILE DER AKTUELLEN LÖSUNG (install.sh erstellt docker-compose.yml):
+✅ Dynamische Anpassung an das System (Ports, Hostnamen)
+✅ Keine separaten Dateien für Development/Production nötig
+✅ Alle Services verwenden bereits die offiziellen ghcr.io Images
+✅ Named Volumes statt Bind Mounts sind bereits konfiguriert
+✅ Weniger Verwirrung durch weniger Dateien
+
+GELÖSCHTE DATEI:
+
+docker-compose.prod.yml (333 Zeilen):
+-PATCH (komplette Datei entfernt):
+```yaml
+version: '3.8'
+
+services:
+  # MariaDB Database
+  database:
+    image: mariadb:latest
+    container_name: ${DB_CONTAINER_NAME:-appliance_db}
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: 40s
+
+  # Backend API - Using pre-built image
+  backend:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+    container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
+    restart: always
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      SSH_TOOLS_ENABLED: ${SSH_TOOLS_ENABLED:-true}
+      SSH_AUTO_INIT: ${SSH_AUTO_INIT:-true}
+      GUACAMOLE_URL: ${GUACAMOLE_URL}
+      GUACAMOLE_PROXY_URL: ${GUACAMOLE_PROXY_URL}
+      GUACAMOLE_DB_HOST: ${GUACAMOLE_DB_HOST:-appliance_guacamole_db}
+      GUACAMOLE_DB_NAME: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      GUACAMOLE_DB_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      GUACAMOLE_DB_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+      EXTERNAL_URL: ${EXTERNAL_URL}
+      FEATURE_AUDIT_LOG: ${FEATURE_AUDIT_LOG:-true}
+      FEATURE_BACKUP_RESTORE: ${FEATURE_BACKUP_RESTORE:-true}
+      FEATURE_SSH_TERMINAL: ${FEATURE_SSH_TERMINAL:-true}
+      FEATURE_SERVICE_CONTROL: ${FEATURE_SERVICE_CONTROL:-true}
+      FEATURE_USER_MANAGEMENT: ${FEATURE_USER_MANAGEMENT:-true}
+      FEATURE_REMOTE_DESKTOP: ${FEATURE_REMOTE_DESKTOP:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-combined}
+      DOCKER_HOST_INTERNAL: 'true'
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Using named volumes instead of bind mounts for production
+      - backend_app:/app
+      - ssh_keys:/root/.ssh
+      - uploads:/app/uploads
+      - terminal_sessions:/tmp/terminal-sessions
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:3001/api/health && which ssh && which ssh-copy-id && which sshpass"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: 40s
+
+  # Nginx Web Server - Using pre-built image with frontend included
+  webserver:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
+    container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
+    restart: always
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # SSL certificates (if provided)
+      - ./ssl:/etc/nginx/ssl:ro
+      # Using named volumes for production
+      - frontend_build:/usr/share/nginx/html
+      - nginx_conf:/etc/nginx/conf.d
+    depends_on:
+      - backend
+      - ttyd
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+
+  # ttyd Web Terminal - Using pre-built image
+  ttyd:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+    container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
+    restart: always
+    command: >
+      ttyd
+      --writable
+      --port 7681
+      --base-path /
+      --terminal-type xterm-256color
+      /scripts/ttyd-ssh-wrapper.sh
+    environment:
+      SSH_PORT: ${TTYD_DEFAULT_PORT:-22}
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    volumes:
+      - ssh_keys:/root/.ssh
+      - ttyd_scripts:/scripts
+      - terminal_sessions:/tmp/terminal-sessions
+    healthcheck:
+      test: ["CMD", "sh", "-c", "pidof ttyd || exit 1"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+
+  # Guacamole Proxy Daemon
+  guacd:
+    image: guacamole/guacd:1.5.5
+    container_name: ${GUACD_CONTAINER_NAME:-appliance_guacd}
+    restart: always
+    volumes:
+      - guacamole_drive:/drive:rw
+      - guacamole_record:/record:rw
+    environment:
+      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-warning}
+      GUACD_MAX_THREADS: 8
+      GUACD_BIND_HOST: 0.0.0.0
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+  # Guacamole Web Application - Using pre-built image
+  guacamole:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
+    container_name: ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole}
+    restart: always
+    environment:
+      GUACD_HOSTNAME: guacd
+      GUACD_PORT: 4822
+      POSTGRESQL_HOSTNAME: ${GUACAMOLE_DB_HOST:-appliance_guacamole_db}
+      POSTGRESQL_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      POSTGRESQL_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRESQL_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+      RECORDING_SEARCH_PATH: /record
+    volumes:
+      - guacamole_home:/config
+      - guacamole_record:/record
+    depends_on:
+      - guacd
+      - guacamole-postgres
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/guacamole/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Guacamole PostgreSQL Database
+  guacamole-postgres:
+    image: postgres:15-alpine
+    container_name: ${GUACAMOLE_DB_HOST:-appliance_guacamole_db}
+    restart: always
+    environment:
+      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+      POSTGRES_DB: ${GUACAMOLE_DB_NAME:-guacamole_db}
+    volumes:
+      - guacamole_db:/var/lib/postgresql/data
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GUACAMOLE_DB_USER:-guacamole_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RustDesk ID/Rendezvous Server
+  rustdesk-server:
+    image: rustdesk/rustdesk-server:latest
+    container_name: ${RUSTDESK_CONTAINER:-rustdesk-server}
+    command: hbbs
+    restart: always
+    ports:
+      - "${RUSTDESK_TCP_PORT:-21115}:21115"
+      - "${RUSTDESK_UDP_PORT:-21116}:21116/udp"
+      - "${RUSTDESK_ID_PORT:-21116}:21116/udp"
+      - "${RUSTDESK_WEB_PORT:-21118}:21118"
+      - "${RUSTDESK_API_PORT:-21119}:21119"
+    volumes:
+      - rustdesk_data:/root
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+  # RustDesk Relay Server
+  rustdesk-relay:
+    image: rustdesk/rustdesk-server:latest
+    container_name: ${RUSTDESK_RELAY_CONTAINER:-rustdesk-relay}
+    command: hbbr
+    restart: always
+    ports:
+      - "${RUSTDESK_RELAY_PORT:-21117}:21117"
+      - "${RUSTDESK_WEBSOCKET_PORT:-21120}:21120"
+    volumes:
+      - rustdesk_data:/root
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+# ====================================================================
+# VOLUMES - All named volumes for production
+# ====================================================================
+volumes:
+  # Main application data
+  db_data:
+    driver: local
+  ssh_keys:
+    driver: local
+  uploads:
+    driver: local
+  terminal_sessions:
+    driver: local
+
+  # Backend and frontend volumes
+  backend_app:
+    driver: local
+  frontend_build:
+    driver: local
+  nginx_conf:
+    driver: local
+  ttyd_scripts:
+    driver: local
+
+  # Guacamole volumes
+  guacamole_db:
+    driver: local
+  guacamole_drive:
+    driver: local
+  guacamole_record:
+    driver: local
+  guacamole_home:
+    driver: local
+
+  # RustDesk volumes
+  rustdesk_data:
+    driver: local
+
+# ====================================================================
+# NETWORKS
+# ====================================================================
+networks:
+  appliance_network:
+    name: ${NETWORK_NAME:-appliance_network}
+    driver: bridge
+```
+
+STATUS: ✅ Veraltete docker-compose.prod.yml entfernt - Projekt aufgeräumt
+
+════════════════════════════════════════════════════════════════════════════════

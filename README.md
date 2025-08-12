@@ -32,8 +32,8 @@ That's it! The installer will:
 - ✅ Set up the database
 
 After installation, access your dashboard at:
-- 🌐 **http://localhost**
-- 🔒 **https://localhost** (self-signed certificate)
+- 🌐 **http://localhost:9080**
+- 🔒 **https://localhost:9443** (self-signed certificate)
 
 ## 🗑️ Complete Uninstall
 
@@ -179,8 +179,6 @@ This command:
 - ✅ Creates and starts all Docker containers
 - ✅ Sets up the database schema
 - ✅ Configures all services
-
-⚠️ **Note**: During first run, you'll be prompted for an encryption key for remote passwords. You can press Enter to generate one automatically or provide your own.
 
 ### 3. Open dashboard
 ```
