@@ -2,7 +2,6 @@
 export * from './iconMap';
 export * from './constants';
 export * from './applianceUtils';
-export * from './themeUtils';
 
 // Spezifische Named Exports für bessere IDE-Unterstützung
 export { iconMap, getAvailableIcons } from './iconMap';
@@ -19,4 +18,3 @@ export {
   getAllCategories,
   getCategoryCount,
 } from './applianceUtils';
-export { applyTheme, getSystemThemePreference } from './themeUtils';

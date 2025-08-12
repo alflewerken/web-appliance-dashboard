@@ -1,504 +1,283 @@
 const express = require('express');
 const router = express.Router();
+const { verifyToken, requireAdmin } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 const pool = require('../utils/database');
-const { broadcast } = require('./sse');
-const { createAuditLog } = require('../utils/auth');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
+const { logger } = require('../utils/logger');
+const bcrypt = require('bcryptjs');
+const sseManager = require('../utils/sseManager');
+const { getClientIp } = require('../utils/getClientIp');
 
-// Restore category from audit log (for deleted categories)
-router.post('/category/:auditLogId', async (req, res) => {
+/**
+ * Restore a deleted host from audit log
+ */
+router.post('/host/:auditLogId', verifyToken, async (req, res) => {
   try {
-    const { auditLogId } = req.params;
-
     // Get the audit log entry
-    const [auditLogs] = await pool.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = ? AND resource_type = ?',
-      [auditLogId, 'category_deleted', 'categories']
-    );
-
-    if (auditLogs.length === 0) {
-      return res
-        .status(404)
-        .json({
-          error: 'Audit log entry not found or not a category deletion',
-        });
-    }
-
-    const auditLog = auditLogs[0];
-    const details =
-      typeof auditLog.details === 'string'
-        ? JSON.parse(auditLog.details)
-        : auditLog.details;
-
-    if (!details.category) {
-      return res
-        .status(400)
-        .json({ error: 'No category data found in audit log' });
-    }
-
-    const categoryData = details.category;
-
-    // Check if category with same name already exists
-    const [existingCategory] = await pool.execute(
-      'SELECT id FROM categories WHERE name = ?',
-      [categoryData.name]
-    );
-
-    if (existingCategory.length > 0) {
-      return res
-        .status(400)
-        .json({ error: 'Category with this name already exists' });
-    }
-
-    // Get the maximum order value for new category
-    const [maxOrderRows] = await pool.execute(
-      'SELECT MAX(`order`) as maxOrder FROM categories'
-    );
-    const nextOrder = (maxOrderRows[0].maxOrder || 0) + 1;
-
-    // Restore the category
-    const [result] = await pool.execute(
-      'INSERT INTO categories (name, icon, color, description, is_system, `order`) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        categoryData.name,
-        categoryData.icon || 'Folder',
-        categoryData.color || '#007AFF',
-        categoryData.description || null,
-        categoryData.is_system || false,
-        nextOrder,
-      ]
-    );
-
-    const newCategoryId = result.insertId;
-
-    // Create audit log for the restoration
-    const ipAddress = req.clientIp;
-    await createAuditLog(
-      req.user?.id || null,
-      'category_restored',
-      'categories',
-      newCategoryId,
-      {
-        audit_log_id: auditLogId,
-        original_category_id: categoryData.id,
-        restored_data: categoryData,
-        restored_by: req.user?.username || 'unknown',
-        restoration_timestamp: new Date().toISOString(),
+    const auditLog = await db.select('audit_logs', 
+      { 
+        id: req.params.auditLogId,
+        action: 'host_deleted'
       },
-      ipAddress
+      { limit: 1 }
     );
 
-    const restoredCategory = {
-      id: newCategoryId,
-      ...categoryData,
-      order: nextOrder,
+    if (auditLog.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Audit log entry not found or is not a host deletion'
+      });
+    }
+
+    const logEntry = auditLog[0];
+    const details = JSON.parse(logEntry.details);
+
+    // Check if user has permission to restore
+    if (logEntry.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to restore this host'
+      });
+    }
+
+    // Extract host data from audit log
+    const hostData = {
+      name: details.name,
+      description: details.description,
+      hostname: details.hostname,
+      port: details.port,
+      username: details.username,
+      password: details.password, // Already encrypted
+      private_key: details.private_key,
+      sshKeyName: details.sshKeyName,
+      icon: details.icon,
+      color: details.color,
+      transparency: details.transparency,
+      blur: details.blur,
+      remote_desktop_enabled: details.remote_desktop_enabled,
+      remote_desktop_type: details.remote_desktop_type,
+      remote_protocol: details.remote_protocol,
+      remote_port: details.remote_port,
+      remote_username: details.remote_username,
+      remote_password: details.remote_password, // Already encrypted
+      guacamolePerformanceMode: details.guacamolePerformanceMode,
+      rustdeskId: details.rustdeskId,
+      rustdeskPassword: details.rustdeskPassword, // Already encrypted
+      created_by: req.user.id,
+      updated_by: req.user.id
     };
 
-    res.json({
-      success: true,
-      message: 'Category restored successfully',
-      category: restoredCategory,
+    // Insert the host back into the database
+    const result = await db.insert('hosts', {
+      name: hostData.name,
+      description: hostData.description,
+      hostname: hostData.hostname,
+      port: hostData.port,
+      username: hostData.username,
+      password: hostData.password,
+      privateKey: hostData.private_key,
+      sshKeyName: hostData.sshKeyName,
+      icon: hostData.icon,
+      color: hostData.color,
+      transparency: hostData.transparency,
+      blur: hostData.blur,
+      remoteDesktopEnabled: hostData.remote_desktop_enabled ? 1 : 0,
+      remoteDesktopType: hostData.remote_desktop_type,
+      remoteProtocol: hostData.remote_protocol,
+      remotePort: hostData.remote_port,
+      remoteUsername: hostData.remote_username,
+      remotePassword: hostData.remote_password,
+      guacamolePerformanceMode: hostData.guacamolePerformanceMode,
+      rustdeskId: hostData.rustdeskId,
+      rustdeskPassword: hostData.rustdeskPassword,
+      createdBy: hostData.created_by,
+      updatedBy: hostData.updated_by
     });
 
-    // Broadcast category creation
-    broadcast('category_created', restoredCategory);
-
-    // Also send a specific restore event
-    broadcast('category_restored', {
-      category: restoredCategory,
-      audit_log_id: auditLogId,
-      restoredBy: req.user?.username || 'unknown',
-      timestamp: new Date().toISOString(),
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'category_restored',
-      resource_type: 'categories',
-      resource_id: newCategoryId,
-    });
-  } catch (error) {
-    console.error('Error restoring category:', error);
-    res.status(500).json({ error: 'Failed to restore category' });
-  }
-});
-
-// Restore category from audit log (for updates - revert to original)
-router.post('/category/:auditLogId/revert', async (req, res) => {
-  try {
-    const { auditLogId } = req.params;
-
-    // Get the audit log entry
-    const [auditLogs] = await pool.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = ? AND resource_type = ?',
-      [auditLogId, 'category_updated', 'categories']
-    );
-
-    if (auditLogs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log entry not found or not a category update' });
-    }
-
-    const auditLog = auditLogs[0];
-    const details =
-      typeof auditLog.details === 'string'
-        ? JSON.parse(auditLog.details)
-        : auditLog.details;
-
-    if (!details.original_data) {
-      return res
-        .status(400)
-        .json({ error: 'No original data found in audit log' });
-    }
-
-    const originalData = details.original_data;
-    const categoryId = auditLog.resource_id;
-
-    // Check if category still exists
-    const [currentCategory] = await pool.execute(
-      'SELECT * FROM categories WHERE id = ?',
-      [categoryId]
-    );
-
-    if (currentCategory.length === 0) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-
-    // Update the category with original values
-    await pool.execute(
-      'UPDATE categories SET name = ?, icon = ?, color = ?, description = ? WHERE id = ?',
-      [
-        originalData.name,
-        originalData.icon || 'Folder',
-        originalData.color || '#007AFF',
-        originalData.description || null,
-        categoryId,
-      ]
-    );
-
-    // Create audit log for the restoration
-    const ipAddress = req.clientIp;
+    // Create audit log for restoration
     await createAuditLog(
-      req.user?.id || null,
-      'category_reverted',
-      'categories',
-      categoryId,
+      req.user.id,
+      'host_restored',
+      'host',
+      result.insertId,
       {
-        audit_log_id: auditLogId,
-        reverted_to: originalData,
-        reverted_from: currentCategory[0],
-        reverted_by: req.user?.username || 'unknown',
-        restoration_timestamp: new Date().toISOString(),
+        name: hostData.name,
+        original_audit_log_id: req.params.auditLogId,
+        restored_from_deletion_by: details.deleted_by,
+        restored_by: req.user.username
       },
-      ipAddress
+      getClientIp(req),
+      hostData.name
     );
+
+    // Create Guacamole connection if remote desktop is enabled
+    if (hostData.remote_desktop_enabled) {
+      const guacamoleService = require('../services/guacamoleService');
+      guacamoleService.updateHostConnection(result.insertId).catch(err => {
+        logger.error('Failed to create Guacamole connection during restore:', err);
+      });
+    }
+
+    // Send SSE event
+    sseManager.broadcast({
+      type: 'host_restored',
+      data: {
+        id: result.insertId,
+        name: hostData.name
+      }
+    });
+
+    logger.info(`Host restored: ${hostData.name} by user ${req.user.username}`);
 
     res.json({
       success: true,
-      message: 'Category reverted to original successfully',
-      category: {
-        id: categoryId,
-        ...originalData,
-      },
+      message: 'Host successfully restored',
+      hostId: result.insertId
     });
 
-    // Broadcast category update
-    broadcast('category_updated', {
-      id: categoryId,
-      ...originalData,
-    });
-
-    // Also send a specific revert event
-    broadcast('category_reverted', {
-      category: {
-        id: categoryId,
-        ...originalData,
-      },
-      audit_log_id: auditLogId,
-      revertedBy: req.user?.username || 'unknown',
-      timestamp: new Date().toISOString(),
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'category_reverted',
-      resource_type: 'categories',
-      resource_id: categoryId,
-    });
   } catch (error) {
-    console.error('Error reverting category:', error);
-    res.status(500).json({ error: 'Failed to revert category' });
+    logger.error('Error restoring host:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restore host'
+    });
   }
 });
 
-// Restore appliance from audit log (for updates) - DEPRECATED: Use /api/audit-restore/revert/appliances/:logId instead
-router.post('/appliance/:auditLogId', async (req, res) =>
-  // Redirect to the new unified endpoint
-  res.status(301).json({
-    error: 'This endpoint has been moved',
-    newEndpoint: `/api/audit-restore/revert/appliances/${req.params.auditLogId}`,
-    message: 'Please use the new endpoint for appliance restoration',
-  })
-);
-
-// Restore deleted appliance from audit log - DEPRECATED: Use /api/audit-restore/restore/appliances/:logId instead
-router.post('/appliance-deleted/:auditLogId', async (req, res) =>
-  // Redirect to the new unified endpoint
-  res.status(301).json({
-    error: 'This endpoint has been moved',
-    newEndpoint: `/api/audit-restore/restore/appliances/${req.params.auditLogId}`,
-    message: 'Please use the new endpoint for deleted appliance restoration',
-  })
-);
-
-// Restore user from audit log (for deleted users)
-router.post('/user/:auditLogId', async (req, res) => {
+/**
+ * Revert host changes from audit log
+ */
+router.post('/host/:hostId/revert/:auditLogId', verifyToken, async (req, res) => {
   try {
-    const { auditLogId } = req.params;
+    const { hostId, auditLogId } = req.params;
 
     // Get the audit log entry
-    const [auditLogs] = await pool.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = ? AND resource_type = ?',
-      [auditLogId, 'user_deleted', 'users']
+    const auditLog = await db.select('audit_logs', 
+      { 
+        id: auditLogId,
+        action: 'host_updated',
+        resourceId: hostId
+      },
+      { limit: 1 }
     );
 
-    if (auditLogs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log entry not found or not a user deletion' });
+    if (auditLog.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Audit log entry not found or does not match the host'
+      });
     }
 
-    const auditLog = auditLogs[0];
-    const details =
-      typeof auditLog.details === 'string'
-        ? JSON.parse(auditLog.details)
-        : auditLog.details;
+    const logEntry = auditLog[0];
+    const details = JSON.parse(logEntry.details);
 
-    if (!details.user) {
-      return res.status(400).json({ error: 'No user data found in audit log' });
-    }
-
-    const userData = details.user;
-
-    // Check if user with same username or email already exists
-    const [existingUser] = await pool.execute(
-      'SELECT id FROM users WHERE username = ? OR email = ?',
-      [userData.username, userData.email]
+    // Check if user has permission
+    const currentHost = await db.select('hosts', 
+      { 
+        id: hostId,
+        createdBy: req.user.id
+      },
+      { limit: 1 }
     );
 
-    if (existingUser.length > 0) {
-      return res
-        .status(400)
-        .json({ error: 'User with this username or email already exists' });
+    if (currentHost.length === 0 && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to revert this host'
+      });
     }
 
-    // Restore the user - password hash is preserved from original
-    const [result] = await pool.execute(
-      'INSERT INTO users (username, email, password_hash, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        userData.username,
-        userData.email,
-        userData.password_hash,
-        userData.role || 'user',
-        userData.is_active !== undefined ? userData.is_active : 1,
-        userData.created_at || new Date().toISOString(),
-      ]
-    );
+    // Build update query from old values
+    const updates = [];
+    const values = [];
+    
+    if (details.oldValues) {
+      const fieldMapping = {
+        name: 'name',
+        description: 'description',
+        hostname: 'hostname',
+        port: 'port',
+        username: 'username',
+        privateKey: 'private_key',
+        sshKeyName: 'sshKeyName',
+        icon: 'icon',
+        color: 'color',
+        transparency: 'transparency',
+        blur: 'blur',
+        remoteDesktopEnabled: 'remote_desktop_enabled',
+        remoteDesktopType: 'remote_desktop_type',
+        remoteProtocol: 'remote_protocol',
+        remotePort: 'remote_port',
+        remoteUsername: 'remote_username'
+      };
 
-    const newUserId = result.insertId;
-
-    // Restore user permissions if they existed
-    if (details.permissions && details.permissions.length > 0) {
-      for (const permission of details.permissions) {
-        try {
-          await pool.execute(
-            'INSERT INTO user_appliance_permissions (user_id, appliance_id, can_read, can_execute) VALUES (?, ?, ?, ?)',
-            [
-              newUserId,
-              permission.appliance_id,
-              permission.can_read || 1,
-              permission.can_execute || 0,
-            ]
-          );
-        } catch (err) {
-          console.error('Error restoring user permission:', err);
+      for (const [jsField, dbField] of Object.entries(fieldMapping)) {
+        if (details.oldValues.hasOwnProperty(jsField)) {
+          updates.push(`${dbField} = ?`);
+          values.push(details.oldValues[jsField]);
         }
       }
     }
 
-    // Create audit log for the restoration
-    const ipAddress = req.clientIp;
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No fields to revert'
+      });
+    }
+
+    // Add updated_by
+    updates.push('updated_by = ?');
+    values.push(req.user.id);
+
+    // Add id for WHERE clause
+    values.push(hostId);
+
+    // Execute update
+    await pool.execute(`
+      UPDATE hosts
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `, values);
+
+    // Create audit log for reversion
     await createAuditLog(
-      req.user?.id || null,
-      'user_restored',
-      'users',
-      newUserId,
+      req.user.id,
+      'host_reverted',
+      'host',
+      hostId,
       {
-        audit_log_id: auditLogId,
-        original_user_id: userData.id,
-        restored_data: userData,
-        restored_permissions: details.permissions || [],
-        restored_by: req.user?.username || 'unknown',
-        restoration_timestamp: new Date().toISOString(),
+        name: details.name,
+        reverted_audit_log_id: auditLogId,
+        reverted_changes: details.changes,
+        restored_values: details.oldValues,
+        reverted_by: req.user.username
       },
-      ipAddress
+      getClientIp(req),
+      details.name
     );
 
-    // Get the restored user data
-    const [restoredUser] = await pool.execute(
-      'SELECT id, username, email, role, is_active, created_at, last_login FROM users WHERE id = ?',
-      [newUserId]
-    );
+    // Send SSE event
+    sseManager.broadcast({
+      type: 'host_updated',
+      data: { id: hostId }
+    });
+
+    logger.info(`Host changes reverted: ${details.name} by user ${req.user.username}`);
 
     res.json({
       success: true,
-      message: 'User restored successfully',
-      user: restoredUser[0],
+      message: 'Host changes successfully reverted'
     });
 
-    // Broadcast user creation
-    broadcast('user_created', restoredUser[0]);
-
-    // Also send a specific restore event
-    broadcast('user_restored', {
-      user: restoredUser[0],
-      audit_log_id: auditLogId,
-      restoredBy: req.user?.username || 'unknown',
-      timestamp: new Date().toISOString(),
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'user_restored',
-      resource_type: 'users',
-      resource_id: newUserId,
-    });
   } catch (error) {
-    console.error('Error restoring user:', error);
-    res.status(500).json({ error: 'Failed to restore user' });
-  }
-});
-
-// Restore user from audit log (for updates - revert to original)
-router.post('/user/:auditLogId/revert', async (req, res) => {
-  try {
-    const { auditLogId } = req.params;
-
-    // Get the audit log entry
-    const [auditLogs] = await pool.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = ? AND resource_type = ?',
-      [auditLogId, 'user_updated', 'users']
-    );
-
-    if (auditLogs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log entry not found or not a user update' });
-    }
-
-    const auditLog = auditLogs[0];
-    const details =
-      typeof auditLog.details === 'string'
-        ? JSON.parse(auditLog.details)
-        : auditLog.details;
-
-    if (!details.original_data) {
-      return res
-        .status(400)
-        .json({ error: 'No original data found in audit log' });
-    }
-
-    const originalData = details.original_data;
-    const userId = auditLog.resource_id;
-
-    // Check if user still exists
-    const [currentUser] = await pool.execute(
-      'SELECT * FROM users WHERE id = ?',
-      [userId]
-    );
-
-    if (currentUser.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Build update query dynamically based on available original data
-    const updates = [];
-    const values = [];
-
-    if (originalData.username !== undefined) {
-      updates.push('username = ?');
-      values.push(originalData.username);
-    }
-    if (originalData.email !== undefined) {
-      updates.push('email = ?');
-      values.push(originalData.email);
-    }
-    if (originalData.role !== undefined) {
-      updates.push('role = ?');
-      values.push(originalData.role);
-    }
-    if (originalData.is_active !== undefined) {
-      updates.push('is_active = ?');
-      values.push(originalData.is_active);
-    }
-
-    if (updates.length > 0) {
-      values.push(userId);
-      await pool.execute(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-        values
-      );
-    }
-
-    // Create audit log for the restoration
-    const ipAddress = req.clientIp;
-    await createAuditLog(
-      req.user?.id || null,
-      'user_reverted',
-      'users',
-      userId,
-      {
-        audit_log_id: auditLogId,
-        reverted_to: originalData,
-        reverted_from: currentUser[0],
-        reverted_by: req.user?.username || 'unknown',
-        restoration_timestamp: new Date().toISOString(),
-      },
-      ipAddress
-    );
-
-    // Get the updated user data
-    const [revertedUser] = await pool.execute(
-      'SELECT id, username, email, role, is_active, created_at, last_login FROM users WHERE id = ?',
-      [userId]
-    );
-
-    res.json({
-      success: true,
-      message: 'User reverted to original successfully',
-      user: revertedUser[0],
+    logger.error('Error reverting host changes:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to revert host changes'
     });
-
-    // Broadcast user update
-    broadcast('user_updated', revertedUser[0]);
-
-    // Also send a specific revert event
-    broadcast('user_reverted', {
-      user: revertedUser[0],
-      audit_log_id: auditLogId,
-      revertedBy: req.user?.username || 'unknown',
-      timestamp: new Date().toISOString(),
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'user_reverted',
-      resource_type: 'users',
-      resource_id: userId,
-    });
-  } catch (error) {
-    console.error('Error reverting user:', error);
-    res.status(500).json({ error: 'Failed to revert user' });
   }
 });
 

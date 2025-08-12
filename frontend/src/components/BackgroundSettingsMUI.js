@@ -156,7 +156,7 @@ const BackgroundSettingsMUI = ({
 
       <Divider sx={{ mb: 3 }} />
       {/* Current Background Preview */}
-      {currentBackground && backgroundSettings.enabled ? (
+      {currentBackground ? (
         <Card
           sx={{
             mb: 3,
@@ -203,7 +203,7 @@ const BackgroundSettingsMUI = ({
               }}
             >
               <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white !important' }}>
-                Aktives Hintergrundbild
+                Aktives Hintergrundbild {!backgroundSettings.enabled && '(Deaktiviert)'}
               </Typography>
               <Typography variant="body1" sx={{ opacity: 0.9, mb: 0.5, color: 'white !important' }}>
                 {currentBackground.filename}

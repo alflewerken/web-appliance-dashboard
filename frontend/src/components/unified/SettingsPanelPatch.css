@@ -9,12 +9,12 @@
   }
   
   /* Ensure SwipeableViews container handles scrolling properly */
-  .react-swipeable-view-container {
+  .swipeable-tabs-container {
     height: 100% !important;
   }
   
   /* Each slide should be scrollable */
-  .react-swipeable-view-container > div {
+  .swipeable-tabs-container > div {
     height: 100% !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;

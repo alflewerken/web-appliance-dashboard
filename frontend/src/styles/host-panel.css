@@ -1,0 +1,123 @@
+/* Host Panel Specific Styles */
+
+/* Ensure host panel has proper transparency - matching settings panel */
+.host-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.theme-light .host-panel {
+  background: rgba(242, 242, 247, 0.72) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Panel positioning */
+.host-panel-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  z-index: 100;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Layout adjustments when host panel is open */
+.music-app.has-host-panel .main-content {
+  margin-right: var(--host-panel-width, 600px);
+}
+
+/* Positioning with other panels */
+.music-app.has-host-panel .host-panel-container {
+  transform: translateX(0);
+  right: 0;
+}
+
+.music-app.has-host-panel.has-service-panel:not(.has-user-panel):not(.has-settings-panel):not(.has-audit-log-panel) .host-panel-container {
+  right: var(--service-panel-width, 600px);
+}
+
+.music-app.has-host-panel.has-user-panel:not(.has-service-panel):not(.has-settings-panel):not(.has-audit-log-panel) .host-panel-container {
+  right: var(--user-panel-width, 600px);
+}
+
+.music-app.has-host-panel.has-settings-panel:not(.has-service-panel):not(.has-user-panel):not(.has-audit-log-panel) .host-panel-container {
+  right: var(--settings-panel-width, 600px);
+}
+
+.music-app.has-host-panel.has-audit-log-panel:not(.has-service-panel):not(.has-user-panel):not(.has-settings-panel) .host-panel-container {
+  right: var(--audit-log-panel-width, 800px);
+}
+
+/* Multiple panels open */
+.music-app.has-host-panel.has-service-panel.has-user-panel .host-panel-container {
+  right: calc(var(--service-panel-width, 600px) + var(--user-panel-width, 600px));
+}
+
+.music-app.has-host-panel.has-service-panel.has-settings-panel .host-panel-container {
+  right: calc(var(--service-panel-width, 600px) + var(--settings-panel-width, 600px));
+}
+
+.music-app.has-host-panel.has-service-panel.has-audit-log-panel .host-panel-container {
+  right: calc(var(--service-panel-width, 600px) + var(--audit-log-panel-width, 800px));
+}
+
+/* Add host panel to transparent mode - matching settings panel exactly */
+body.transparent-panels .host-panel {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+body.theme-light.transparent-panels .host-panel {
+  background: rgba(242, 242, 247, 0.72) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+body:not(.transparent-panels) .host-panel {
+  background: rgb(28, 28, 30) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.theme-light:not(.transparent-panels) .host-panel {
+  background: rgb(255, 255, 255) !important;
+}
+
+/* Ensure resize handle works correctly */
+.host-panel .resize-handle {
+  background: transparent;
+  transition: background 0.2s;
+}
+
+.host-panel .resize-handle:hover {
+  background: rgba(0, 122, 255, 0.5);
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .host-panel-container {
+    width: 100vw !important;
+    right: 0 !important;
+  }
+  
+  .host-panel {
+    width: 100vw !important;
+  }
+  
+  .host-panel .resize-handle {
+    display: none;
+  }
+}

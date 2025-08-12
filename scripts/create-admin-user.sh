@@ -3,7 +3,10 @@
 # Create Admin User Script for Web Appliance Dashboard
 # This script creates a default admin user if none exists
 
-echo "🔐 Checking for admin user..."
+# Read version from VERSION file
+VERSION=$(cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "unknown")
+
+echo "🔐 Web Appliance Dashboard v$VERSION - Checking for admin user..."
 
 # Color codes
 GREEN='\033[0;32m'

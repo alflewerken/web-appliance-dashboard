@@ -27,7 +27,6 @@ import {
   GitBranch,
 } from 'lucide-react';
 import axios from '../../utils/axiosConfig';
-import SSHAuditDetail from './SSHAuditDetail';
 
 const AuditLogTable = ({
   filteredLogs,
@@ -39,6 +38,8 @@ const AuditLogTable = ({
   toggleRowExpansion,
   onRefresh,
   isCompactView = false,
+  onSSHHostRestore,
+  onSSHHostRevert,
 }) => {
   // State für die Ansichtsumschaltung pro Zeile
   const [viewModes, setViewModes] = useState({});
@@ -122,18 +123,21 @@ const AuditLogTable = ({
       // Determine endpoint based on resource type and action
       if (log.action.includes('delete')) {
         // For deletions, use the appropriate restore endpoint based on resource type
-        switch (log.resource_type) {
+        switch (log.resourceType) {
           case 'appliances':
-            endpoint = `/api/audit-restore/restore/appliances/${log.id}`;
+            endpoint = `/api/auditRestore/restore/appliances/${log.id}`;
             break;
           case 'users':
-            endpoint = `/api/audit-restore/restore/users/${log.id}`;
+            endpoint = `/api/auditRestore/restore/users/${log.id}`;
             break;
           case 'categories':
-            endpoint = `/api/audit-restore/restore/category/${log.id}`;
+            endpoint = `/api/auditRestore/restore/category/${log.id}`;
             break;
           case 'ssh_host':
-            endpoint = `/api/audit-restore/restore/ssh_hosts/${log.id}`;
+            endpoint = `/api/auditRestore/restore/ssh_hosts/${log.id}`;
+            break;
+          case 'hosts':
+            endpoint = `/api/auditRestore/restore/hosts/${log.id}`;
             break;
           default:
             throw new Error(
@@ -145,18 +149,21 @@ const AuditLogTable = ({
         log.action.includes('reverted')
       ) {
         // For updates/reverts, use the appropriate revert endpoint based on resource type
-        switch (log.resource_type) {
+        switch (log.resourceType) {
           case 'appliances':
-            endpoint = `/api/audit-restore/revert/appliances/${log.id}`;
+            endpoint = `/api/auditRestore/revert/appliances/${log.id}`;
             break;
           case 'users':
-            endpoint = `/api/audit-restore/revert/users/${log.id}`;
+            endpoint = `/api/auditRestore/revert/users/${log.id}`;
             break;
           case 'categories':
-            endpoint = `/api/audit-restore/revert/category/${log.id}`;
+            endpoint = `/api/auditRestore/revert/category/${log.id}`;
             break;
           case 'ssh_host':
-            endpoint = `/api/audit-restore/revert/ssh_hosts/${log.id}`;
+            endpoint = `/api/auditRestore/revert/ssh_hosts/${log.id}`;
+            break;
+          case 'hosts':
+            endpoint = `/api/auditRestore/revert/hosts/${log.id}`;
             break;
           default:
             throw new Error(
@@ -376,7 +383,8 @@ const AuditLogTable = ({
         key === 'backup_created_at' ||
         key.endsWith('_at')
       ) {
-        return new Date(value).toLocaleString('de-DE', {
+        const date = new Date(value);
+        return date.toLocaleString('de-DE', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -1366,12 +1374,12 @@ const AuditLogTable = ({
           {filteredLogs.map(log => {
             // Parse details if needed
             let resourceName = '';
-            if (log.details) {
+            if (log.metadata) {
               try {
                 const details =
-                  typeof log.details === 'string'
-                    ? JSON.parse(log.details)
-                    : log.details;
+                  typeof log.metadata === 'string'
+                    ? JSON.parse(log.metadata)
+                    : log.metadata;
                 resourceName =
                   details.name ||
                   details.command_description ||
@@ -1460,7 +1468,7 @@ const AuditLogTable = ({
                       }}
                     >
                       <Clock size={12} />
-                      {formatTimestamp(log.created_at)}
+                      {formatTimestamp(log.createdAt)}
                     </span>
                     <span
                       style={{
@@ -1487,7 +1495,7 @@ const AuditLogTable = ({
                   )}
                 </button>
 
-                {isExpanded && log.details && (
+                {isExpanded && log.metadata && (
                   <div
                     style={{
                       marginTop: '-8px',
@@ -1647,19 +1655,19 @@ const AuditLogTable = ({
                           }}
                         >
                           {JSON.stringify(
-                            typeof log.details === 'string'
-                              ? JSON.parse(log.details)
-                              : log.details,
+                            typeof log.metadata === 'string'
+                              ? JSON.parse(log.metadata)
+                              : log.metadata,
                             null,
                             2
                           )}
                         </pre>
                       ) : (
                         <FormattedDetails
-                          details={log.details}
+                          details={log.metadata}
                           action={log.action}
                           logId={log.id}
-                          resourceId={log.resource_id}
+                          resourceId={log.resourceId}
                         />
                       )}
                     </div>
@@ -1693,14 +1701,16 @@ const AuditLogTable = ({
             {filteredLogs.map(log => {
               // Parse details if needed
               let resourceName = '';
-              if (log.details) {
+              if (log.metadata) {
                 try {
                   const details =
-                    typeof log.details === 'string'
-                      ? JSON.parse(log.details)
-                      : log.details;
+                    typeof log.metadata === 'string'
+                      ? JSON.parse(log.metadata)
+                      : log.metadata;
                   // Erweiterte Suche nach Namen - prüfe verschiedene mögliche Felder
                   resourceName =
+                    details.displayName ||
+                    details.hostIdentifier ||
                     details.name ||
                     details.command_description ||
                     details.service_name ||
@@ -1713,31 +1723,60 @@ const AuditLogTable = ({
               }
 
               // Determine resource display
-              let resourceDisplay = resourceName;
+              let resourceDisplay = log.resourceName || resourceName;
 
-              // If we don't have a name from details, check for specific fields in details
-              if (!resourceDisplay && log.details) {
+              // If we don't have a name from metadata, check for specific fields in metadata
+              if (!resourceDisplay && log.metadata) {
                 try {
                   const details =
-                    typeof log.details === 'string'
-                      ? JSON.parse(log.details)
-                      : log.details;
+                    typeof log.metadata === 'string'
+                      ? JSON.parse(log.metadata)
+                      : log.metadata;
 
-                  // For deleted appliances, check the appliance object
-                  if (details.appliance && details.appliance.name) {
-                    resourceDisplay = details.appliance.name;
+                  // For appliances/services
+                  if (log.resourceType === 'appliances' || log.resourceType === 'appliance') {
+                    // Check for service object (used in create operations)
+                    if (details.service && details.service.name) {
+                      resourceDisplay = details.service.name;
+                    }
+                    // For deleted appliances, check the appliance object
+                    else if (details.appliance && details.appliance.name) {
+                      resourceDisplay = details.appliance.name;
+                    }
+                    // Check for old_data/new_data (used in update operations)
+                    else if (details.old_data && details.old_data.name) {
+                      resourceDisplay = details.old_data.name;
+                    }
+                    else if (details.new_data && details.new_data.name) {
+                      resourceDisplay = details.new_data.name;
+                    }
+                    // Check for direct appliance_name field (used in access logs)
+                    else if (details.appliance_name) {
+                      resourceDisplay = details.appliance_name;
+                    }
+                    // For updates, check the name field directly
+                    else if (details.name) {
+                      resourceDisplay = details.name;
+                    }
                   }
-                  // For updates, check the name field directly
-                  else if (details.name) {
-                    resourceDisplay = details.name;
-                  }
-                  // For changes object with new value
-                  else if (
-                    details.changes &&
-                    details.changes.name &&
-                    details.changes.name.new
-                  ) {
-                    resourceDisplay = details.changes.name.new;
+                  // For other resource types, keep existing logic
+                  else {
+                    // For deleted items, check the nested object
+                    if (details.appliance && details.appliance.name) {
+                      resourceDisplay = details.appliance.name;
+                    }
+                    // For updates, check the name field directly
+                    else if (details.name) {
+                      resourceDisplay = details.name;
+                    }
+                    // For changes object with new value
+                    else if (
+                      details.changes &&
+                      details.changes.name &&
+                      details.changes.name.new
+                    ) {
+                      resourceDisplay = details.changes.name.new;
+                    }
                   }
                 } catch (e) {
                   console.error('Error extracting resource name:', e);
@@ -1746,10 +1785,10 @@ const AuditLogTable = ({
 
               // Only fall back to generic display if we still don't have a name
               if (!resourceDisplay) {
-                if (log.resource_type && log.resource_id) {
-                  resourceDisplay = `${log.resource_type} #${log.resource_id}`;
-                } else if (log.resource_type) {
-                  resourceDisplay = log.resource_type;
+                if (log.resourceType && log.resourceId) {
+                  resourceDisplay = `${log.resourceType} #${log.resourceId}`;
+                } else if (log.resourceType) {
+                  resourceDisplay = log.resourceType;
                 } else {
                   resourceDisplay = '-';
                 }
@@ -1761,7 +1800,7 @@ const AuditLogTable = ({
                     <td style={tdStyle}>
                       <div style={iconTextStyle}>
                         <Calendar size={14} />
-                        <span>{formatTimestamp(log.created_at)}</span>
+                        <span>{formatTimestamp(log.createdAt)}</span>
                       </div>
                     </td>
                     <td style={tdStyle}>
@@ -1787,12 +1826,12 @@ const AuditLogTable = ({
                           fontSize: '13px',
                         }}
                       >
-                        {log.ip_address || '-'}
+                        {log.ipAddress || '-'}
                       </td>
                     )}
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        {log.details && (
+                        {log.metadata && (
                           <button
                             className="expand-btn"
                             onClick={() => toggleRowExpansion(log.id)}
@@ -1820,7 +1859,7 @@ const AuditLogTable = ({
                       </div>
                     </td>
                   </tr>
-                  {expandedRows.has(log.id) && log.details && (
+                  {expandedRows.has(log.id) && log.metadata && (
                     <tr className="details-row">
                       <td
                         colSpan="6"
@@ -1978,26 +2017,19 @@ const AuditLogTable = ({
                                   }}
                                 >
                                   {JSON.stringify(
-                                    typeof log.details === 'string'
-                                      ? JSON.parse(log.details)
-                                      : log.details,
+                                    typeof log.metadata === 'string'
+                                      ? JSON.parse(log.metadata)
+                                      : log.metadata,
                                     null,
                                     2
                                   )}
                                 </pre>
-                              ) : (() => {
-                                  return log.resource_type === 'ssh_host';
-                                })() ? (
-                                <SSHAuditDetail
-                                  logEntry={log}
-                                  onClose={() => toggleRowExpansion(log.id)}
-                                />
                               ) : (
                                 <FormattedDetails
-                                  details={log.details}
+                                  details={log.metadata}
                                   action={log.action}
                                   logId={log.id}
-                                  resourceId={log.resource_id}
+                                  resourceId={log.resourceId}
                                 />
                               )}
                             </div>

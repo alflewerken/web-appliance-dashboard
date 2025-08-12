@@ -1,476 +1,386 @@
-// Service Control API routes
+// Services compatibility routes - Using QueryBuilder
 const express = require('express');
 const router = express.Router();
+const statusChecker = require('../utils/statusChecker');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { executeSSHCommand } = require('../utils/ssh');
-const { broadcast } = require('./sse');
-const { createAuditLog } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 
-// Service Control: Start Service
-router.post('/:id/start', async (req, res) => {
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
+
+// GET /api/services - Get all services with their current status
+router.get('/', async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Get appliance details including start command
-    const [rows] = await pool.execute(
-      'SELECT id, name, start_command FROM appliances WHERE id = ?',
-      [id]
+    // Get all appliances with their service status
+    const appliances = await db.select(
+      'appliances',
+      {},
+      { orderBy: 'name' }
     );
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
+    // Map to services format with proper field names
+    const services = appliances.map(appliance => ({
+      id: appliance.id,
+      name: appliance.name,
+      url: appliance.url,
+      icon: appliance.icon,
+      color: appliance.color,
+      category: appliance.category,
+      description: appliance.description,
+      statusCommand: appliance.statusCommand,
+      startCommand: appliance.startCommand,
+      stopCommand: appliance.stopCommand,
+      serviceStatus: appliance.serviceStatus || 'unknown',
+      lastStatusCheck: appliance.lastStatusCheck,
+      autoStart: appliance.autoStart,
+      sshConnection: appliance.sshConnection
+    }));
 
-    const appliance = rows[0];
-
-    if (!appliance.start_command) {
-      return res
-        .status(400)
-        .json({ error: 'No start command configured for this service' });
-    }
-
-    console.log(
-      `🚀 Starting service "${appliance.name}" with command: ${appliance.start_command}`
-    );
-
-    try {
-      // Execute the start command (supports SSH)
-      const { stdout, stderr } = await executeSSHCommand(
-        appliance.start_command,
-        30000
-      );
-
-      // Update service status in database
-      await pool.execute(
-        'UPDATE appliances SET service_status = ?, last_status_check = NOW() WHERE id = ?',
-        ['running', id]
-      );
-
-      // Broadcast SSE event
-      broadcast('service_status_changed', {
-        id: parseInt(id),
-        name: appliance.name,
-        status: 'running',
-        previousStatus: 'stopped',
-        timestamp: new Date().toISOString(),
-      });
-
-      console.log(`✅ Service "${appliance.name}" started successfully`);
-
-      // Create audit log
-      const ipAddress = req.clientIp;
-      await createAuditLog(
-        req.user?.id || null,
-        'service_start',
-        'appliance',
-        parseInt(id),
-        {
-          name: appliance.name,
-          command: appliance.start_command,
-          stdout: stdout, // Vollständige Ausgabe speichern
-          stderr: stderr, // Vollständige Fehlerausgabe speichern
-          success: true,
-        },
-        ipAddress
-      );
-
-      // Broadcast service started event
-      broadcast('service_started', {
-        id: parseInt(id),
-        name: appliance.name,
-        startedBy: req.user?.username || 'unknown',
-        timestamp: new Date().toISOString(),
-      });
-
-      res.json({
-        message: `Service "${appliance.name}" started successfully`,
-        command: appliance.start_command,
-        output: stdout,
-        error_output: stderr || null,
-        status: 'running',
-      });
-    } catch (execError) {
-      console.error(
-        `❌ Failed to start service "${appliance.name}":`,
-        execError.message
-      );
-
-      // Update service status to error
-      await pool.execute(
-        'UPDATE appliances SET service_status = ?, last_status_check = NOW() WHERE id = ?',
-        ['error', id]
-      );
-
-      // Broadcast SSE event
-      broadcast('service_status_changed', {
-        id: parseInt(id),
-        name: appliance.name,
-        status: 'error',
-        previousStatus: 'stopped',
-        timestamp: new Date().toISOString(),
-      });
-
-      // Create audit log for failure
-      const ipAddress = req.clientIp;
-      await createAuditLog(
-        req.user?.id || null,
-        'service_start_failed',
-        'appliance',
-        parseInt(id),
-        {
-          name: appliance.name,
-          command: appliance.start_command,
-          error: execError.message,
-          stdout: execError.stdout, // Vollständige Ausgabe
-          stderr: execError.stderr, // Vollständige Fehlerausgabe
-          success: false,
-        },
-        ipAddress
-      );
-
-      // Broadcast audit log update
-      broadcast('audit_log_created', {
-        action: 'service_start_failed',
-        resource_type: 'appliance',
-        resource_id: parseInt(id),
-      });
-
-      res.status(500).json({
-        error: `Failed to start service "${appliance.name}"`,
-        command: appliance.start_command,
-        details: execError.message,
-        output: execError.stdout || null,
-        error_output: execError.stderr || null,
-        status: 'error',
-      });
-    }
+    res.json({
+      success: true,
+      services,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
-    console.error('Error in start service endpoint:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching services:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch services',
+      details: error.message 
+    });
   }
 });
 
-// Service Control: Stop Service
-router.post('/:id/stop', async (req, res) => {
+// POST /api/services/check-all - Trigger status check for all services
+// Support both /checkAll (new) and /check-all (legacy) for backwards compatibility
+router.post('/checkAll', checkAllHandler);
+router.post('/check-all', checkAllHandler); // Legacy route for old frontend versions
+
+async function checkAllHandler(req, res) {
   try {
-    const { id } = req.params;
-
-    // Get appliance details including stop command
-    const [rows] = await pool.execute(
-      'SELECT id, name, stop_command FROM appliances WHERE id = ?',
-      [id]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
-
-    const appliance = rows[0];
-
-    if (!appliance.stop_command) {
-      return res
-        .status(400)
-        .json({ error: 'No stop command configured for this service' });
-    }
-
-    console.log(
-      `🛑 Stopping service "${appliance.name}" with command: ${appliance.stop_command}`
-    );
-
-    try {
-      // Execute the stop command (supports SSH)
-      const { stdout, stderr } = await executeSSHCommand(
-        appliance.stop_command,
-        30000
-      );
-
-      // Update service status in database
-      await pool.execute(
-        'UPDATE appliances SET service_status = ?, last_status_check = NOW() WHERE id = ?',
-        ['stopped', id]
-      );
-
-      // Broadcast SSE event
-      broadcast('service_status_changed', {
-        id: parseInt(id),
-        name: appliance.name,
-        status: 'stopped',
-        previousStatus: 'running',
-        timestamp: new Date().toISOString(),
-      });
-
-      console.log(`✅ Service "${appliance.name}" stopped successfully`);
-
-      // Create audit log
-      const ipAddress = req.clientIp;
-      await createAuditLog(
-        req.user?.id || null,
-        'service_stop',
-        'appliance',
-        parseInt(id),
-        {
-          name: appliance.name,
-          command: appliance.stop_command,
-          stdout: stdout, // Vollständige Ausgabe
-          stderr: stderr, // Vollständige Fehlerausgabe
-          success: true,
-        },
-        ipAddress
-      );
-
-      // Broadcast service stopped event
-      broadcast('service_stopped', {
-        id: parseInt(id),
-        name: appliance.name,
-        stoppedBy: req.user?.username || 'unknown',
-        timestamp: new Date().toISOString(),
-      });
-
-      res.json({
-        message: `Service "${appliance.name}" stopped successfully`,
-        command: appliance.stop_command,
-        output: stdout,
-        error_output: stderr || null,
-        status: 'stopped',
-      });
-    } catch (execError) {
-      console.error(
-        `❌ Failed to stop service "${appliance.name}":`,
-        execError.message
-      );
-
-      // Update service status to error
-      await pool.execute(
-        'UPDATE appliances SET service_status = ?, last_status_check = NOW() WHERE id = ?',
-        ['error', id]
-      );
-
-      // Broadcast SSE event
-      broadcast('service_status_changed', {
-        id: parseInt(id),
-        name: appliance.name,
-        status: 'error',
-        previousStatus: 'running',
-        timestamp: new Date().toISOString(),
-      });
-
-      // Create audit log for failure
-      const ipAddress = req.clientIp;
-      await createAuditLog(
-        req.user?.id || null,
-        'service_stop_failed',
-        'appliance',
-        parseInt(id),
-        {
-          name: appliance.name,
-          command: appliance.stop_command,
-          error: execError.message,
-          stdout: execError.stdout, // Vollständige Ausgabe
-          stderr: execError.stderr, // Vollständige Fehlerausgabe
-          success: false,
-        },
-        ipAddress
-      );
-
-      // Broadcast audit log update
-      broadcast('audit_log_created', {
-        action: 'service_stop_failed',
-        resource_type: 'appliance',
-        resource_id: parseInt(id),
-      });
-
-      res.status(500).json({
-        error: `Failed to stop service "${appliance.name}"`,
-        command: appliance.stop_command,
-        details: execError.message,
-        output: execError.stdout || null,
-        error_output: execError.stderr || null,
-        status: 'error',
-      });
-    }
+    console.log('🔄 Service check requested');
+    
+    // Clear host cache to force fresh checks
+    statusChecker.clearHostCache();
+    
+    // Run the check
+    await statusChecker.forceCheck();
+    
+    res.json({
+      message: 'Status check initiated',
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
-    console.error('Error in stop service endpoint:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error in service check:', error);
+    res.status(500).json({ error: 'Failed to check services' });
   }
-});
+}
 
-// Service Control: Check Service Status
+// GET /api/services/:id/status - Get status for a specific service
 router.get('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Get appliance details including status command
-    const [rows] = await pool.execute(
-      'SELECT id, name, status_command, service_status FROM appliances WHERE id = ?',
-      [id]
-    );
-
-    if (rows.length === 0) {
+    
+    const appliance = await db.findOne('appliances', { id });
+    
+    if (!appliance) {
       return res.status(404).json({ error: 'Service not found' });
     }
-
-    const appliance = rows[0];
-
-    if (!appliance.status_command) {
-      return res.json({
-        message: 'No status command configured',
-        status: appliance.service_status || 'unknown',
-        last_check: null,
-      });
-    }
-
-    console.log(
-      `🔍 Checking status for service "${appliance.name}" with command: ${appliance.status_command}`
-    );
-
-    try {
-      // Execute the status command (supports SSH)
-      const { stdout, stderr } = await executeSSHCommand(
-        appliance.status_command,
-        15000
-      );
-
-      // Simple status determination based on exit code (successful = running)
-      const status = 'running';
-
-      // Update service status in database
-      await pool.execute(
-        'UPDATE appliances SET service_status = ?, last_status_check = NOW() WHERE id = ?',
-        [status, id]
-      );
-
-      // Broadcast SSE event if status changed
-      if (appliance.service_status !== status) {
-        broadcast('service_status_changed', {
-          id: parseInt(id),
-          name: appliance.name,
-          status,
-          previousStatus: appliance.service_status,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      res.json({
-        message: `Status check completed for "${appliance.name}"`,
-        command: appliance.status_command,
-        output: stdout,
-        error_output: stderr || null,
-        status,
-        last_check: new Date().toISOString(),
-      });
-    } catch (execError) {
-      // Command failed, likely means service is stopped or error
-      const status = 'stopped';
-
-      await pool.execute(
-        'UPDATE appliances SET service_status = ?, last_status_check = NOW() WHERE id = ?',
-        [status, id]
-      );
-
-      // Broadcast SSE event if status changed
-      if (appliance.service_status !== status) {
-        broadcast('service_status_changed', {
-          id: parseInt(id),
-          name: appliance.name,
-          status,
-          previousStatus: appliance.service_status,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      res.json({
-        message: `Status check completed for "${appliance.name}"`,
-        command: appliance.status_command,
-        output: execError.stdout || null,
-        error_output: execError.stderr || null,
-        status,
-        last_check: new Date().toISOString(),
-      });
-    }
+    
+    res.json({
+      success: true,
+      status: appliance.serviceStatus || 'unknown',
+      lastChecked: appliance.lastStatusCheck
+    });
   } catch (error) {
-    console.error('Error in status check endpoint:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching service status:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch service status',
+      details: error.message 
+    });
   }
 });
 
-// Log service access
-router.post('/:id/access', async (req, res) => {
+// POST /api/services/:id/start - Start a service
+router.post('/:id/start', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id || null;
-    const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown';
-
-    // Get appliance details
-    const [rows] = await pool.execute(
-      'SELECT id, name FROM appliances WHERE id = ?',
-      [id]
-    );
-
-    if (rows.length === 0) {
+    
+    // Get appliance with SSH connection info
+    const appliance = await db.findOneWithJoin({
+      from: 'appliances',
+      select: ['appliances.*', 'hosts.hostname', 'hosts.username', 'hosts.port', 'hosts.ssh_key_name'],
+      joins: [{
+        table: 'hosts',
+        on: 'appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname, ":", hosts.port) OR appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname)',
+        type: 'LEFT'
+      }],
+      where: { 'appliances.id': id }
+    });
+    
+    if (!appliance) {
       return res.status(404).json({ error: 'Service not found' });
     }
-
-    const appliance = rows[0];
-
-    // Update last accessed time
-    await pool.execute(
-      'UPDATE appliances SET lastUsed = NOW() WHERE id = ?',
-      [id]
-    );
-
+    
+    if (!appliance.startCommand) {
+      return res.status(400).json({ error: 'No start command configured' });
+    }
+    
+    console.log(`🚀 Starting service: ${appliance.name}`);
+    
+    let commandToExecute = appliance.startCommand;
+    
+    // If we have SSH connection info, build the proper SSH command
+    if (appliance.sshConnection) {
+      let username = 'root', host, port = 22, sshKeyName = 'dashboard';
+      
+      if (appliance.hosts_hostname) {
+        // Use host info from JOIN
+        host = appliance.hosts_hostname;
+        username = appliance.hosts_username;
+        port = appliance.hosts_port || 22;
+        sshKeyName = appliance.hosts_sshKeyName || 'dashboard';
+      } else {
+        // Parse SSH connection string
+        const sshParts = appliance.sshConnection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
+        if (sshParts) {
+          username = sshParts[1] || 'root';
+          host = sshParts[2];
+          port = parseInt(sshParts[3] || '22');
+        }
+      }
+      
+      if (host) {
+        // Extract base command (remove any ssh prefix if present)
+        let baseCommand = appliance.startCommand;
+        const sshRegex = /^ssh\s+.*?\s+['"]?(.+?)['"]?$/;
+        const match = baseCommand.match(sshRegex);
+        if (match) {
+          baseCommand = match[1];
+        }
+        
+        // Build SSH command
+        const keyPath = `-i ~/.ssh/id_rsa_${sshKeyName}`;
+        commandToExecute = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
+        
+        console.log(`📡 Using SSH connection: ${username}@${host}:${port}`);
+      }
+    }
+    
+    // Execute the start command
+    const result = await executeSSHCommand(commandToExecute);
+    
+    // Update service status
+    await db.update('appliances', {
+      serviceStatus: 'running',
+      lastStatusCheck: new Date()
+    }, { id });
+    
     // Create audit log entry
+    const userId = req.user ? req.user.id : null;
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    
     await createAuditLog(
       userId,
-      'service_accessed',
-      'appliance',
-      id,
+      'service_started',
+      'appliances',
+      appliance.id,
       {
-        service_name: appliance.name,
-        access_time: new Date().toISOString()
+        appliance_name: appliance.name,
+        command: appliance.startCommand,
+        ssh_connection: appliance.sshConnection,
+        output: result.stdout ? result.stdout.substring(0, 500) : 'Command executed successfully'
       },
-      ipAddress
+      ipAddress,
+      appliance.name
     );
-
-    // Broadcast SSE event for real-time updates
-    broadcast('service_accessed', {
-      id: parseInt(id),
-      name: appliance.name,
-      userId,
-      timestamp: new Date().toISOString()
-    });
-
+    
+    console.log(`✅ Service "${appliance.name}" started and logged to audit`);
+    
+    // Trigger immediate status check after a short delay
+    setTimeout(() => {
+      statusChecker.forceCheck();
+    }, 2000);
+    
     res.json({
       success: true,
-      message: `Access logged for service "${appliance.name}"`
+      message: 'Start command executed',
+      output: result.stdout || result
     });
-
+    
   } catch (error) {
-    console.error('Error logging service access:', error);
-    res.status(500).json({ error: 'Failed to log service access' });
+    console.error('Error starting service:', error);
+    
+    // Log failed start attempt
+    try {
+      const userId = req.user ? req.user.id : null;
+      const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+      
+      // Get service name for logging
+      const appliance = await db.findOne('appliances', { id: req.params.id });
+      
+      await createAuditLog(
+        userId,
+        'service_start_failed',
+        'appliances',
+        req.params.id,
+        {
+          appliance_name: appliance ? appliance.name : 'Unknown',
+          error: error.message,
+          command: appliance ? appliance.startCommand : 'N/A'
+        },
+        ipAddress,
+        appliance ? appliance.name : null
+      );
+    } catch (logError) {
+      console.error('Failed to create audit log for failed start:', logError);
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to start service',
+      details: error.message 
+    });
   }
 });
 
-// Check all services status
-router.post('/check-all', async (req, res) => {
+// POST /api/services/:id/stop - Stop a service
+router.post('/:id/stop', async (req, res) => {
   try {
-    console.log('📊 Triggering status check for all services...');
+    const { id } = req.params;
     
-    // Import status checker
-    const statusChecker = require('../utils/statusChecker');
-    
-    // Trigger async status check (don't wait for completion)
-    statusChecker.checkAllServices().catch(error => {
-      console.error('Error in background status check:', error);
+    // Get appliance with SSH connection info
+    const appliance = await db.findOneWithJoin({
+      from: 'appliances',
+      select: ['appliances.*', 'hosts.hostname', 'hosts.username', 'hosts.port', 'hosts.ssh_key_name'],
+      joins: [{
+        table: 'hosts',
+        on: 'appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname, ":", hosts.port) OR appliances.ssh_connection = CONCAT(hosts.username, "@", hosts.hostname)',
+        type: 'LEFT'
+      }],
+      where: { 'appliances.id': id }
     });
+    
+    if (!appliance) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    if (!appliance.stopCommand) {
+      return res.status(400).json({ error: 'No stop command configured' });
+    }
+    
+    console.log(`🛑 Stopping service: ${appliance.name}`);
+    
+    let commandToExecute = appliance.stopCommand;
+    
+    // If we have SSH connection info, build the proper SSH command
+    if (appliance.sshConnection) {
+      let username = 'root', host, port = 22, sshKeyName = 'dashboard';
+      
+      if (appliance.hosts_hostname) {
+        // Use host info from JOIN
+        host = appliance.hosts_hostname;
+        username = appliance.hosts_username;
+        port = appliance.hosts_port || 22;
+        sshKeyName = appliance.hosts_sshKeyName || 'dashboard';
+      } else {
+        // Parse SSH connection string
+        const sshParts = appliance.sshConnection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
+        if (sshParts) {
+          username = sshParts[1] || 'root';
+          host = sshParts[2];
+          port = parseInt(sshParts[3] || '22');
+        }
+      }
+      
+      if (host) {
+        // Extract base command (remove any ssh prefix if present)
+        let baseCommand = appliance.stopCommand;
+        const sshRegex = /^ssh\s+.*?\s+['"]?(.+?)['"]?$/;
+        const match = baseCommand.match(sshRegex);
+        if (match) {
+          baseCommand = match[1];
+        }
+        
+        // Build SSH command
+        const keyPath = `-i ~/.ssh/id_rsa_${sshKeyName}`;
+        commandToExecute = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
+        
+        console.log(`📡 Using SSH connection: ${username}@${host}:${port}`);
+      }
+    }
+    
+    // Execute the stop command
+    const result = await executeSSHCommand(commandToExecute);
+    
+    // Update service status
+    await db.update('appliances', {
+      serviceStatus: 'stopped',
+      lastStatusCheck: new Date()
+    }, { id });
+    
+    // Create audit log entry
+    const userId = req.user ? req.user.id : null;
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    
+    await createAuditLog(
+      userId,
+      'service_stopped',
+      'appliances',
+      appliance.id,
+      {
+        appliance_name: appliance.name,
+        command: appliance.stopCommand,
+        ssh_connection: appliance.sshConnection,
+        output: result.stdout ? result.stdout.substring(0, 500) : 'Command executed successfully'
+      },
+      ipAddress,
+      appliance.name
+    );
+    
+    console.log(`✅ Service "${appliance.name}" stopped and logged to audit`);
+    
+    // Trigger immediate status check after a short delay
+    setTimeout(() => {
+      statusChecker.forceCheck();
+    }, 2000);
     
     res.json({
       success: true,
-      message: 'Status check initiated for all services'
+      message: 'Stop command executed',
+      output: result.stdout || result
     });
+    
   } catch (error) {
-    console.error('Error initiating status check:', error);
+    console.error('Error stopping service:', error);
+    
+    // Log failed stop attempt
+    try {
+      const userId = req.user ? req.user.id : null;
+      const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+      
+      // Get service name for logging
+      const appliance = await db.findOne('appliances', { id: req.params.id });
+      
+      await createAuditLog(
+        userId,
+        'service_stop_failed',
+        'appliances',
+        req.params.id,
+        {
+          appliance_name: appliance ? appliance.name : 'Unknown',
+          error: error.message,
+          command: appliance ? appliance.stopCommand : 'N/A'
+        },
+        ipAddress,
+        appliance ? appliance.name : null
+      );
+    } catch (logError) {
+      console.error('Failed to create audit log for failed stop:', logError);
+    }
+    
     res.status(500).json({ 
-      error: 'Failed to initiate status check',
+      error: 'Failed to stop service',
       details: error.message 
     });
   }

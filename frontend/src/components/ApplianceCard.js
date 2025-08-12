@@ -1,13 +1,22 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
+import { IconButton, Tooltip } from '@mui/material';
 import { MoreVertical, Star, Play, XCircle, Terminal } from 'lucide-react';
-import axios from 'axios';
 import SimpleIcon from './SimpleIcon';
 import RemoteDesktopButton from './RemoteDesktopButton';
+import FileTransferButton from './FileTransferButton';
+import TerminalButton from './TerminalButton';
 import ConfirmDialog from './ConfirmDialog';
+import proxyService from '../services/proxyService';
 
 import { iconMap } from '../utils/iconMap';
 import './ApplianceCard.css';
+import './ApplianceCard.mobile.css';
+import './MobileButtonFix.css';
+import './UnifiedButtonLayout.css';
+import './ButtonLayoutOverrides.css';
+import './ServiceControls.css';
+import './ServiceControlsFix.css';
 
 const ApplianceCard = ({
   appliance,
@@ -21,6 +30,18 @@ const ApplianceCard = ({
   adminMode,
   cardSize,
 }) => {
+  // Stelle sicher, dass vncEnabled/rdpEnabled korrekt gesetzt sind
+  const enhancedAppliance = {
+    ...appliance,
+    vncEnabled: appliance.vncEnabled ?? (appliance.remoteDesktopEnabled && appliance.remoteProtocol === 'vnc'),
+    rdpEnabled: appliance.rdpEnabled ?? (appliance.remoteDesktopEnabled && appliance.remoteProtocol === 'rdp'),
+    rustdeskEnabled: appliance.rustdeskEnabled ?? (appliance.remoteDesktopEnabled && appliance.remoteDesktopType === 'rustdesk'),
+    // Ensure remoteDesktopType is included for RemoteDesktopButton
+    remoteDesktopType: appliance.remoteDesktopType,
+    rustdeskInstalled: appliance.rustdeskInstalled,
+    rustdeskId: appliance.rustdeskId
+  };
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [doubleTapTimer, setDoubleTapTimer] = useState(null);
@@ -161,25 +182,40 @@ const ApplianceCard = ({
   };
 
   const openService = async e => {
+    
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
 
-    const { url } = appliance;
+    // Prüfe ob es eine externe URL ist
+    const isExternalUrl = (url) => {
+      if (!url) return false;
+      return url.startsWith('http://') || url.startsWith('https://');
+    };
 
-    // Update last accessed time and create audit log
-    try {
-      await axios.post(`/api/services/${appliance.id}/access`);
-      // Trigger a refresh of the appliance data if onOpen callback is provided
-      if (onOpen) {
-        onOpen(appliance);
-      }
-    } catch (error) {
-      console.error('Failed to log service access:', error);
-      // Continue opening the service even if logging fails
+    let targetUrl;
+    
+    if (isExternalUrl(appliance.url)) {
+      // Externe URL - direkt öffnen ohne Proxy
+      targetUrl = appliance.url;
+
+    } else {
+      // Interne URL oder Service - verwende Proxy
+      // convertToProxyUrl fügt bereits den Token hinzu, wenn es eine interne URL ist
+      targetUrl = proxyService.convertToProxyUrl(appliance);
+
     }
 
+    // The onOpen callback from useAppliances will handle updating lastUsed and creating audit log
+    if (onOpen) {
+
+      // Let the parent handle the opening
+      onOpen(appliance);
+      return; // Don't open URL here, let parent handle it
+    }
+
+    // Only open URL if no onOpen callback is provided
     // Determine the correct open mode based on device type
     let openMode = 'browser_tab'; // default
 
@@ -196,15 +232,15 @@ const ApplianceCard = ({
 
     switch (openMode) {
       case 'browser_window':
-        window.open(url, '_blank', 'noopener,noreferrer');
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
         break;
       case 'safari_pwa':
         // PWA mode - add minimal UI
-        window.open(url, '_blank', 'noopener,noreferrer,minimal-ui');
+        window.open(targetUrl, '_blank', 'noopener,noreferrer,minimal-ui');
         break;
       case 'browser_tab':
       default:
-        window.open(url, '_blank');
+        window.open(targetUrl, '_blank');
         break;
     }
   };
@@ -230,7 +266,7 @@ const ApplianceCard = ({
     // Prevent if clicking on interactive elements
     if (
       e.target.closest(
-        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom'
+        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn'
       )
     ) {
       return;
@@ -265,6 +301,7 @@ const ApplianceCard = ({
   };
 
   const handleCardClick = e => {
+
     // If we're saving, ignore all clicks
     if (isSavingSettings) {
       e.preventDefault();
@@ -274,6 +311,7 @@ const ApplianceCard = ({
 
     // If touch was already handled, ignore click
     if (touchHandled) {
+
       setTouchHandled(false);
       return;
     }
@@ -281,7 +319,7 @@ const ApplianceCard = ({
     // Prevent click if clicking on interactive elements
     if (
       e.target.closest(
-        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom'
+        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn, .remote-desktop-button, .remote-desktop-button-wrapper'
       )
     ) {
       return;
@@ -330,6 +368,7 @@ const ApplianceCard = ({
   );
 
   const handleServiceAction = async action => {
+
     if (!appliance.sshConnection || isProcessing) return;
 
     // Zeige den Confirm Dialog
@@ -345,6 +384,7 @@ const ApplianceCard = ({
 
   const handleConfirmServiceAction = async () => {
     const action = confirmDialog.action;
+
     setConfirmDialog({ ...confirmDialog, isOpen: false });
     
     setIsProcessing(true);
@@ -437,6 +477,7 @@ const ApplianceCard = ({
       <div
         className={`appliance-card-container ${isMobile ? 'mobile-card' : 'desktop-card'}`}
         ref={cardContainerRef}
+        style={{ '--card-size': `${cardSize}px` }}
       >
         <div className="appliance-card">
           {/* Front Side */}
@@ -467,101 +508,142 @@ const ApplianceCard = ({
                 <SimpleIcon name={iconName} size="100%" />
               </div>
 
-              {/* Top Button Row - Always visible */}
-              {(isTouchDevice ? hasBeenTouched : true) && (
-                <div className="card-buttons-top">
-                  {adminMode ? (
+              {/* Left Button Column - Service Controls */}
+              {(isTouchDevice ? hasBeenTouched : true) && adminMode && (
+                <div className="card-buttons-left">
+                  <Tooltip title="Service bearbeiten">
+                    <IconButton
+                      onClick={handleEditClick}
+                      size="small"
+                      sx={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        },
+                        width: 28,
+                        height: 28,
+                        padding: 0,
+                      }}
+                    >
+                      <MoreVertical size={16} />
+                    </IconButton>
+                  </Tooltip>
+                  {appliance.sshConnection && (
                     <>
-                      <button
-                        className="action-btn edit-btn"
-                        onClick={handleEditClick}
-                        title="Service bearbeiten"
-                      >
-                        <MoreVertical size={16} />
-                      </button>
-                      <button
-                        className={`action-btn favorite-btn ${appliance.isFavorite ? 'active' : ''}`}
-                        onClick={handleFavoriteClick}
-                        title={
-                          appliance.isFavorite
-                            ? 'Von Favoriten entfernen'
-                            : 'Zu Favoriten hinzufügen'
-                        }
-                      >
-                        <Star
-                          size={16}
-                          fill={appliance.isFavorite ? 'currentColor' : 'none'}
-                        />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className={`action-btn favorite-btn ${appliance.isFavorite ? 'active' : ''}`}
-                        onClick={handleFavoriteClick}
-                        title={
-                          appliance.isFavorite
-                            ? 'Von Favoriten entfernen'
-                            : 'Zu Favoriten hinzufügen'
-                        }
-                      >
-                        <Star
-                          size={16}
-                          fill={appliance.isFavorite ? 'currentColor' : 'none'}
-                        />
-                      </button>
-                      <div className="button-spacer"></div>
+                      <Tooltip title="Service starten">
+                        <IconButton
+                          onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleServiceAction('start');
+                          }}
+                          disabled={isProcessing || !appliance.startCommand}
+                          size="small"
+                          sx={{
+                            backgroundColor: 'rgba(76, 175, 80, 0.3)',
+                            border: '1px solid rgba(76, 175, 80, 0.5)',
+                            color: 'white',
+                            '&:hover': {
+                              backgroundColor: 'rgba(76, 175, 80, 0.5)',
+                            },
+                            '&:disabled': {
+                              opacity: 0.5,
+                            },
+                            width: 28,
+                            height: 28,
+                            padding: 0,
+                          }}
+                        >
+                          <Play size={16} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Service stoppen">
+                        <IconButton
+                          onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleServiceAction('stop');
+                          }}
+                          disabled={isProcessing || !appliance.stopCommand}
+                          size="small"
+                          sx={{
+                            backgroundColor: 'rgba(244, 67, 54, 0.3)',
+                            border: '1px solid rgba(244, 67, 54, 0.5)',
+                            color: 'white',
+                            '&:hover': {
+                              backgroundColor: 'rgba(244, 67, 54, 0.5)',
+                            },
+                            '&:disabled': {
+                              opacity: 0.5,
+                            },
+                            width: 28,
+                            height: 28,
+                            padding: 0,
+                          }}
+                        >
+                          <XCircle size={16} />
+                        </IconButton>
+                      </Tooltip>
                     </>
                   )}
                 </div>
               )}
 
-              {/* Bottom Button Row - Only for Admin */}
-              {(isTouchDevice && !isIPad ? hasBeenTouched : true) &&
-                adminMode &&
-                appliance.sshConnection && (
-                  <div className="card-buttons-bottom">
-                    <button
-                      type="button"
-                      className="action-btn stop-btn"
-                      onClick={e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleServiceAction('stop');
+              {/* Right Button Column - Other Functions */}
+              {(isTouchDevice ? hasBeenTouched : true) && (
+                <div className="card-buttons-right">
+                  <Tooltip title={appliance.isFavorite ? 'Von Favoriten entfernen' : 'Zu Favoriten hinzufügen'}>
+                    <IconButton
+                      onClick={handleFavoriteClick}
+                      size="small"
+                      sx={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: appliance.isFavorite ? '#FFD700' : 'white',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        },
+                        width: 28,
+                        height: 28,
+                        padding: 0,
                       }}
-                      disabled={isProcessing || !appliance.stopCommand}
-                      title="Service stoppen"
                     >
-                      <XCircle size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="action-btn terminal-btn"
-                      onClick={e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onOpenTerminal(appliance);
-                      }}
-                      title="Terminal öffnen"
-                    >
-                      <Terminal size={16} />
-                    </button>
-                    <RemoteDesktopButton appliance={appliance} />
-                    <button
-                      type="button"
-                      className="action-btn start-btn"
-                      onClick={e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleServiceAction('start');
-                      }}
-                      disabled={isProcessing || !appliance.startCommand}
-                      title="Service starten"
-                    >
-                      <Play size={16} />
-                    </button>
-                  </div>
-                )}
+                      <Star
+                        size={16}
+                        fill={appliance.isFavorite ? 'currentColor' : 'none'}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                  {adminMode && appliance.sshConnection && (
+                    <TerminalButton 
+                      appliance={appliance}
+                      onClick={onOpenTerminal}
+                    />
+                  )}
+                  {/* Remote Desktop Button */}
+                  {appliance.remoteDesktopEnabled && (
+                    (() => {
+                      return (
+                        <RemoteDesktopButton 
+                          appliance={enhancedAppliance} 
+                          onUpdate={(updatedAppliance) => {
+                            // Update the appliance data when RustDesk is installed
+                            if (onUpdate) {
+                              onUpdate(updatedAppliance);
+                            }
+                          }}
+                        />
+                      );
+                    })()
+                  )}
+                  {/* File Transfer Button */}
+              <FileTransferButton appliance={enhancedAppliance} />
+                </div>
+              )}
+              
+              {/* Service Controls Bottom - Removed, buttons are now in card-buttons-right */}
             </div>
 
             {/* Card Info */}
@@ -586,15 +668,15 @@ const ApplianceCard = ({
                   backgroundColor: (() => {
                     switch (appliance.serviceStatus) {
                       case 'running':
-                        return '#34C759';
+                        return '#34C759'; // Grün - Service läuft
                       case 'stopped':
-                        return '#FF3B30';
-                      case 'error':
-                        return '#FF9500';
                       case 'offline':
-                        return '#8E8E93';
+                        return '#FF3B30'; // Rot - Service ist gestoppt/offline
+                      case 'error':
+                        return '#FF9500'; // Gelb/Orange - Service hat Probleme
+                      case 'unknown':
                       default:
-                        return '#FFD60A';
+                        return '#FF3B30'; // Rot als Default (sicherer)
                     }
                   })(),
                   borderRadius: '0 0 16px 16px',
@@ -605,16 +687,20 @@ const ApplianceCard = ({
                   let statusText = 'unbekannt';
                   switch (appliance.serviceStatus) {
                     case 'running':
-                      statusText = 'aktiv';
+                      statusText = 'Service läuft';
                       break;
                     case 'stopped':
-                      statusText = 'gestoppt';
+                      statusText = 'Service gestoppt';
                       break;
                     case 'error':
-                      statusText = 'fehlerhaft';
+                      statusText = 'Service fehlerhaft';
                       break;
                     case 'offline':
-                      statusText = 'nicht erreichbar';
+                      statusText = 'Service nicht erreichbar';
+                      break;
+                    case 'unknown':
+                    default:
+                      statusText = 'Status unbekannt';
                       break;
                   }
                   return `Service ist ${statusText} (Zuletzt geprüft: ${new Date().toLocaleTimeString()})`;

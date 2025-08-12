@@ -23,7 +23,7 @@ export const SSEProvider = ({ children }) => {
         const restoreUnsubscribe = sseService.addEventListener(
           'restore_completed',
           async data => {
-            console.log('🔄 Restore completed, reconnecting SSE...');
+
             if (mounted) {
               // Disconnect and reconnect to ensure fresh connection
               sseService.disconnect();
@@ -31,7 +31,7 @@ export const SSEProvider = ({ children }) => {
                 if (mounted) {
                   try {
                     await sseService.connect();
-                    console.log('✅ SSE reconnected after restore');
+
                   } catch (error) {
                     console.error(
                       '❌ Failed to reconnect SSE after restore:',

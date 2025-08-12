@@ -6,7 +6,6 @@ import {
   Activity,
   PanelLeftClose,
   PanelLeft,
-  ExternalLink,
 } from 'lucide-react';
 
 const AppHeader = ({
@@ -18,12 +17,8 @@ const AppHeader = ({
   setShowOnlyWithStatus,
   sidebarCollapsed,
   onToggleSidebar,
-  onOpenTerminalInNewWindow,
 }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-  // Debug log
-  console.log('AppHeader props:', { onOpenTerminalInNewWindow });
 
   useEffect(() => {
     const handleResize = () => {
@@ -129,15 +124,6 @@ const AppHeader = ({
             <span>Status</span>
           </button>
         </div>
-        
-        <button
-          onClick={onOpenTerminalInNewWindow || (() => window.open('/terminal/', 'terminal-window', 'width=1200,height=800,menubar=no,toolbar=no'))}
-          className="status-toggle-button"
-          title="Terminal in neuem Fenster öffnen"
-        >
-          <ExternalLink size={18} />
-          <span>Terminal</span>
-        </button>
       </div>
     </header>
   );

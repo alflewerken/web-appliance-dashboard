@@ -1,5 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Activity } from 'lucide-react';
+import axios from './utils/axiosConfig';
+
+// Initialize background state early
+import './utils/backgroundInitializer';
 
 // Import Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -15,17 +19,21 @@ import MobileSearchHeader from './components/MobileSearchHeader';
 import BackgroundImage from './components/BackgroundImage';
 import SettingsPanel from './components/SettingsPanel';
 import ServicePanel from './components/ServicePanel';
-import SSHKeyManager from './components/SSHKeyManager';
 import TTYDTerminal from './components/TTYDTerminal';
 import MobileHeader from './components/MobileHeader';
 import Login from './components/Login';
 import UserPanel from './components/UserPanel';
+import HostsView from './components/HostsView';
+import HostPanel from './components/HostPanel';
+import SSHFileUpload from './components/SSHFileUpload';
 import { openTerminalInNewWindow } from './utils/terminalWindow';
 import { AuditLogPanel } from './components/AuditLog';
-import SSEDebugPanel from './components/SSEDebugPanel';
+
+import MobileSwipeableWrapper from './components/MobileSwipeableWrapper';
 
 // Import Contexts
 import { SSEProvider } from './contexts/SSEContext';
+import sseService from './services/sseService';
 
 // Import Hooks
 import {
@@ -48,32 +56,27 @@ import {
   getTimeBasedSections,
   getAllCategories,
 } from './utils';
-import './utils/lightModeIconFix';
 
 // Import Styles
 import './App.css';
 import './theme.css';
 import './mobile.css';
 import './styles/panel-layout.css'; // Multi-panel layout system
-import './styles/mobile-panels.css'; // Mobile panel safe area support
-import './styles/mobile-panel-overflow-fix.css'; // Mobile panel overflow fix
-import './styles/mobile-panel-scroll-fix.css'; // Mobile panel scroll fix
+import './styles/mobile-consolidated.css'; // CONSOLIDATED mobile styles (replaces 11 files)
 import './styles/transparent-panels-mode.css'; // Transparent Panels Toggle
 import './styles/header-unification.css'; // Header height unification
-import './styles/macos-input-fix.css'; // macOS input alignment fix
+import './styles/macos-input-fix.css'; // macOS input alignment fix (keep for now)
 import './styles/service-panel-header.css'; // Service panel header unification
-import './styles/safari-theme-fix.css';
-import './styles/ipad-swipe.css';
-import './styles/ios-scroll-fix.css';
-import './styles/mobile-content-fix.css';
-import './styles/mobile-override-fix.css';
+import './styles/safari-theme-fix.css'; // Safari-specific fixes (keep for now)
 import './styles/mini-dashboard.css';
 import './styles/Auth.css';
 import './styles/text-colors-fix.css'; // Text und Label Farben für Dark/Light Mode
 import './styles/modal-theme-support.css'; // Modal Theme Support für Dark/Light Mode
 import './styles/settings-panel-clean.css'; // SAUBERER Fix für Settings Panel
+import './styles/host-panel.css'; // Host Panel Styles
 import './components/terminal-light-mode.css'; // Terminal Light Mode Styles
 import './styles/fixes/header-light-mode-fix.css'; // Fix für transparenten Header im Light Mode
+import './styles/sidebar-tooltips.css'; // Sidebar Tooltip Styles
 
 // Dashboard Component - Only rendered when authenticated
 function Dashboard() {
@@ -83,12 +86,17 @@ function Dashboard() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showServicePanel, setShowServicePanel] = useState(false);
   const [selectedServiceForPanel, setSelectedServiceForPanel] = useState(null);
-  const [showSSHManager, setShowSSHManager] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showHostsView, setShowHostsView] = useState(false);
+  const [showHostPanel, setShowHostPanel] = useState(false);
+  const [selectedHostForPanel, setSelectedHostForPanel] = useState(null);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [activeTerminals, setActiveTerminals] = useState([]);
   const [activeSettingsTab, setActiveSettingsTab] = useState('general');
+  const [showSSHFileUpload, setShowSSHFileUpload] = useState(false);
+  const [selectedHostForFileUpload, setSelectedHostForFileUpload] = useState(null);
 
+  const [hosts, setHosts] = useState([]);
   const [sshHosts, setSSHHosts] = useState([]);
   const [isLoadingSSHHosts, setIsLoadingSSHHosts] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,6 +151,10 @@ function Dashboard() {
     const saved = localStorage.getItem('auditLogPanelWidth');
     return saved ? parseInt(saved, 10) : 800;
   });
+  const [hostPanelWidth, setHostPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('hostPanelWidth');
+    return saved ? parseInt(saved, 10) : 600;
+  });
 
   // Custom Hooks für Datenmanagement - nur wenn authentifiziert
   const {
@@ -160,6 +172,7 @@ function Dashboard() {
 
   const {
     apiCategories,
+    setApiCategories,
     categoriesLastUpdated,
     handleCategoriesUpdate,
     reorderCategories,
@@ -210,6 +223,57 @@ function Dashboard() {
   // Simple swipe gesture hook for mobile sidebar
   useSimpleSwipe(sidebarOpen, setSidebarOpen);
 
+  // Load hosts when hosts view is shown
+  useEffect(() => {
+    const loadHosts = async () => {
+      if (showHostsView) {
+        try {
+          const response = await axios.get('/api/hosts');
+          setHosts(response.data.hosts || []);
+        } catch (error) {
+          console.error('Error loading hosts:', error);
+        }
+      }
+    };
+
+    loadHosts();
+  }, [showHostsView]);
+
+  // Subscribe to host updates via SSE
+  useEffect(() => {
+    if (!showHostsView) return;
+
+    const handleHostUpdated = (data) => {
+      // Reload hosts to get the latest data
+      const loadHosts = async () => {
+        try {
+          const response = await axios.get('/api/hosts');
+          setHosts(response.data.hosts || []);
+        } catch (error) {
+          console.error('Error reloading hosts:', error);
+        }
+      };
+      loadHosts();
+    };
+
+    const handleHostCreated = handleHostUpdated;
+    const handleHostDeleted = handleHostUpdated;
+
+    // Connect to SSE and add event listeners
+    sseService.connect().then(() => {
+      sseService.addEventListener('host_created', handleHostCreated);
+      sseService.addEventListener('host_updated', handleHostUpdated);
+      sseService.addEventListener('host_deleted', handleHostDeleted);
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      sseService.removeEventListener('host_created', handleHostCreated);
+      sseService.removeEventListener('host_updated', handleHostUpdated);
+      sseService.removeEventListener('host_deleted', handleHostDeleted);
+    };
+  }, [showHostsView]);
+
   // Load SSH hosts when needed
   useEffect(() => {
     const loadSSHHosts = async () => {
@@ -217,14 +281,26 @@ function Dashboard() {
         setIsLoadingSSHHosts(true);
         try {
           const token = localStorage.getItem('token');
-          const response = await fetch('/api/ssh/hosts', {
+          const response = await fetch('/api/hosts', {
             headers: {
               Authorization: token ? `Bearer ${token}` : '',
             },
           });
+          
+          if (!response.ok) {
+            if (response.status === 404 || response.status === 401) {
+              // No hosts found or unauthorized - this is ok for new installations
+              setSSHHosts([]);
+              return;
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
           const data = await response.json();
           if (data.success && data.hosts) {
             setSSHHosts(data.hosts);
+          } else {
+            setSSHHosts([]);
           }
         } catch (error) {
           console.error('Error loading SSH hosts:', error);
@@ -280,12 +356,24 @@ function Dashboard() {
   }, []);
 
   // Make handleTerminalOpen available globally for SSH Manager
-  const handleTerminalOpen = useCallback((target) => {
-    console.log('handleTerminalOpen called with:', target);
-    
+  const handleTerminalOpen = useCallback(async (target) => {
+
     // Check if it's an SSH host or an appliance
     if (target.hostname && target.username) {
       // It's an SSH host
+      
+      // Create terminal session via API first
+      try {
+        const response = await axios.post('/api/terminal/session', {
+          hostId: target.id
+        });
+
+        // Add a small delay to ensure the session file is written
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error('Failed to create terminal session:', error);
+      }
+      
       // Prüfe ob bereits ein Terminal zu diesem Host offen ist
       const existingSSHTerminal = activeTerminals.find(
         t => t.host && t.host.id === target.id && t.isOpen
@@ -295,7 +383,7 @@ function Dashboard() {
         // Öffne in neuem Fenster statt im Modal
         openTerminalInNewWindow({
           hostId: target.id,
-          host: target.hostname,
+          host: target.hostname,  // Verwende 'hostname' für die tatsächliche IP/Host
           user: target.username,
           port: target.port || 22
         });
@@ -307,11 +395,54 @@ function Dashboard() {
           isOpen: true,
           isSSH: true,
         };
-        console.log('Creating SSH terminal:', sshTerminal);
+
         setActiveTerminals(prev => [...prev, sshTerminal]);
       }
     } else {
       // It's an appliance
+      
+      // Check if appliance has SSH connection info
+      let sshHostId = null;
+      if (target.sshHostId) {
+        sshHostId = target.sshHostId;
+      } else if (target.sshConnection) {
+        // Parse SSH connection string (e.g., "alflewerken@mac:22")
+        const match = target.sshConnection.match(/^(.+)@(.+):(\d+)$/);
+        if (match) {
+
+          // For now, we can't create a session without a host ID
+          // console.warn('Appliance has SSH connection but no sshHostId');
+        }
+      }
+      
+      // If appliance has SSH host, create session
+      if (sshHostId) {
+        try {
+          const response = await axios.post('/api/terminal/session', {
+            hostId: sshHostId
+          });
+
+          // Add a small delay to ensure the session file is written
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error('Failed to create terminal session:', error);
+        }
+      } else if (target.sshConnection) {
+        // Try with SSH connection string
+        try {
+          const response = await axios.post('/api/terminal/session', {
+            sshConnection: target.sshConnection
+          });
+
+          // Add a small delay to ensure the session file is written
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error('Failed to create terminal session:', error);
+        }
+      } else {
+
+      }
+      
       const existingTerminal = activeTerminals.find(
         t => t.appliance && t.appliance.id === target.id && t.isOpen
       );
@@ -319,8 +450,8 @@ function Dashboard() {
       if (existingTerminal) {
         // Terminal bereits offen - öffne in neuem Fenster
         const sshData = {};
-        if (target.ssh_host_id && target.ssh_host) {
-          sshData.hostId = target.ssh_host_id;
+        if (target.sshHostId && target.ssh_host) {
+          sshData.hostId = target.sshHostId;
           sshData.host = target.ssh_host.hostname || '';
           sshData.user = target.ssh_host.username || '';
           sshData.port = target.ssh_host.port || 22;
@@ -386,7 +517,8 @@ function Dashboard() {
       (showServicePanel ||
         showUserManagement ||
         showSettingsModal ||
-        showAuditLog)
+        showAuditLog ||
+        showHostPanel)
     ) {
       document.body.classList.add('has-open-panel');
       
@@ -395,6 +527,7 @@ function Dashboard() {
       if (showUserManagement) document.body.classList.add('has-user-panel');
       if (showSettingsModal) document.body.classList.add('has-settings-panel');
       if (showAuditLog) document.body.classList.add('has-audit-log-panel');
+      if (showHostPanel) document.body.classList.add('has-host-panel');
       
       // Save current scroll position
       const { scrollY } = window;
@@ -408,6 +541,7 @@ function Dashboard() {
         document.body.classList.remove('has-user-panel');
         document.body.classList.remove('has-settings-panel');
         document.body.classList.remove('has-audit-log-panel');
+        document.body.classList.remove('has-host-panel');
         document.body.style.position = '';
         document.body.style.top = '';
         document.body.style.width = '';
@@ -447,9 +581,7 @@ function Dashboard() {
           cat => cat.id === data.id
         )?.name;
         if (deletedCategoryName && selectedCategory === deletedCategoryName) {
-          console.log(
-            '📡 App.js - Currently selected category was deleted, switching to "all"'
-          );
+
           setSelectedCategory('all');
         }
       }
@@ -568,19 +700,19 @@ function Dashboard() {
     if (addEventListener) {
       const unsubscribers = [
         addEventListener('category_created', (data) => {
-          console.log('Category created event received:', data);
+
           handleCategoriesUpdate();
         }),
         addEventListener('category_updated', (data) => {
-          console.log('Category updated event received:', data);
+
           handleCategoriesUpdate();
         }),
         addEventListener('category_deleted', (data) => {
-          console.log('Category deleted event received:', data);
+
           handleCategoriesUpdate();
         }),
         addEventListener('category_restored', (data) => {
-          console.log('Category restored event received:', data);
+
           handleCategoriesUpdate();
         }),
       ];
@@ -598,19 +730,19 @@ function Dashboard() {
     if (addEventListener) {
       const unsubscribers = [
         addEventListener('appliance_created', (data) => {
-          console.log('Appliance created event received:', data);
+
           fetchAppliances();
         }),
         addEventListener('appliance_updated', (data) => {
-          console.log('Appliance updated event received:', data);
+
           fetchAppliances();
         }),
         addEventListener('appliance_deleted', (data) => {
-          console.log('Appliance deleted event received:', data);
+
           fetchAppliances();
         }),
         addEventListener('appliance_restored', (data) => {
-          console.log('Appliance restored event received:', data);
+
           fetchAppliances();
         }),
       ];
@@ -654,13 +786,44 @@ function Dashboard() {
     setShowServicePanel(true);
   };
 
+  const handleAddHost = () => {
+    // Create a new empty host object for the form
+    const newHost = {
+      isNew: true, // Flag to indicate this is a new host
+    };
+    setSelectedHostForPanel(newHost);
+    setShowHostPanel(true);
+  };
+
+  // Close all panels (for mobile swipeable wrapper)
+  const closeAllPanels = () => {
+    setShowServicePanel(false);
+    setShowSettingsModal(false);
+    setShowUserManagement(false);
+    setShowHostsView(false);
+    setShowHostPanel(false);
+    setShowAuditLog(false);
+    setSelectedServiceForPanel(null);
+    setSelectedHostForPanel(null);
+  };
+
   const startEdit = (appliance, initialTab = 'service') => {
-    console.log(
-      'startEdit called for appliance:',
-      appliance,
-      'with tab:',
-      initialTab
-    );
+    console.log('[App.js] startEdit called with appliance:', appliance);
+    console.log('[App.js] appliance fields:', {
+      id: appliance?.id,
+      name: appliance?.name,
+      description: appliance?.description,
+      url: appliance?.url,
+      icon: appliance?.icon,
+      color: appliance?.color,
+      category: appliance?.category,
+      isFavorite: appliance?.isFavorite,
+      sshConnection: appliance?.sshConnection,
+      statusCommand: appliance?.statusCommand,
+      startCommand: appliance?.startCommand,
+      stopCommand: appliance?.stopCommand,
+    });
+    
     // Öffne das ServicePanel statt des Modals
     setSelectedServiceForPanel({ ...appliance, initialTab });
     setShowServicePanel(true);
@@ -683,10 +846,23 @@ function Dashboard() {
   };
 
   const startService = async appliance => {
+
     if (!appliance || !appliance.startCommand) {
       console.error('startService called with invalid appliance:', appliance);
       return;
     }
+
+    // Add a simple debounce check
+    const lastCallKey = `lastStartCall_${appliance.id}`;
+    const lastCall = window[lastCallKey];
+    const now = Date.now();
+    
+    if (lastCall && (now - lastCall) < 1000) {
+
+      return;
+    }
+    
+    window[lastCallKey] = now;
 
     try {
       const token = localStorage.getItem('token');
@@ -702,9 +878,9 @@ function Dashboard() {
         let result;
         try {
           result = await response.json();
-          console.log('Service started successfully:', result);
+
         } catch (jsonError) {
-          console.log('Service started successfully (no JSON response)');
+
         }
 
         // Show success message
@@ -751,9 +927,9 @@ function Dashboard() {
         let result;
         try {
           result = await response.json();
-          console.log('Service stopped successfully:', result);
+
         } catch (jsonError) {
-          console.log('Service stopped successfully (no JSON response)');
+
         }
 
         // Show success message
@@ -784,17 +960,13 @@ function Dashboard() {
     try {
       // Status updates are handled by SSE events in useAppliances hook
       // This function is kept for compatibility but doesn't need to do anything
-      console.log(`Service status update: ${applianceId} -> ${newStatus}`);
+
     } catch (error) {
       console.error('Error updating service status:', error);
     }
   };
 
   const handleUpdateCardSettings = async (applianceId, settings) => {
-    console.log('handleUpdateCardSettings called with:', {
-      applianceId,
-      settings,
-    });
 
     try {
       // Build update data - only send the fields that were provided
@@ -808,18 +980,14 @@ function Dashboard() {
         updateData.transparency = settings.transparency;
       if (settings.blur !== undefined) updateData.blur = settings.blur;
 
-      console.log('Sending to patchAppliance:', updateData);
-
       const success = await ApplianceService.patchAppliance(
         applianceId,
         updateData
       );
 
-      console.log('patchAppliance result:', success);
-
       if (success) {
         // Success - the useAppliances hook will update the state via SSE
-        console.log('Card settings updated successfully');
+
       } else {
         // Error
         console.error('Failed to update card settings');
@@ -853,6 +1021,15 @@ function Dashboard() {
   const handleReorderCategories = useCallback(
     async orderedCategories => {
       try {
+        // Sofort die lokale Reihenfolge aktualisieren für bessere UX
+        const reorderedCategories = [...apiCategories];
+        reorderedCategories.sort((a, b) => {
+          const orderA = orderedCategories.find(oc => oc.id === a.id)?.order ?? 999;
+          const orderB = orderedCategories.find(oc => oc.id === b.id)?.order ?? 999;
+          return orderA - orderB;
+        });
+        setApiCategories(reorderedCategories);
+        
         const token = localStorage.getItem('token');
         const response = await fetch('/api/categories/reorder', {
           method: 'PUT',
@@ -865,13 +1042,15 @@ function Dashboard() {
 
         if (!response.ok) throw new Error('Failed to reorder categories');
 
-        console.log('Categories reordered successfully');
+        // Kategorien vom Server neu laden um sicherzustellen, dass alles synchron ist
         await handleCategoriesUpdate();
       } catch (error) {
         console.error('Error reordering categories:', error);
+        // Bei Fehler die Kategorien neu vom Server laden
+        await handleCategoriesUpdate();
       }
     },
-    [handleCategoriesUpdate]
+    [apiCategories, setApiCategories, handleCategoriesUpdate]
   );
 
   // Calculate individual panel positions
@@ -901,8 +1080,22 @@ function Dashboard() {
         searchTerm,
         showOnlyWithStatus
       );
+  
   const sections =
     selectedCategory === 'recent' ? getTimeBasedSections(appliances) : null;
+
+  // Gefilterte Hosts
+  const filteredHosts = useMemo(() => {
+    if (!searchTerm) return hosts;
+    
+    const term = searchTerm.toLowerCase();
+    return hosts.filter(host => 
+      host.name?.toLowerCase().includes(term) ||
+      host.description?.toLowerCase().includes(term) ||
+      host.hostname?.toLowerCase().includes(term) ||
+      host.username?.toLowerCase().includes(term)
+    );
+  }, [hosts, searchTerm]);
 
   // Loading State - only show on initial load
   if (loading && !initialLoadComplete) {
@@ -955,11 +1148,12 @@ function Dashboard() {
 
   return (
     <div
-      className={`music-app ${isMiniDashboard ? 'mini-dashboard' : ''} ${isMobile ? 'mobile-layout' : ''} ${isMobile && sidebarOpen ? 'sidebar-active' : ''} ${currentBackground && backgroundSettings.enabled ? 'has-background-image' : ''} ${showServicePanel ? 'has-service-panel' : ''} ${showUserManagement ? 'has-user-panel' : ''} ${showSettingsModal ? 'has-settings-panel' : ''} ${showAuditLog ? 'has-audit-log-panel' : ''} ${!isMobile && desktopSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      className={`music-app ${isMiniDashboard ? 'mini-dashboard' : ''} ${isMobile ? 'mobile-layout' : ''} ${isMobile && sidebarOpen ? 'sidebar-active' : ''} ${currentBackground && backgroundSettings.enabled ? 'has-background-image' : ''} ${showServicePanel ? 'has-service-panel' : ''} ${showUserManagement ? 'has-user-panel' : ''} ${showSettingsModal ? 'has-settings-panel' : ''} ${showAuditLog ? 'has-audit-log-panel' : ''} ${showHostPanel ? 'has-host-panel' : ''} ${!isMobile && desktopSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+      onDragEnter={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragEnter}
+      onDragOver={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragOver}
+      onDragLeave={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragLeave}
+      onDrop={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDrop}
+      data-panels={`${showHostPanel ? 'host ' : ''}${showAuditLog ? 'audit ' : ''}${showServicePanel ? 'service ' : ''}${showUserManagement ? 'user ' : ''}${showSettingsModal ? 'settings' : ''}`}
       style={{
         '--background-blur': `${backgroundSettings.blur}px`,
         '--background-opacity': backgroundSettings.opacity,
@@ -969,6 +1163,7 @@ function Dashboard() {
         '--user-panel-width': `${userPanelWidth}px`,
         '--settings-panel-width': `${settingsPanelWidth}px`,
         '--audit-log-panel-width': `${auditLogPanelWidth}px`,
+        '--host-panel-width': `${hostPanelWidth}px`,
       }}
     >
       {/* Background Image Component - Now with key for force re-render */}
@@ -1007,7 +1202,12 @@ function Dashboard() {
           onAddService={handleAddService}
           setShowSettingsModal={setShowSettingsModal}
           setShowUserManagement={setShowUserManagement}
+          setShowHostsView={setShowHostsView}
           setShowAuditLog={setShowAuditLog}
+          showSettingsModal={showSettingsModal}
+          showUserManagement={showUserManagement}
+          showHostsView={showHostsView}
+          showAuditLog={showAuditLog}
           isOpen={isMobile ? sidebarOpen : true}
           onClose={() => setSidebarOpen(false)}
           isMobile={isMobile}
@@ -1038,35 +1238,289 @@ function Dashboard() {
 
         {/* Content Grid */}
         <div className="content-body">
-          <AppContent
-            filteredAppliances={filteredAppliances}
-            searchTerm={searchTerm}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-            allCategories={allCategories}
-            sections={sections}
-            onOpen={openAppliance}
-            onEdit={startEdit}
-            onDelete={deleteAppliance}
-            onToggleFavorite={toggleFavorite}
-            onServiceAction={handleServiceAction}
-            onServiceStatusUpdate={handleServiceStatusUpdate}
-            onAddService={handleAddService}
-            onTerminalOpen={handleTerminalOpen}
-            onUpdateSettings={handleUpdateCardSettings}
-            isMobile={isMobile}
-            appliances={appliances}
-            cardSize={cardSize}
-            currentBackground={currentBackground}
-            backgroundSettings={backgroundSettings}
-            adminMode={isAdmin}
-            forceUpdate={forceUpdate}
-            isIPad={isIPad}
-            swipeInfo={swipeInfo}
-            showOnlyWithStatus={showOnlyWithStatus}
-          />
+          {showHostsView ? (
+            <HostsView
+              hosts={filteredHosts}
+              onAddHost={handleAddHost}
+              onEditHost={(host) => {
+                setSelectedHostForPanel(host);
+                setShowHostPanel(true);
+              }}
+              onTerminal={handleTerminalOpen}
+              onFileTransfer={(host) => {
+                // Zeige SSHFileUpload Modal für den Host
+                setSelectedHostForFileUpload(host);
+                setShowSSHFileUpload(true);
+              }}
+              onRemoteDesktop={async (host) => {
+                // Open Remote Desktop for SSH host
+                if (host.remoteDesktopEnabled) {
+                  // Check which type of remote desktop is configured
+                  if (host.remoteDesktopType === 'rustdesk' && host.rustdeskId) {
+                    // Log RustDesk access to audit log
+                    try {
+                      await axios.post(`/api/hosts/${host.id}/rustdeskAccess`, {}, {
+                        headers: {
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      });
+                    } catch (error) {
+                      console.error('Failed to log RustDesk access:', error);
+                      // Continue even if logging fails
+                    }
+                    // Open RustDesk - use _self to avoid opening a new tab
+                    window.location.href = `rustdesk://${host.rustdeskId}`;
+                  } else {
+                    // Use Guacamole for VNC/RDP/SSH
+                    try {
+                      // Get token from API
+                      const response = await axios.post(`/api/hosts/${host.id}/remoteDesktopToken`, {
+                        performanceMode: 'balanced'
+                      });
+                      
+                      if (response.data.success) {
+                        // Check if it's RustDesk or Guacamole
+                        if (response.data.type === 'rustdesk') {
+                          // RustDesk connection
+                          const rustdeskId = response.data.rustdeskId;
+                          if (rustdeskId) {
+                            // Show RustDesk ID to user
+                            if (window.showNotification) {
+                              window.showNotification(`RustDesk ID: ${rustdeskId}`, 'info');
+                            }
+                            alert(`Bitte verwenden Sie RustDesk Client mit folgender ID:\n\n${rustdeskId}\n\nStellen Sie sicher, dass RustDesk auf dem Zielgerät läuft.`);
+                          } else {
+                            throw new Error('RustDesk ID nicht verfügbar');
+                          }
+                        } else if (response.data.type === 'guacamole') {
+                          // Guacamole connection
+                          let guacamoleUrl = response.data.guacamoleUrl;
+                          
+                          if (!guacamoleUrl) {
+                            throw new Error('Guacamole URL nicht verfügbar');
+                          }
+                          
+                          console.log('Original Guacamole URL:', guacamoleUrl);
+                          
+                          // Fix URL if port is missing
+                          // Check if URL contains the host but no port
+                          if (!guacamoleUrl.includes(':9080') && !guacamoleUrl.includes(':9443')) {
+                            // Extract protocol and host from URL
+                            const urlMatch = guacamoleUrl.match(/^(https?:\/\/)([^\/]+)(\/.*)?$/);
+                            if (urlMatch) {
+                              const protocol = urlMatch[1];
+                              const hostPart = urlMatch[2];
+                              const pathPart = urlMatch[3] || '';
+                              
+                              // If hostPart doesn't contain a port, add :9080
+                              if (!hostPart.includes(':')) {
+                                guacamoleUrl = `${protocol}${hostPart}:9080${pathPart}`;
+                              }
+                            }
+                          }
+                          
+                          console.log('Final Guacamole URL:', guacamoleUrl);
+                          
+                          // Open in new window with specific dimensions
+                          const width = 1280;
+                          const height = 800;
+                          const left = (window.screen.width - width) / 2;
+                          const top = (window.screen.height - height) / 2;
+                          
+                          window.open(
+                            guacamoleUrl, 
+                            `RemoteDesktop_Host_${host.id}`,
+                            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=yes`
+                          );
+                        } else {
+                          throw new Error(`Unbekannter Remote Desktop Typ: ${response.data.type}`);
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error getting remote desktop token:', error);
+                      if (window.showNotification) {
+                        window.showNotification('Fehler beim Starten der Remote-Desktop-Verbindung', 'error');
+                      } else {
+                        alert('Fehler beim Starten der Remote-Desktop-Verbindung');
+                      }
+                    }
+                  }
+                } else {
+                  // Show notification that remote desktop is not enabled
+                  if (window.showNotification) {
+                    window.showNotification('Remote Desktop ist für diesen Host nicht aktiviert', 'error');
+                  } else {
+                    alert('Remote Desktop ist für diesen Host nicht aktiviert');
+                  }
+                }
+              }}
+              onShowAuditLog={(host) => {
+                setShowHostsView(false);
+                setShowAuditLog(true);
+                // TODO: Set filter for specific host in audit log
+              }}
+              isAdmin={isAdmin}
+              isMobile={isMobile}
+              cardSize={cardSize}
+            />
+          ) : (
+            <AppContent
+              filteredAppliances={filteredAppliances}
+              searchTerm={searchTerm}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              allCategories={allCategories}
+              sections={sections}
+              onOpen={openAppliance}
+              onEdit={startEdit}
+              onDelete={deleteAppliance}
+              onToggleFavorite={toggleFavorite}
+              onServiceAction={handleServiceAction}
+              onServiceStatusUpdate={handleServiceStatusUpdate}
+              onAddService={handleAddService}
+              onTerminalOpen={handleTerminalOpen}
+              onUpdateSettings={handleUpdateCardSettings}
+              isMobile={isMobile}
+              appliances={appliances}
+              cardSize={cardSize}
+              currentBackground={currentBackground}
+              backgroundSettings={backgroundSettings}
+              adminMode={isAdmin}
+              forceUpdate={forceUpdate}
+              isIPad={isIPad}
+              swipeInfo={swipeInfo}
+              showOnlyWithStatus={showOnlyWithStatus}
+            />
+          )}
         </div>
       </main>
+
+      {/* MobileSwipeableWrapper for panels */}
+      <MobileSwipeableWrapper
+        isMobile={isMobile}
+        onClose={closeAllPanels}
+        panels={[
+          {
+            key: 'settings',
+            title: 'Einstellungen',
+            isOpen: showSettingsModal,
+            component: showSettingsModal && (
+              <SettingsPanel
+                onClose={() => setShowSettingsModal(false)}
+                onCategoriesUpdate={handleCategoriesUpdate}
+                onReorderCategories={handleReorderCategories}
+                onApplyTheme={handleApplyTheme}
+                onBackgroundSettingsUpdate={handleBackgroundSettingsUpdate}
+                apiCategories={apiCategories}
+                categoriesLastUpdated={categoriesLastUpdated}
+                currentBackground={currentBackground}
+                backgroundImages={backgroundImages}
+                backgroundSettings={backgroundSettings}
+                setBackgroundSettings={setBackgroundSettings}
+                activeTab={activeSettingsTab}
+                setActiveTab={setActiveSettingsTab}
+                onActivateBackground={activateBackground}
+                onDeleteBackground={deleteBackgroundImage}
+                onDisableBackground={disableBackground}
+                setBackgroundImages={setBackgroundImages}
+                loadCurrentBackground={loadCurrentBackground}
+                onTerminalOpen={handleTerminalOpen}
+                isAdmin={isAdmin}
+                onWidthChange={setSettingsPanelWidth}
+              />
+            )
+          },
+          {
+            key: 'service',
+            title: selectedServiceForPanel?.name || 'Service',
+            isOpen: showServicePanel && selectedServiceForPanel,
+            component: showServicePanel && selectedServiceForPanel && (
+              <ServicePanel
+                appliance={selectedServiceForPanel}
+                initialTab={selectedServiceForPanel.initialTab}
+                onClose={() => {
+                  setShowServicePanel(false);
+                  setSelectedServiceForPanel(null);
+                }}
+                onSave={async (applianceId, data) => {
+                  if (selectedServiceForPanel.isNew) {
+                    const newAppliance = await createAppliance(data);
+                    if (newAppliance && newAppliance.id) {
+                      setSelectedServiceForPanel(newAppliance);
+                    }
+                  } else {
+                    await ApplianceService.patchAppliance(applianceId, data);
+                  }
+                  await fetchAppliances();
+                }}
+                onDelete={async appliance => {
+                  await deleteAppliance(appliance.id);
+                  setShowServicePanel(false);
+                  setSelectedServiceForPanel(null);
+                }}
+                onUpdateSettings={handleUpdateCardSettings}
+                categories={allCategories.slice(3)}
+                allServices={appliances}
+                sshHosts={sshHosts}
+                isLoadingSSHHosts={isLoadingSSHHosts}
+                adminMode={isAdmin}
+                onWidthChange={width => setServicePanelWidth(width)}
+              />
+            )
+          },
+          {
+            key: 'user',
+            title: 'Benutzer',
+            isOpen: showUserManagement,
+            component: showUserManagement && (
+              <UserPanel
+                onClose={() => setShowUserManagement(false)}
+                onWidthChange={setUserPanelWidth}
+              />
+            )
+          },
+          {
+            key: 'audit',
+            title: 'Audit-Log',
+            isOpen: showAuditLog,
+            component: showAuditLog && (
+              <AuditLogPanel
+                onClose={() => setShowAuditLog(false)}
+                onWidthChange={setAuditLogPanelWidth}
+              />
+            )
+          },
+          {
+            key: 'host',
+            title: selectedHostForPanel?.name || 'Host',
+            isOpen: showHostPanel && !!selectedHostForPanel,
+            component: showHostPanel && selectedHostForPanel ? (
+              <HostPanel
+                host={selectedHostForPanel}
+                onClose={() => {
+                  setShowHostPanel(false);
+                  setSelectedHostForPanel(null);
+                }}
+                onSave={async (hostId, data) => {
+                  // Panel bleibt offen nach dem Speichern
+                  // Host-Daten werden aktualisiert, aber Panel bleibt sichtbar
+                  if (selectedHostForPanel?.isNew) {
+                    // Bei neuen Hosts die Daten aktualisieren (ohne isNew Flag)
+                    setSelectedHostForPanel(data);
+                  }
+                }}
+                onDelete={async (host) => {
+                  setShowHostPanel(false);
+                  setSelectedHostForPanel(null);
+                }}
+                adminMode={isAdmin}
+                onWidthChange={setHostPanelWidth}
+              />
+            ) : null
+          }
+        ]}
+      >
+        {/* Desktop Panels - rendered normally on desktop */}
 
       {showServicePanel && selectedServiceForPanel && (
         <div className="panel-container service-panel-container">
@@ -1087,7 +1541,7 @@ function Dashboard() {
                 }
               } else {
                 // Update existing appliance
-                await ApplianceService.patchAppliance(applianceId, data);
+                await ApplianceService.updateAppliance(applianceId, data);
               }
               await fetchAppliances();
               // Panel bleibt geöffnet - nicht automatisch schließen
@@ -1129,19 +1583,12 @@ function Dashboard() {
             onDeleteBackground={deleteBackgroundImage}
             onDisableBackground={disableBackground}
             setBackgroundImages={setBackgroundImages}
-            onOpenSSHManager={() => setShowSSHManager(true)}
+            loadCurrentBackground={loadCurrentBackground}
             onTerminalOpen={handleTerminalOpen}
             isAdmin={isAdmin}
             onWidthChange={setSettingsPanelWidth}
           />
         </div>
-      )}
-
-      {showSSHManager && (
-        <SSHKeyManager
-          isOpen={showSSHManager}
-          onClose={() => setShowSSHManager(false)}
-        />
       )}
 
       {showUserManagement && (
@@ -1162,20 +1609,57 @@ function Dashboard() {
         </div>
       )}
 
+      {showHostPanel && selectedHostForPanel && (
+        <div className="panel-container host-panel-container">
+          <HostPanel
+            host={selectedHostForPanel}
+            onClose={() => {
+              setShowHostPanel(false);
+              setSelectedHostForPanel(null);
+            }}
+            onSave={async (hostId, data) => {
+              // Update the selected host with new data
+              setSelectedHostForPanel(data);
+              // Panel bleibt offen - kein automatisches Schließen
+              // Benutzer kann es manuell mit X schließen
+            }}
+            onDelete={async (host) => {
+              setShowHostPanel(false);
+              setSelectedHostForPanel(null);
+            }}
+            adminMode={isAdmin}
+            onWidthChange={setHostPanelWidth}
+          />
+        </div>
+      )}
+      </MobileSwipeableWrapper>
+
       {activeTerminals.map(terminal => (
         <TTYDTerminal
           key={terminal.id}
           show={terminal.isOpen}
           onHide={() => handleTerminalClose(terminal.id)}
-          hostId={terminal.host?.id || terminal.appliance?.ssh_host_id}
+          hostId={terminal.host?.id || terminal.appliance?.sshHostId}
           host={terminal.host}
           appliance={terminal.appliance}
           title={`Terminal - ${terminal.host?.hostname || terminal.appliance?.name || 'Web Terminal'}`}
         />
       ))}
 
+      {/* SSH File Upload Modal */}
+      {showSSHFileUpload && selectedHostForFileUpload && (
+        <SSHFileUpload
+          sshHost={selectedHostForFileUpload}
+          targetPath="~/"
+          onClose={() => {
+            setShowSSHFileUpload(false);
+            setSelectedHostForFileUpload(null);
+          }}
+        />
+      )}
+
       {/* SSE Debug Panel - nur im Development Mode */}
-      {process.env.NODE_ENV === 'development' && <SSEDebugPanel />}
+
     </div>
   );
 }

@@ -8,8 +8,14 @@ const execAsync = promisify(exec);
 // Default max buffer size: 10MB (can handle large outputs)
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10MB
 
-// Helper function to execute SSH commands with color support
-const executeSSHCommand = async (command, timeout = 30000, maxBuffer = DEFAULT_MAX_BUFFER) => {
+// Helper function to execute SSH commands with color support and progress callback
+const executeSSHCommand = async (command, timeout = 30000, progressCallback = null, maxBuffer = DEFAULT_MAX_BUFFER) => {
+  // If progressCallback is a number, it's the old API (timeout, maxBuffer)
+  if (typeof progressCallback === 'number') {
+    maxBuffer = progressCallback;
+    progressCallback = null;
+  }
+  
   // Environment variables to force color output
   const colorEnv = {
     ...process.env,
@@ -26,6 +32,62 @@ const executeSSHCommand = async (command, timeout = 30000, maxBuffer = DEFAULT_M
     console.log(
       `🔗 Executing direct SSH command: ${command.substring(0, 100)}...`
     );
+
+    // If we have a progress callback, use spawn for real-time output
+    if (progressCallback) {
+      return new Promise((resolve, reject) => {
+        const [cmd, ...args] = command.split(' ');
+        const child = spawn(cmd, args, {
+          env: colorEnv,
+          shell: true,
+          encoding: 'utf8'
+        });
+
+        let stdout = '';
+        let stderr = '';
+        let timeoutId;
+
+        // Set timeout
+        if (timeout > 0) {
+          timeoutId = setTimeout(() => {
+            child.kill('SIGTERM');
+            reject(new Error(`SSH command timed out after ${timeout}ms`));
+          }, timeout);
+        }
+
+        child.stdout.on('data', (data) => {
+          const str = data.toString();
+          stdout += str;
+          if (progressCallback) {
+            progressCallback(str);
+          }
+        });
+
+        child.stderr.on('data', (data) => {
+          const str = data.toString();
+          stderr += str;
+        });
+
+        child.on('close', (code) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          
+          if (code === 0) {
+            resolve({ stdout, stderr });
+          } else {
+            const error = new Error(`Command failed with exit code ${code}`);
+            error.code = code;
+            error.stdout = stdout;
+            error.stderr = stderr;
+            reject(error);
+          }
+        });
+
+        child.on('error', (err) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          reject(err);
+        });
+      });
+    }
 
     try {
       const result = await execAsync(command, {
@@ -81,32 +143,32 @@ const executeSSHCommand = async (command, timeout = 30000, maxBuffer = DEFAULT_M
 };
 
 // Get SSH connection object for terminal sessions
-const getSSHConnection = async (sshHostId) => {
+const getSSHConnection = async (hostId) => {
   const pool = require('./database');
   
-  // Get SSH host details
+  // Get host details
   const [hosts] = await pool.execute(
-    'SELECT * FROM ssh_hosts WHERE id = ? AND is_active = TRUE',
-    [sshHostId]
+    'SELECT * FROM hosts WHERE id = ? AND is_active = TRUE',
+    [hostId]
   );
   
   const host = hosts[0];
   if (!host) {
-    throw new Error('SSH Host not found');
+    throw new Error('Host not found');
   }
   
   // Return a connection object with exec method
   return {
     exec: async (command, options = {}) => {
-      const keyName = host.key_name || 'dashboard';
+      const keyName = host.ssh_key_name || 'dashboard';
       
       // Force color in the command
       const coloredCommand = forceColorInCommand(command);
       
       // Use -t flag for pseudo-TTY to preserve colors
-      const sshCommand = `ssh -t -i ~/.ssh/id_rsa_${keyName} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${host.port} ${host.username}@${host.host} "${coloredCommand}"`;
+      const sshCommand = `ssh -t -i ~/.ssh/id_rsa_${keyName} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${host.port} ${host.username}@${host.hostname} "${coloredCommand}"`;
       
-      console.log(`🔗 Executing SSH command on ${host.hostname}: ${coloredCommand}`);
+      console.log(`🔗 Executing SSH command on ${host.name}: ${coloredCommand}`);
       
       // Environment variables to force color output
       const colorEnv = {

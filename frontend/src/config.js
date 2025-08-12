@@ -11,7 +11,14 @@ const getApiUrl = () => {
   return ''; // Use relative URLs like /api/...
 };
 
-const API_BASE_URL = getApiUrl();
+// Make sure we NEVER return undefined or an IP address
+let API_BASE_URL = getApiUrl();
+
+// Safety check - if somehow an IP got in there, clear it
+if (API_BASE_URL && API_BASE_URL.match(/\d+\.\d+\.\d+\.\d+/)) {
+  console.warn('IP address detected in API_BASE_URL, clearing it');
+  API_BASE_URL = '';
+}
 
 // Guacamole URL Configuration
 const getGuacamoleUrl = () => {
@@ -25,8 +32,9 @@ const getGuacamoleUrl = () => {
     return window.location.protocol + '//' + window.location.hostname + ':9871/guacamole';
   }
   
-  // Default to Guacamole proxy with JWT authentication
-  return window.location.protocol + '//' + window.location.hostname + ':8070/guacamole';
+  // Use relative URL to go through nginx proxy
+  // This works for all devices accessing through the main dashboard port
+  return '/guacamole';
 };
 
 const GUACAMOLE_URL = getGuacamoleUrl();

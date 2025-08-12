@@ -78,8 +78,17 @@ class SimpleTerminalManager extends EventEmitter {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
-    const { host, port = 22, username } = sshConfig;
-    const sshCommand = `ssh -o StrictHostKeyChecking=no -p ${port} ${username}@${host}\n`;
+    const { host, port = 22, username, keyPath } = sshConfig;
+    
+    // Baue SSH-Command mit Schlüssel auf
+    let sshCommand;
+    if (keyPath) {
+      // Verwende SSH-Schlüssel wenn vorhanden
+      sshCommand = `ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no -i ${keyPath} -p ${port} ${username}@${host}\n`;
+    } else {
+      // Fallback ohne Schlüssel (wird nach Passwort fragen)
+      sshCommand = `ssh -o StrictHostKeyChecking=no -p ${port} ${username}@${host}\n`;
+    }
 
     console.log(`🔗 Connecting to SSH: ${sshCommand.trim()}`);
     this.writeToSession(sessionId, sshCommand);

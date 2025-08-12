@@ -1,12 +1,16 @@
-// Background Images API routes
+// Background Images API routes - Using QueryBuilder
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const sharp = require('sharp');
+// const sharp = require('sharp'); // Temporarily disabled for ARM64 compatibility
 const path = require('path');
 const fs = require('fs').promises;
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { broadcast } = require('./sse');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store in memory for processing
@@ -90,28 +94,30 @@ router.post('/upload', upload.single('background'), async (req, res) => {
 
     // Deactivate current background
     try {
-      await pool.execute('UPDATE background_images SET is_active = FALSE');
+      await db.update(
+        'background_images', 
+        { isActive: false },
+        {} // Update all records
+      );
     } catch (dbError) {
       console.error('Database deactivate error:', dbError);
     }
 
     // Insert new background into database
     try {
-      const [result] = await pool.execute(
-        `INSERT INTO background_images (filename, original_name, mime_type, file_size, width, height, is_active) 
-         VALUES (?, ?, ?, ?, ?, ?, TRUE)`,
-        [
-          filename,
-          req.file.originalname,
-          req.file.mimetype,
-          processedBuffer.length,
-          finalMetadata.width,
-          finalMetadata.height,
-        ]
-      );
+      const result = await db.insert('background_images', {
+        filename,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        fileSize: processedBuffer.length,
+        width: finalMetadata.width,
+        height: finalMetadata.height,
+        isActive: true,
+        createdAt: new Date()
+      });
 
-      // Enable background in settings
-      await pool.execute(
+      // Enable background in settings using raw query for UPSERT
+      await db.raw(
         `INSERT INTO user_settings (setting_key, setting_value) 
          VALUES ('background_enabled', 'true') 
          ON DUPLICATE KEY UPDATE setting_value = 'true'`
@@ -154,15 +160,17 @@ router.post('/upload', upload.single('background'), async (req, res) => {
 // Get current background image
 router.get('/current', async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      'SELECT * FROM background_images WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1'
+    const backgrounds = await db.select(
+      'background_images', 
+      { isActive: true },
+      { orderBy: 'createdAt', orderDir: 'DESC', limit: 1 }
     );
 
-    if (rows.length === 0) {
+    if (backgrounds.length === 0) {
       return res.json({ background: null });
     }
 
-    const background = rows[0];
+    const background = backgrounds[0];
     res.json({
       background: {
         id: background.id,
@@ -170,8 +178,8 @@ router.get('/current', async (req, res) => {
         url: `/uploads/backgrounds/${background.filename}`,
         width: background.width,
         height: background.height,
-        size: background.file_size,
-        created_at: background.created_at,
+        size: background.fileSize,
+        created_at: background.createdAt,
       },
     });
   } catch (error) {
@@ -183,23 +191,25 @@ router.get('/current', async (req, res) => {
 // Get all background images
 router.get('/list', async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      'SELECT * FROM background_images ORDER BY created_at DESC'
+    const backgrounds = await db.select(
+      'background_images',
+      {},
+      { orderBy: 'createdAt', orderDir: 'DESC' }
     );
 
-    const backgrounds = rows.map(bg => ({
+    const mappedBackgrounds = backgrounds.map(bg => ({
       id: bg.id,
       filename: bg.filename,
-      original_name: bg.original_name,
+      original_name: bg.originalName,
       url: `/uploads/backgrounds/${bg.filename}`,
       width: bg.width,
       height: bg.height,
-      size: bg.file_size,
-      is_active: bg.is_active,
-      created_at: bg.created_at,
+      size: bg.fileSize,
+      is_active: bg.isActive,
+      created_at: bg.createdAt,
     }));
 
-    res.json({ backgrounds });
+    res.json({ backgrounds: mappedBackgrounds });
   } catch (error) {
     console.error('Error fetching background list:', error);
     res.status(500).json({ error: 'Failed to fetch background list' });
@@ -211,13 +221,14 @@ router.post('/activate/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Deactivate all backgrounds
-    await pool.execute('UPDATE background_images SET is_active = FALSE');
+    // Deactivate all backgrounds - using raw for UPDATE without WHERE
+    await db.raw('UPDATE background_images SET is_active = FALSE');
 
     // Activate selected background
-    const [result] = await pool.execute(
-      'UPDATE background_images SET is_active = TRUE WHERE id = ?',
-      [id]
+    const result = await db.update(
+      'background_images',
+      { isActive: true },
+      { id }
     );
 
     if (result.affectedRows === 0) {
@@ -225,7 +236,7 @@ router.post('/activate/:id', async (req, res) => {
     }
 
     // Enable background in settings
-    await pool.execute(
+    await db.raw(
       `INSERT INTO user_settings (setting_key, setting_value) 
        VALUES ('background_enabled', 'true') 
        ON DUPLICATE KEY UPDATE setting_value = 'true'`
@@ -247,16 +258,11 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     // Get background info before deletion
-    const [rows] = await pool.execute(
-      'SELECT filename, is_active FROM background_images WHERE id = ?',
-      [id]
-    );
+    const background = await db.findOne('background_images', { id });
 
-    if (rows.length === 0) {
+    if (!background) {
       return res.status(404).json({ error: 'Background image not found' });
     }
-
-    const background = rows[0];
 
     // Delete file from disk
     const filepath = path.join(
@@ -273,11 +279,11 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Delete from database
-    await pool.execute('DELETE FROM background_images WHERE id = ?', [id]);
+    await db.delete('background_images', { id });
 
     // If this was the active background, disable background feature
-    if (background.is_active) {
-      await pool.execute(
+    if (background.isActive) {
+      await db.raw(
         `INSERT INTO user_settings (setting_key, setting_value) 
          VALUES ('background_enabled', 'false') 
          ON DUPLICATE KEY UPDATE setting_value = 'false'`
@@ -297,7 +303,7 @@ router.delete('/:id', async (req, res) => {
 // Disable background
 router.post('/disable', async (req, res) => {
   try {
-    await pool.execute(
+    await db.raw(
       `INSERT INTO user_settings (setting_key, setting_value) 
        VALUES ('background_enabled', 'false') 
        ON DUPLICATE KEY UPDATE setting_value = 'false'`

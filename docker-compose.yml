@@ -4,8 +4,9 @@ services:
     image: mariadb:latest
     container_name: ${DB_CONTAINER_NAME:-appliance_db}
     restart: always
-    ports:
-      - "${DB_EXTERNAL_PORT:-3306}:3306"
+    # Datenbank sollte niemals von außen erreichbar sein
+    # ports:
+    #   - "${DB_EXTERNAL_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -13,11 +14,11 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init-db:/docker-entrypoint-initdb.d
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password=\"${MYSQL_ROOT_PASSWORD}\" || exit 1"]
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-20}
       start_period: 40s
@@ -29,6 +30,8 @@ services:
       dockerfile: Dockerfile
     container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
     restart: always
+    # Backend sollte nur intern erreichbar sein (Production)
+    # Für Entwicklung: Port aktivieren
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     environment:
@@ -66,16 +69,24 @@ services:
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-combined}
+      # Docker host access
+      DOCKER_HOST_INTERNAL: 'true'
     depends_on:
       database:
         condition: service_healthy
     networks:
       - ${NETWORK_NAME:-appliance_network}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
       - /app/node_modules
       - ssh_keys:/root/.ssh
       - uploads:/app/uploads
+      # Shared temp directory für Terminal-Sessions
+      - terminal_sessions:/tmp/terminal-sessions
+      # Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       # Optional: Mount lokales SSH-Keys Verzeichnis für Entwicklung
       # - ./ssh-keys:/root/.ssh
     healthcheck:
@@ -85,18 +96,19 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 40s
 
-  # Nginx Web Server
+  # Nginx Web Server with custom image
   webserver:
-    image: nginx:alpine
+    build: ./nginx
     container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
     restart: always
     ports:
       - "${NGINX_HTTP_PORT:-9080}:80"
       - "${NGINX_HTTPS_PORT:-9443}:443"
     volumes:
-      - ./nginx/nginx-docker-dynamic.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Mount frontend build as read-only
       - ./frontend/build:/usr/share/nginx/html:ro
+      # Override conf.d if needed for development
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - backend
       - ttyd
@@ -104,7 +116,7 @@ services:
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
@@ -114,8 +126,9 @@ services:
     build: ./ttyd
     container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
     restart: always
-    ports:
-      - "${TTYD_PORT:-7681}:7681"
+    # ttyd läuft über nginx proxy auf /terminal/
+    # ports:
+    #   - "${TTYD_PORT:-7681}:7681"
     command: >
       ttyd
       --writable
@@ -124,18 +137,19 @@ services:
       --terminal-type xterm-256color
       /scripts/ttyd-ssh-wrapper.sh
     environment:
-      SSH_HOST: ${TTYD_DEFAULT_HOST:-192.168.178.70}
-      SSH_USER: ${TTYD_DEFAULT_USER:-alflewerken}
+      # Nur Port als Standard, keine Host/User Defaults mehr
       SSH_PORT: ${TTYD_DEFAULT_PORT:-22}
     networks:
       - ${NETWORK_NAME:-appliance_network}
     volumes:
       # SSH-Keys für Terminal-Zugriff
-      - ssh_keys:/root/.ssh:ro
+      - ssh_keys:/root/.ssh
       # Optional: Shared scripts
       - ./scripts:/scripts:ro
+      # Shared temp directory für Session-Dateien
+      - terminal_sessions:/tmp/terminal-sessions
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7681/"]
+      test: ["CMD", "sh", "-c", "pidof ttyd || exit 1"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
@@ -153,7 +167,18 @@ services:
       - guacamole_drive:/drive:rw
       - guacamole_record:/record:rw
     environment:
-      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-info}
+      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-warning}
+      # Performance Tuning
+      GUACD_MAX_THREADS: 8
+      GUACD_BIND_HOST: 0.0.0.0
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
@@ -173,7 +198,9 @@ services:
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
     volumes:
       - guacamole_db:/var/lib/postgresql/data
-      - ./guacamole/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+      - ./guacamole/001-create-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./guacamole/002-create-admin-user.sql:/docker-entrypoint-initdb.d/02-admin.sql:ro
+      - ./guacamole/custom-sftp.sql:/docker-entrypoint-initdb.d/03-custom-sftp.sql:ro
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
@@ -212,10 +239,14 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      # Standard SSH-Zugangsdaten für SFTP
+      DEFAULT_SSH_USER: ${DEFAULT_SSH_USER:-alflewerken}
+      DEFAULT_SSH_PASS: ${DEFAULT_SSH_PASS:-}
     volumes:
       - guacamole_home:/etc/guacamole
-    ports:
-      - "${GUACAMOLE_PORT:-9070}:8080"
+    # Port wird nicht nach außen geöffnet - nur über nginx erreichbar
+    # ports:
+    #   - "${GUACAMOLE_PORT:-9070}:8080"
     networks:
       appliance_network:
         aliases:
@@ -227,26 +258,46 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 60s
 
-  # Nginx JWT Authentication Proxy for Guacamole
-  guacamole-proxy:
-    build: ./nginx
-    container_name: ${GUACAMOLE_PROXY_CONTAINER_NAME:-appliance_guacamole_proxy}
+  # ====================================================================
+  # RUSTDESK SERVICES
+  # ====================================================================
+  
+  # RustDesk ID/Rendezvous Server
+  rustdesk-server:
+    image: rustdesk/rustdesk-server:latest
+    container_name: ${RUSTDESK_SERVER_CONTAINER:-rustdesk-server}
+    command: hbbs
     restart: always
-    depends_on:
-      guacamole:
-        condition: service_healthy
     environment:
-      JWT_SECRET: ${JWT_SECRET}
-      GUACAMOLE_URL: http://guacamole:8080
+      - RELAY=0.0.0.0:21117
+      - PORT=21116
     ports:
-      - "${GUACAMOLE_PROXY_PORT:-8070}:8070"
+      - "${RUSTDESK_ID_PORT:-21216}:21116"  # ID Server TCP (external:internal)
+      - "${RUSTDESK_ID_PORT:-21216}:21116/udp"  # ID Server UDP
+      - "${RUSTDESK_WEB_PORT:-21218}:21118"  # Web Client (21218 extern -> 21118 intern)
+      - "${RUSTDESK_API_PORT:-21219}:21119"  # API (21219 extern -> 21119 intern)
+    volumes:
+      - rustdesk_data:/root
     networks:
       - ${NETWORK_NAME:-appliance_network}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8070/health"]
-      interval: ${HEALTH_CHECK_INTERVAL:-30s}
-      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-      retries: ${HEALTH_CHECK_RETRIES:-3}
+    # Removed healthcheck - RustDesk container has no shell or common tools
+
+  # RustDesk Relay Server
+  rustdesk-relay:
+    image: rustdesk/rustdesk-server:latest
+    container_name: ${RUSTDESK_RELAY_CONTAINER:-rustdesk-relay}
+    command: hbbr
+    restart: always
+    ports:
+      - "${RUSTDESK_RELAY_PORT:-21217}:21117"  # Relay Server (21217 extern -> 21117 intern)
+      - "${RUSTDESK_WEBSOCKET_PORT:-21220}:21120"  # Websocket (21220 extern -> 21120 intern)
+    volumes:
+      - rustdesk_data:/root
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    # Removed healthcheck - RustDesk container has no shell or common tools
+
+
 
 # ====================================================================
 # VOLUMES
@@ -272,6 +323,13 @@ volumes:
     labels:
       - "backup=${BACKUP_ENABLED:-true}"
       - "purpose=uploads"
+      - "project=web-appliance-dashboard"
+      
+  terminal_sessions:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-false}"
+      - "purpose=terminal-sessions"
       - "project=web-appliance-dashboard"
 
   # Guacamole volumes
@@ -301,6 +359,14 @@ volumes:
     labels:
       - "backup=${BACKUP_ENABLED:-true}"
       - "purpose=guacamole-configuration"
+      - "project=web-appliance-dashboard"
+
+  # RustDesk volumes
+  rustdesk_data:
+    driver: local
+    labels:
+      - "backup=${BACKUP_ENABLED:-true}"
+      - "purpose=rustdesk-data"
       - "project=web-appliance-dashboard"
 
 # ====================================================================

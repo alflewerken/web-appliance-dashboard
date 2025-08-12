@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Any
 class WebApplianceAPIClient:
     """Client for interacting with the Web Appliance Dashboard API."""
     
-    def __init__(self, base_url: str = "http://localhost:3001"):
+    def __init__(self, base_url: str = "http://localhost:9080"):
         """
         Initialize the API client.
         
@@ -184,7 +184,7 @@ class WebApplianceAPIClient:
     def check_appliance_status(self, appliance_ids: List[int]) -> Dict[str, Any]:
         """Check status of multiple appliances."""
         response = self.session.post(
-            f"{self.base_url}/api/status-check",
+            f"{self.base_url}/api/statusCheck",
             headers=self._get_headers(),
             json={"applianceIds": appliance_ids}
         )
@@ -201,7 +201,7 @@ class WebApplianceAPIClient:
             params["userId"] = user_id
             
         response = self.session.get(
-            f"{self.base_url}/api/audit-logs",
+            f"{self.base_url}/api/auditLogs",
             headers=self._get_headers(),
             params=params
         )

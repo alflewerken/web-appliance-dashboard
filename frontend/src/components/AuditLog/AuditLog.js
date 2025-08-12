@@ -25,12 +25,26 @@ import {
 } from 'lucide-react';
 import axios from '../../utils/axiosConfig';
 import AuditLogTable from './AuditLogTable';
-import SSHAuditDetail from './SSHAuditDetail';
 import { useSSE } from '../../hooks/useSSE';
 import './AuditLog.css';
 import './AuditLog.light.css';
 
 const AuditLog = ({ onClose }) => {
+  // Kritische Aktionen Definition - MUSS VOR fetchAuditLogs definiert werden
+  const criticalActions = [
+    'user_deleted',
+    'user_deactivated',
+    'appliance_deleted',
+    'category_deleted',
+    'host_deleted',
+    'backup_deleted',
+    'ssh_key_deleted',
+    'audit_logs_deleted',
+    'settings_reset',
+    'failed_login',
+    'unauthorized_access',
+  ];
+
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,24 +119,6 @@ const AuditLog = ({ onClose }) => {
     };
   }, []);
 
-  // Definiere kritische Aktionen
-  const criticalActions = [
-    'user_delete',
-    'user_deleted',
-    'user_deactivated',
-    'appliance_delete',
-    'service_deleted',
-    'settings_update',
-    'user_role_change',
-    'backup_restore',
-    'ssh_key_delete',
-    'service_stop',
-    'command_execute_failed',
-    'login_failed',
-    'failed_login',
-    'audit_logs_delete',
-  ];
-
   // Definiere Aktion-Icons
   const actionIcons = {
     login: LogIn,
@@ -164,6 +160,9 @@ const AuditLog = ({ onClose }) => {
     password_change: Shield,
     command_execute: Terminal,
     command_execute_failed: AlertTriangle,
+    terminal_open: Terminal,
+    terminal_disconnect: Terminal,
+    terminal_command: Terminal,
     audit_logs_delete: Trash2,
   };
 
@@ -173,13 +172,45 @@ const AuditLog = ({ onClose }) => {
     setError(null);
 
     try {
-      const response = await axios.get('/api/audit-logs');
-      // Debug-Ausgabe
-      setLogs(response.data);
-      setFilteredLogs(response.data);
+      const response = await axios.get('/api/auditLogs');
+      
+      // Check if response has the new format with stats
+      let logData = [];
+      let backendStats = null;
+      
+      if (response.data && response.data.logs) {
+        // New format with stats
+        logData = response.data.logs;
+        backendStats = response.data.stats;
+      } else {
+        // Old format (fallback)
+        logData = response.data || [];
+      }
+      
+      setLogs(logData);
+      setFilteredLogs(logData);
 
-      // Berechne Statistiken
-      calculateStats(response.data);
+      // Use backend stats if available, otherwise calculate
+      if (backendStats && backendStats.today !== undefined) {
+        // Use backend-calculated stats
+        const uniqueUsers = new Set(
+          logData.map(log => log.username).filter(Boolean)
+        ).size;
+
+        const criticalActionCount = logData.filter(log =>
+          criticalActions.includes(log.action)
+        ).length;
+
+        setStats({
+          totalLogs: backendStats.total || logData.length,
+          todayLogs: backendStats.today,
+          uniqueUsers,
+          criticalActions: criticalActionCount,
+        });
+      } else {
+        // Fallback to client-side calculation
+        calculateStats(logData);
+      }
     } catch (err) {
       console.error('Error fetching audit logs:', err);
       setError('Fehler beim Laden der Audit Logs');
@@ -190,12 +221,21 @@ const AuditLog = ({ onClose }) => {
 
   // Berechne Statistiken
   const calculateStats = logsData => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const todayLogs = logsData.filter(
-      log => new Date(log.created_at) >= today
-    ).length;
+    // Sicherstellen dass logsData ein Array ist
+    if (!Array.isArray(logsData)) {
+      console.error('calculateStats: logsData is not an array:', logsData);
+      return;
+    }
+    
+    // Einfacher Ansatz: Zähle alle Logs vom heutigen Datum (UTC)
+    const todayDateString = new Date().toISOString().split('T')[0]; // "2025-08-08"
+    
+    let todayCount = 0;
+    logsData.forEach(log => {
+      if (log.createdAt && log.createdAt.startsWith(todayDateString)) {
+        todayCount++;
+      }
+    });
 
     const uniqueUsers = new Set(
       logsData.map(log => log.username).filter(Boolean)
@@ -207,7 +247,7 @@ const AuditLog = ({ onClose }) => {
 
     setStats({
       totalLogs: logsData.length,
-      todayLogs,
+      todayLogs: todayCount,
       uniqueUsers,
       criticalActions: criticalActionCount,
     });
@@ -222,6 +262,13 @@ const AuditLog = ({ onClose }) => {
       setSearchTerm('');
     }
   };
+
+  // Berechne Statistiken wenn Logs sich ändern
+  useEffect(() => {
+    if (logs.length > 0) {
+      calculateStats(logs);
+    }
+  }, [logs]);
 
   // Initial Load
   useEffect(() => {
@@ -277,7 +324,11 @@ const AuditLog = ({ onClose }) => {
       'ssh_host_deleted',
       'ssh_host_restored',
       'ssh_host_reverted',
+      'ssh_file_upload',
       'command_executed',
+      'terminal_open',
+      'terminal_disconnect',
+      'terminal_command',
       'audit_logs_deleted',
       'audit_log_created', // Generic event for any audit log creation
     ];
@@ -287,14 +338,13 @@ const AuditLog = ({ onClose }) => {
       .map(eventName => {
         try {
           const unsubscribe = addEventListener(eventName, data => {
-            console.log(`📨 AuditLog: Received ${eventName} event:`, data);
 
             // Special handling for user activation/deactivation
             if (
               eventName === 'user_activated' ||
               eventName === 'user_deactivated'
             ) {
-              console.log(`👤 ${eventName}: User status changed`);
+
             }
 
             // Use shorter delay for better UX but still ensure DB write is complete
@@ -307,9 +357,7 @@ const AuditLog = ({ onClose }) => {
               : 1000;
 
             setTimeout(() => {
-              console.log(
-                `♻️ AuditLog: Refreshing logs after ${eventName} event`
-              );
+
               // Call fetchAuditLogs through the ref
               if (fetchAuditLogsRef.current) {
                 fetchAuditLogsRef.current();
@@ -326,7 +374,6 @@ const AuditLog = ({ onClose }) => {
             return null;
           }
 
-          console.log(`✅ AuditLog: Listener registered for ${eventName}`);
           return unsubscribe;
         } catch (error) {
           console.error(
@@ -354,6 +401,12 @@ const AuditLog = ({ onClose }) => {
 
   // Filter Logs
   useEffect(() => {
+    // Sicherstellen dass logs ein Array ist
+    if (!Array.isArray(logs)) {
+      console.error('logs is not an array:', logs);
+      return;
+    }
+    
     let filtered = [...logs];
 
     // Kritische Aktionen Filter (hat Priorität)
@@ -369,12 +422,12 @@ const AuditLog = ({ onClose }) => {
             log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (log.username &&
               log.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (log.resource_type &&
-              log.resource_type
+            (log.resourceType &&
+              log.resourceType
                 .toLowerCase()
                 .includes(searchTerm.toLowerCase())) ||
-            (log.details &&
-              JSON.stringify(log.details)
+            (log.metadata &&
+              JSON.stringify(log.metadata)
                 .toLowerCase()
                 .includes(searchTerm.toLowerCase()))
         );
@@ -394,23 +447,32 @@ const AuditLog = ({ onClose }) => {
     // Resource Type Filter
     if (selectedResourceType !== 'all') {
       filtered = filtered.filter(
-        log => log.resource_type === selectedResourceType
+        log => log.resourceType === selectedResourceType
       );
     }
 
     // Datumsfilter
-    const now = new Date();
     let startDate = null;
+    let endDate = null;
+    let todayDateString = null;
 
     switch (dateRange) {
       case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        // Einfacher String-Vergleich für "Heute"
+        todayDateString = new Date().toISOString().split('T')[0];
+        break;
+      case 'yesterday':
+        const yesterday = new Date();
+        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+        todayDateString = yesterday.toISOString().split('T')[0];
         break;
       case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
         break;
       case 'month':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
         break;
       case 'custom':
         if (customStartDate) {
@@ -419,14 +481,30 @@ const AuditLog = ({ onClose }) => {
         break;
     }
 
-    if (startDate) {
-      filtered = filtered.filter(log => new Date(log.created_at) >= startDate);
+    // Filter anwenden
+    if (todayDateString) {
+      // String-basierter Filter für today/yesterday
+      filtered = filtered.filter(log => {
+        return log.createdAt && log.createdAt.startsWith(todayDateString);
+      });
+    } else if (startDate && dateRange !== 'all') {
+      // Datum-basierter Filter für week/month/custom
+      filtered = filtered.filter(log => {
+        if (!log.createdAt) return false;
+        const logDate = new Date(log.createdAt);
+        
+        if (endDate) {
+          return logDate >= startDate && logDate < endDate;
+        }
+        
+        return logDate >= startDate;
+      });
     }
 
     if (dateRange === 'custom' && customEndDate) {
       const endDate = new Date(customEndDate);
       endDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(log => new Date(log.created_at) <= endDate);
+      filtered = filtered.filter(log => new Date(log.createdAt) <= endDate);
     }
 
     setFilteredLogs(filtered);
@@ -458,7 +536,7 @@ const AuditLog = ({ onClose }) => {
   // SSH Host Restore Handler
   const handleSSHHostRestore = async hostId => {
     try {
-      const response = await axios.post(`/api/ssh/hosts/${hostId}/restore`);
+      const response = await axios.post(`/api/hosts/${hostId}/restore`);
       if (response.data.success) {
         fetchAuditLogs(); // Refresh audit logs
         // Show success message (you might want to add a toast notification here)
@@ -473,7 +551,7 @@ const AuditLog = ({ onClose }) => {
   const handleSSHHostRevert = async (hostId, historyId) => {
     try {
       const response = await axios.post(
-        `/api/ssh/hosts/${hostId}/revert/${historyId}`
+        `/api/hosts/${hostId}/revert/${historyId}`
       );
       if (response.data.success) {
         fetchAuditLogs(); // Refresh audit logs
@@ -487,7 +565,13 @@ const AuditLog = ({ onClose }) => {
 
   // Format Timestamp
   const formatTimestamp = timestamp => {
+    if (!timestamp) return 'Kein Datum';
+    
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Ungültiges Datum';
+    }
+    
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
@@ -554,11 +638,15 @@ const AuditLog = ({ onClose }) => {
       ssh_host_restore: 'SSH-Host wiederhergestellt',
       ssh_host_revert: 'SSH-Host zurückgesetzt',
       ssh_connection_test: 'SSH-Verbindung getestet',
+      ssh_file_upload: 'Datei hochgeladen',
       service_start: 'Service gestartet',
       service_stop: 'Service gestoppt',
       password_change: 'Passwort geändert',
       command_execute: 'Kommando ausgeführt',
       command_execute_failed: 'Kommando fehlgeschlagen',
+      terminal_open: 'Terminal geöffnet',
+      terminal_disconnect: 'Terminal geschlossen',
+      terminal_command: 'Terminal-Befehl',
       audit_logs_delete: 'Audit Logs gelöscht',
     };
 
@@ -625,7 +713,7 @@ const AuditLog = ({ onClose }) => {
       }
 
       const response = await axios.get(
-        `/api/audit-logs/export?${params.toString()}`,
+        `/api/auditLogs/export?${params.toString()}`,
         {
           responseType: 'blob',
         }
@@ -744,6 +832,8 @@ const AuditLog = ({ onClose }) => {
                 ? JSON.parse(log.details)
                 : log.details;
             resourceName =
+              details.displayName ||
+              details.hostIdentifier ||
               details.name ||
               details.service_name ||
               details.appliance_name ||
@@ -754,18 +844,19 @@ const AuditLog = ({ onClose }) => {
         }
 
         const resourceDisplay =
+          log.resourceName ||
           resourceName ||
-          (log.resource_type && log.resource_id
-            ? `${log.resource_type} #${log.resource_id}`
-            : log.resource_type || '-');
+          (log.resourceType && log.resourceId
+            ? `${log.resourceType} #${log.resourceId}`
+            : log.resourceType || '-');
 
         printWindow.document.write(`
           <tr>
-            <td>${formatTimestamp(log.created_at)}</td>
+            <td>${formatTimestamp(log.createdAt)}</td>
             <td>${log.username || 'System'}</td>
             <td class="${getActionColor(log.action)}">${formatActionName(log.action)}</td>
             <td>${resourceDisplay}</td>
-            <td>${log.ip_address || '-'}</td>
+            <td>${log.ipAddress || '-'}</td>
           </tr>
         `);
       });
@@ -813,7 +904,7 @@ const AuditLog = ({ onClose }) => {
     try {
       const logIds = filteredLogs.map(log => log.id);
 
-      const response = await axios.delete('/api/audit-logs/delete', {
+      const response = await axios.delete('/api/auditLogs/delete', {
         data: { ids: logIds },
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -828,6 +919,9 @@ const AuditLog = ({ onClose }) => {
         alert(
           `${response.data.deletedCount} Audit Log Einträge wurden erfolgreich gelöscht.`
         );
+      } else {
+        // Sollte normalerweise nicht passieren, da das Backend bei Fehler einen HTTP-Fehlercode sendet
+        throw new Error(response.data.error || 'Unbekannter Fehler beim Löschen');
       }
     } catch (err) {
       console.error('Error deleting audit logs:', err);
@@ -857,14 +951,16 @@ const AuditLog = ({ onClose }) => {
     return 'default';
   };
 
-  // Get unique values for filters
-  const uniqueActions = [...new Set(logs.map(log => log.action))].sort();
-  const uniqueUsers = [
-    ...new Set(logs.map(log => log.username).filter(Boolean)),
-  ].sort();
-  const uniqueResourceTypes = [
-    ...new Set(logs.map(log => log.resource_type).filter(Boolean)),
-  ].sort();
+  // Get unique values for filters - mit Sicherheitsprüfung
+  const uniqueActions = Array.isArray(logs) 
+    ? [...new Set(logs.map(log => log.action))].sort()
+    : [];
+  const uniqueUsers = Array.isArray(logs)
+    ? [...new Set(logs.map(log => log.username).filter(Boolean))].sort()
+    : [];
+  const uniqueResourceTypes = Array.isArray(logs)
+    ? [...new Set(logs.map(log => log.resourceType).filter(Boolean))].sort()
+    : [];
 
   // Add/remove no-blur class when component mounts/unmounts
   useEffect(() => {
@@ -893,6 +989,11 @@ const AuditLog = ({ onClose }) => {
 
   return (
     <div className="audit-log-modal">
+      {/* Debug Info */}
+      <div style={{position: 'fixed', top: 60, right: 10, background: 'red', color: 'white', padding: 10, zIndex: 9999}}>
+        DEBUG: logs={logs.length}, filtered={filteredLogs.length}, dateRange={dateRange}
+      </div>
+      
       <div className="audit-log-overlay" onClick={onClose} />
       <div className="audit-log-container" ref={containerRef}>
         <div className="audit-log-header">
@@ -1297,6 +1398,8 @@ const AuditLog = ({ onClose }) => {
                         ? JSON.parse(log.details)
                         : log.details;
                     resourceName =
+                      details.displayName ||
+                      details.hostIdentifier ||
                       details.name ||
                       details.command_description ||
                       details.service_name ||
@@ -1317,14 +1420,14 @@ const AuditLog = ({ onClose }) => {
                   }
                 }
 
-                let resourceDisplay = resourceName;
+                let resourceDisplay = log.resource_name || resourceName;
 
                 // Only use generic format if we have no name
                 if (!resourceDisplay) {
-                  if (log.resource_type && log.resource_id) {
-                    resourceDisplay = `${log.resource_type} #${log.resource_id}`;
-                  } else if (log.resource_type) {
-                    resourceDisplay = log.resource_type;
+                  if (log.resourceType && log.resourceId) {
+                    resourceDisplay = `${log.resourceType} #${log.resourceId}`;
+                  } else if (log.resourceType) {
+                    resourceDisplay = log.resourceType;
                   } else {
                     resourceDisplay = '-';
                   }
@@ -1399,7 +1502,7 @@ const AuditLog = ({ onClose }) => {
 
                           <div className="mobile-log-ip">
                             <span className="mobile-label">IP:</span>
-                            <span>{log.ip_address || '-'}</span>
+                            <span>{log.ipAddress || '-'}</span>
                           </div>
                         </div>
 
@@ -1440,10 +1543,10 @@ const AuditLog = ({ onClose }) => {
                           </button>
                         )}
 
-                        {expandedRows.has(log.id) && log.details && (
+                        {expandedRows.has(log.id) && log.metadata && (
                           <div className="mobile-details">
                             {/* SSH Host specific details */}
-                            {log.resource_type === 'ssh_host' && (
+                            {log.resourceType === 'ssh_host' && (
                               <SSHAuditDetail
                                 logEntry={log}
                                 onClose={() => toggleRowExpansion(log.id)}
@@ -1453,18 +1556,18 @@ const AuditLog = ({ onClose }) => {
                             )}
 
                             {/* Other resource types */}
-                            {log.resource_type !== 'ssh_host' &&
+                            {log.resourceType !== 'ssh_host' &&
                               (() => {
                                 const details =
-                                  typeof log.details === 'string'
-                                    ? JSON.parse(log.details)
-                                    : log.details;
+                                  typeof log.metadata === 'string'
+                                    ? JSON.parse(log.metadata)
+                                    : log.metadata;
 
                                 // Handler für die Wiederherstellung
                                 const handleRestore = async () => {
                                   const isDeleted =
                                     log.action.includes('delete');
-                                  const resourceType = log.resource_type;
+                                  const resourceType = log.resourceType;
 
                                   if (!isDeleted && !details.original_data) {
                                     alert(
@@ -1514,16 +1617,16 @@ const AuditLog = ({ onClose }) => {
                                     if (isDeleted) {
                                       switch (resourceType) {
                                         case 'appliances':
-                                          endpoint = `/api/audit-restore/restore/appliances/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/appliances/${log.id}`;
                                           break;
                                         case 'users':
-                                          endpoint = `/api/audit-restore/restore/users/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/users/${log.id}`;
                                           break;
                                         case 'categories':
-                                          endpoint = `/api/audit-restore/restore/categories/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/categories/${log.id}`;
                                           break;
                                         case 'ssh_host':
-                                          endpoint = `/api/audit-restore/restore/ssh_hosts/${log.id}`;
+                                          endpoint = `/api/auditRestore/restore/ssh_hosts/${log.id}`;
                                           break;
                                         default:
                                           throw new Error(
@@ -1533,16 +1636,16 @@ const AuditLog = ({ onClose }) => {
                                     } else {
                                       switch (resourceType) {
                                         case 'appliances':
-                                          endpoint = `/api/audit-restore/revert/appliances/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/appliances/${log.id}`;
                                           break;
                                         case 'users':
-                                          endpoint = `/api/audit-restore/revert/users/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/users/${log.id}`;
                                           break;
                                         case 'categories':
-                                          endpoint = `/api/audit-restore/revert/categories/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/categories/${log.id}`;
                                           break;
                                         case 'ssh_host':
-                                          endpoint = `/api/audit-restore/revert/ssh_hosts/${log.id}`;
+                                          endpoint = `/api/auditRestore/revert/ssh_hosts/${log.id}`;
                                           break;
                                         default:
                                           throw new Error(
@@ -1740,6 +1843,8 @@ const AuditLog = ({ onClose }) => {
               getActionIcon={getActionIcon}
               expandedRows={expandedRows}
               toggleRowExpansion={toggleRowExpansion}
+              onSSHHostRestore={handleSSHHostRestore}
+              onSSHHostRevert={handleSSHHostRevert}
             />
           )}
         </div>

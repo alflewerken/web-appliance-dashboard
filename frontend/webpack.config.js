@@ -9,7 +9,8 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'build'),
     filename: 'static/js/bundle.[contenthash].js',
-    publicPath: '/'
+    publicPath: '/',
+    hashSalt: 'debug-' + Date.now()
   },
   module: {
     rules: [
@@ -60,8 +61,7 @@ module.exports = {
       ]
     }),
     new Dotenv({
-      systemvars: true,
-      defaults: true
+      systemvars: true
     })
   ],
   resolve: {
@@ -80,5 +80,10 @@ module.exports = {
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
       "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
     }
+  },
+  performance: {
+    hints: false,
+    maxEntrypointSize: 512000,
+    maxAssetSize: 512000
   }
 };

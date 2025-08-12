@@ -1,10 +1,12 @@
 /**
  * Terminal Window Utilities
  * Hilfsunktionen zum Öffnen des Terminals in einem neuen PWA-Fenster
- * Version: 1.1 - Fixed HTTP/HTTPS handling
+ * Version: 1.2 - Added session creation for new windows
  */
 
-export const openTerminalInNewWindow = (terminalData = {}) => {
+import axios from '../utils/axiosConfig';
+
+export const openTerminalInNewWindow = async (terminalData = {}) => {
   // Prüfe ob wir in Electron sind
   const isElectron = window.electronAPI !== undefined;
   
@@ -17,7 +19,7 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
       hostId: terminalData.hostId
     }).then(result => {
       if (result.success) {
-        console.log('Terminal opened with ID:', result.id);
+
       } else {
         console.error('Failed to open terminal:', result.error);
         alert('Fehler beim Öffnen des Terminals: ' + result.error);
@@ -30,6 +32,27 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
   }
   
   // Fallback für Browser
+  
+  // Create terminal session first if we have SSH data
+  if (terminalData.hostId || (terminalData.host && terminalData.user)) {
+    try {
+      const sessionData = {};
+      if (terminalData.hostId) {
+        sessionData.hostId = terminalData.hostId;
+      } else if (terminalData.host && terminalData.user) {
+        // Create SSH connection string
+        sessionData.sshConnection = `${terminalData.user}@${terminalData.host}:${terminalData.port || 22}`;
+      }
+      
+      const response = await axios.post('/api/terminal/session', sessionData);
+
+      // Wait a bit for session file to be written
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      console.error('Failed to create terminal session for new window:', error);
+    }
+  }
+  
   const params = new URLSearchParams();
   
   if (terminalData.hostId) {
@@ -62,16 +85,7 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
   if (params.toString()) {
     terminalUrl += '?' + params.toString();
   }
-  
-  console.log('Terminal URL construction (v1.1):', {
-    protocol: protocol,
-    hostname: hostname,
-    port: port,
-    fullUrl: terminalUrl,
-    windowLocationHref: window.location.href,
-    timestamp: new Date().toISOString()
-  });
-  
+
   // Öffne das Terminal in einem neuen Tab/Fenster
   try {
     // Verwende window.open mit expliziten Fenster-Features für ein neues Fenster
@@ -79,7 +93,7 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
     const newWindow = window.open(terminalUrl, '_blank', windowFeatures);
     
     if (newWindow) {
-      console.log('Terminal window opened successfully:', terminalUrl);
+
       newWindow.focus();
       return newWindow;
     } else {
@@ -107,8 +121,7 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
           document.body.removeChild(link);
         }
       }, 100);
-      
-      console.log('Terminal opened via link click:', terminalUrl);
+
     }
   } catch (error) {
     console.error('Error opening terminal window:', error);
@@ -122,7 +135,7 @@ export const openTerminalInNewWindow = (terminalData = {}) => {
  * Öffnet das aktuelle Terminal Modal in einem neuen Fenster
  * und schließt das Modal
  */
-export const moveTerminalToNewWindow = (terminalData, onCloseModal) => {
+export const moveTerminalToNewWindow = async (terminalData, onCloseModal) => {
   // Schließe das Modal IMMER, auch wenn das Fenster nicht geöffnet werden kann
   if (onCloseModal) {
     // Schließe das Modal sofort
@@ -130,7 +143,7 @@ export const moveTerminalToNewWindow = (terminalData, onCloseModal) => {
   }
   
   // Öffne das neue Fenster
-  const newWindow = openTerminalInNewWindow(terminalData);
+  const newWindow = await openTerminalInNewWindow(terminalData);
   
   if (!newWindow) {
     console.warn('Terminal window could not be opened, but modal was closed');

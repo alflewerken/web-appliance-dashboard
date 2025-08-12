@@ -170,6 +170,7 @@ export const useCategories = () => {
 
   return {
     apiCategories,
+    setApiCategories,
     categoriesLastUpdated,
     fetchCategories,
     createCategory,

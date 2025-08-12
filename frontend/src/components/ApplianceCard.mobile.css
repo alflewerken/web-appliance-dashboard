@@ -1,0 +1,151 @@
+/* Mobile Styles for ApplianceCard Buttons */
+
+/* Mobile breakpoint - max-width: 768px */
+@media (max-width: 768px) {
+  /* Keep vertical layout on mobile - same as desktop */
+  .card-buttons-left,
+  .card-buttons-right {
+    /* Keep the same positioning as desktop */
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Slightly smaller gap for mobile */
+    z-index: 5;
+    opacity: 1; /* Always visible on mobile/touch devices */
+    transition: opacity 0.3s ease;
+  }
+
+  .card-buttons-left {
+    left: 6px; /* Slightly less padding on mobile */
+  }
+
+  .card-buttons-right {
+    right: 6px; /* Slightly less padding on mobile */
+  }
+
+  /* Keep button sizes consistent but slightly smaller on mobile */
+  .card-front .action-btn,
+  .card-front .file-transfer-button,
+  .card-front .remote-desktop-btn {
+    width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+    height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Adjust icon size for mobile */
+  .card-front .action-btn svg,
+  .card-front .file-transfer-button svg,
+  .card-front .remote-desktop-btn svg {
+    width: clamp(12px, calc(var(--card-size) * 0.09), 18px);
+    height: clamp(12px, calc(var(--card-size) * 0.09), 18px);
+  }
+}
+
+/* Very small screens */
+@media (max-width: 375px) {
+  /* Even smaller buttons on very small screens */
+  .card-front .action-btn,
+  .card-front .file-transfer-button,
+  .card-front .remote-desktop-btn {
+    width: clamp(18px, calc(var(--card-size) * 0.14), 28px);
+    height: clamp(18px, calc(var(--card-size) * 0.14), 28px);
+  }
+
+  .card-front .action-btn svg,
+  .card-front .file-transfer-button svg,
+  .card-front .remote-desktop-btn svg {
+    width: clamp(10px, calc(var(--card-size) * 0.08), 14px);
+    height: clamp(10px, calc(var(--card-size) * 0.08), 14px);
+  }
+
+  /* Reduce gap between buttons */
+  .card-buttons-left,
+  .card-buttons-right {
+    gap: 4px;
+  }
+
+  /* Less padding from edges */
+  .card-buttons-left {
+    left: 4px;
+  }
+
+  .card-buttons-right {
+    right: 4px;
+  }
+}
+
+/* Tablet/iPad specific styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Keep vertical layout with appropriate spacing */
+  .card-buttons-left,
+  .card-buttons-right {
+    gap: 8px;
+    opacity: 1; /* Always visible on touch devices */
+  }
+
+  .card-buttons-left {
+    left: 10px;
+  }
+
+  .card-buttons-right {
+    right: 10px;
+  }
+}
+
+/* Touch device specific adjustments */
+@media (hover: none) {
+  /* Always show buttons on touch devices */
+  .card-front .card-buttons-left,
+  .card-front .card-buttons-right {
+    opacity: 1;
+  }
+
+  /* Keep the same transparent background style as desktop */
+  .card-front .action-btn,
+  .card-front .file-transfer-button,
+  .card-front .remote-desktop-btn {
+    /* Don't override the existing styles - keep desktop appearance */
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  /* Use smaller buttons in landscape to save space */
+  .card-front .action-btn,
+  .card-front .file-transfer-button,
+  .card-front .remote-desktop-btn {
+    width: clamp(18px, calc(var(--card-size) * 0.14), 28px);
+    height: clamp(18px, calc(var(--card-size) * 0.14), 28px);
+  }
+
+  .card-front .action-btn svg,
+  .card-front .file-transfer-button svg,
+  .card-front .remote-desktop-btn svg {
+    width: clamp(10px, calc(var(--card-size) * 0.08), 14px);
+    height: clamp(10px, calc(var(--card-size) * 0.08), 14px);
+  }
+
+  /* Tighter spacing in landscape */
+  .card-buttons-left,
+  .card-buttons-right {
+    gap: 4px;
+  }
+}
+
+/* Special handling for notched devices (iPhone X and later) */
+@supports (padding-left: env(safe-area-inset-left)) {
+  @media (max-width: 768px) {
+    .card-buttons-left {
+      left: max(6px, env(safe-area-inset-left));
+    }
+
+    .card-buttons-right {
+      right: max(6px, env(safe-area-inset-right));
+    }
+  }
+}

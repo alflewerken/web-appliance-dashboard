@@ -1,27 +1,31 @@
 /**
- * Terminal WebSocket Route
+ * Terminal WebSocket Route - Using QueryBuilder
  * Handles WebSocket connections for terminal sessions
  */
 
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const terminalManager = require('../utils/terminal/terminal-manager');
-const { createAuditLog } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Hilfsfunktion zum Parsen der SSH-Konfiguration
 function parseSSHConfig(appliance) {
-  if (!appliance.ssh_connection) return null;
+  if (!appliance.sshConnection) return null;
 
   try {
     // Format: username@host:port
-    const match = appliance.ssh_connection.match(/^(.+)@(.+):(\d+)$/);
+    const match = appliance.sshConnection.match(/^(.+)@(.+):(\d+)$/);
     if (match) {
       return {
         username: match[1],
         host: match[2],
         port: parseInt(match[3], 10),
-        keyPath: appliance.ssh_key_path || '~/.ssh/id_rsa_dashboard',
+        keyPath: appliance.sshKeyPath || '~/.ssh/id_rsa_dashboard',
       };
     }
   } catch (error) {
@@ -73,13 +77,10 @@ function handleTerminalWebSocket(ws, req) {
   // Async operations in einem Promise wrapper
   (async () => {
     try {
-      // Hole Appliance-Details aus der Datenbank
-      const [rows] = await pool.execute(
-        'SELECT * FROM appliances WHERE id = ?',
-        [applianceId]
-      );
+      // Hole Appliance-Details aus der Datenbank mit QueryBuilder
+      applianceData = await db.findOne('appliances', { id: applianceId });
 
-      if (rows.length === 0) {
+      if (!applianceData) {
         ws.send(
           JSON.stringify({
             type: 'error',
@@ -90,7 +91,6 @@ function handleTerminalWebSocket(ws, req) {
         return;
       }
 
-      applianceData = rows[0];
       const sshConfig = parseSSHConfig(applianceData);
 
       // Erstelle Terminal-Session
@@ -101,141 +101,138 @@ function handleTerminalWebSocket(ws, req) {
           ipAddress,
         },
         sshConfig,
-        cols: 80,
-        rows: 30,
+        onData: (data) => {
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'data', data }));
+          }
+        },
+        onError: (error) => {
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'error', data: error.message }));
+          }
+        },
+        onClose: () => {
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'close' }));
+            ws.close();
+          }
+        },
       });
 
-      // Sende initiale Willkommensnachricht
+      // Erfolgsmeldung senden
       ws.send(
         JSON.stringify({
           type: 'connected',
-          data: `Connected to terminal for ${applianceData.name}`,
           sessionId,
-          metadata: {
-            applianceName: applianceData.name,
-            hasSSH: !!sshConfig,
-          },
+          applianceName: applianceData.name,
         })
       );
 
-      // PTY Output Handler
-      session.onData(data => {
-        try {
-          if (ws.readyState === ws.OPEN) {
-            ws.send(
-              JSON.stringify({
-                type: 'output',
-                data,
-              })
-            );
-          }
-        } catch (error) {
-          console.error('Error sending PTY data:', error);
-        }
-      });
-
-      // WebSocket Message Handler
-      ws.on('message', async msg => {
-        try {
-          const message = JSON.parse(msg);
-
-          switch (message.type) {
-            case 'input':
-              // Schreibe Input zum Terminal
-              terminalManager.writeToSession(sessionId, message.data);
-              break;
-
-            case 'resize':
-              // Resize Terminal
-              if (message.cols && message.rows) {
-                terminalManager.resizeSession(
-                  sessionId,
-                  message.cols,
-                  message.rows
-                );
-              }
-              break;
-
-            case 'command':
-              // Führe speziellen Befehl aus
-              terminalManager.executeCommand(sessionId, message.command);
-
-              // Audit-Log für spezielle Befehle
-              await createAuditLog(
-                userId,
-                'terminal_command',
-                'appliance',
-                parseInt(applianceId),
-                {
-                  name: applianceData.name,
-                  sessionId,
-                  command: message.command,
-                  applianceName: applianceData.name,
-                },
-                ipAddress
-              );
-              break;
-
-            case 'ping':
-              // Keep-alive ping
-              ws.send(JSON.stringify({ type: 'pong' }));
-              break;
-
-            default:
-              console.warn(`Unknown message type: ${message.type}`);
-          }
-        } catch (error) {
-          console.error('Terminal message error:', error);
-          ws.send(
-            JSON.stringify({
-              type: 'error',
-              data: 'Invalid message format',
-            })
-          );
-        }
-      });
-
-      // Error Handler
-      ws.on('error', error => {
-        console.error(`WebSocket error for session ${sessionId}:`, error);
-      });
-
-      // Cleanup bei Disconnect
-      ws.on('close', async () => {
-        console.log(`🔌 Terminal WebSocket closed for session ${sessionId}`);
-
-        // Zerstöre Terminal-Session
-        if (session) {
-          terminalManager.destroySession(sessionId);
-        }
-
-        // Audit-Log für Session-Ende
-        await createAuditLog(
-          userId,
-          'terminal_disconnect',
-          'appliance',
-          parseInt(applianceId),
-          {
-            name: applianceData?.name || 'Unknown',
-            sessionId,
-            applianceName: applianceData?.name || 'Unknown',
-          },
-          ipAddress
-        );
-      });
+      // Create audit log for terminal session start
+      await createAuditLog(
+        userId,
+        'terminal_session_start',
+        'appliances',
+        applianceId,
+        {
+          session_id: sessionId,
+          appliance_name: applianceData.name,
+          ssh_connection: applianceData.sshConnection || 'local',
+        },
+        ipAddress
+      );
     } catch (error) {
-      console.error('Terminal WebSocket setup error:', error);
+      console.error('Error setting up terminal session:', error);
       ws.send(
         JSON.stringify({
           type: 'error',
-          data: `Failed to setup terminal: ${error.message}`,
+          data: `Failed to initialize terminal: ${error.message}`,
         })
       );
       ws.close();
     }
   })();
+
+  // WebSocket message handler
+  ws.on('message', (message) => {
+    try {
+      const msg = JSON.parse(message);
+
+      if (!session || !session.isActive()) {
+        ws.send(JSON.stringify({ type: 'error', data: 'Session not active' }));
+        return;
+      }
+
+      switch (msg.type) {
+        case 'data':
+        case 'input':
+          session.write(msg.data);
+          break;
+
+        case 'resize':
+          if (msg.cols && msg.rows) {
+            session.resize(msg.cols, msg.rows);
+          }
+          break;
+
+        case 'ping':
+          ws.send(JSON.stringify({ type: 'pong' }));
+          break;
+
+        default:
+          console.warn('Unknown message type:', msg.type);
+      }
+    } catch (error) {
+      console.error('Error handling WebSocket message:', error);
+    }
+  });
+
+  // WebSocket close handler
+  ws.on('close', async () => {
+    console.log(`🔌 WebSocket disconnected for session ${sessionId}`);
+
+    if (session) {
+      // Create audit log for terminal session end
+      try {
+        await createAuditLog(
+          userId,
+          'terminal_session_end',
+          'appliances',
+          applianceId,
+          {
+            session_id: sessionId,
+            appliance_name: applianceData?.name || 'Unknown',
+            duration_seconds: session.getDuration(),
+          },
+          ipAddress
+        );
+      } catch (error) {
+        console.error('Error creating audit log:', error);
+      }
+
+      session.destroy();
+    }
+  });
+
+  // WebSocket error handler
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+    if (session) {
+      session.destroy();
+    }
+  });
 }
 
+// Terminal health check endpoint
+router.get('/health', (req, res) => {
+  const stats = terminalManager.getStats();
+  res.json({
+    status: 'ok',
+    ...stats,
+  });
+});
+
+// Export both router and WebSocket handler
 module.exports = {
   router,
   handleTerminalWebSocket,

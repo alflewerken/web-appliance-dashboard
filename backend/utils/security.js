@@ -13,8 +13,12 @@ const configureCORS = () => {
       const allowedOrigins = [
         'http://localhost:3000', // React development server
         'http://localhost:3001', // Backend server
+        'http://localhost:3080', // macOS App frontend
+        'http://localhost:9080', // Production nginx port
         'http://localhost', // Production without port
         'https://localhost', // HTTPS production
+        'http://macbookpro.local:3080', // macOS App with hostname
+        'http://macbookpro.local:9080', // Production with hostname
       ];
 
       // Add custom allowed origins from environment
@@ -36,6 +40,7 @@ const configureCORS = () => {
         /^https?:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/,
         /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}(:\d+)?$/,
         /^https?:\/\/[\w-]+\.local(:\d+)?$/,
+        /^https?:\/\/localhost(:\d+)?$/,
       ];
 
       const isLocalNetwork = localNetworkPatterns.some(pattern =>
@@ -64,6 +69,11 @@ const configureCORS = () => {
 
 // Security headers middleware
 const securityHeaders = (req, res, next) => {
+  // Skip security headers for Guacamole routes
+  if (req.path.includes('/guacamole') || req.path.includes('/api/guacamole')) {
+    return next();
+  }
+
   // Prevent clickjacking - allow same origin for terminal iframe
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
@@ -80,14 +90,14 @@ const securityHeaders = (req, res, next) => {
   if (process.env.NODE_ENV === 'production') {
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: https:; " +
-        "font-src 'self' data:; " +
-        "connect-src 'self' ws: wss:; " +
-        "frame-src 'self' http://localhost:* https://localhost:*; " +
-        "frame-ancestors 'self' http://localhost:* https://localhost:*;"
+      "default-src 'self' http: https:; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https:; " +
+        "style-src 'self' 'unsafe-inline' http: https:; " +
+        "img-src 'self' data: http: https:; " +
+        "font-src 'self' data: http: https:; " +
+        "connect-src 'self' ws: wss: http: https:; " +
+        "frame-src 'self' http: https:; " +
+        "frame-ancestors 'self' http: https:;"
     );
   }
 

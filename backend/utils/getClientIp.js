@@ -3,10 +3,9 @@
 
 const getClientIp = req => {
   // Debug logging (disable in production)
-  if (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.DEBUG_IP === 'true'
-  ) {
+  const debugMode = process.env.NODE_ENV !== 'production' || process.env.DEBUG_IP === 'true';
+  
+  if (debugMode) {
     console.log('=== IP Detection Debug ===');
     console.log('All Headers:', JSON.stringify(req.headers, null, 2));
     console.log('req.ip:', req.ip);
@@ -16,27 +15,41 @@ const getClientIp = req => {
     console.log('=========================');
   }
 
+  // Common Docker/Kubernetes internal IPs to filter out
+  const internalIPs = [
+    '192.168.65.1',  // Docker Desktop on Mac
+    '192.168.64.1',  // Docker Desktop alternative
+    '172.17.0.1',    // Docker bridge
+    '172.18.0.1',    // Docker compose bridge
+    '10.0.0.1',      // Kubernetes
+    '::1',           // IPv6 localhost
+    '127.0.0.1',     // IPv4 localhost
+  ];
+
   // Priority order for IP detection:
 
   // 1. X-Forwarded-For header (most reliable when behind proxies)
   if (req.headers['x-forwarded-for']) {
     const forwardedIps = req.headers['x-forwarded-for']
       .split(',')
-      .map(ip => ip.trim());
+      .map(ip => ip.trim())
+      .filter(ip => !internalIPs.includes(ip)); // Filter out internal IPs
 
     // Log all IPs in the chain
-    if (process.env.DEBUG_IP === 'true') {
+    if (debugMode) {
       console.log('X-Forwarded-For chain:', forwardedIps);
     }
 
-    // Return the first IP (original client)
-    const clientIp = forwardedIps[0];
-    console.log('Using X-Forwarded-For (first IP):', clientIp);
-    return clientIp;
+    // Return the first non-internal IP (original client)
+    if (forwardedIps.length > 0) {
+      const clientIp = forwardedIps[0];
+      console.log('Using X-Forwarded-For (first non-internal IP):', clientIp);
+      return clientIp;
+    }
   }
 
   // 2. X-Real-IP header (set by nginx)
-  if (req.headers['x-real-ip']) {
+  if (req.headers['x-real-ip'] && !internalIPs.includes(req.headers['x-real-ip'])) {
     console.log('Using X-Real-IP:', req.headers['x-real-ip']);
     return req.headers['x-real-ip'];
   }
@@ -48,19 +61,22 @@ const getClientIp = req => {
   }
 
   // 4. X-Client-IP (some proxies use this)
-  if (req.headers['x-client-ip']) {
+  if (req.headers['x-client-ip'] && !internalIPs.includes(req.headers['x-client-ip'])) {
     console.log('Using X-Client-IP:', req.headers['x-client-ip']);
     return req.headers['x-client-ip'];
   }
 
   // 5. Express's req.ips array (when trust proxy is enabled)
   if (req.ips && req.ips.length > 0) {
-    console.log('Using req.ips[0]:', req.ips[0]);
-    return req.ips[0];
+    const validIp = req.ips.find(ip => !internalIPs.includes(ip));
+    if (validIp) {
+      console.log('Using req.ips:', validIp);
+      return validIp;
+    }
   }
 
   // 6. Express's req.ip (when trust proxy is enabled)
-  if (req.ip) {
+  if (req.ip && !internalIPs.includes(req.ip)) {
     console.log('Using req.ip:', req.ip);
     return req.ip;
   }
@@ -71,12 +87,20 @@ const getClientIp = req => {
   if (socketAddress) {
     // Remove IPv6 prefix if present
     const cleanIp = socketAddress.replace(/^::ffff:/, '');
-    console.log('Using socket address:', cleanIp);
-    return cleanIp;
+    if (!internalIPs.includes(cleanIp)) {
+      console.log('Using socket address:', cleanIp);
+      return cleanIp;
+    }
+  }
+
+  // 8. For local development, return a placeholder
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Development mode: Using localhost placeholder');
+    return '127.0.0.1';
   }
 
   // Default fallback
-  console.log('Using fallback: unknown');
+  console.log('Warning: Could not determine real IP, using fallback');
   return 'unknown';
 };
 

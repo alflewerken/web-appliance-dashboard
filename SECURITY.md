@@ -17,9 +17,15 @@ We take the security of Web Appliance Dashboard seriously. If you believe you ha
 
 ### How to Report
 
-Please email security vulnerabilities to: `security@your-domain.com`
+**Please report security vulnerabilities through GitHub Security Advisories:**
 
-You should receive a response within 48 hours. If for some reason you do not, please follow up via email to ensure we received your original message.
+1. Go to the Security tab in this repository
+2. Click on "Report a vulnerability"
+3. Fill out the security advisory form
+
+Alternatively, you can create a private security advisory or contact the maintainer directly through GitHub.
+
+You should receive a response within 48 hours. If for some reason you do not, please follow up to ensure we received your original message.
 
 Please include the following information (as much as you can provide) to help us better understand the nature and scope of the possible issue:
 

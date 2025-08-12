@@ -5,7 +5,234 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2025-01-15
+## [1.1.2] - 2025-08-10
+
+### Added
+- **Custom Nginx Docker Image** - Containerized nginx configuration
+  - Created custom nginx:alpine-based Docker image with all configurations
+  - Integrated health check endpoint at /health
+  - Removed dependency on local nginx config mounting
+  - Improved deployment consistency across environments
+- **Comprehensive User Documentation** - 600+ lines user guide
+  - Personal story and motivation behind the project
+  - Host-First concept explained in detail
+  - Mobile Experience guide with iPhone screenshots
+  - Practical workflows instead of feature lists
+  - Clean UI Philosophy documented ("Hover-to-Reveal", "Touch-to-Show")
+  - Tips from the developer section
+  - Complete English translation of all documentation
+- **Host Management Documentation** - Clear onboarding process
+  - Hosts as foundation for all services
+  - Step-by-step host creation guide
+  - Visual guide with annotated screenshots
+  - Host card button explanations
+- **Bilingual Documentation** - Full English and German support
+  - English README as default (README.md)
+  - German README available (README.de.md)
+  - Complete English translation of User Guide (USER-GUIDE.en.md)
+  - All screenshots and references synchronized
+
+### Fixed
+- **User Status Display** - Fixed incorrect "Account locked" display in User Panel
+  - Added proper snake_case to camelCase mapping for raw SQL queries
+  - Fixed `isActive` field mapping in GET /users endpoint
+  - Corrected toggle-active response to use camelCase
+  - All user accounts now show correct active/locked status
+- **Nginx Configuration Errors** - Resolved multiple nginx startup issues
+  - Fixed location directives outside server blocks
+  - Removed duplicate client_max_body_size and proxy_http_version directives
+  - Renamed .conf files to .inc for include-only configurations
+  - Restructured configuration hierarchy for proper nginx loading
+- **QueryBuilder Mapping** - Resolved double mapping issues in appliances routes
+  - Removed redundant mapDbToJs/mapJsToDb calls when using QueryBuilder
+  - QueryBuilder now handles all snake_case to camelCase conversions automatically
+  - Fixed undefined fields issue caused by double mapping (e.g., isFavorite)
+  - Cleaned up unused mapping function imports
+
+### Changed
+- **Frontend Performance** - Removed all debug console.log statements
+  - Cleaned up debug logs from App.js, AppContent.js, ApplianceCard.js
+  - Removed logging from applianceUtils.js, applianceService.js, useAppliances.js
+  - Reduced bundle size and improved browser console clarity
+  - Better performance with fewer console API calls
+- **Code Architecture** - Simplified data flow between database and frontend
+  - Established QueryBuilder as the single source of truth for field mapping
+  - Routes now consistently use camelCase for all data handling
+  - Improved performance by eliminating unnecessary mapping operations
+
+### Technical
+- **QueryBuilder Clarification** - Documented raw query mapping requirements
+  - Raw SQL queries (db.raw) require manual snake_case to camelCase mapping
+  - QueryBuilder methods (select, findOne, update) handle mapping automatically
+  - Added explicit mapping for all raw query results to maintain consistency
+
+### Removed
+- **Unused Code** - Cleaned up obsolete mapping functions
+  - Removed unused mapDbToJs, mapJsToDb, mapDbToJsWithPasswords imports
+  - Removed create-customer-package-v2.sh from repository tracking
+- **Legacy Documentation** - Replaced with new comprehensive guide
+  - Removed entire docs/user-manual directory
+  - Deleted outdated screenshots and HTML documentation
+  - Replaced with modern Markdown-based documentation
+- **Debug and Test Files** - Major cleanup for production readiness
+  - Removed 70,000+ lines of debug and test code
+  - Deleted all temporary scripts and development helpers
+  - Cleaned up unused nginx configurations
+  - Removed all test databases and backup files
+
+### Security
+- **Example Secrets Neutralized** - Secure defaults in .env.example
+  - JWT_SECRET and SSH_KEY_ENCRYPTION_SECRET marked as insecure examples
+  - Setup script automatically generates secure replacements
+  - Clear warnings about not using example values in production
+- **Security Contact Updated** - GitHub Security Advisories
+  - Removed placeholder email from SECURITY.md
+  - Configured to use GitHub's built-in security reporting
+  - Clear instructions for vulnerability reporting
+
+### Documentation
+- **README Overhaul** - Complete restructuring
+  - English README now default for international accessibility
+  - Updated screenshots from new user guide
+  - Personal touch with developer story
+  - Host-First concept prominently explained
+  - Clean UI Philosophy highlighted
+- **User Guide v2** - Comprehensive rewrite
+  - 600+ lines of detailed documentation
+  - Personal narrative style
+  - Mobile-first approach with real iPhone screenshots
+  - Practical workflows with time savings
+  - Troubleshooting section
+  - Roadmap and future plans
+- **Launch Preparation** - Ready for open source release
+  - LAUNCH-CHECKLIST.md created with pre-flight checks
+  - All sensitive information removed
+  - Repository cleaned and organized
+  - Version badges updated to 1.1.2
+
+## [1.1.1] - 2025-07-27
+
+### Added
+- **Encryption Key Dialog** - Shows encryption key after backup creation
+  - Dialog displays the key needed to decrypt remote passwords after restore
+  - Copy-to-clipboard functionality
+  - Security warnings and best practices
+  - Explains the purpose of the key with clear warnings
+  - Includes security recommendations for safe storage
+- **Sidebar Tooltips** - Interactive tooltips for collapsed sidebar on desktop
+  - React Portal-based implementation for proper rendering outside sidebar
+  - Automatic tooltip generation from nav-text content
+  - MutationObserver for dynamically added categories
+  - Hover-activated with proper positioning
+- **Toggle Functionality for Sidepanels** - Click to open/close panels
+  - Settings, User Management, and Audit Log panels now toggle on click
+  - Visual feedback with active state and blue indicator
+  - Consistent behavior on mobile and desktop
+- **Guacamole Cache Clear API** - New endpoint to clear auth token cache
+  - POST /api/guacamole/clear-cache to manually clear cached tokens
+  - Automatic token renewal on authentication failures
+  - Helps resolve Remote Desktop connection issues after logout
+- **Setup Script Improvements** - Interactive encryption key setup
+  - Prompts user to enter custom encryption key or generate secure one
+  - Shows generated key with instructions to save it
+  - Synchronizes key to both .env files
+  - Asks user for encryption key during setup with detailed explanation
+  - Generates secure 32-character key if none provided
+  - Shows generated key prominently with storage instructions
+  - Added quick setup script for users with existing keys
+- **Environment Variables**
+  - Added GUACAMOLE_PROXY_URL to .env files to prevent Docker Compose warnings
+  - Added ENCRYPTION_SECRET as alias for SSH_KEY_ENCRYPTION_SECRET
+- **Translation Glossary** - Comprehensive German translation glossary
+  - Over 200 standardized term translations
+  - Categories for different documentation areas
+  - Code comment translations
+  - Usage guidelines and best practices
+
+### Fixed
+- **SSH File Upload** - Fixed file upload hanging at 10% due to SSH config mismatch
+  - Added dual Host entries in SSH config generation (hostname and host_id)
+  - Fixed password authentication detection logic in upload handler
+  - Updated SSH config regeneration script for compatibility
+- **SSH Host Update** - Fixed hostname duplicate check when updating
+  - Only checks for duplicate hostnames when hostname actually changes
+  - Better error messages indicating which hostname already exists
+  - SSH setup endpoint now updates existing hosts instead of failing
+  - Better error messages for duplicate key violations
+- **Health Check Issues** - Fixed unhealthy container states
+  - Webserver health check now uses IPv4 (127.0.0.1) instead of localhost
+  - ttyd health check simplified to process check (pidof ttyd)
+  - Added curl to ttyd image for future improvements
+- **Console Log Cleanup** - Removed all debug console.log statements
+  - Removed 109 console.log statements from 20 frontend files
+  - Created backup before cleanup
+  - Significantly cleaner browser console output
+- **Terminal Warnings** - Suppressed harmless ttyd warnings
+  - Added terminal-error-suppressor.js to filter known harmless messages
+  - Removed "Appliance has SSH connection but no ssh_host_id" warning
+  - Filtered ttyd fetch token and source-map errors
+- **UserPanel Resize** - Fixed resize functionality
+  - Corrected resize calculation logic
+  - Panel now properly resizes when dragging the resize handle
+- **Sidebar Horizontal Scrolling** - Prevented unwanted horizontal scroll
+  - Added overflow controls to all sidebar containers
+  - Text now truncates with ellipsis instead of causing scroll
+  - Improved responsive behavior at narrow widths
+- **Documentation Errors** - Fixed incorrect dates and passwords
+  - Corrected all timestamps from January to July 2025
+  - Fixed default password in README files (changeme123 → admin123)
+  - Updated architecture diagrams with correct component names and ports
+
+### Changed
+- **Code Cleanup**
+  - Removed unused CSS files (ApplianceCard_heimdall.css)
+  - Removed unused RemoteDesktopButton component variants
+  - Disabled Webpack performance warnings for cleaner build output
+  - Moved ProxyService and cleaned up unused versions
+  - Better code organization and reduced attack surface
+- **German Documentation Translation** - Systematic translation improvements
+  - All 11 German documentation files (-ger.md) consistently translated
+  - Automated translation script for common terms
+  - Code comments in examples translated to German
+  - Consistent terminology according to glossary
+- **README Files** - Improved translations and consistency
+  - German README: Fixed mixed languages, consistent German terms
+  - English README: Corrected image references
+  - Both files now use consistent formatting
+  - Architecture diagrams corrected (React Frontend, correct ports)
+- **Image Files** - Renamed from German to English
+  - 18 documentation images renamed for consistency
+  - Updated all references in README files
+  - Created backup of original files
+
+### Removed
+- **Security Improvements**
+  - Removed temporary debug routes that didn't require authentication
+  - Removed unused authDebug middleware
+  - Cleaned up debug directory with potential security risks
+  - Removed unused maintenance scripts in fixes/ and patches/ directories
+- **Temporary Files** - Cleaned up documentation
+  - Removed api-client-sdks-eng.tmp.bak backup file
+  - Moved to translation-fixes directory
+
+### Documentation
+- **Updated Documentation** - All docs updated to version 1.1.1
+  - Created comprehensive API Reference guide
+  - Updated developer.html with current Mermaid diagrams
+  - Created integration guide with examples
+  - Enhanced remote desktop setup guide with client implementations
+  - Updated performance tuning and security best practices guides
+  - Added extensive API client SDK examples for 9 languages
+  - Updated both German and English README files
+  - Corrected Last Updated date to July 2025
+
+### Security
+- **Environment Variable Handling** - Improved encryption key management
+  - Setup script now prominently displays generated encryption keys
+  - Clear instructions for secure key storage
+  - Better synchronization between main and backend .env files
+
+## [1.1.0] - 2025-07-24
 
 ### Added
 - 🖥️ **Remote Desktop Support** - Full VNC and RDP integration via Apache Guacamole
@@ -39,6 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `--no-remote-desktop` flag to disable
 - Updated `init.sql` with Remote Desktop schema
 - Enhanced status script to show Remote Desktop info
+- Version bumped to 1.1.0 in all package.json files
 
 ### Security
 - Remote Desktop passwords are encrypted using AES-256
@@ -51,8 +279,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated README with new features
 - Added troubleshooting documentation
 - API documentation for remote endpoints
+- Updated version badges
 
-## [1.0.4] - Previous Release
+## [1.0.4] - 2025-01-15
 
 ### Added
 - SSH Terminal integration

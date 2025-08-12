@@ -1,0 +1,149 @@
+/* Service Controls für Karten */
+.service-controls-top,
+.service-controls-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  z-index: 10;
+}
+
+.service-controls-top {
+  top: 0;
+}
+
+.service-controls-bottom {
+  bottom: 0;
+}
+
+/* Service Action Buttons */
+.service-action-btn {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.service-action-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.service-action-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Left group (Remote Desktop, File Transfer) */
+.service-controls-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Right group (Settings, Terminal, etc.) */
+.service-controls-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Remote Desktop Button */
+.remote-desktop-btn {
+  background: rgba(33, 150, 243, 0.2);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.remote-desktop-btn:hover {
+  background: rgba(33, 150, 243, 0.4);
+}
+
+/* File Transfer Button */
+.file-transfer-button {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.file-transfer-button:hover {
+  background: rgba(76, 175, 80, 0.4);
+}
+
+/* Settings Button */
+.settings-btn-icon {
+  background: rgba(255, 152, 0, 0.2);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.settings-btn-icon:hover {
+  background: rgba(255, 152, 0, 0.4);
+}
+
+/* Terminal Button */
+.terminal-btn {
+  background: rgba(156, 39, 176, 0.2);
+  border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.terminal-btn:hover {
+  background: rgba(156, 39, 176, 0.4);
+}
+
+/* Responsive anpassungen */
+@media (max-width: 768px) {
+  .service-controls-top,
+  .service-controls-bottom {
+    padding: 6px;
+  }
+  
+  .service-action-btn {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .service-action-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Kleine Karten */
+.appliance-card-container[style*='--card-size: 6'] .service-controls-top,
+.appliance-card-container[style*='--card-size: 6'] .service-controls-bottom,
+.appliance-card-container[style*='--card-size: 7'] .service-controls-top,
+.appliance-card-container[style*='--card-size: 7'] .service-controls-bottom {
+  display: none;
+}
+
+/* Hover-Effekt für Kontrollen */
+.card-front:hover .service-controls-top,
+.card-front:hover .service-controls-bottom {
+  opacity: 1;
+}
+
+/* Standard ausgeblendet, bei Hover sichtbar */
+.service-controls-top,
+.service-controls-bottom {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Touch devices - immer leicht sichtbar */
+@media (hover: none) {
+  .service-controls-top,
+  .service-controls-bottom {
+    opacity: 0.8;
+  }
+}

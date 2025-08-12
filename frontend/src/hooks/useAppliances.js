@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ApplianceService } from '../services/applianceService';
 import { useSSE } from './useSSE';
+import proxyService from '../services/proxyService';
 
 export const useAppliances = () => {
   const [appliances, setAppliances] = useState([]);
@@ -15,6 +16,7 @@ export const useAppliances = () => {
       setAppliances(data);
       setLoading(false); // Only set to false after first load
     } catch (error) {
+      console.error('[useAppliances] Error in fetchAppliances:', error);
       setError(error.message);
       setAppliances([]); // Leeres Array statt Demo-Daten
       setLoading(false);
@@ -104,70 +106,64 @@ export const useAppliances = () => {
   };
 
   const toggleFavorite = async appliance => {
-    // Stelle sicher, dass transparency und blur Werte erhalten bleiben
-    const updatedAppliance = {
-      name: appliance.name,
-      url: appliance.url,
-      description: appliance.description,
-      icon: appliance.icon,
-      color: appliance.color,
-      category: appliance.category,
-      isFavorite: !appliance.isFavorite,
-      startCommand: appliance.startCommand,
-      stopCommand: appliance.stopCommand,
-      statusCommand: appliance.statusCommand,
-      autoStart: appliance.autoStart,
-      sshConnection: appliance.sshConnection,
-      // Wichtig: transparency und blur explizit übernehmen
-      transparency:
-        appliance.transparency !== undefined ? appliance.transparency : 0.7,
-      blur: appliance.blur !== undefined ? appliance.blur : 8,
-    };
+    try {
+      // Verwende PATCH statt PUT für partielle Updates
+      const result = await ApplianceService.patchAppliance(appliance.id, {
+        isFavorite: !appliance.isFavorite
+      });
 
-    const result = await ApplianceService.updateAppliance(
-      appliance.id,
-      updatedAppliance
-    );
+      if (result) {
+        // Optimistic update für sofortiges Feedback
+        setAppliances(prev =>
+          prev.map(app =>
+            app.id === appliance.id
+              ? { ...app, isFavorite: !appliance.isFavorite }
+              : app
+          )
+        );
+      }
 
-    if (result) {
-      // Optimistic update für sofortiges Feedback
-      setAppliances(prev =>
-        prev.map(app =>
-          app.id === appliance.id
-            ? { ...app, isFavorite: !appliance.isFavorite }
-            : app
-        )
-      );
+      return result;
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      throw error;
     }
-
-    return result;
   };
 
   const openAppliance = async (appliance, applianceIdParam) => {
+    // Prevent duplicate opens with a simple debounce
+    const openKey = `opening_${appliance?.id || applianceIdParam}_${Date.now()}`;
+    if (window._openingAppliance) {
+
+      return;
+    }
+    
+    window._openingAppliance = true;
+    setTimeout(() => {
+      window._openingAppliance = false;
+    }, 500); // Clear flag after 500ms
+
     // Handle both old format (url, applianceId) and new format (appliance object)
     let url, applianceId;
 
-    if (typeof appliance === 'object' && appliance.url) {
+    if (typeof appliance === 'object' && appliance.id) {
       // New format: appliance object
       applianceId = appliance.id;
 
-      // Get the full URL from the appliance
-      if (!appliance.url) return;
+      // Verwende Proxy-URL statt direkter URL
+      url = proxyService.convertToProxyUrl(appliance);
 
-      // Check if URL has protocol
-      if (appliance.url.match(/^https?:\/\//)) {
-        url = appliance.url;
-      } else if (appliance.url.match(/^\d+\.\d+\.\d+\.\d+(:\d+)?/)) {
-        // IP with port
-        url = `http://${appliance.url}`;
-      } else {
-        // Default to https
-        url = `https://${appliance.url}`;
-      }
     } else {
       // Old format: separate url and id (for backwards compatibility)
-      url = appliance;
-      applianceId = applianceIdParam;
+      // Für altes Format müssen wir die Appliance erst laden
+      applianceId = applianceIdParam || appliance;
+      const applianceObj = appliances.find(a => a.id === applianceId);
+      if (applianceObj) {
+        url = proxyService.convertToProxyUrl(applianceObj);
+      } else {
+        console.error('Appliance not found:', applianceId);
+        return;
+      }
     }
 
     // Check if in mini dashboard mode (width OR height < 300px)
@@ -202,28 +198,55 @@ export const useAppliances = () => {
       if (isMiniDashboard) {
         // Im Miniatur-Widget-Modus: Die ApplianceCard behandelt das Öffnen selbst
         // Hier nur als Fallback
+
         window.open(url, '_blank', 'noopener,noreferrer');
       } else if (isIOS) {
         // Auf iOS IMMER im gleichen Tab öffnen (vermeidet Popup-Blocker)
+
         window.location.href = url;
       } else {
-        // Desktop/Android: Use a temporary anchor element for better compatibility
-        // Create a temporary anchor element
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
+        // Check if we're running as a PWA
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                     window.navigator.standalone || 
+                     document.referrer.includes('android-app://');
 
-        // Append to body (required for Firefox)
-        document.body.appendChild(link);
+        // Add a final check to prevent duplicate opens
+        const openCheckKey = `lastOpen_${url}`;
+        const lastOpen = window[openCheckKey];
+        const now = Date.now();
+        
+        if (lastOpen && (now - lastOpen) < 1000) {
 
-        // Trigger click
-        link.click();
+          return;
+        }
+        
+        window[openCheckKey] = now;
+        
+        if (isPWA) {
+          // In PWA mode, always open in external browser
+          // This prevents opening within the PWA window
 
-        // Clean up
-        setTimeout(() => {
-          document.body.removeChild(link);
-        }, 100);
+          window.open(url, '_blank', 'noopener,noreferrer');
+        } else {
+          // Desktop/Android Browser: Use a temporary anchor element for better compatibility
+          // Create a temporary anchor element
+
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+
+          // Append to body (required for Firefox)
+          document.body.appendChild(link);
+
+          // Trigger click
+          link.click();
+
+          // Clean up
+          setTimeout(() => {
+            document.body.removeChild(link);
+          }, 100);
+        }
       }
     } catch (error) {
       // Zeige Fehlermeldung
@@ -255,6 +278,14 @@ export const useAppliances = () => {
           statusCommand: data.status_command || data.statusCommand || '',
           serviceStatus: data.service_status || data.serviceStatus || 'unknown',
           sshConnection: data.ssh_connection || data.sshConnection || '',
+          vncEnabled: data.vncEnabled || 
+                     (data.remoteDesktopEnabled && data.remoteProtocol === 'vnc') ||
+                     false,
+          rdpEnabled: data.rdpEnabled || 
+                     (data.remoteDesktopEnabled && data.remoteProtocol === 'rdp') ||
+                     false,
+          remoteDesktopEnabled: data.remoteDesktopEnabled || false,
+          remoteProtocol: data.remoteProtocol || 'vnc',
         };
 
         // Prüfe ob die Appliance bereits existiert (durch optimistic update)
@@ -471,10 +502,9 @@ export const useAppliances = () => {
     let statusInterval;
 
     const refreshStatus = () => {
-      console.log('Auto-refreshing service status...');
       ApplianceService.checkAllServiceStatus()
         .then(() => {
-          console.log('Service status refresh triggered');
+          // Service status refreshed
         })
         .catch(error => {
           console.error('Error refreshing service status:', error);

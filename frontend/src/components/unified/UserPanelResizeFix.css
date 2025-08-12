@@ -1,0 +1,41 @@
+/* UserPanel Resize Fix */
+
+/* Ensure the resize handle is always on top and interactive */
+.MuiBox-root[onmousedown] {
+  z-index: 1000 !important;
+  pointer-events: all !important;
+}
+
+/* Override any fixed width constraints */
+@media (min-width: 600px) {
+  /* Remove fixed width constraints that might be interfering */
+  .user-panel-container {
+    width: auto !important;
+    max-width: none !important;
+  }
+  
+  /* Ensure the UserPanel respects its dynamic width */
+  .user-panel-container > div:first-child {
+    width: auto !important;
+    max-width: none !important;
+  }
+}
+
+/* Visual enhancement for resize handle on hover */
+.MuiBox-root[style*="cursor: col-resize"]:hover {
+  box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.5);
+}
+
+/* Ensure smooth resizing without layout jumps */
+.MuiBox-root[style*="transition: none"] {
+  transition: none !important;
+}
+
+/* Debug: Make resize handle more visible during development */
+/* Uncomment the following to debug resize issues */
+/*
+.MuiBox-root[style*="cursor: col-resize"] {
+  background-color: rgba(255, 0, 0, 0.3) !important;
+  width: 20px !important;
+}
+*/

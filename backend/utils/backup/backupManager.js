@@ -83,16 +83,15 @@ class BackupManager {
       'categories',
       'user_settings',
       'background_images',
-      'ssh_hosts',
+      'hosts',
       'ssh_keys',
-      'ssh_config',
       'appliance_commands',
       'users',
       'audit_logs',
       'role_permissions',
       'user_appliance_permissions',
       'service_command_logs',
-      'sessions'
+      'active_sessions'
     ];
     
     // Collect data from each table

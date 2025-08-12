@@ -1,0 +1,98 @@
+/* ServicePanel Swipeable Views Styles */
+
+/* Main container for swipeable views */
+.service-panel-swipeable-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab buttons container */
+.service-panel-tabs {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: inherit;
+}
+
+/* Swipeable views specific overrides */
+.service-panel-swipeable-container .react-swipeable-view-container {
+  height: 100% !important;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Each swipeable view slide */
+.service-panel-swipeable-container .react-swipeable-view-container > div {
+  height: 100% !important;
+}
+
+/* Tab content containers */
+.service-panel-tab-content {
+  height: 100% !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* Ensure all tabs are visible during development */
+.service-panel-tab-content:empty::after {
+  content: 'Tab Content Missing';
+  display: block;
+  color: red;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Fix for mobile scrolling */
+@media (max-width: 768px) {
+  .service-panel-tab-content {
+    padding: 16px;
+    /* Add some bottom padding for mobile navigation */
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  }
+}
+
+/* Ensure proper scrolling behavior */
+.service-panel-swipeable-container [style*="transform"] {
+  height: 100% !important;
+}
+
+/* Scrollbar styling */
+.service-panel-tab-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.service-panel-tab-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.service-panel-tab-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.service-panel-tab-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Fix for nested scrolling issues */
+.service-panel-tab-content > * {
+  max-width: 100%;
+}
+
+/* Debug styles */
+.react-swipeable-view-container > div:nth-child(1) {
+  /* Commands tab */
+}
+
+.react-swipeable-view-container > div:nth-child(2) {
+  /* Visual tab */
+}
+
+.react-swipeable-view-container > div:nth-child(3) {
+  /* Service tab */
+}

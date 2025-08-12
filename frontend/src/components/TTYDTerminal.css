@@ -48,23 +48,7 @@
   font-size: 1.1rem;
 }
 
-.terminal-icon {
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  margin-right: 0.5rem;
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
-}
+/* Terminal icon styles removed - using MUI icon instead */
 
 .terminal-controls {
   display: flex;

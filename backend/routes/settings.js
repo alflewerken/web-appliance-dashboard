@@ -1,21 +1,27 @@
-// Settings API routes
+// Settings API routes - Using QueryBuilder
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
 const { broadcast } = require('./sse');
-const { createAuditLog } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
+
+// Initialize QueryBuilder
+const db = new QueryBuilder(pool);
 
 // Get all user settings
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      'SELECT setting_key, setting_value, description FROM user_settings ORDER BY setting_key'
-    );
+    // Get global settings (user_id = NULL) - use snake_case for database
+    const rows = await db.select('user_settings', { user_id: null }, { orderBy: 'setting_key' });
 
-    // Convert to key-value object for easier frontend usage
+    // Convert to key-value object for easier frontend usage  
     const settings = {};
     rows.forEach(row => {
-      settings[row.setting_key] = row.setting_value;
+      // Map snake_case to camelCase
+      const key = row.setting_key || row.settingKey;
+      const value = row.setting_value || row.settingValue;
+      settings[key] = value;
     });
 
     res.json(settings);
@@ -30,16 +36,19 @@ router.get('/:key', async (req, res) => {
   try {
     const { key } = req.params;
 
-    const [rows] = await pool.execute(
-      'SELECT setting_value FROM user_settings WHERE setting_key = ?',
-      [key]
-    );
+    // Get global setting (user_id = NULL) - use snake_case for database
+    const setting = await db.findOne('user_settings', { 
+      user_id: null,
+      setting_key: key 
+    });
 
-    if (rows.length === 0) {
+    if (!setting) {
       return res.status(404).json({ error: 'Setting not found' });
     }
 
-    res.json({ key, value: rows[0].setting_value });
+    // Map snake_case to camelCase
+    const value = setting.setting_value || setting.settingValue;
+    res.json({ key, value });
   } catch (error) {
     console.error('Error fetching setting:', error);
     res.status(500).json({ error: 'Failed to fetch setting' });
@@ -56,9 +65,10 @@ router.post('/', async (req, res) => {
     }
 
     // Use INSERT ... ON DUPLICATE KEY UPDATE for upsert functionality
+    // For global settings, user_id should be NULL
     const [result] = await pool.execute(
-      `INSERT INTO user_settings (setting_key, setting_value, description) 
-       VALUES (?, ?, ?) 
+      `INSERT INTO user_settings (user_id, setting_key, setting_value, description) 
+       VALUES (NULL, ?, ?, ?) 
        ON DUPLICATE KEY UPDATE 
        setting_value = VALUES(setting_value), 
        description = COALESCE(VALUES(description), description),
@@ -123,8 +133,8 @@ router.put('/', async (req, res) => {
 
       for (const [key, value] of Object.entries(settings)) {
         await connection.execute(
-          `INSERT INTO user_settings (setting_key, setting_value) 
-           VALUES (?, ?) 
+          `INSERT INTO user_settings (user_id, setting_key, setting_value) 
+           VALUES (NULL, ?, ?) 
            ON DUPLICATE KEY UPDATE 
            setting_value = VALUES(setting_value),
            updated_at = CURRENT_TIMESTAMP`,
@@ -194,10 +204,7 @@ router.delete('/:key', async (req, res) => {
 
     console.log('Deleting setting:', key);
 
-    const [result] = await pool.execute(
-      'DELETE FROM user_settings WHERE setting_key = ?',
-      [key]
-    );
+    const result = await db.delete('user_settings', { settingKey: key });
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Setting not found' });

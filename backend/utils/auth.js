@@ -9,12 +9,21 @@ const JWT_SECRET =
 
 // Middleware für Token-Verifikation
 const verifyToken = async (req, res, next) => {
+  console.log('[VERIFY_TOKEN] Called for:', req.method, req.url);
+  console.log('[VERIFY_TOKEN] Headers authorization:', req.headers.authorization);
+  console.log('[VERIFY_TOKEN] Full headers:', Object.keys(req.headers));
+  console.log('[VERIFY_TOKEN] Query:', req.query);
+  
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    const token = authHeader?.split(' ')[1];
 
     if (!token) {
+      console.log('[VERIFY_TOKEN] No token found in request');
       return res.status(401).json({ error: 'No token provided' });
     }
+
+    console.log('[VERIFY_TOKEN] Token found, verifying...');
 
     // Verify JWT token
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -57,7 +66,11 @@ const verifyToken = async (req, res, next) => {
 
 // Middleware für Admin-Rechte
 const requireAdmin = (req, res, next) => {
-  if (req.user?.role !== 'Administrator') {
+  console.log('[requireAdmin] User role:', req.user?.role);
+  console.log('[requireAdmin] User:', req.user);
+  
+  // Akzeptiere sowohl 'Administrator' als auch 'admin'
+  if (req.user?.role !== 'Administrator' && req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
@@ -159,8 +172,8 @@ const hashToken = token => {
 const generateToken = userId =>
   jwt.sign({ userId }, JWT_SECRET, { expiresIn: '24h' });
 
-// Audit log erstellen
-const createAuditLog = async (
+// Audit log erstellen - DEPRECATED: Use createAuditLog from auditLogger.js instead
+const createAuditLog_DEPRECATED = async (
   userId,
   action,
   resourceType = null,
@@ -169,6 +182,9 @@ const createAuditLog = async (
   ipAddress = null,
   req = null
 ) => {
+  console.log('=== createAuditLog_DEPRECATED called - SHOULD NOT BE USED ===');
+  console.log('Params:', { userId, action, resourceType, resourceId, details, ipAddress });
+  
   try {
     // If no IP address is provided but request object is available, extract it
     if (!ipAddress && req) {
@@ -186,6 +202,8 @@ const createAuditLog = async (
         ipAddress,
       ]
     );
+    
+    console.log('Audit log INSERT result:', result);
 
     // Get username for the audit log
     let username = 'System';
@@ -331,7 +349,7 @@ module.exports = {
   comparePassword,
   hashToken,
   generateToken,
-  createAuditLog,
+  // createAuditLog_DEPRECATED, // Don't export - use auditLogger.js instead
   canAccessAppliance,
   canExecuteOnAppliance,
   getAccessibleAppliances,

@@ -8,9 +8,8 @@ class BackupValidator {
       'categories',
       'user_settings',
       'background_images',
-      'ssh_hosts',
+      'hosts',
       'ssh_keys',
-      'ssh_config',
       'appliance_commands',
       'users',
       'audit_logs',
@@ -52,7 +51,7 @@ class BackupValidator {
     // Validate data integrity
     this.validateAppliances(backupData.data.appliances, errors, warnings);
     this.validateCategories(backupData.data.categories, errors, warnings);
-    this.validateSSHData(backupData.data, errors, warnings);
+    // SSH data validation removed - ssh_hosts no longer used
     this.validateUsers(backupData.data.users, errors, warnings);
     this.validateBackgroundImages(backupData.data.background_images, errors, warnings);
     this.validateGuacamoleConnections(backupData.data.guacamole_connections, errors, warnings);
@@ -140,10 +139,11 @@ class BackupValidator {
     });
   }
 
+  // SSH data validation - only validate ssh_keys
   validateSSHData(data, errors, warnings) {
-    const { ssh_keys, ssh_hosts, ssh_config } = data;
+    const { ssh_keys } = data;
 
-    // Validate SSH keys
+    // Validate SSH keys only
     if (Array.isArray(ssh_keys)) {
       ssh_keys.forEach((key, index) => {
         if (!key.key_name) {
@@ -157,30 +157,13 @@ class BackupValidator {
         }
       });
     }
-
-    // Validate SSH hosts
-    if (Array.isArray(ssh_hosts)) {
-      ssh_hosts.forEach((host, index) => {
-        if (!host.hostname) {
-          errors.push(`SSH host at index ${index} missing hostname`);
-        }
-        if (!host.host) {
-          errors.push(`SSH host ${host.hostname || index} missing host address`);
-        }
-        if (!host.username) {
-          errors.push(`SSH host ${host.hostname || index} missing username`);
-        }
-      });
+    
+    // Legacy support: skip ssh_hosts and ssh_config validation
+    if (data.ssh_hosts) {
+      warnings.push('Backup contains deprecated ssh_hosts data - will be skipped during restore');
     }
-
-    // Cross-validate SSH references
-    if (Array.isArray(ssh_hosts) && Array.isArray(ssh_keys)) {
-      const keyNames = new Set(ssh_keys.map(k => k.key_name));
-      ssh_hosts.forEach(host => {
-        if (host.key_name && !keyNames.has(host.key_name)) {
-          warnings.push(`SSH host ${host.hostname} references non-existent key: ${host.key_name}`);
-        }
-      });
+    if (data.ssh_config) {
+      warnings.push('Backup contains deprecated ssh_config data - will be skipped during restore');
     }
   }
 

@@ -8,3 +8,4 @@ export { useSimpleSwipe } from './useSimpleSwipe';
 export { useCategorySwipe } from './useCategorySwipe';
 export { useSSE } from './useSSE';
 export { useIPadCategorySwipe } from './useIPadCategorySwipe';
+export { useSidebarTooltips } from './useSidebarTooltips';

@@ -82,6 +82,74 @@ public class ConnectionProvider {
     }
     
     /**
+     * Lädt Verbindungskonfiguration für einen Host
+     */
+    public Map<String, GuacamoleConfiguration> getConnectionsForHost(String hostId) 
+            throws GuacamoleException {
+        
+        Map<String, GuacamoleConfiguration> connections = new HashMap<>();
+        
+        // Nutze Guacamole-Datenbank direkt für Host-Verbindungen
+        String pgUrl = "jdbc:postgresql://guacamole_db:5432/guacamole_db";
+        String pgUser = "guacamole_user";
+        String pgPassword = "guacamole_pass123";
+        
+        String query = "SELECT c.connection_id, c.connection_name, c.protocol, " +
+                      "cp.parameter_name, cp.parameter_value " +
+                      "FROM guacamole_connection c " +
+                      "LEFT JOIN guacamole_connection_parameter cp ON c.connection_id = cp.connection_id " +
+                      "WHERE c.connection_name = ? " +
+                      "ORDER BY c.connection_id";
+        
+        try (Connection conn = DriverManager.getConnection(pgUrl, pgUser, pgPassword);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            String connectionName = "host-" + hostId;
+            stmt.setString(1, connectionName);
+            
+            GuacamoleConfiguration config = null;
+            Integer currentConnectionId = null;
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Integer connectionId = rs.getInt("connection_id");
+                    
+                    // Neue Verbindung gefunden
+                    if (!connectionId.equals(currentConnectionId)) {
+                        if (config != null && currentConnectionId != null) {
+                            connections.put(connectionName, config);
+                        }
+                        
+                        currentConnectionId = connectionId;
+                        String protocol = rs.getString("protocol");
+                        config = new GuacamoleConfiguration();
+                        config.setProtocol(protocol);
+                    }
+                    
+                    // Parameter hinzufügen
+                    String paramName = rs.getString("parameter_name");
+                    String paramValue = rs.getString("parameter_value");
+                    if (paramName != null && paramValue != null && config != null) {
+                        config.setParameter(paramName, paramValue);
+                    }
+                }
+                
+                // Letzte Verbindung hinzufügen
+                if (config != null && currentConnectionId != null) {
+                    connections.put(connectionName, config);
+                    logger.debug("Loaded host connection: {}", connectionName);
+                }
+            }
+            
+        } catch (SQLException e) {
+            logger.error("Failed to load host connections from Guacamole database", e);
+            throw new GuacamoleException("Database error", e);
+        }
+        
+        return connections;
+    }
+    
+    /**
      * Parst Service-Konfiguration aus JSON
      */
     private GuacamoleConfiguration parseServiceConfig(String configJson) {

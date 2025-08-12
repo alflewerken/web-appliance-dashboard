@@ -1,606 +1,436 @@
 # Web Appliance Dashboard 🚀
 
-[🇬🇧 English](README.en.md) | 🇩🇪 Deutsch
+🇬🇧 English | [🇩🇪 Deutsch](README.de.md) | [📖 User Guide](docs/user-guide-v2/USER-GUIDE.en.md)
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.1.2-brightgreen.svg)](package.json)
+[![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
-Ein modernes, containerisiertes Dashboard zur zentralen Verwaltung und Überwachung von Web-Appliances, Services und Servern mit integrierter SSH-Funktionalität und Web-Terminal.
+> **"From a homelab enthusiast for homelab enthusiasts"**
 
-![Web Appliance Dashboard](docs/user-manual/images/Desktop%20Ansicht.png)
+An elegant, self-hosted dashboard for centralized management of VMs, Docker containers, and services. No cloud dependencies, no subscriptions - just a solid tool for your homelab.
+
+![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
+
+## 🚀 Quick Start - One-Line Installation
+
+Install the complete dashboard with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+```
+
+That's it! The installer will:
+- ✅ Check Docker prerequisites
+- ✅ Download all configuration files
+- ✅ Generate secure passwords automatically
+- ✅ Create SSL certificates
+- ✅ Pull and start all containers
+- ✅ Set up the database
+
+After installation, access your dashboard at:
+- 🌐 **http://localhost:9080**
+- 🔒 **https://localhost:9443** (self-signed certificate)
+
+## 🗑️ Complete Uninstall
+
+To completely remove the Web Appliance Dashboard:
+
+```bash
+# Navigate to installation directory
+cd ~/web-appliance-dashboard
+
+# Stop and remove all containers, volumes, and networks
+docker compose down -v
+
+# Remove the installation directory
+cd ~ && rm -rf web-appliance-dashboard
+
+# Optional: Remove Docker images
+docker images | grep ghcr.io/alflewerken | awk '{print $3}' | xargs docker rmi -f
+```
+
+This will remove:
+- All containers
+- All volumes (including data)
+- All networks
+- All configuration files
+- All Docker images (optional)
 
 ## 🌟 Features
 
 ### Core Features
-- **📊 Zentrales Dashboard** - Übersichtliche Verwaltung aller Appliances
-- **🔐 Authentifizierung** - JWT-basierte Benutzerverwaltung mit Rollen
-- **🖥️ Web Terminal** - Integriertes Terminal über ttyd
-- **🔑 SSH Integration** - Vollständiges SSH-Key Management
-- **🖥️ Remote Desktop** - VNC & RDP Support über Guacamole
-- **📦 Service Control** - Start/Stop/Status von Services
-- **🎨 Anpassbares Design** - Dark/Light Mode, Custom Backgrounds
-- **📱 Responsive** - Optimiert für Desktop, Tablet und Mobile
-- **🍎 macOS App** - Native Electron App für macOS
+- **📊 Central Dashboard** - Clear management of all services and hosts
+- **🔐 Authentication** - JWT-based user management with roles (Admin/User)
+- **🖥️ Web Terminal** - Integrated terminal via ttyd with SSH key support
+- **🔑 SSH Integration** - Complete SSH key management with automatic authentication
+- **🖥️ Remote Desktop** - VNC & RDP support via Apache Guacamole
+- **📦 Service Control** - Start/Stop/Status of services via SSH
+- **🎨 Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
+- **📱 Mobile First** - PWA-capable, optimized for iPhone and tablets
 
-### Erweiterte Features
-- **💾 Backup & Restore** - Komplette Systemsicherung
-- **📝 Audit Logging** - Nachvollziehbare Aktionsprotokolle
-- **⚡ Echtzeit-Updates** - Server-Sent Events (SSE)
-- **🔄 Auto-Discovery** - Automatische Service-Erkennung
-- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js
-- **🌐 Multi-User** - Benutzerverwaltung mit Rechtesystem
+### Enterprise Features
+- **💾 Backup & Restore** - Complete system backup with encryption
+- **📝 Audit Logging** - Compliance-ready with undo function
+- **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
+- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP
+- **🌐 Multi-User** - User management with granular permission system (in development)
+- **🔍 Full-text Search** - Quick search across all services
+- **💡 Smart Categories** - Automatic grouping with service counter
+
+## 🆕 Latest Updates (v1.1.2)
+
+### 📖 New User Guide
+- ✅ Comprehensive documentation with 600+ lines
+- ✅ Personal story behind the project
+- ✅ Mobile-first documentation with iPhone screenshots
+- ✅ Practical workflows instead of feature lists
+- ✅ Clean UI Philosophy documented
+
+### Host-First Concept
+- ✅ Hosts as foundation for all services
+- ✅ Improved host management
+- ✅ Detailed host configuration
+- ✅ SSH key management per host
+
+### UI/UX Improvements
+- ✅ Interactive tooltips for collapsed sidebar
+- ✅ Toggle functionality for side panels
+- ✅ Improved resize functionality for panels
+- ✅ No horizontal scrolling in sidebar
+
+### New Features
+- ✅ Encryption key dialog after backup
+- ✅ Guacamole cache-clear API endpoint
+- ✅ Improved SSH host update functionality
+- ✅ Terminal error suppressor for clean console
+
+### Bug Fixes
+- ✅ Health check issues resolved (ttyd, webserver)
+- ✅ SSH file upload hanging at 10% fixed
+- ✅ Hostname duplicate check on update corrected
+- ✅ Remote desktop after logout works again
 
 ## 📸 Screenshots
 
-### Login Screen
-![Login Screen](docs/images/login-screen.jpeg)
+<details>
+<summary><b>Show all screenshots</b></summary>
 
-### Dashboard Übersicht
-![Dashboard Desktop](docs/user-manual/images/Desktop%20Ansicht.png)
+### Dashboard Overview
+![Dashboard Overview](docs/user-guide-v2/images/dashboard-overview.png)
+*Desktop dashboard with Clean UI*
 
-### Mobile Ansicht
-<p align="center">
-  <img src="docs/images/mobile-view.jpeg" alt="Mobile View" width="300">
-  <img src="docs/user-manual/images/Mobile.jpeg" alt="Mobile Dashboard" width="300">
-</p>
+### Host Management
+![Host Overview](docs/user-guide-v2/images/host-overview.png)
+*Host overview with all configured machines*
 
-### Service Cards
-![Service Card Running](docs/user-manual/images/Service-Card%20Detailansicht%20(grüner%20Statusbar%20für%20Service%20läuft).png)
-*Service Card mit grünem Status - Service läuft*
+![Host Card](docs/user-guide-v2/images/host-card.png)
+*Host card with hover-to-reveal buttons*
 
-![Service Card Stopped](docs/user-manual/images/Service-Card%20ohne%20Details%20(roter%20Statusbar%20für%20Service%20läuft%20nicht).png)
-*Service Card mit rotem Status - Service gestoppt*
+![Host Settings](docs/user-guide-v2/images/host-settings.png)
+*Detailed host configuration*
 
-### Terminal Integration
-![Terminal View](docs/images/terminal-view.png)
-*Integriertes Web-Terminal für SSH-Zugriff*
+### Mobile Experience
+![Mobile Overview](docs/user-guide-v2/images/mobile-overview.jpeg)
+*iPhone dashboard view*
 
-### Widget Ansicht
-![Widget View](docs/images/Miniaur-Widget-Ansicht.png)
-*Kompakte Widget-Ansicht für schnellen Zugriff*
+![Mobile Terminal](docs/user-guide-v2/images/mobile-terminal.jpeg)
+*SSH terminal on iPhone*
 
-### Verwaltung
-![User Management](docs/user-manual/images/Benutzerverwaltung.png)
-*Benutzerverwaltung mit Rollenzuweisung*
+![Mobile Audit](docs/user-guide-v2/images/mobile-audit.jpeg)
+*Mobile audit log - compliance-ready*
 
-![Audit Log](docs/user-manual/images/Audit%20Log.png)
-*Vollständiges Audit-Log aller Aktionen*
+![Mobile Sidebar](docs/user-guide-v2/images/mobile-sidebar.jpeg)
+*Categories with service counter*
 
-## 📋 Voraussetzungen
+</details>
+
+## 📋 Prerequisites
 
 - Docker & Docker Compose (v2.0+)
-- Node.js 18+ (für lokale Entwicklung)
-- macOS, Linux oder Windows mit WSL2
-- 2GB RAM minimum
-- 10GB freier Speicherplatz
+- Linux/macOS/Windows with WSL2
+- 2GB RAM (4GB recommended)
+- 10GB free disk space
 
-## 🚀 Quick Start
+## 🛠️ Installation Methods
 
-### 1. Repository klonen
+### Method 1: One-Line Installation (Recommended)
+The easiest way - see [Quick Start](#-quick-start---one-line-installation) above.
 
-#### Mit SSH (Empfohlen):
+### Method 2: Manual Installation (for Development)
+
+#### 1. Clone repository
 ```bash
-git clone git@github.com:alflewerken/web-appliance-dashboard.git
+git clone https://github.com/alflewerken/web-appliance-dashboard.git
 cd web-appliance-dashboard
 ```
 
-#### Mit Personal Access Token:
+#### 2. Build and start
 ```bash
-# Ersetzen Sie YOUR_TOKEN mit Ihrem GitHub Personal Access Token
-git clone https://YOUR_TOKEN@github.com/alflewerken/web-appliance-dashboard.git
-cd web-appliance-dashboard
-```
-
-> **Hinweis**: Dieses Repository ist privat. Sie benötigen Zugriffsrechte und müssen sich authentifizieren.
-
-## 🚀 Installation
-
-### Option 1: Schnellstart (Empfohlen)
-
-#### 1. Umgebungsvariablen einrichten
-```bash
-# Automatische Konfiguration
-./scripts/setup-env.sh
-```
-
-#### 2. Installation starten
-```bash
-# Komplette Installation mit allen Features
 ./scripts/build.sh --nocache
 ```
 
-Dieser Befehl:
-- Löscht alle Docker-Caches für eine saubere Installation
-- Baut alle Container neu
-- Installiert alle Services inklusive Remote Desktop
-- Startet das komplette System
+This command:
+- ✅ Automatically creates all .env files with secure passwords
+- ✅ Builds the frontend application
+- ✅ Creates and starts all Docker containers
+- ✅ Sets up the database schema
+- ✅ Configures all services
 
-### Option 2: Manuelle Installation
-
-#### 1. Umgebungsvariablen konfigurieren
-
-##### Automatisches Setup (empfohlen)
-```bash
-# Führt Sie durch die Konfiguration und generiert sichere Secrets
-./scripts/setup-env.sh
+### 3. Open dashboard
+```
+http://localhost:9080
 ```
 
-##### Manuelles Setup
-```bash
-# Environment-Datei erstellen
-cp .env.example .env
+Default login:
+- **User**: admin
+- **Password**: admin123
 
-# Backend Environment
-cp backend/.env.example backend/.env
+⚠️ **Important**: Change the default password immediately!
 
-# Frontend Environment  
-cp frontend/.env.example frontend/.env
+### 4. Create first host
+1. Click "Hosts" in the sidebar
+2. Click "Add host"
+3. Enter host data (IP, SSH credentials)
+4. Save - done!
 
-# WICHTIG: Passen Sie alle Passwörter und Secret Keys in .env an!
-```
+Detailed instructions: [📖 User Guide](docs/user-guide-v2/USER-GUIDE.en.md)
 
-Siehe [Docker Environment Setup Guide](docs/docker-env-setup.md) für Details.
+## 📚 Documentation
 
-#### 2. Docker Container starten
+### 📖 For Users
+- **[User Guide](docs/user-guide-v2/USER-GUIDE.en.md)** - Comprehensive guide with personal touch
+  - Origin story & motivation
+  - 5-minute quick start (Host-First!)
+  - Mobile Experience Guide
+  - Practical workflows
+  - Clean UI Philosophy
 
-##### Build-Optionen:
-```bash
-# Standard Installation (mit Remote Desktop)
-./scripts/build.sh
+### Developer Documentation
+- [Developer Guide](docs/developer.html) - Architecture with diagrams
+- [API Reference](docs/api-reference-ger.md) - API documentation
+- [API Client SDKs](docs/api-client-sdks-ger.md) - Client examples
+- [Integration Guide](docs/integration-guide-ger.md) - Integration into existing systems
+- [Development Environment](docs/DEVELOPMENT_SETUP-ger.md) - Setting up development environment
 
-# Installation ohne Remote Desktop (kleinerer Footprint)
-./scripts/build.sh --no-remote-desktop
+### Setup & Configuration
+- [Remote Desktop Setup](docs/remote-desktop-setup-guide-ger.md) - Guacamole setup
+- [Security Guide](docs/security-best-practices-guide-ger.md) - Security guidelines
+- [Performance Tuning](docs/performance-tuning-guide-ger.md) - Optimization
+- [Docker Environment](docs/docker-env-setup-ger.md) - Docker configuration
 
-# Neuaufbau mit Cache-Löschung (bei Problemen)
-./scripts/build.sh --nocache
+### Technical Documentation
+- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy architecture
+- [OpenAPI Specification](docs/openapi.yaml) - API specification
 
-# Schneller Neustart (für Entwicklung)
-./scripts/build.sh --refresh
-```
+## 🔒 Security
 
-### Nach der Installation
+### Integrated Security Features
+- **JWT Authentication** - Secure token-based authentication
+- **Encrypted Passwords** - AES-256 for remote host passwords
+- **Rate Limiting** - Protection against brute force attacks
+- **CORS Protection** - Configurable policies
+- **SQL Injection Protection** - Prepared statements
+- **XSS Prevention** - Input sanitization
 
-#### Dashboard aufrufen
-- **Web Interface**: http://localhost:9080
-- **API**: http://localhost:3001
-- **Web Terminal**: http://localhost:7681/terminal
-- **Guacamole** (Remote Desktop): http://localhost:8080/guacamole
+### Important Security Notes
 
-#### Standard Login
-- **Benutzer**: admin
-- **Passwort**: admin123 (bitte sofort ändern!)
+⚠️ **Encryption Key**: 
+- Generated during setup or entered manually
+- Store securely (e.g., password manager)
+- Required for password decryption after restore
 
-![Service anlegen](docs/user-manual/images/Service%20anlegen.png)
-*Neuen Service hinzufügen - einfach und intuitiv*
+⚠️ **Best Practices**:
+- Change all default passwords
+- Use HTTPS with valid certificate
+- Create regular backups
+- Configure firewall rules
 
-## 🛠️ Management & Wartung
-
-### Build-Kommandos
-```bash
-# Standard Installation (mit Remote Desktop)
-./scripts/build.sh
-
-# Installation ohne Remote Desktop (kleinerer Footprint)
-./scripts/build.sh --no-remote-desktop
-
-# Neuaufbau mit Cache-Löschung (bei Docker-Problemen)
-./scripts/build.sh --nocache
-
-# Schneller Neustart für Code-Änderungen (Entwicklung)
-./scripts/build.sh --refresh
-
-# macOS App mitbauen
-./scripts/build.sh --macos-app
-```
-
-### Container-Management
-```bash
-# Container starten
-docker compose up -d
-
-# Container stoppen
-docker compose down
-
-# Container-Status prüfen
-./status.sh
-
-# Logs anzeigen
-docker compose logs -f
-
-# Nur Backend-Logs
-docker compose logs -f backend
-```
-
-### Wartung & Updates
-```bash
-# Update auf Remote Desktop nachträglich
-./scripts/update-remote-desktop.sh
-
-# Kompletter Neuaufbau (LÖSCHT ALLE DATEN!)
-./scripts/clean-build.sh
-
-# Container löschen und neu bauen
-./scripts/clean.sh && ./scripts/build.sh
-```
-
-### Remote Desktop Services
-```bash
-# Nur Remote Desktop starten
-docker compose up -d guacamole-postgres guacd guacamole
-
-# Nur Remote Desktop stoppen
-docker compose stop guacamole-postgres guacd guacamole
-```
-
-## 🏗️ Architektur
+## 🏗️ Architecture
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │
-│   React SPA     │────▶│  Nginx Proxy    │────▶│  Node.js API    │
-│   (Frontend)    │     │   (Port 9080)   │     │   (Port 3001)   │
-│                 │     │                 │     │                 │
+│ React Frontend  │────▶│  Nginx Proxy    │────▶│  Node.js API    │
+│                 │     │   (Port 9080)   │     │   (Port 3001)   │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
                                                           │
                         ┌─────────────────┐               │
-                        │                 │               │
                         │   Web Terminal  │◀──────────────┤
                         │     (ttyd)      │               │
-                        │                 │               │
                         └─────────────────┘               │
                                                           │
                         ┌─────────────────┐               │
-                        │                 │               │
                         │    Guacamole    │◀──────────────┤
                         │   (VNC/RDP)     │               │
-                        │                 │               │
                         └─────────────────┘               │
                                                           │
                         ┌─────────────────┐               │
-                        │                 │               │
-                        │    MariaDB      │◀──────────────┘
-                        │   (Database)    │
-                        │                 │
+                        │    MySQL DB     │◀──────────────┘
+                        │   (Port 3306)   │
                         └─────────────────┘
 ```
 
-## 🎨 Benutzeroberfläche
+## 🛠️ Configuration
 
-Das Dashboard bietet eine moderne, intuitive Benutzeroberfläche mit verschiedenen Ansichten:
+### Environment Variables
 
-### Desktop & Tablet
-![iPad View](docs/user-manual/images/iPad%20Ansicht.png)
-*Responsive Design für alle Bildschirmgrößen*
+The most important settings in the `.env` file:
 
-### Service Management
-![Service Management](docs/user-manual/images/Custom%20Commands.jpeg)
-*Custom Commands für schnelle Aktionen*
-
-### Einstellungen
-<p align="center">
-  <img src="docs/user-manual/images/Einstellungen%20Kategorien.png" alt="Kategorien" width="45%">
-  <img src="docs/user-manual/images/Einstellungen%20Hintergrundbild.png" alt="Hintergrundbild" width="45%">
-</p>
-
-### SSH & Backup
-<p align="center">
-  <img src="docs/user-manual/images/Einstellungen%20SSH%20Remote%20Control.png" alt="SSH Remote Control" width="45%">
-  <img src="docs/user-manual/images/Einstellungen%20Backup%20Restore.png" alt="Backup & Restore" width="45%">
-</p>
-## 📁 Projektstruktur
-
-```
-web-appliance-dashboard/
-├── backend/                 # Node.js Express API
-│   ├── routes/             # API Endpoints
-│   ├── utils/              # Helper Functions
-│   ├── uploads/            # File Uploads
-│   └── server.js           # Main Server File
-├── frontend/               # React SPA
-│   ├── src/
-│   │   ├── components/     # React Components
-│   │   ├── contexts/       # React Contexts
-│   │   ├── hooks/          # Custom Hooks
-│   │   ├── services/       # API Services
-│   │   └── utils/          # Utilities
-│   └── build/              # Production Build
-├── nginx/                  # Nginx Configuration
-├── macos-app/             # Electron macOS App
-├── scripts/               # Management Scripts
-├── docs/                  # Documentation
-├── docker-compose.yml     # Docker Orchestration
-└── init.sql              # Database Schema
-```
-
-## 🛠️ Entwicklung
-
-### Backend Development
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-### Frontend Development
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### macOS App Development
-```bash
-cd macos-app
-npm install
-npm run dev
-```
-## 🔧 Konfiguration
-
-### Wichtige Umgebungsvariablen
-
-#### Backend (.env)
 ```env
-# Database
-DB_HOST=database
-DB_PORT=3306
-DB_USER=dashboard_user
-DB_PASSWORD=dashboard_pass123
-DB_NAME=appliance_dashboard
+# Ports
+PUBLIC_PORT=9080
+BACKEND_PORT=3000
+FRONTEND_PORT=3001
 
 # Security
-JWT_SECRET=your-secret-key
-SSH_KEY_ENCRYPTION_SECRET=your-encryption-key
+JWT_SECRET=<auto-generated>
+SSH_KEY_ENCRYPTION_SECRET=<your-encryption-key>
 
-# Server
-PORT=3001
-NODE_ENV=production
+# Database
+MYSQL_ROOT_PASSWORD=<auto-generated>
+MYSQL_PASSWORD=<auto-generated>
+
+# Features
+ENABLE_REMOTE_DESKTOP=true
+ENABLE_AUDIT_LOG=true
 ```
 
-#### Docker Compose Override
-Für lokale Entwicklung kann eine `docker-compose.override.yml` erstellt werden:
+### Docker Compose Override
+
+For specific customizations, create a `docker-compose.override.yml`:
+
 ```yaml
 version: '3.8'
 services:
-  backend:
+  webserver:
+    ports:
+      - "443:443"
     volumes:
-      - ./backend:/app
-    environment:
-      NODE_ENV: development
+      - ./ssl:/etc/nginx/ssl:ro
 ```
 
-## 🔒 Sicherheit
+## 🔧 Maintenance
 
-### Best Practices
-- ✅ JWT Token Authentication
-- ✅ Passwort-Hashing mit bcrypt
-- ✅ Rate Limiting für API
-- ✅ CORS Protection
-- ✅ SQL Injection Protection
-- ✅ XSS Protection via Helmet.js
-- ✅ SSH Key Encryption
-
-### Empfehlungen
-1. Ändern Sie alle Standard-Passwörter
-2. Verwenden Sie starke JWT Secrets
-3. Aktivieren Sie HTTPS in Production
-4. Regelmäßige Security Updates
-5. Backup-Strategie implementieren
-## 📚 API Dokumentation
-
-Eine vollständige API-Dokumentation ist verfügbar:
-
-- **[API Reference](docs/api-reference.md)** - Detaillierte Endpoint-Dokumentation
-- **[OpenAPI/Swagger](docs/openapi.yaml)** - OpenAPI 3.0 Spezifikation
-- **[Client Examples](docs/api-reference.md#api-client-beispiele)** - Beispiele in JavaScript, Python, cURL, PHP und Go
-
-### Authentication
+### Create backup
 ```bash
-# Login
-POST /api/auth/login
-Content-Type: application/json
-{
-  "username": "admin",
-  "password": "password"
-}
-
-# Response
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "id": 1,
-    "username": "admin",
-    "role": "admin"
-  }
-}
+# Via UI: Settings → Backup → Create backup
+# Or via script:
+docker exec appliance_backend npm run backup
 ```
 
-### Appliances
+### View logs
 ```bash
-# Get all appliances
-GET /api/appliances
-Authorization: Bearer <token>
+# All services
+docker compose logs -f
 
-# Create appliance
-POST /api/appliances
-Authorization: Bearer <token>
-Content-Type: application/json
-{
-  "name": "My Server",
-  "url": "https://server.local",
-  "icon": "Server",
-  "category": "infrastructure"
-}
-
-# Update appliance
-PUT /api/appliances/:id
-Authorization: Bearer <token>
-
-# Delete appliance
-DELETE /api/appliances/:id
-Authorization: Bearer <token>
+# Specific service
+docker compose logs -f backend
 ```
-### SSH Management
+
+### Restart containers
 ```bash
-# Get SSH keys
-GET /api/ssh/keys
-Authorization: Bearer <token>
+# All services
+docker compose restart
 
-# Generate new SSH key
-POST /api/ssh/keys/generate
-Authorization: Bearer <token>
-{
-  "name": "production-key",
-  "type": "rsa",
-  "bits": 4096
-}
-
-# Test SSH connection
-POST /api/ssh/test
-Authorization: Bearer <token>
-{
-  "host": "192.168.1.100",
-  "username": "root",
-  "keyId": 1
-}
+# Single service
+docker compose restart backend
 ```
 
-## 🚢 Deployment
-
-### Production mit Docker
+### Updates
 ```bash
-# Build und Start
-docker-compose -f docker-compose.yml up -d --build
-
-# Logs anzeigen
-docker-compose logs -f
-
-# Status prüfen
-./status.sh
+git pull
+docker compose down
+docker compose build
+docker compose up -d
 ```
-
-### Kubernetes (coming soon)
-```bash
-kubectl apply -f k8s/
-```
-
-### Backup & Restore
-```bash
-# Backup erstellen
-curl -X POST http://localhost:3001/api/backup/create \
-  -H "Authorization: Bearer <token>"
-
-# Backup wiederherstellen
-curl -X POST http://localhost:3001/api/restore \
-  -H "Authorization: Bearer <token>" \
-  -F "backup=@backup-file.zip"
-```
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd backend
-npm test
-npm run test:watch
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm test
-```
-
-### E2E Tests (planned)
-```bash
-npm run test:e2e
-```
-
-## 📖 Weitere Dokumentation
-
-- **[API Reference](docs/api-reference.md)** - Vollständige API-Dokumentation mit Beispielen
-- **[OpenAPI Specification](docs/openapi.yaml)** - OpenAPI 3.0 Spezifikation
-- [Entwickler-Dokumentation](docs/developer.html)
-- [Benutzerhandbuch](docs/user-manual/)
-- [API Reference](docs/api-reference.md)
-- [Changelog](CHANGELOG.md) (coming soon)
-
-## 🤝 Contributing
-
-Beiträge sind willkommen! Bitte beachten Sie:
-
-1. Fork das Repository
-2. Feature Branch erstellen (`git checkout -b feature/AmazingFeature`)
-3. Änderungen committen (`git commit -m 'Add some AmazingFeature'`)
-4. Branch pushen (`git push origin feature/AmazingFeature`)
-5. Pull Request öffnen
-
-### Code Style
-- ESLint für JavaScript (coming soon)
-- Prettier für Formatierung (coming soon)
-- Conventional Commits für Git Messages
-
-## 🐛 Known Issues
-
-- [ ] SSH Key Rotation noch nicht implementiert
-- [ ] Multi-Factor Authentication (MFA) fehlt
-- [ ] Keine Unterstützung für LDAP/AD Integration
-- [ ] Performance bei >1000 Appliances nicht getestet
-## 🗺️ Roadmap
-
-### Version 1.1 (Q3 2025)
-- [ ] TypeScript Migration
-- [ ] API Documentation (Swagger)
-- [ ] Enhanced Test Coverage (>80%)
-- [ ] GitHub Actions CI/CD
-
-### Version 1.2 (Q4 2025)
-- [ ] Multi-Factor Authentication
-- [ ] LDAP/Active Directory Integration
-- [ ] Prometheus/Grafana Monitoring
-- [ ] Internationalization (i18n)
-
-### Version 2.0 (Q1 2026)
-- [ ] Kubernetes Support
-- [ ] Plugin System
-- [ ] GraphQL API
-- [ ] Advanced RBAC
 
 ## 📊 Performance
 
-- **Startup Zeit**: <5 Sekunden
-- **API Response**: <100ms (avg)
-- **Memory Usage**: ~200MB (idle)
-- **Concurrent Users**: 100+ getestet
+### System Requirements
+- **CPU**: 2 cores (4 recommended)
+- **RAM**: 2GB minimum (4GB recommended)
+- **Disk**: 10GB (20GB recommended)
 
-## 🛟 Support
+### Optimizations
+- Redis cache (optional)
+- CDN for static resources
+- Database query optimization
+- Connection pooling
 
-- **Issues**: [GitHub Issues](https://github.com/alflewerken/web-appliance-dashboard/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/alflewerken/web-appliance-dashboard/discussions)
-- **Email**: support@example.com
+## 🐛 Troubleshooting
 
-## 📄 Lizenz
+### Common Issues
 
-Dieses Projekt ist unter der MIT License lizenziert - siehe [LICENSE](LICENSE) für Details.
+**Container won't start:**
+```bash
+docker compose down -v
+docker compose up -d
+```
 
-## 🙏 Danksagungen
+**Forgot password:**
+```bash
+docker exec appliance_backend npm run reset-admin-password
+```
+
+**SSL certificate error:**
+- Check Nginx configuration
+- Ensure port 443 is available
+
+### Debug Mode
+
+For detailed logs:
+```bash
+# Adjust .env
+NODE_ENV=development
+LOG_LEVEL=debug
+
+# Restart containers
+docker compose restart backend
+```
+
+## 🤝 Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+### Development Setup
+```bash
+# Frontend Development
+cd frontend
+npm install
+npm run dev
+
+# Backend Development
+cd backend
+npm install
+npm run dev
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+
+## 🙏 Acknowledgments
 
 - [React](https://reactjs.org/) - UI Framework
 - [Express.js](https://expressjs.com/) - Backend Framework
-- [Docker](https://www.docker.com/) - Containerization
-- [Apache Guacamole](https://guacamole.apache.org/) - Clientless Remote Desktop Gateway
-- [xterm.js](https://xtermjs.org/) - Terminal Emulator
-- [ttyd](https://github.com/tsl0922/ttyd) - Share terminal over the web
-- [MariaDB](https://mariadb.org/) - Database
-- [Nginx](https://nginx.org/) - Web Server
-- [Lucide](https://lucide.dev/) - Beautiful Icons
+- [Apache Guacamole](https://guacamole.apache.org/) - Remote Desktop
+- [ttyd](https://github.com/tsl0922/ttyd) - Web Terminal
+- All other [Open Source Projects](package.json) that make this project possible
+
+## 💬 About the Project
+
+> "After 30 years in IT and countless tools later, I just wanted a dashboard that works. No frills, no cloud dependency, no monthly fees. Just a solid, beautiful tool for my homelab. If it helps you manage your homelab better - mission accomplished!"
+>
+> *- Alf, 56, IT enthusiast since the Sinclair ZX80*
+>
+> enyoy!
 
 ---
 
 <p align="center">
-  Made with ❤️ by <a href="https://github.com/alflewerken">Alf Lewerken</a>
-</p>
-
-<p align="center">
-  <a href="#web-appliance-dashboard-">Back to top</a>
+  Made with ❤️ by <a href="https://github.com/alflewerken">Alf Lewerken</a><br>
+  <i>From a homelab enthusiast for homelab enthusiasts</i>
 </p>

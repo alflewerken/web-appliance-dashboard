@@ -1,5 +1,5 @@
 // Server-Sent Events Service for real-time updates
-import { sseDebugger } from '../utils/sseDebugger';
+
 
 class SSEService {
   constructor() {
@@ -103,6 +103,11 @@ class SSEService {
           'ssh_host_deleted',
           'ssh_host_restored',
           'ssh_host_reverted',
+          'host_created',
+          'host_updated',
+          'host_deleted',
+          'host_restored',
+          'host_reverted',
           'command_executed',
           'command_execute_failed',
           'ssh_connection_test',
@@ -120,7 +125,7 @@ class SSEService {
             try {
               const data = JSON.parse(event.data);
               // Log to debugger
-              sseDebugger.logEvent(eventType, data);
+              // Removed host event logging
 
               this.notifyListeners(eventType, data);
             } catch (error) {

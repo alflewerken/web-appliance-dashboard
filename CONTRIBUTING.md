@@ -1,70 +1,73 @@
 # Contributing to Web Appliance Dashboard
 
-Vielen Dank für Ihr Interesse, zu diesem Projekt beizutragen! 🎉
+Thank you for your interest in contributing to this project! 🎉
+
+[🇩🇪 Deutsche Version](CONTRIBUTING.de.md)
 
 ## Code of Conduct
 
-Dieses Projekt und alle Beteiligten verpflichten sich zu einem respektvollen und professionellen Umgang miteinander.
+This project and everyone participating in it is governed by our commitment to maintaining a respectful and professional environment.
 
-## Wie kann ich beitragen?
+## How Can I Contribute?
 
-### 🐛 Bugs melden
+### 🐛 Reporting Bugs
 
-1. Überprüfen Sie die [Issues](https://github.com/alflewerken/web-appliance-dashboard/issues), ob der Bug bereits gemeldet wurde
-2. Erstellen Sie ein neues Issue mit dem Label `bug`
-3. Verwenden Sie das Bug-Report-Template
-4. Fügen Sie folgende Informationen hinzu:
-   - Detaillierte Beschreibung des Problems
-   - Schritte zur Reproduktion
-   - Erwartetes vs. tatsächliches Verhalten
-   - Screenshots (wenn relevant)
-   - System-Informationen (OS, Browser, Docker-Version)
+1. Check the [Issues](https://github.com/alflewerken/web-appliance-dashboard/issues) to see if the bug has already been reported
+2. Create a new issue with the `bug` label
+3. Use the bug report template
+4. Include the following information:
+   - Detailed description of the problem
+   - Steps to reproduce
+   - Expected vs. actual behavior
+   - Screenshots (if relevant)
+   - System information (OS, Browser, Docker version)
 
-### 💡 Features vorschlagen
+### 💡 Suggesting Features
 
-1. Erstellen Sie ein Issue mit dem Label `enhancement`
-2. Beschreiben Sie das Feature detailliert
-3. Erklären Sie den Use Case
-4. Fügen Sie Mockups/Wireframes hinzu (optional)
+1. Create an issue with the `enhancement` label
+2. Describe the feature in detail
+3. Explain the use case
+4. Add mockups/wireframes (optional)
 
-### 🔧 Code beitragen
+### 🔧 Contributing Code
 
 #### Setup
 
-1. Fork das Repository
-2. Clone Ihren Fork:
+1. Fork the repository
+2. Clone your fork:
    ```bash
    git clone https://github.com/YOUR-USERNAME/web-appliance-dashboard.git
    cd web-appliance-dashboard
    ```
 
-3. Fügen Sie das Original als Upstream hinzu:
+3. Add the original as upstream:
    ```bash
    git remote add upstream https://github.com/alflewerken/web-appliance-dashboard.git
    ```
 
-4. Erstellen Sie einen Feature-Branch:
+4. Create a feature branch:
    ```bash
    git checkout -b feature/your-feature-name
    ```
+
 #### Development Guidelines
 
 ##### Code Style
 
 **JavaScript/React:**
-- Verwenden Sie ES6+ Features
-- Funktionale Komponenten mit Hooks bevorzugen
-- Props destructuring verwenden
-- Aussagekräftige Variablen- und Funktionsnamen
+- Use ES6+ features
+- Prefer functional components with hooks
+- Use props destructuring
+- Meaningful variable and function names
 
 ```javascript
-// ✅ Gut
+// ✅ Good
 const ApplianceCard = ({ appliance, onEdit, onDelete }) => {
   const { name, url, icon } = appliance;
   // ...
 };
 
-// ❌ Schlecht
+// ❌ Bad
 const Card = (props) => {
   const n = props.appliance.name;
   // ...
@@ -72,17 +75,17 @@ const Card = (props) => {
 ```
 
 **CSS:**
-- BEM-Namenskonvention für Klassen
-- CSS-Variablen für Themes
-- Mobile-first Approach
+- BEM naming convention for classes
+- CSS variables for themes
+- Mobile-first approach
 
 **Commits:**
-- Verwenden Sie Conventional Commits
+- Use Conventional Commits
 - Format: `type(scope): description`
-- Typen: feat, fix, docs, style, refactor, test, chore
+- Types: feat, fix, docs, style, refactor, test, chore
 
 ```bash
-# Beispiele
+# Examples
 git commit -m "feat(auth): add multi-factor authentication"
 git commit -m "fix(terminal): resolve websocket connection issue"
 git commit -m "docs(readme): update installation instructions"
@@ -90,109 +93,117 @@ git commit -m "docs(readme): update installation instructions"
 
 #### Testing
 
-1. Schreiben Sie Tests für neue Features
-2. Stellen Sie sicher, dass alle Tests bestehen:
+1. Write tests for new features
+2. Ensure all tests pass:
    ```bash
-   # Backend Tests
+   # Backend tests
    cd backend && npm test
    
-   # Frontend Tests
+   # Frontend tests
    cd frontend && npm test
    ```
 
-3. Streben Sie eine Code-Coverage von >80% an
+3. Aim for >80% code coverage
+
 #### Pull Request Process
 
-1. **Aktualisieren Sie Ihren Fork:**
+1. **Update your fork:**
    ```bash
    git fetch upstream
    git checkout main
    git merge upstream/main
    ```
 
-2. **Rebase Ihren Feature-Branch:**
+2. **Rebase your feature branch:**
    ```bash
    git checkout feature/your-feature-name
    git rebase main
    ```
 
-3. **Push zu Ihrem Fork:**
+3. **Push to your fork:**
    ```bash
    git push origin feature/your-feature-name
    ```
 
-4. **Erstellen Sie einen Pull Request:**
-   - Verwenden Sie das PR-Template
-   - Verlinken Sie relevante Issues
-   - Beschreiben Sie die Änderungen
-   - Fügen Sie Screenshots hinzu (bei UI-Änderungen)
+4. **Create a Pull Request:**
+   - Use the PR template
+   - Link relevant issues
+   - Describe the changes
+   - Add screenshots (for UI changes)
 
-5. **Review-Prozess:**
-   - Warten Sie auf Code-Review
-   - Reagieren Sie auf Feedback
-   - Führen Sie angeforderte Änderungen durch
+5. **Review Process:**
+   - Wait for code review
+   - Respond to feedback
+   - Make requested changes
 
-### 📚 Dokumentation
+### 📚 Documentation
 
-- Aktualisieren Sie die README.md bei Bedarf
-- Dokumentieren Sie neue Features
-- Fügen Sie JSDoc-Kommentare hinzu
-- Aktualisieren Sie die API-Dokumentation
+- Update README.md if needed
+- Document new features
+- Add JSDoc comments
+- Update API documentation
 
-### 🌐 Übersetzungen
+### 🌐 Translations
 
-Hilfe bei Übersetzungen ist willkommen! (i18n coming soon)
+Help with translations is welcome! Currently we support:
+- English (primary)
+- German
 
-## Entwicklungsumgebung
+## Development Environment
 
-### Empfohlene Tools
+### Recommended Tools
 
-- **IDE**: VS Code mit Extensions:
+- **IDE**: VS Code with extensions:
   - ESLint
   - Prettier
   - Docker
   - GitLens
 - **Node.js**: Version 18+
-- **Docker Desktop**: Neueste Version
+- **Docker Desktop**: Latest version
 - **Git**: Version 2.30+
-### Hilfreiche Befehle
+
+### Helpful Commands
 
 ```bash
-# Projekt-Setup
-./scripts/setup-dev.sh
+# Project setup
+./scripts/setup-env.sh
 
-# Container starten
+# Start containers
 docker-compose up -d
 
-# Logs anzeigen
+# View logs
 docker-compose logs -f
 
-# Tests ausführen
+# Run all tests
 npm run test:all
 
 # Linting
 npm run lint
 
-# Code formatieren
+# Format code
 npm run format
 ```
 
-## Release-Prozess
+## Release Process
 
 1. Update CHANGELOG.md
-2. Bump Version in package.json files
+2. Bump version in package.json files
 3. Create Git tag
 4. Push tag to trigger release
 
-## Fragen?
+## Questions?
 
-- Erstellen Sie ein Issue mit dem Label `question`
-- Diskutieren Sie in [GitHub Discussions](https://github.com/alflewerken/web-appliance-dashboard/discussions)
-- Kontaktieren Sie die Maintainer
+- Create an issue with the `question` label
+- Discuss in [GitHub Discussions](https://github.com/alflewerken/web-appliance-dashboard/discussions)
+- Contact the maintainers
 
-## Anerkennung
+## Recognition
 
-Alle Contributor werden in der README.md aufgeführt!
+All contributors will be listed in the README.md!
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.
 
 ---
 

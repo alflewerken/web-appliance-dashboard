@@ -23,12 +23,30 @@ else
   exit 0  # Exit gracefully, don't block
 fi
 
-# 3. Run only the SSH key restoration (with timeout)
-if [ -f /app/utils/ssh-post-restore-fix.js ]; then
-  echo "🔧 Restoring SSH keys..."
+# 3. Restore SSH keys from database to filesystem
+if [ -f /app/utils/restore-ssh-keys.js ]; then
+  echo "🔧 Restoring SSH keys from database..."
   # Run with strict 20-second timeout
-  timeout 20s node /app/utils/ssh-post-restore-fix.js 2>&1 | head -20
-  echo "✅ SSH restoration attempted"
+  timeout 20s node /app/utils/restore-ssh-keys.js 2>&1 | head -20
+  echo "✅ SSH key restoration attempted"
+else
+  echo "⚠️ SSH key restore script not found, skipping"
+fi
+
+# 4. Regenerate SSH config
+if [ -f /app/regenerate-ssh-config.js ]; then
+  echo "🔑 Regenerating SSH config..."
+  # Run with 20-second timeout
+  timeout 20s node /app/regenerate-ssh-config.js 2>&1 | head -20
+  echo "✅ SSH config regeneration attempted"
+fi
+
+# 5. Fix SSH key references (create symlinks for missing keys)
+if [ -f /app/utils/fix-ssh-key-references.js ]; then
+  echo "🔧 Fixing SSH key references..."
+  # Run with 20-second timeout
+  timeout 20s node /app/utils/fix-ssh-key-references.js 2>&1 | head -20
+  echo "✅ SSH key reference fixing attempted"
 fi
 
 echo "✅ Minimal post-restore fixes complete!"

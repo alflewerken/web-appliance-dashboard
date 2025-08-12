@@ -214,7 +214,41 @@
   background: rgba(255, 68, 68, 0.2);
 }
 
-/* Card Button Layouts */
+/* Card Button Layouts - Vertical columns */
+.card-buttons-left,
+.card-buttons-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, calc(var(--card-size) * 0.04), 12px);
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card-buttons-left {
+  left: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+}
+
+.card-buttons-right {
+  right: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+}
+
+/* Show buttons on hover */
+.card-front:hover .card-buttons-left,
+.card-front:hover .card-buttons-right {
+  opacity: 1;
+}
+
+/* Show buttons when touched on mobile */
+.card.touched .card-buttons-left,
+.card.touched .card-buttons-right {
+  opacity: 1;
+}
+
+/* Legacy button layouts - kept for backwards compatibility */
 .card-buttons-top,
 .card-buttons-bottom {
   position: absolute;
@@ -268,8 +302,8 @@
 /* Action Buttons */
 .action-btn {
   /* Dynamische Größe basierend auf Kartengröße - mit besserer Skalierung */
-  width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
-  height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
+  width: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  height: clamp(18px, calc(var(--card-size) * 0.12), 28px);
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -717,7 +751,9 @@
   /* Ensure buttons are large enough for touch */
   .action-btn,
   .service-btn,
-  .settings-btn-icon {
+  .settings-btn-icon,
+  .remote-desktop-btn,
+  .file-transfer-button {
     min-width: 44px;
     min-height: 44px;
   }
@@ -861,7 +897,26 @@
 .appliance-card-container[style*='--card-size: 7'] .card-info,
 .appliance-card-container[style*='--card-size: 8'] .card-info,
 .appliance-card-container[style*='--card-size: 9'] .card-info {
-  display: none;
+  /* Zeige card-info bei kleinen Karten an, aber kompakter */
+  display: flex;
+  padding: 8px;
+  gap: 2px;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-title,
+.appliance-card-container[style*='--card-size: 7'] .card-title,
+.appliance-card-container[style*='--card-size: 8'] .card-title,
+.appliance-card-container[style*='--card-size: 9'] .card-title {
+  font-size: 12px;
+  -webkit-line-clamp: 1;
+}
+
+.appliance-card-container[style*='--card-size: 6'] .card-description,
+.appliance-card-container[style*='--card-size: 7'] .card-description,
+.appliance-card-container[style*='--card-size: 8'] .card-description,
+.appliance-card-container[style*='--card-size: 9'] .card-description {
+  font-size: 10px;
+  -webkit-line-clamp: 1;
 }
 
 .appliance-card-container[style*='--card-size: 6'] .card-front,

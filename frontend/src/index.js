@@ -4,8 +4,10 @@ import './styles/globals.css'; // Global CSS variables
 import './App.css';
 import App from './App';
 import StandaloneServicePanel from './components/StandaloneServicePanel';
-import { SSEProvider } from './contexts/SSEContext';
 import './utils/axiosConfig'; // Import axios configuration
+
+// Import mobile button override as LAST CSS file
+// Mobile styles are now in App.js (consolidated)
 
 // Error Boundary für besseres Debugging
 class ErrorBoundary extends React.Component {

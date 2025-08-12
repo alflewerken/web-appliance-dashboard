@@ -14,13 +14,14 @@ const DB_COLUMNS = {
   color: 'color',
   description: 'description',
   category: 'category',
-  isFavorite: 'isFavorite', // Note: camelCase in DB
-  lastUsed: 'lastUsed', // Note: camelCase in DB
+  isFavorite: 'is_favorite', // Fixed: DB uses snake_case
+  lastUsed: 'last_used', // Fixed: DB uses snake_case
 
   // Service Control Fields
   startCommand: 'start_command',
   stopCommand: 'stop_command',
   statusCommand: 'status_command',
+  restartCommand: 'restart_command',
   autoStart: 'auto_start',
   serviceStatus: 'service_status',
   lastStatusCheck: 'last_status_check',
@@ -31,11 +32,33 @@ const DB_COLUMNS = {
   // Visual Settings Fields
   transparency: 'transparency',
   blurAmount: 'blur_amount',
+  backgroundImage: 'background_image',
 
   // URL Open Mode Settings
   openModeMini: 'open_mode_mini',
   openModeMobile: 'open_mode_mobile',
   openModeDesktop: 'open_mode_desktop',
+
+  // Remote Desktop Settings
+  remoteDesktopEnabled: 'remote_desktop_enabled',
+  remoteProtocol: 'remote_protocol',
+  remoteHost: 'remote_host',
+  remotePort: 'remote_port',
+  remoteUsername: 'remote_username',
+  remotePasswordEncrypted: 'remote_password_encrypted',
+  remoteDesktopType: 'remote_desktop_type',
+  
+  // RustDesk Fields
+  rustdeskId: 'rustdesk_id',
+  rustdeskPasswordEncrypted: 'rustdesk_password_encrypted',
+  rustdeskInstalled: 'rustdesk_installed',
+  rustdeskInstallationDate: 'rustdesk_installation_date',
+  
+  // Guacamole Settings
+  guacamolePerformanceMode: 'guacamole_performance_mode',
+  
+  // Other
+  orderIndex: 'order_index',
 
   // Timestamps
   createdAt: 'created_at',
@@ -62,6 +85,7 @@ const JS_PROPERTIES = {
   startCommand: 'startCommand',
   stopCommand: 'stopCommand',
   statusCommand: 'statusCommand',
+  restartCommand: 'restartCommand',
   autoStart: 'autoStart',
   serviceStatus: 'serviceStatus',
   lastStatusCheck: 'lastStatusCheck',
@@ -73,11 +97,33 @@ const JS_PROPERTIES = {
   transparency: 'transparency',
   blurAmount: 'blurAmount',
   blur: 'blur', // Alternative name used in some places
+  backgroundImage: 'backgroundImage',
 
   // URL Open Mode Settings
   openModeMini: 'openModeMini',
   openModeMobile: 'openModeMobile',
   openModeDesktop: 'openModeDesktop',
+
+  // Remote Desktop Settings
+  remoteDesktopEnabled: 'remoteDesktopEnabled',
+  remoteProtocol: 'remoteProtocol',
+  remoteHost: 'remoteHost',
+  remotePort: 'remotePort',
+  remoteUsername: 'remoteUsername',
+  remotePasswordEncrypted: 'remotePasswordEncrypted',
+  remoteDesktopType: 'remoteDesktopType',
+  
+  // RustDesk Fields
+  rustdeskId: 'rustdeskId',
+  rustdeskPasswordEncrypted: 'rustdeskPasswordEncrypted',
+  rustdeskInstalled: 'rustdeskInstalled',
+  rustdeskInstallationDate: 'rustdeskInstallationDate',
+  
+  // Guacamole Settings
+  guacamolePerformanceMode: 'guacamolePerformanceMode',
+  
+  // Other
+  orderIndex: 'orderIndex',
 
   // Timestamps
   createdAt: 'createdAt',
@@ -92,6 +138,11 @@ const JS_PROPERTIES = {
 function mapDbToJs(row) {
   if (!row) return null;
 
+  // Debug: Log the raw is_favorite value for first few rows
+  if (row.id <= 5) {
+    console.log(`[mapDbToJs] ID ${row.id}: is_favorite raw =`, row.is_favorite, 'type =', typeof row.is_favorite, 'Boolean =', Boolean(row.is_favorite));
+  }
+
   return {
     // Primary fields
     id: row.id,
@@ -101,14 +152,15 @@ function mapDbToJs(row) {
     color: row.color || '#007AFF',
     description: row.description || '',
     category: row.category || 'productivity',
-    isFavorite: Boolean(row.isFavorite),
-    lastUsed: row.lastUsed,
+    isFavorite: row.is_favorite === 1 || row.is_favorite === true || row.is_favorite === '1',  // Fix für MySQL TINYINT
+    lastUsed: row.last_used,  // FIX: last_used statt lastUsed
 
     // Service Control Fields
     startCommand: row.start_command || null,
     stopCommand: row.stop_command || null,
     statusCommand: row.status_command || null,
-    autoStart: Boolean(row.auto_start),
+    restartCommand: row.restart_command || null,
+    autoStart: row.auto_start === 1 || row.auto_start === true || row.auto_start === '1',
     serviceStatus: row.service_status || 'unknown',
     lastStatusCheck: row.last_status_check,
 
@@ -119,6 +171,7 @@ function mapDbToJs(row) {
     transparency: row.transparency !== undefined ? row.transparency : 0.7,
     blur: row.blur_amount !== undefined ? row.blur_amount : 8,
     blurAmount: row.blur_amount !== undefined ? row.blur_amount : 8,
+    backgroundImage: row.background_image || null,
 
     // URL Open Mode Settings
     openModeMini: row.open_mode_mini || 'browser_tab',
@@ -126,12 +179,24 @@ function mapDbToJs(row) {
     openModeDesktop: row.open_mode_desktop || 'browser_tab',
 
     // Remote Desktop Settings
-    remote_desktop_enabled: Boolean(row.remote_desktop_enabled),
-    remote_protocol: row.remote_protocol || 'vnc',
-    remote_host: row.remote_host || null,
-    remote_port: row.remote_port || null,
-    remote_username: row.remote_username || null,
+    remoteDesktopEnabled: row.remote_desktop_enabled === 1 || row.remote_desktop_enabled === true || row.remote_desktop_enabled === '1',
+    remoteProtocol: row.remote_protocol || 'vnc',
+    remoteHost: row.remote_host || null,
+    remotePort: row.remote_port || (row.remote_protocol === 'vnc' ? 5900 : row.remote_protocol === 'rdp' ? 3389 : null),
+    remoteUsername: row.remote_username || null,
     // Password is not returned for security
+    
+    // RustDesk Fields
+    remoteDesktopType: row.remote_desktop_type || 'guacamole',
+    rustdeskId: row.rustdesk_id || null,
+    rustdeskInstalled: row.rustdesk_installed === 1 || row.rustdesk_installed === true || row.rustdesk_installed === '1',
+    rustdeskInstallationDate: row.rustdesk_installation_date || null,
+    
+    // Guacamole Settings
+    guacamolePerformanceMode: row.guacamole_performance_mode || 'balanced',
+    
+    // Order
+    orderIndex: row.order_index || 0,
 
     // Timestamps
     createdAt: row.created_at,
@@ -157,7 +222,18 @@ function mapJsToDb(jsObj) {
   if (jsObj.description !== undefined) dbObj.description = jsObj.description;
   if (jsObj.category !== undefined) dbObj.category = jsObj.category;
   if (jsObj.isFavorite !== undefined)
-    dbObj.isFavorite = jsObj.isFavorite ? 1 : 0;
+    dbObj.is_favorite = jsObj.isFavorite ? 1 : 0;  // Fixed: use is_favorite
+  if (jsObj.lastUsed !== undefined) {
+    // Convert to MySQL datetime format if it's a date string
+    if (typeof jsObj.lastUsed === 'string' && jsObj.lastUsed.includes('T')) {
+      dbObj.last_used = new Date(jsObj.lastUsed)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+    } else {
+      dbObj.last_used = jsObj.lastUsed;
+    }
+  }
 
   // Service Control Fields
   if (jsObj.startCommand !== undefined)
@@ -165,6 +241,8 @@ function mapJsToDb(jsObj) {
   if (jsObj.stopCommand !== undefined) dbObj.stop_command = jsObj.stopCommand;
   if (jsObj.statusCommand !== undefined)
     dbObj.status_command = jsObj.statusCommand;
+  if (jsObj.restartCommand !== undefined)
+    dbObj.restart_command = jsObj.restartCommand;
   if (jsObj.autoStart !== undefined) dbObj.auto_start = jsObj.autoStart ? 1 : 0;
   if (jsObj.serviceStatus !== undefined)
     dbObj.service_status = jsObj.serviceStatus;
@@ -177,6 +255,7 @@ function mapJsToDb(jsObj) {
   if (jsObj.transparency !== undefined) dbObj.transparency = jsObj.transparency;
   if (jsObj.blur !== undefined) dbObj.blur_amount = jsObj.blur;
   if (jsObj.blurAmount !== undefined) dbObj.blur_amount = jsObj.blurAmount;
+  if (jsObj.backgroundImage !== undefined) dbObj.background_image = jsObj.backgroundImage;
 
   // URL Open Mode Settings
   if (jsObj.openModeMini !== undefined)
@@ -185,6 +264,40 @@ function mapJsToDb(jsObj) {
     dbObj.open_mode_mobile = jsObj.openModeMobile;
   if (jsObj.openModeDesktop !== undefined)
     dbObj.open_mode_desktop = jsObj.openModeDesktop;
+    
+  // Remote Desktop Settings
+  if (jsObj.remoteDesktopEnabled !== undefined)
+    dbObj.remote_desktop_enabled = jsObj.remoteDesktopEnabled ? 1 : 0;
+  if (jsObj.remoteProtocol !== undefined)
+    dbObj.remote_protocol = jsObj.remoteProtocol;
+  if (jsObj.remoteHost !== undefined)
+    dbObj.remote_host = jsObj.remoteHost;
+  if (jsObj.remotePort !== undefined)
+    dbObj.remote_port = jsObj.remotePort;
+  if (jsObj.remoteUsername !== undefined)
+    dbObj.remote_username = jsObj.remoteUsername;
+  if (jsObj.remotePasswordEncrypted !== undefined)
+    dbObj.remote_password_encrypted = jsObj.remotePasswordEncrypted;
+    
+  // RustDesk Fields
+  if (jsObj.remoteDesktopType !== undefined)
+    dbObj.remote_desktop_type = jsObj.remoteDesktopType;
+  if (jsObj.rustdeskId !== undefined)
+    dbObj.rustdesk_id = jsObj.rustdeskId;
+  if (jsObj.rustdeskPasswordEncrypted !== undefined)
+    dbObj.rustdesk_password_encrypted = jsObj.rustdeskPasswordEncrypted;
+  if (jsObj.rustdeskInstalled !== undefined)
+    dbObj.rustdesk_installed = jsObj.rustdeskInstalled ? 1 : 0;
+  if (jsObj.rustdeskInstallationDate !== undefined)
+    dbObj.rustdesk_installation_date = jsObj.rustdeskInstallationDate;
+    
+  // Guacamole Settings
+  if (jsObj.guacamolePerformanceMode !== undefined)
+    dbObj.guacamole_performance_mode = jsObj.guacamolePerformanceMode;
+    
+  // Order
+  if (jsObj.orderIndex !== undefined)
+    dbObj.order_index = jsObj.orderIndex;
 
   return dbObj;
 }
@@ -196,10 +309,11 @@ function mapJsToDb(jsObj) {
 function getSelectColumns() {
   return `
     id, name, url, description, icon, color, category, 
-    isFavorite, lastUsed,
+    is_favorite, last_used,
     start_command, 
     stop_command, 
     status_command,
+    restart_command,
     auto_start, 
     service_status, 
     last_status_check,
@@ -215,9 +329,35 @@ function getSelectColumns() {
     remote_port,
     remote_username,
     remote_password_encrypted,
+    remote_desktop_type,
+    rustdesk_id,
+    rustdesk_installed,
+    rustdesk_installation_date,
+    rustdesk_password_encrypted,
+    guacamole_performance_mode,
+    order_index,
+    background_image,
     created_at, 
     updated_at
   `.trim();
+}
+
+/**
+ * Map database row to JavaScript object WITH passwords (for audit log only!)
+ * @param {Object} row - Database row
+ * @returns {Object} - JavaScript object with camelCase properties including passwords
+ */
+function mapDbToJsWithPasswords(row) {
+  if (!row) return null;
+  
+  // Get all normal fields first
+  const result = mapDbToJs(row);
+  
+  // Add password fields for audit logging
+  result.remotePasswordEncrypted = row.remote_password_encrypted || null;
+  result.rustdeskPasswordEncrypted = row.rustdesk_password_encrypted || null;
+  
+  return result;
 }
 
 module.exports = {
@@ -226,4 +366,5 @@ module.exports = {
   mapDbToJs,
   mapJsToDb,
   getSelectColumns,
+  mapDbToJsWithPasswords,
 };

@@ -223,6 +223,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     password_change: Shield,
     command_execute: Terminal,
     command_execute_failed: AlertTriangle,
+    terminal_open: Terminal,
+    terminal_disconnect: Terminal,
+    terminal_command: Terminal,
     audit_logs_delete: Trash2,
   };
 
@@ -232,13 +235,34 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     setError(null);
 
     try {
-      const response = await axios.get('/api/audit-logs');
-      setLogs(response.data);
-      setFilteredLogs(response.data);
-      calculateStats(response.data);
+      const response = await axios.get('/api/auditLogs');
+      
+      // Backend sendet ein Objekt mit logs und stats
+      const logsData = response.data.logs || response.data || [];
+      
+      // Sicherstellen, dass es ein Array ist
+      const logsArray = Array.isArray(logsData) ? logsData : [];
+      
+      // Duplikate entfernen basierend auf der ID
+      const uniqueLogs = [];
+      const seenIds = new Set();
+      
+      for (const log of logsArray) {
+        if (log.id && !seenIds.has(log.id)) {
+          seenIds.add(log.id);
+          uniqueLogs.push(log);
+        }
+      }
+      
+      setLogs(uniqueLogs);
+      setFilteredLogs(uniqueLogs);
+      calculateStats(uniqueLogs);
     } catch (err) {
       console.error('Error fetching audit logs:', err);
       setError('Fehler beim Laden der Audit Logs');
+      // Setze leere Arrays bei Fehler
+      setLogs([]);
+      setFilteredLogs([]);
     } finally {
       setLoading(false);
     }
@@ -246,15 +270,18 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
 
   // Calculate statistics
   const calculateStats = (logsData) => {
+    // Sicherstellen, dass logsData ein Array ist
+    const safeLogsData = Array.isArray(logsData) ? logsData : [];
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todayLogs = logsData.filter(log => new Date(log.created_at) >= today).length;
-    const uniqueUsers = new Set(logsData.map(log => log.username).filter(Boolean)).size;
-    const criticalActionCount = logsData.filter(log => criticalActions.includes(log.action)).length;
+    const todayLogs = safeLogsData.filter(log => new Date(log.created_at || log.createdAt) >= today).length;
+    const uniqueUsers = new Set(safeLogsData.map(log => log.username).filter(Boolean)).size;
+    const criticalActionCount = safeLogsData.filter(log => criticalActions.includes(log.action)).length;
 
     setStats({
-      totalLogs: logsData.length,
+      totalLogs: safeLogsData.length,
       todayLogs,
       uniqueUsers,
       criticalActions: criticalActionCount,
@@ -298,6 +325,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       ssh_key_create: 'SSH-Schlüssel erstellt',
       ssh_key_delete: 'SSH-Schlüssel gelöscht',
       ssh_connection_test: 'SSH-Verbindung getestet',
+      ssh_file_upload: 'Datei hochgeladen',
       service_start: 'Service gestartet',
       service_stop: 'Service gestoppt',
       service_start_failed: 'Service Start fehlgeschlagen',
@@ -306,6 +334,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       password_changed: 'Passwort geändert',
       command_execute: 'Kommando ausgeführt',
       command_execute_failed: 'Kommando fehlgeschlagen',
+      terminal_open: 'Terminal geöffnet',
+      terminal_disconnect: 'Terminal geschlossen',
+      terminal_command: 'Terminal-Befehl',
       audit_logs_delete: 'Audit Logs gelöscht',
       audit_log_created: 'Audit Log erstellt',
     };
@@ -395,9 +426,13 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       'ssh_host_created',
       'ssh_host_updated',
       'ssh_host_deleted',
-      'ssh_host_restored',
+      'ssh_host_restored', 
       'ssh_host_reverted',
+      'ssh_file_upload',
       'command_executed',
+      'terminal_open',
+      'terminal_disconnect',
+      'terminal_command',
       'audit_logs_deleted',
       'audit_log_created',
     ];
@@ -439,7 +474,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
 
   // Filter logs
   useEffect(() => {
-    let filtered = [...logs];
+    // Sicherstellen, dass logs ein Array ist
+    const safeLogs = Array.isArray(logs) ? logs : [];
+    let filtered = [...safeLogs];
 
     if (showCriticalOnly) {
       filtered = filtered.filter(log => criticalActions.includes(log.action));
@@ -450,6 +487,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
             log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (log.username && log.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (log.resource_type && log.resource_type.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (log.resourceType && log.resourceType.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (log.details && JSON.stringify(log.details).toLowerCase().includes(searchTerm.toLowerCase()))
         );
       }
@@ -464,7 +502,10 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     }
 
     if (selectedResourceType !== 'all') {
-      filtered = filtered.filter(log => log.resource_type === selectedResourceType);
+      filtered = filtered.filter(log => 
+        log.resource_type === selectedResourceType || 
+        log.resourceType === selectedResourceType
+      );
     }
 
     // Date filter
@@ -489,16 +530,35 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     }
 
     if (startDate) {
-      filtered = filtered.filter(log => new Date(log.created_at) >= startDate);
+      filtered = filtered.filter(log => {
+        // Backend sendet createdAt (camelCase)
+        const logDate = new Date(log.createdAt || log.created_at);
+        return logDate >= startDate;
+      });
     }
 
     if (dateRange === 'custom' && customEndDate) {
       const endDate = new Date(customEndDate);
       endDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(log => new Date(log.created_at) <= endDate);
+      filtered = filtered.filter(log => {
+        // Backend sendet createdAt (camelCase)
+        const logDate = new Date(log.createdAt || log.created_at);
+        return logDate <= endDate;
+      });
     }
 
-    setFilteredLogs(filtered);
+    // Duplikate entfernen nach dem Filtern
+    const uniqueFiltered = [];
+    const seenIds = new Set();
+    
+    for (const log of filtered) {
+      if (log.id && !seenIds.has(log.id)) {
+        seenIds.add(log.id);
+        uniqueFiltered.push(log);
+      }
+    }
+
+    setFilteredLogs(uniqueFiltered);
   }, [logs, searchTerm, selectedAction, selectedUser, selectedResourceType, dateRange, customStartDate, customEndDate, showCriticalOnly]);
 
   // Export to CSV
@@ -511,7 +571,8 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       }
 
       if (selectedUser !== 'all') {
-        const userLog = logs.find(log => log.username === selectedUser);
+        const safeLogs = Array.isArray(logs) ? logs : [];
+        const userLog = safeLogs.find(log => log.username === selectedUser);
         if (userLog && userLog.user_id) {
           params.append('user_id', userLog.user_id);
         }
@@ -521,7 +582,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         params.append('resource_type', selectedResourceType);
       }
 
-      const response = await axios.get(`/api/audit-logs/export?${params.toString()}`, {
+      const response = await axios.get(`/api/auditLogs/export?${params.toString()}`, {
         responseType: 'blob',
       });
 
@@ -620,22 +681,22 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         if (log.details) {
           try {
             const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
-            resourceName = details.name || details.service_name || details.appliance_name || '';
+            resourceName = details.displayName || details.hostIdentifier || details.name || details.service_name || details.appliance_name || '';
           } catch (e) {
             console.error('Error parsing details:', e);
           }
         }
 
-        const resourceDisplay = resourceName || 
+        const resourceDisplay = log.resource_name || resourceName || 
           (log.resource_type && log.resource_id ? `${log.resource_type} #${log.resource_id}` : log.resource_type || '-');
 
         printWindow.document.write(`
           <tr>
-            <td>${formatTimestamp(log.created_at)}</td>
+            <td>${formatTimestamp(log.createdAt || log.created_at)}</td>
             <td>${log.username || 'System'}</td>
             <td class="${getActionColor(log.action)}">${formatActionName(log.action)}</td>
             <td>${resourceDisplay}</td>
-            <td>${log.ip_address || '-'}</td>
+            <td>${log.ipAddress || '-'}</td>
           </tr>
         `);
       });
@@ -681,7 +742,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     try {
       const logIds = filteredLogs.map(log => log.id);
 
-      const response = await axios.delete('/api/audit-logs/delete', {
+      const response = await axios.delete('/api/auditLogs/delete', {
         data: { ids: logIds },
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -691,6 +752,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       if (response.data.success) {
         await fetchAuditLogs();
         alert(`${response.data.deletedCount} Audit Log Einträge wurden erfolgreich gelöscht.`);
+      } else {
+        // Sollte normalerweise nicht passieren, da das Backend bei Fehler einen HTTP-Fehlercode sendet
+        throw new Error(response.data.error || 'Unbekannter Fehler beim Löschen');
       }
     } catch (err) {
       console.error('Error deleting audit logs:', err);
@@ -700,9 +764,10 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   };
 
   // Get unique values for filters
-  const uniqueActions = [...new Set(logs.map(log => log.action))].sort();
-  const uniqueUsers = [...new Set(logs.map(log => log.username).filter(Boolean))].sort();
-  const uniqueResourceTypes = [...new Set(logs.map(log => log.resource_type).filter(Boolean))].sort();
+  const safeLogs = Array.isArray(logs) ? logs : [];
+  const uniqueActions = [...new Set(safeLogs.map(log => log.action))].sort();
+  const uniqueUsers = [...new Set(safeLogs.map(log => log.username).filter(Boolean))].sort();
+  const uniqueResourceTypes = [...new Set(safeLogs.map(log => log.resource_type).filter(Boolean))].sort();
 
   const isCompactView = panelWidth < 700 && !isMobile;
 

@@ -1,4 +1,4 @@
-/* Multi-Panel Layout System */
+/* Multi-Panel Layout System - Simplified Version */
 
 /* Main container adjusts to panel widths */
 .music-app {
@@ -6,112 +6,56 @@
   display: flex;
   height: 100vh;
   overflow: hidden;
-}
-
-/* Calculate total panel width based on open panels - now includes audit log */
-.music-app {
   --total-panel-width: 0px;
 }
 
+/* Calculate total panel width based on open panels */
+/* Using a more maintainable approach with individual panel calculations */
+
+/* Base calculation for each panel when open */
+.music-app.has-host-panel {
+  --host-panel-active-width: var(--host-panel-width, 600px);
+}
+.music-app:not(.has-host-panel) {
+  --host-panel-active-width: 0px;
+}
+
 .music-app.has-service-panel {
-  --total-panel-width: var(--service-panel-width, 600px);
+  --service-panel-active-width: var(--service-panel-width, 600px);
+}
+.music-app:not(.has-service-panel) {
+  --service-panel-active-width: 0px;
 }
 
-.music-app.has-user-panel:not(.has-service-panel) {
-  --total-panel-width: var(--user-panel-width, 600px);
+.music-app.has-user-panel {
+  --user-panel-active-width: var(--user-panel-width, 600px);
+}
+.music-app:not(.has-user-panel) {
+  --user-panel-active-width: 0px;
 }
 
-.music-app.has-user-panel.has-service-panel {
+.music-app.has-settings-panel {
+  --settings-panel-active-width: var(--settings-panel-width, 600px);
+}
+.music-app:not(.has-settings-panel) {
+  --settings-panel-active-width: 0px;
+}
+
+.music-app.has-audit-log-panel {
+  --audit-log-panel-active-width: var(--audit-log-panel-width, 800px);
+}
+.music-app:not(.has-audit-log-panel) {
+  --audit-log-panel-active-width: 0px;
+}
+
+/* Total width calculation - always sum all active panels */
+.music-app {
   --total-panel-width: calc(
-    var(--service-panel-width, 600px) + var(--user-panel-width, 600px)
-  );
-}
-
-.music-app.has-settings-panel:not(.has-user-panel):not(.has-service-panel) {
-  --total-panel-width: var(--settings-panel-width, 600px);
-}
-
-.music-app.has-settings-panel.has-service-panel:not(.has-user-panel) {
-  --total-panel-width: calc(
-    var(--service-panel-width, 600px) + var(--settings-panel-width, 600px)
-  );
-}
-
-.music-app.has-settings-panel.has-user-panel:not(.has-service-panel) {
-  --total-panel-width: calc(
-    var(--user-panel-width, 600px) + var(--settings-panel-width, 600px)
-  );
-}
-
-.music-app.has-settings-panel.has-user-panel.has-service-panel {
-  --total-panel-width: calc(
-    var(--service-panel-width, 600px) + var(--user-panel-width, 600px) +
-      var(--settings-panel-width, 600px)
-  );
-}
-
-/* AuditLog Panel combinations */
-.music-app.has-audit-log-panel:not(.has-settings-panel):not(
-    .has-user-panel
-  ):not(.has-service-panel) {
-  --total-panel-width: var(--audit-log-panel-width, 800px);
-}
-
-.music-app.has-audit-log-panel.has-service-panel:not(.has-user-panel):not(
-    .has-settings-panel
-  ) {
-  --total-panel-width: calc(
-    var(--service-panel-width, 600px) + var(--audit-log-panel-width, 800px)
-  );
-}
-
-.music-app.has-audit-log-panel.has-user-panel:not(.has-service-panel):not(
-    .has-settings-panel
-  ) {
-  --total-panel-width: calc(
-    var(--user-panel-width, 600px) + var(--audit-log-panel-width, 800px)
-  );
-}
-
-.music-app.has-audit-log-panel.has-settings-panel:not(.has-user-panel):not(
-    .has-service-panel
-  ) {
-  --total-panel-width: calc(
-    var(--settings-panel-width, 600px) + var(--audit-log-panel-width, 800px)
-  );
-}
-
-.music-app.has-audit-log-panel.has-user-panel.has-service-panel:not(
-    .has-settings-panel
-  ) {
-  --total-panel-width: calc(
-    var(--service-panel-width, 600px) + var(--user-panel-width, 600px) +
-      var(--audit-log-panel-width, 800px)
-  );
-}
-
-.music-app.has-audit-log-panel.has-settings-panel.has-service-panel:not(
-    .has-user-panel
-  ) {
-  --total-panel-width: calc(
-    var(--service-panel-width, 600px) + var(--settings-panel-width, 600px) +
-      var(--audit-log-panel-width, 800px)
-  );
-}
-
-.music-app.has-audit-log-panel.has-settings-panel.has-user-panel:not(
-    .has-service-panel
-  ) {
-  --total-panel-width: calc(
-    var(--user-panel-width, 600px) + var(--settings-panel-width, 600px) +
-      var(--audit-log-panel-width, 800px)
-  );
-}
-
-.music-app.has-audit-log-panel.has-settings-panel.has-user-panel.has-service-panel {
-  --total-panel-width: calc(
-    var(--service-panel-width, 600px) + var(--user-panel-width, 600px) +
-      var(--settings-panel-width, 600px) + var(--audit-log-panel-width, 800px)
+    var(--host-panel-active-width, 0px) +
+    var(--service-panel-active-width, 0px) +
+    var(--user-panel-active-width, 0px) +
+    var(--settings-panel-active-width, 0px) +
+    var(--audit-log-panel-active-width, 0px)
   );
 }
 
@@ -149,7 +93,7 @@
   max-width: none !important;
 }
 
-/* Panel positioning - Order from right to left: Audit-Log → Settings → User → Service → Main */
+/* Panel positioning - Order from right to left: Audit-Log → Settings → User → Service → Host → Main */
 
 /* Audit Log Panel - Always rightmost when open */
 .music-app.has-audit-log-panel .audit-log-panel-container {
@@ -158,7 +102,7 @@
 }
 
 /* Settings Panel - Slides based on Audit Log */
-.music-app.has-settings-panel .settings-panel-container {
+.music-app.has-settings-panel:not(.has-audit-log-panel) .settings-panel-container {
   transform: translateX(0) !important;
   right: 0 !important;
 }
@@ -171,95 +115,30 @@
 /* User Panel - Slides based on Settings and Audit Log */
 .music-app.has-user-panel .user-panel-container {
   transform: translateX(0) !important;
-  right: 0 !important;
-}
-
-.music-app.has-user-panel.has-settings-panel:not(.has-audit-log-panel)
-  .user-panel-container {
-  transform: translateX(0) !important;
-  right: var(--settings-panel-width, 600px) !important;
-}
-
-.music-app.has-user-panel.has-audit-log-panel:not(.has-settings-panel)
-  .user-panel-container {
-  transform: translateX(0) !important;
-  right: var(--audit-log-panel-width, 800px) !important;
-}
-
-.music-app.has-user-panel.has-settings-panel.has-audit-log-panel
-  .user-panel-container {
-  transform: translateX(0) !important;
   right: calc(
-    var(--settings-panel-width, 600px) + var(--audit-log-panel-width, 800px)
+    var(--settings-panel-active-width, 0px) +
+    var(--audit-log-panel-active-width, 0px)
   ) !important;
 }
 
 /* Service Panel - Slides based on User, Settings and Audit Log */
 .music-app.has-service-panel .service-panel-container {
   transform: translateX(0) !important;
-  right: 0 !important;
-}
-
-.music-app.has-service-panel.has-user-panel:not(.has-settings-panel):not(
-    .has-audit-log-panel
-  )
-  .service-panel-container {
-  transform: translateX(0) !important;
-  right: var(--user-panel-width, 600px) !important;
-}
-
-.music-app.has-service-panel.has-settings-panel:not(.has-user-panel):not(
-    .has-audit-log-panel
-  )
-  .service-panel-container {
-  transform: translateX(0) !important;
-  right: var(--settings-panel-width, 600px) !important;
-}
-
-.music-app.has-service-panel.has-audit-log-panel:not(.has-user-panel):not(
-    .has-settings-panel
-  )
-  .service-panel-container {
-  transform: translateX(0) !important;
-  right: var(--audit-log-panel-width, 800px) !important;
-}
-
-.music-app.has-service-panel.has-user-panel.has-settings-panel:not(
-    .has-audit-log-panel
-  )
-  .service-panel-container {
-  transform: translateX(0) !important;
   right: calc(
-    var(--user-panel-width, 600px) + var(--settings-panel-width, 600px)
+    var(--user-panel-active-width, 0px) +
+    var(--settings-panel-active-width, 0px) +
+    var(--audit-log-panel-active-width, 0px)
   ) !important;
 }
 
-.music-app.has-service-panel.has-user-panel.has-audit-log-panel:not(
-    .has-settings-panel
-  )
-  .service-panel-container {
+/* Host Panel - Slides based on Service, User, Settings and Audit Log */
+.music-app.has-host-panel .host-panel-container {
   transform: translateX(0) !important;
   right: calc(
-    var(--user-panel-width, 600px) + var(--audit-log-panel-width, 800px)
-  ) !important;
-}
-
-.music-app.has-service-panel.has-settings-panel.has-audit-log-panel:not(
-    .has-user-panel
-  )
-  .service-panel-container {
-  transform: translateX(0) !important;
-  right: calc(
-    var(--settings-panel-width, 600px) + var(--audit-log-panel-width, 800px)
-  ) !important;
-}
-
-.music-app.has-service-panel.has-user-panel.has-settings-panel.has-audit-log-panel
-  .service-panel-container {
-  transform: translateX(0) !important;
-  right: calc(
-    var(--user-panel-width, 600px) + var(--settings-panel-width, 600px) +
-      var(--audit-log-panel-width, 800px)
+    var(--service-panel-active-width, 0px) +
+    var(--user-panel-active-width, 0px) +
+    var(--settings-panel-active-width, 0px) +
+    var(--audit-log-panel-active-width, 0px)
   ) !important;
 }
 
@@ -269,19 +148,11 @@
 }
 
 /* Ensure panel containers are transparent */
-.audit-log-panel-container {
-  background: transparent !important;
-}
-
-.service-panel-container {
-  background: transparent !important;
-}
-
-.user-panel-container {
-  background: transparent !important;
-}
-
-.settings-panel-container {
+.audit-log-panel-container,
+.service-panel-container,
+.user-panel-container,
+.settings-panel-container,
+.host-panel-container {
   background: transparent !important;
 }
 
@@ -290,10 +161,21 @@
   transition: none !important; /* Prevent child elements from interfering with panel animations */
 }
 
+/* Debug helper - add colored borders to see layout */
+.music-app[data-panels*="host"] .main-content {
+  /* Force recalculation when host panel is open */
+  margin-right: var(--total-panel-width) !important;
+}
+
 /* Mobile overrides */
 @media (max-width: 768px) {
   .music-app {
     --total-panel-width: 0px !important;
+    --host-panel-active-width: 0px !important;
+    --service-panel-active-width: 0px !important;
+    --user-panel-active-width: 0px !important;
+    --settings-panel-active-width: 0px !important;
+    --audit-log-panel-active-width: 0px !important;
   }
 
   .main-content {
@@ -319,7 +201,8 @@
   .music-app.has-service-panel .service-panel-container,
   .music-app.has-user-panel .user-panel-container,
   .music-app.has-settings-panel .settings-panel-container,
-  .music-app.has-audit-log-panel .audit-log-panel-container {
+  .music-app.has-audit-log-panel .audit-log-panel-container,
+  .music-app.has-host-panel .host-panel-container {
     transform: translateX(0) !important;
     right: 0 !important;
     left: 0 !important;
@@ -332,15 +215,42 @@
   .music-app.has-service-panel .user-panel-container,
   .music-app.has-service-panel .settings-panel-container,
   .music-app.has-service-panel .audit-log-panel-container,
+  .music-app.has-service-panel .host-panel-container,
   .music-app.has-user-panel .service-panel-container,
   .music-app.has-user-panel .settings-panel-container,
   .music-app.has-user-panel .audit-log-panel-container,
+  .music-app.has-user-panel .host-panel-container,
   .music-app.has-settings-panel .service-panel-container,
   .music-app.has-settings-panel .user-panel-container,
   .music-app.has-settings-panel .audit-log-panel-container,
+  .music-app.has-settings-panel .host-panel-container,
   .music-app.has-audit-log-panel .service-panel-container,
   .music-app.has-audit-log-panel .user-panel-container,
-  .music-app.has-audit-log-panel .settings-panel-container {
+  .music-app.has-audit-log-panel .settings-panel-container,
+  .music-app.has-audit-log-panel .host-panel-container,
+  .music-app.has-host-panel .service-panel-container,
+  .music-app.has-host-panel .user-panel-container,
+  .music-app.has-host-panel .settings-panel-container,
+  .music-app.has-host-panel .audit-log-panel-container {
     display: none !important;
   }
+}
+
+/* Debugging - Log calculated values */
+.music-app {
+  /* Use counter to debug values */
+  counter-reset: total-width var(--total-panel-width);
+}
+
+.music-app::before {
+  content: "Total panel width: " counter(total-width) "px";
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  font-size: 12px;
+  z-index: 9999;
+  display: none; /* Enable for debugging */
 }

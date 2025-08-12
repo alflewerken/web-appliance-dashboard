@@ -1,0 +1,1278 @@
+{
+  "timestamp": "2025-08-06T19:22:59.137Z",
+  "summary": {
+    "totalFiles": 16,
+    "totalChanges": 181
+  },
+  "files": [
+    {
+      "file": "auditLogs.js",
+      "changes": [
+        {
+          "type": "SELECT",
+          "table": "user_settings",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_settings', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "user_settings",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_settings', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "user_settings",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_settings', whereObject, options)"
+        },
+        {
+          "type": "DELETE",
+          "table": "audit_logs",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('audit_logs', whereObject)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries"
+      ]
+    },
+    {
+      "file": "auditRestore.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "categories",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('categories', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "users",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('users', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "appliances",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('appliances', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "appliance_commands",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('appliance_commands', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "users",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('users', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "hosts",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('hosts', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "categories",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('categories', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "users",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('users', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "appliances",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('appliances', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "users",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('users', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "hosts",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('hosts', dataObject, whereObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('hosts', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries"
+      ]
+    },
+    {
+      "file": "auth.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "active_sessions",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('active_sessions', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "users",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('users', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "users",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('users', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "users",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('users', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "users",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('users', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "users",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('users', dataObject, whereObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "user_settings",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_settings', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "role_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('role_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "role_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('role_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "user_settings",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_settings', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "DELETE",
+          "table": "active_sessions",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('active_sessions', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "users",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('users', whereObject)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries",
+        "Contains GROUP BY - may need db.raw() for aggregations"
+      ]
+    },
+    {
+      "file": "background.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "user_settings",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_settings', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "user_settings",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_settings', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "user_settings",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_settings', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "user_settings",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_settings', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "background_images",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('background_images', dataObject, whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "database",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('database', whereObject)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": []
+    },
+    {
+      "file": "backup.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "categories",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('categories', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "categories",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('categories', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "appliances",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('appliances', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "user_settings",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_settings', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "background_images",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('background_images', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "users",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('users', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "hosts",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('hosts', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "services",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('services', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "ssh_keys",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('ssh_keys', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "ssh_upload_log",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('ssh_upload_log', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "appliance_commands",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('appliance_commands', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "audit_logs",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('audit_logs', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "role_permissions",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('role_permissions', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "user_appliance_permissions",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_appliance_permissions', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "service_command_logs",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('service_command_logs', dataObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "background_images",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('background_images', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "role_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('role_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "user_appliance_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_appliance_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "user_appliance_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_appliance_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('hosts', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "services",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('services', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_hosts', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('hosts', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_hosts', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliance_commands",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliance_commands', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "DELETE",
+          "table": "categories",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('categories', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "appliances",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('appliances', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "user_settings",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('user_settings', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "background_images",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('background_images', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "users",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('users', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "hosts",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('hosts', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "services",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('services', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "ssh_keys",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('ssh_keys', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "ssh_keys",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('ssh_keys', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "appliance_commands",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('appliance_commands', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "role_permissions",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('role_permissions', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "user_appliance_permissions",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('user_appliance_permissions', whereObject)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Uses transactions - ensure proper connection handling"
+      ]
+    },
+    {
+      "file": "categories-old.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "categories",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('categories', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "categories",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('categories', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "categories",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('categories', dataObject, whereObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "DELETE",
+          "table": "categories",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('categories', whereObject)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains GROUP BY - may need db.raw() for aggregations"
+      ]
+    },
+    {
+      "file": "categories.js",
+      "changes": [
+        {
+          "type": "UPDATE",
+          "table": "categories",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('categories', dataObject, whereObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "categories",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('categories', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries",
+        "Contains GROUP BY - may need db.raw() for aggregations"
+      ]
+    },
+    {
+      "file": "commands.js",
+      "changes": [
+        {
+          "type": "SELECT",
+          "table": "hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('hosts', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries"
+      ]
+    },
+    {
+      "file": "guacamole.js",
+      "changes": [
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "guacamole_connection",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('guacamole_connection', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "guacamole_connection",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('guacamole_connection', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries"
+      ]
+    },
+    {
+      "file": "restore.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "hosts",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('hosts', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "hosts",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('hosts', dataObject, whereObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "audit_logs",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('audit_logs', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('hosts', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": []
+    },
+    {
+      "file": "roles.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "user_appliance_permissions",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_appliance_permissions', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "users",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('users', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "users",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('users', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "user_appliance_permissions",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('user_appliance_permissions', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "appliances",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('appliances', dataObject, whereObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "role_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('role_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "role_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('role_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "user_appliance_permissions",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('user_appliance_permissions', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "users",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('users', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries",
+        "Contains GROUP BY - may need db.raw() for aggregations"
+      ]
+    },
+    {
+      "file": "rustdesk.js",
+      "changes": [
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": []
+    },
+    {
+      "file": "rustdeskInstall.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "audit_logs",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('audit_logs', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "appliances",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('appliances', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "appliances",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('appliances', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "hosts",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('hosts', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "hosts",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('hosts', dataObject, whereObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "appliances",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('appliances', dataObject, whereObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('hosts', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "access",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('access', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "access",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('access', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "appliances",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('appliances', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": [
+        "Contains JOIN queries - may need db.raw() for complex queries"
+      ]
+    },
+    {
+      "file": "settings.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "user_settings",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_settings', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "user_settings",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('user_settings', dataObject)"
+        },
+        {
+          "type": "UPDATE",
+          "table": "multiple",
+          "before": "Direct SQL UPDATE",
+          "after": "await db.update('multiple', dataObject, whereObject)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": []
+    },
+    {
+      "file": "ssh.js",
+      "changes": [
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": []
+    },
+    {
+      "file": "sshKeys.js",
+      "changes": [
+        {
+          "type": "INSERT",
+          "table": "ssh_keys",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('ssh_keys', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "ssh_keys",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('ssh_keys', dataObject)"
+        },
+        {
+          "type": "INSERT",
+          "table": "ssh_keys",
+          "before": "Direct SQL INSERT",
+          "after": "await db.insert('ssh_keys', dataObject)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "hosts",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('hosts', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "SELECT",
+          "table": "ssh_keys",
+          "before": "Direct SQL SELECT",
+          "after": "await db.select('ssh_keys', whereObject, options)"
+        },
+        {
+          "type": "DELETE",
+          "table": "database",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('database', whereObject)"
+        },
+        {
+          "type": "DELETE",
+          "table": "ssh_keys",
+          "before": "Direct SQL DELETE",
+          "after": "await db.delete('ssh_keys', whereObject)"
+        }
+      ],
+      "imports": [
+        "const QueryBuilder = require('../utils/QueryBuilder');",
+        "const db = new QueryBuilder(pool);"
+      ],
+      "warnings": []
+    }
+  ]
+}

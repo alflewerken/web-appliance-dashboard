@@ -24,6 +24,15 @@ terminal-app/build/
 .env.test.local
 .env.production.local
 
+# Backup directories and files
+backups/*.json
+backups/*.sql
+backups/*.tar.gz
+*-backup-*/
+*.backup.*
+src-backup*/
+frontend/src-backup*/
+
 # IDE
 .vscode/settings.json
 .vscode/launch.json
@@ -77,6 +86,9 @@ coverage/
 # Background images  
 backend/uploads/
 
+# Testdaten
+my-data/
+
 # Cache
 .cache/
 .npm/
@@ -95,3 +107,8 @@ venv/
 .electron/
 electron-builder.yml
 !electron-builder.json
+
+# Customer Package
+customer-package/
+/scripts/create-customer-package-v2.sh
+/scripts/create-customer-package-v3.sh

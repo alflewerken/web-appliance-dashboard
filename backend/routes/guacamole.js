@@ -2,10 +2,14 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const pool = require('../utils/database');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
 const { createAuditLog } = require('../utils/auditLogger');
 const { decrypt } = require('../utils/crypto');
 const { getClientIp } = require('../utils/getClientIp');
 const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
+const { getGuacamoleUrl } = require('../utils/guacamoleUrlHelper');
+const { getOptimizedConnectionParams } = require('../utils/guacamoleOptimizer');
 
 // Cache für Guacamole Auth Tokens
 const authTokenCache = new Map();
@@ -13,19 +17,25 @@ const authTokenCache = new Map();
 /**
  * Holt oder erstellt einen Guacamole Auth Token
  */
-async function getGuacamoleAuthToken() {
+async function getGuacamoleAuthToken(forceNew = false) {
   // Check cache first
-  const cached = authTokenCache.get('admin');
-  if (cached && cached.expires > Date.now()) {
-    return cached.token;
+  if (!forceNew) {
+    const cached = authTokenCache.get('admin');
+    if (cached && cached.expires > Date.now()) {
+      return cached.token;
+    }
   }
   
-  // Use internal Docker network URL
-  const guacamoleInternalUrl = 'http://guacamole:8080/guacamole';
-  
   try {
-    const response = await axios.post(`${guacamoleInternalUrl}/api/tokens`, 
-      'username=guacadmin&password=guacadmin', 
+    // Use internal Guacamole URL
+    const guacamoleUrl = 'http://guacamole:8080/guacamole';
+    
+    const response = await axios.post(
+      `${guacamoleUrl}/api/tokens`,
+      new URLSearchParams({
+        username: 'guacadmin',
+        password: 'guacadmin'
+      }),
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -42,6 +52,7 @@ async function getGuacamoleAuthToken() {
       expires: Date.now() + 30 * 60 * 1000
     });
     
+    console.log('Guacamole auth token obtained successfully');
     return token;
   } catch (error) {
     console.error('Failed to get Guacamole auth token:', error.message);
@@ -50,17 +61,30 @@ async function getGuacamoleAuthToken() {
 }
 
 /**
- * Erstellt einen direkten Link zu einer Guacamole-Verbindung
+ * Erstellt einen direkten Link zu einer Guacamole-Verbindung mit automatischer Authentifizierung
  */
-router.post('/guacamole/token/:applianceId', async (req, res) => {
+router.post('/token/:applianceId', async (req, res) => {
   try {
+    console.log('[GUACAMOLE] /token/:applianceId called');
+    console.log('[GUACAMOLE] req.user:', req.user);
+    console.log('[GUACAMOLE] req.params:', req.params);
+    console.log('[GUACAMOLE] req.body:', req.body);
+    
     const { applianceId } = req.params;
+    const { performanceMode = 'balanced' } = req.body; // Neu: Performance Mode
+    
+    // Prüfe ob req.user existiert
+    if (!req.user || !req.user.id) {
+      console.error('[GUACAMOLE] req.user is missing or incomplete:', req.user);
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const userId = req.user.id;
     
     // Prüfe ob Appliance existiert
-    const [appliances] = await pool.execute(
-      'SELECT * FROM appliances WHERE id = ?',
-      [applianceId]
+    const appliances = await db.select('appliances', 
+      { id: applianceId },
+      { limit: 1 }
     );
     
     if (appliances.length === 0) {
@@ -71,6 +95,14 @@ router.post('/guacamole/token/:applianceId', async (req, res) => {
     
     if (!appliance.remote_desktop_enabled) {
       return res.status(400).json({ error: 'Remote Desktop ist für diese Appliance nicht aktiviert' });
+    }
+    
+    // Check if RustDesk is configured instead of Guacamole
+    if (appliance.remote_desktop_type === 'rustdesk') {
+      return res.status(400).json({ 
+        error: 'Diese Appliance verwendet RustDesk. Bitte nutzen Sie den RustDesk Button.',
+        type: 'rustdesk'
+      });
     }
     
     try {
@@ -86,65 +118,92 @@ router.post('/guacamole/token/:applianceId', async (req, res) => {
       
       // Erstelle oder aktualisiere die Verbindung
       const dbManager = new GuacamoleDBManager();
+      
+      // Hole optimierte Connection Parameter
+      const optimizedParams = getOptimizedConnectionParams(
+        appliance.remote_protocol, 
+        performanceMode
+      );
+      
       const connectionInfo = await dbManager.createOrUpdateConnection(applianceId, {
         protocol: appliance.remote_protocol,
         hostname: appliance.remote_host,
         port: appliance.remote_port || (appliance.remote_protocol === 'vnc' ? 5900 : 3389),
         username: appliance.remote_username || '',
-        password: decryptedPassword || ''
+        password: decryptedPassword || '',
+        ...optimizedParams // Füge Performance-Optimierungen hinzu
       });
+      
+      // Hole die Connection ID aus der Datenbank
+      const connectionResult = await dbManager.pool.query(
+        'SELECT connection_id FROM guacamole_connection WHERE connection_name = $1',
+        [`dashboard-${applianceId}`]
+      );
+      
       await dbManager.close();
       
-      // Hole Guacamole Auth Token
-      const authToken = await getGuacamoleAuthToken();
+      if (!connectionResult.rows || connectionResult.rows.length === 0) {
+        throw new Error('Verbindung nicht gefunden');
+      }
       
-      // Erstelle den korrekten Guacamole identifier
-      // Format: <connection-id>\0c\0<data-source>
-      const connectionId = connectionInfo.connectionId;
-      const dataSource = 'postgresql'; // oder 'mysql' je nach DB
-      const identifier = Buffer.from(`${connectionId}\0c\0${dataSource}`).toString('base64');
+      const connectionId = connectionResult.rows[0].connection_id;
+      
+      // Hole Guacamole Auth Token
+      let authToken;
+      try {
+        authToken = await getGuacamoleAuthToken();
+      } catch (error) {
+        console.error('Failed to get token, trying with fresh token:', error);
+        // Bei Fehler versuche es mit einem neuen Token
+        authToken = await getGuacamoleAuthToken(true);
+      }
+      
+      // Generiere URL - IMMER über Port 9080
+      const baseUrl = getGuacamoleUrl(req);
+      const guacamoleUrl = `${baseUrl}/guacamole`;
+      
+      // Erstelle die korrekte Guacamole-URL mit Token
+      // Format: #/client/{identifier}?token={token}
+      const identifier = Buffer.from(`${connectionId}\0c\0postgresql`).toString('base64');
+      const encodedIdentifier = encodeURIComponent(identifier);
+      
+      // Direkte Client-URL mit Token
+      const connectionUrl = `${guacamoleUrl}/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
       
       // Audit Log
       await createAuditLog(
         userId,
         'remote_desktop_access',
-        'appliance',
+        'appliances',
         applianceId,
         { 
+          appliance_name: appliance.name,
           protocol: appliance.remote_protocol,
           host: appliance.remote_host,
           connectionName: connectionInfo.connectionName,
           connectionId: connectionId
         },
-        getClientIp(req)
+        getClientIp(req),
+        appliance.name  // Add resource name for display
       );
       
-      // Generiere direkte URL mit Auth Token und kodiertem Identifier
-      // Verwende die direkte Guacamole URL (Port 9070) für zuverlässigen Zugriff
-      let guacamoleUrl;
+      console.log('Generated Guacamole URL with token:', {
+        connectionId,
+        identifier,
+        encodedIdentifier,
+        token: authToken.substring(0, 20) + '...',
+        baseUrl,
+        guacamoleUrl,
+        connectionUrl
+      });
       
-      // Wenn EXTERNAL_URL gesetzt ist, nutze diese als Basis
-      if (process.env.EXTERNAL_URL) {
-        const baseUrl = process.env.EXTERNAL_URL.replace(/\/$/, '');
-        // Ersetze den Port mit dem Guacamole Port
-        const urlParts = baseUrl.split(':');
-        if (urlParts.length === 3) {
-          // Format: http://domain:port -> http://domain:9070
-          guacamoleUrl = `${urlParts[0]}:${urlParts[1]}:9070/guacamole`;
-        } else {
-          // Format ohne Port: http://domain -> http://domain:9070
-          guacamoleUrl = `${baseUrl}:9070/guacamole`;
-        }
-      } else {
-        // Fallback auf localhost
-        guacamoleUrl = `http://localhost:9070/guacamole`;
-      }
-      
-      const directUrl = `${guacamoleUrl}/#/client/${identifier}?token=${authToken}`;
-      
+      // Gebe URL mit Token zurück
       res.json({
-        url: directUrl,
-        needsLogin: false
+        url: connectionUrl,
+        needsLogin: false,
+        hasToken: true,
+        connectionId: connectionId,
+        connectionName: connectionInfo.connectionName
       });
       
     } catch (error) {
@@ -152,51 +211,117 @@ router.post('/guacamole/token/:applianceId', async (req, res) => {
       res.status(500).json({ error: 'Fehler bei der Remote Desktop Verbindung' });
     }
   } catch (error) {
-    console.error('Fehler beim Erstellen des Guacamole Tokens:', error);
+    console.error('Fehler beim Erstellen des Guacamole Links:', error);
     res.status(500).json({ error: 'Interner Serverfehler' });
   }
 });
 
 /**
- * Proxy endpoint für Guacamole - leitet Anfragen weiter mit automatischer Authentifizierung
+ * Automatische Login-Route für Guacamole
+ * Erstellt eine Session und leitet zur gewünschten Verbindung weiter
  */
-router.all('/guacamole/proxy/*', async (req, res) => {
+router.get('/auto-login/:applianceId', async (req, res) => {
   try {
+    const { applianceId } = req.params;
+    
+    // Hole Auth Token
     const authToken = await getGuacamoleAuthToken();
-    const guacamoleUrl = process.env.GUACAMOLE_URL || 'http://guacamole:8080/guacamole';
-    const path = req.params[0];
     
-    const config = {
-      method: req.method,
-      url: `${guacamoleUrl}/${path}`,
-      headers: {
-        ...req.headers,
-        'Guacamole-Token': authToken,
-        'host': undefined,
-        'content-length': undefined
-      },
-      params: { ...req.query, token: authToken }
-    };
+    // Generiere URL
+    const baseUrl = getGuacamoleUrl(req);
     
-    if (req.body && Object.keys(req.body).length > 0) {
-      config.data = req.body;
+    // Hole Connection ID
+    const dbManager = new GuacamoleDBManager();
+    const connectionResult = await dbManager.pool.query(
+      'SELECT connection_id FROM guacamole_connection WHERE connection_name = $1',
+      [`dashboard-${applianceId}`]
+    );
+    await dbManager.close();
+    
+    if (!connectionResult.rows || connectionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Verbindung nicht gefunden' });
     }
     
-    const response = await axios(config);
+    const connectionId = connectionResult.rows[0].connection_id;
+    const identifier = Buffer.from(`${connectionId}\0c\0postgresql`).toString('base64');
+    const encodedIdentifier = encodeURIComponent(identifier);
     
-    // Forward response
-    Object.keys(response.headers).forEach(key => {
-      if (key !== 'content-encoding' && key !== 'content-length') {
-        res.setHeader(key, response.headers[key]);
-      }
-    });
+    // Leite zur Guacamole-URL mit Token weiter
+    const redirectUrl = `${baseUrl}/guacamole/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
     
-    res.status(response.status).send(response.data);
+    console.log('Auto-login redirect to:', redirectUrl);
+    res.redirect(redirectUrl);
     
   } catch (error) {
-    console.error('Proxy error:', error);
-    res.status(error.response?.status || 500).json({ 
-      error: 'Proxy error',
+    console.error('Auto-login failed:', error);
+    res.status(500).json({ error: 'Auto-login fehlgeschlagen' });
+  }
+});
+
+/**
+ * Hole alle verfügbaren Guacamole-Verbindungen
+ */
+router.get('/connections', async (req, res) => {
+  try {
+    const dbManager = new GuacamoleDBManager();
+    
+    const result = await dbManager.pool.query(
+      `SELECT 
+        c.connection_id,
+        c.connection_name,
+        c.protocol,
+        cp_host.parameter_value as hostname,
+        cp_port.parameter_value as port
+      FROM guacamole_connection c
+      LEFT JOIN guacamole_connection_parameter cp_host 
+        ON c.connection_id = cp_host.connection_id AND cp_host.parameter_name = 'hostname'
+      LEFT JOIN guacamole_connection_parameter cp_port 
+        ON c.connection_id = cp_port.connection_id AND cp_port.parameter_name = 'port'
+      WHERE c.connection_name LIKE 'dashboard-%'
+      ORDER BY c.connection_name`
+    );
+    
+    await dbManager.close();
+    
+    res.json({
+      connections: result.rows
+    });
+    
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Verbindungen:', error);
+    res.status(500).json({ error: 'Fehler beim Abrufen der Verbindungen' });
+  }
+});
+
+/**
+ * Clear Guacamole auth token cache
+ * POST /api/guacamole/clear-cache
+ */
+router.post('/clear-cache', async (req, res) => {
+  try {
+    // Clear the auth token cache
+    authTokenCache.clear();
+    
+    // Create audit log
+    await createAuditLog(
+      'admin',
+      'guacamole',
+      'cache_cleared',
+      null,
+      req.user?.id || 0,
+      getClientIp(req),
+      { message: 'Guacamole auth token cache cleared' },
+      null
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Guacamole auth token cache cleared successfully' 
+    });
+  } catch (error) {
+    console.error('Error clearing Guacamole cache:', error);
+    res.status(500).json({ 
+      error: 'Failed to clear Guacamole cache',
       details: error.message 
     });
   }

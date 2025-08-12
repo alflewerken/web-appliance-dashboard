@@ -16,7 +16,7 @@
 const fetch = require('node-fetch');
 
 class WebApplianceAPIClient {
-  constructor(baseUrl = 'http://localhost:3001') {
+  constructor(baseUrl = 'http://localhost:9080') {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.token = null;
   }
@@ -143,7 +143,7 @@ class WebApplianceAPIClient {
 
   // Status Check
   async checkApplianceStatus(applianceIds) {
-    return this.apiRequest('/api/status-check', {
+    return this.apiRequest('/api/statusCheck', {
       method: 'POST',
       body: JSON.stringify({ applianceIds }),
     });
@@ -158,7 +158,7 @@ class WebApplianceAPIClient {
       ...(options.userId && { userId: options.userId }),
     });
 
-    return this.apiRequest(`/api/audit-logs?${params}`);
+    return this.apiRequest(`/api/auditLogs?${params}`);
   }
 
   // Backup

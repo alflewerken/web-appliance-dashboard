@@ -1,88 +1,131 @@
-import React from 'react';
-import { Monitor, MonitorDot } from 'lucide-react';
+import React, { useState } from 'react';
+import { IconButton, Tooltip } from '@mui/material';
+import { Monitor } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API_BASE_URL } from '../config';
+import RustDeskSetupDialog from './RustDeskSetupDialog';
+import { 
+  openGuacamoleConnection, 
+  openRustDeskConnection, 
+  checkRustDeskStatus, 
+  getRemoteDesktopType 
+} from '../modules/remoteDesktop/remoteDesktopUtils';
+import './RemoteDesktopButton.css';
 
-const RemoteDesktopButton = ({ appliance }) => {
+const RemoteDesktopButton = ({ appliance, onUpdate }) => {
   const { token } = useAuth();
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = useState(false);
+  const [performanceMode] = useState(appliance.guacamolePerformanceMode || appliance.guacamole_performance_mode || 'balanced');
+  const [showSetupDialog, setShowSetupDialog] = useState(false);
   
-  const handleOpenRemoteDesktop = async (protocol) => {
+  // Get remote desktop type and status
+  const remoteDesktopType = getRemoteDesktopType(appliance);
+  const isRustDesk = remoteDesktopType === 'rustdesk';
+  const rustDeskStatus = checkRustDeskStatus(appliance);
+  
+  const handleOpenRemoteDesktop = async (e) => {
+    // Prevent event bubbling
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      
-      // Hole Verbindungsinfo vom Backend
-      const response = await fetch(`${API_BASE_URL}/api/remote/guacamole/token/${appliance.id}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      if (isRustDesk) {
+        // Check if RustDesk needs setup
+        if (!rustDeskStatus.isReady) {
+          setShowSetupDialog(true);
+          return;
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Fehler beim Abrufen der Verbindungsinformationen');
+        
+        // Open RustDesk connection
+        await openRustDeskConnection(appliance, token);
+      } else {
+        // Open Guacamole connection
+        await openGuacamoleConnection(appliance, token, performanceMode);
       }
-      
-      const connectionInfo = await response.json();
-      
-      // Öffne Guacamole in neuem Fenster
-      const windowFeatures = 'width=1280,height=800,left=100,top=100,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes';
-      const windowName = `remote-desktop-${appliance.id}-${Date.now()}`;
-      
-      const remoteWindow = window.open(connectionInfo.url, windowName, windowFeatures);
-      
-      if (!remoteWindow) {
-        throw new Error('Popup-Blocker verhindert das Öffnen. Bitte erlauben Sie Popups für diese Seite.');
-      }
-      
     } catch (error) {
-      console.error('Fehler beim Öffnen des Remote Desktop:', error);
-      alert(error.message || 'Fehler beim Öffnen des Remote Desktop. Bitte versuchen Sie es erneut.');
+      console.error('Remote Desktop Error:', error);
+      alert(error.message || 'Fehler beim Öffnen der Remote Desktop Verbindung');
     } finally {
       setLoading(false);
     }
   };
-
-  // Zeige Buttons nur wenn Remote Desktop aktiviert ist
-  if (!appliance.remote_desktop_enabled) {
-    return null;
-  }
-
+  
+  const handleRustDeskInstalled = (updatedAppliance) => {
+    // Update the appliance data
+    if (onUpdate) {
+      onUpdate(updatedAppliance);
+    }
+    setShowSetupDialog(false);
+  };
+  
+  // Determine button styling based on type
+  const getButtonStyle = () => {
+    if (isRustDesk) {
+      return {
+        backgroundColor: 'rgba(33, 150, 243, 0.3)',
+        border: '1px solid rgba(33, 150, 243, 0.5)',
+        color: 'white',
+        '&:hover': {
+          backgroundColor: 'rgba(33, 150, 243, 0.5)',
+        },
+      };
+    }
+    
+    // Guacamole styling (VNC/RDP)
+    return {
+      backgroundColor: 'rgba(76, 175, 80, 0.3)',
+      border: '1px solid rgba(76, 175, 80, 0.5)',
+      color: 'white',
+      '&:hover': {
+        backgroundColor: 'rgba(76, 175, 80, 0.5)',
+      },
+    };
+  };
+  
+  const getTooltipText = () => {
+    if (isRustDesk) {
+      return rustDeskStatus.isReady ? 'RustDesk öffnen' : 'RustDesk einrichten';
+    }
+    
+    const protocol = appliance.remoteProtocol || 'vnc';
+    return `Remote Desktop öffnen (${protocol.toUpperCase()})`;
+  };
+  
   return (
     <>
-      {appliance.remote_protocol === 'vnc' && (
-        <button
-          type="button"
-          className="remote-desktop-btn vnc"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleOpenRemoteDesktop('vnc');
-          }}
-          title="VNC Remote Desktop öffnen"
+      <Tooltip title={getTooltipText()}>
+        <IconButton
+          onClick={handleOpenRemoteDesktop}
+          size="small"
           disabled={loading}
-          style={{ opacity: loading ? 0.5 : 1 }}
+          sx={{
+            ...getButtonStyle(),
+            width: 28,
+            height: 28,
+            padding: 0,
+          }}
         >
           <Monitor size={16} />
-        </button>
-      )}
+        </IconButton>
+      </Tooltip>
       
-      {appliance.remote_protocol === 'rdp' && (
-        <button
-          type="button"
-          className="remote-desktop-btn rdp"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleOpenRemoteDesktop('rdp');
+      {showSetupDialog && (
+        <RustDeskSetupDialog
+          isOpen={showSetupDialog}
+          onClose={() => setShowSetupDialog(false)}
+          applianceName={appliance.name}
+          applianceId={appliance.id}
+          sshHostId={appliance.sshHostId}
+          onInstall={handleRustDeskInstalled}
+          onManualSave={async (id, password) => {
+            // This will be handled by the dialog itself
+            return true;
           }}
-          title="RDP Remote Desktop öffnen"
-          disabled={loading}
-          style={{ opacity: loading ? 0.5 : 1 }}
-        >
-          <MonitorDot size={16} />
-        </button>
+          currentRustDeskId={appliance.rustdesk_id || appliance.rustdeskId}
+        />
       )}
     </>
   );

@@ -41,16 +41,16 @@ Check the enhanced documentation at \`/backend/swagger/enhanced-api-docs.md\` fo
     },
     servers: [
       {
-        url: 'http://localhost:3001',
-        description: 'Development server',
-      },
-      {
-        url: 'http://localhost:3001',
-        description: 'Staging server',
-      },
-      {
-        url: 'http://localhost:3001',
+        url: 'http://192.168.178.70:9080',
         description: 'Production server',
+      },
+      {
+        url: 'http://localhost:9080',
+        description: 'Development server (via nginx)',
+      },
+      {
+        url: '',
+        description: 'Relative URL (current host)',
       },
     ],
     components: {
@@ -573,7 +573,7 @@ Check the enhanced documentation at \`/backend/swagger/enhanced-api-docs.md\` fo
       },
     ],
   },
-  apis: ['./routes/*.js', './routes/debug/*.js', './swagger/api-endpoints.js'], // Path to the API routes
+  apis: ['./routes/*.js', './routes/debug/*.js', './swagger/api-endpoints.js', './swagger/enhanced-swagger-docs.js'], // Path to the API routes
 };
 
 const swaggerSpec = swaggerJsdoc(options);

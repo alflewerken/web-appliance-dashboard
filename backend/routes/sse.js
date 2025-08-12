@@ -8,22 +8,35 @@ const clients = new Set();
 
 // SSE endpoint
 router.get('/stream', (req, res) => {
+  console.log('[SSE] Stream request received');
+  console.log('[SSE] Full URL:', req.url);
+  console.log('[SSE] Original URL:', req.originalUrl);
+  console.log('[SSE] Query params:', req.query);
+  console.log('[SSE] Query token:', req.query.token);
+  console.log('[SSE] Headers:', req.headers);
+  
   // Check authentication via query parameter
   const token = req.query.token;
   
   if (!token) {
-    // Return proper error response for missing token
-    res.status(401).send('event: error\ndata: {"error": "No token provided"}\n\n');
+    console.log('[SSE] No token provided');
+    // Return JSON error for missing token
+    res.status(401).json({ error: "No token provided" });
     return;
   }
   
   try {
     // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    // Set user with id property for compatibility
+    req.user = {
+      id: decoded.userId,
+      userId: decoded.userId,
+      ...decoded
+    };
   } catch (error) {
-    // Return proper error response for invalid token
-    res.status(403).send('event: error\ndata: {"error": "Invalid token"}\n\n');
+    // Return JSON error for invalid token
+    res.status(403).json({ error: "Invalid token" });
     return;
   }
   
@@ -92,5 +105,48 @@ const broadcast = (eventType, data) => {
   );
 };
 
-// Export router and broadcast function
-module.exports = { router, broadcast };
+// Debug endpoint to test token validation
+router.get('/test-token', (req, res) => {
+  console.log('[SSE] Test-token request');
+  console.log('[SSE] Full URL:', req.originalUrl);
+  console.log('[SSE] Query object:', req.query);
+  console.log('[SSE] Headers:', req.headers);
+  
+  const token = req.query.token;
+  
+  if (!token) {
+    return res.status(401).json({ 
+      error: "No token provided",
+      debug: {
+        url: req.originalUrl,
+        query: req.query,
+        hasQueryToken: !!req.query.token
+      }
+    });
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    res.json({
+      success: true,
+      decoded,
+      message: 'Token is valid'
+    });
+  } catch (error) {
+    res.status(403).json({
+      error: "Invalid token",
+      message: error.message,
+      name: error.name
+    });
+  }
+});
+
+// SSE Manager for sending events
+const sseManager = {
+  sendEvent: (eventType, data) => {
+    broadcast(eventType, data);
+  }
+};
+
+// Export router, broadcast function and sseManager
+module.exports = { router, broadcast, sseManager };

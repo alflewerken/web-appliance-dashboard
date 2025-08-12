@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/database');
-const { requireAdmin, createAuditLog } = require('../utils/auth');
+const QueryBuilder = require('../utils/QueryBuilder');
+const db = new QueryBuilder(pool);
+const { requireAdmin } = require('../utils/auth');
+const { createAuditLog } = require('../utils/auditLogger');
 const { broadcast } = require('./sse');
 const { getClientIp } = require('../utils/getClientIp');
 const { restoreBackgroundImageFromAuditLog } = require('../utils/backgroundImageHelper');
@@ -9,22 +12,27 @@ const { restoreBackgroundImageFromAuditLog } = require('../utils/backgroundImage
 // Get audit log details with restore options
 router.get('/:id', requireAdmin, async (req, res) => {
   try {
-    const [logs] = await pool.execute(
-      `SELECT 
-        al.id,
-        al.user_id,
-        al.action,
-        al.resource_type,
-        al.resource_id,
-        al.details,
-        al.ip_address,
-        al.created_at,
-        u.username
-      FROM audit_logs al
-      LEFT JOIN users u ON al.user_id = u.id
-      WHERE al.id = ?`,
-      [req.params.id]
-    );
+    const logs = await db.selectWithJoin({
+      from: 'audit_logs',
+      select: [
+        'audit_logs.id',
+        'audit_logs.user_id',
+        'audit_logs.action',
+        'audit_logs.resource_type', 
+        'audit_logs.resource_id',
+        'audit_logs.details',
+        'audit_logs.ip_address',
+        'audit_logs.created_at',
+        'users.username'
+      ],
+      joins: [{
+        table: 'users',
+        on: 'audit_logs.user_id = users.id',
+        type: 'LEFT'
+      }],
+      where: { 'audit_logs.id': req.params.id },
+      options: { limit: 1 }
+    });
 
     if (logs.length === 0) {
       return res.status(404).json({ error: 'Audit log not found' });
@@ -45,51 +53,24 @@ router.get('/:id', requireAdmin, async (req, res) => {
     let restoreInfo = null;
 
     // Handle delete actions
-    if (
-      [
-        'category_deleted',
-        'user_deleted',
-        'service_deleted',
-        'appliance_deleted',
-        'ssh_host_deleted',
-      ].includes(log.action)
-    ) {
+    if (['category_deleted', 'user_deleted', 'service_deleted', 'appliance_deleted', 
+         'ssh_host_deleted', 'host_deleted'].includes(log.action)) {
       canRestore = true;
-      // Look for the resource data in different possible locations
-      const resourceData =
-        details[log.resource_type] ||
-        details.category ||
-        details.user ||
-        details.service ||
-        details.appliance ||
-        details.deleted_appliance ||
-        details.deleted_service ||
-        details.deleted_category ||
-        details.deleted_user ||
-        details.deleted_host;
+      const resourceData = details[log.resource_type] || details.category || details.user || 
+                          details.service || details.appliance || details.deleted_appliance ||
+                          details.deleted_service || details.deleted_category || details.deleted_user || 
+                          details.deleted_host;
 
       restoreInfo = {
         type: log.resource_type,
         data: resourceData,
       };
-
-      console.log(
-        `Delete action detected: ${log.action}, canRestore: ${canRestore}`
-      );
     }
 
     // Handle update actions (including reverts)
-    if (
-      [
-        'category_updated',
-        'user_updated',
-        'service_updated',
-        'appliance_update',
-        'appliance_updated',
-        'appliance_reverted',
-      ].includes(log.action) &&
-      details.original_data
-    ) {
+    if (['category_updated', 'user_updated', 'service_updated', 'appliance_update',
+         'appliance_updated', 'appliance_reverted', 'host_updated'].includes(log.action) && 
+         details.original_data) {
       canRestore = true;
       restoreInfo = {
         type: log.resource_type,
@@ -97,10 +78,6 @@ router.get('/:id', requireAdmin, async (req, res) => {
         new_data: details.new_data,
         canRevertToOriginal: true,
       };
-
-      console.log(
-        `Update/Revert action detected: ${log.action}, canRestore: ${canRestore}`
-      );
     }
 
     res.json({
@@ -114,1263 +91,864 @@ router.get('/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch audit log details' });
   }
 });
-
-// Restore deleted category
+// Restore deleted category  
 router.post('/restore/category/:logId', requireAdmin, async (req, res) => {
-  const connection = await pool.getConnection();
-
   try {
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "category_deleted"',
-      [req.params.logId]
-    );
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', 
+        { 
+          id: req.params.logId,
+          action: 'category_deleted'
+        },
+        { limit: 1 }
+      );
 
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a category deletion' });
-    }
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not a category deletion');
+      }
 
-    const log = logs[0];
-    const details = JSON.parse(log.details || '{}');
-    const categoryData = details.category;
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const categoryData = details.category;
 
-    if (!categoryData) {
-      return res
-        .status(400)
-        .json({ error: 'No category data found in audit log' });
-    }
+      if (!categoryData) {
+        throw new Error('No category data found in audit log');
+      }
 
-    // Use new name if provided, otherwise use original name
-    const categoryName = req.body.newName || categoryData.name;
+      // Use new name if provided, otherwise use original name
+      const categoryName = req.body.newName || categoryData.name;
 
-    await connection.beginTransaction();
+      // Check if category name already exists
+      const existing = await trx.select('categories', 
+        { name: categoryName },
+        { limit: 1 }
+      );
 
-    // Check if category name already exists
-    const [existing] = await connection.execute(
-      'SELECT id FROM categories WHERE name = ?',
-      [categoryName]
-    );
+      if (existing.length > 0) {
+        throw new Error('Category with this name already exists');
+      }
 
-    if (existing.length > 0) {
-      await connection.rollback();
-      return res
-        .status(409)
-        .json({ error: 'Category with this name already exists' });
-    }
+      // Restore the category
+      const result = await trx.insert('categories', {
+        name: categoryName,
+        icon: categoryData.icon || 'Folder',
+        color: categoryData.color || '#007AFF',
+        description: categoryData.description || '',
+        isSystem: categoryData.is_system || 0,
+        order: categoryData.order || 0
+      });
 
-    // Restore the category
-    const [result] = await connection.execute(
-      'INSERT INTO categories (name, icon, color, description, is_system, `order`) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        categoryName,  // Use the new name here
-        categoryData.icon || 'Folder',
-        categoryData.color || '#007AFF',
-        categoryData.description || null,
-        categoryData.is_system || 0,
-        categoryData.order || 999,
-      ]
-    );
+      // Create audit log for restoration
+      await createAuditLog(
+        req.user.id,
+        'category_restored',
+        'category',
+        result.insertId,
+        {
+          restoredFromLogId: req.params.logId,
+          restoredCategoryData: categoryData,
+          newName: categoryName !== categoryData.name ? categoryName : undefined
+        },
+        getClientIp(req)
+      );
 
-    const restoredCategoryId = result.insertId;
+      // Broadcast the restoration
+      broadcast('category_restored', {
+        categoryId: result.insertId,
+        categoryName: categoryName,
+        restoredBy: req.user.username
+      });
 
-    // Create audit log for restoration
-    await createAuditLog(
-      req.user.id,
-      'category_restored',
-      'categories',
-      restoredCategoryId,
-      {
-        restored_from_log_id: log.id,
-        original_deletion_date: log.created_at,
-        restored_by: req.user.username,
-        restored_data: categoryData,
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'Category restored successfully',
-      category_id: restoredCategoryId,
+      return {
+        success: true,
+        message: 'Category restored successfully',
+        categoryId: result.insertId,
+        categoryName: categoryName
+      };
     });
 
-    // Broadcast category restoration
-    broadcast('category_restored', {
-      id: restoredCategoryId,
-      ...categoryData,
-      name: categoryName,  // Override with new name if different
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'category_restored',
-      resource_type: 'categories',
-      resource_id: restoredCategoryId,
-    });
+    res.json(result);
   } catch (error) {
-    await connection.rollback();
     console.error('Error restoring category:', error);
-    res.status(500).json({ error: 'Failed to restore category' });
-  } finally {
-    connection.release();
+    res.status(error.message.includes('already exists') ? 409 : 500)
+      .json({ error: error.message || 'Failed to restore category' });
   }
 });
 
 // Revert category to original state
 router.post('/revert/category/:logId', requireAdmin, async (req, res) => {
-  const connection = await pool.getConnection();
-
   try {
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "category_updated"',
-      [req.params.logId]
-    );
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs',
+        {
+          id: req.params.logId,
+          action: 'category_updated'
+        },
+        { limit: 1 }
+      );
 
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a category update' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details || '{}');
-    const originalData = details.original_data;
-
-    if (!originalData) {
-      return res
-        .status(400)
-        .json({ error: 'No original data found in audit log' });
-    }
-
-    await connection.beginTransaction();
-
-    // Check if category still exists
-    const [existing] = await connection.execute(
-      'SELECT * FROM categories WHERE id = ?',
-      [log.resource_id]
-    );
-
-    if (existing.length === 0) {
-      await connection.rollback();
-      return res.status(400).json({ error: 'Category no longer exists' });
-    }
-
-    // Revert the category
-    await connection.execute(
-      'UPDATE categories SET name = ?, icon = ?, color = ?, description = ? WHERE id = ?',
-      [
-        originalData.name,
-        originalData.icon,
-        originalData.color,
-        originalData.description,
-        log.resource_id,
-      ]
-    );
-
-    // Create audit log for reversion
-    await createAuditLog(
-      req.user.id,
-      'category_reverted',
-      'categories',
-      log.resource_id,
-      {
-        reverted_from_log_id: log.id,
-        reverted_to_data: originalData,
-        reverted_from_data: details.new_data,
-        reverted_by: req.user.username,
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'Category reverted to original state successfully',
-    });
-
-    // Broadcast category update
-    broadcast('category_updated', {
-      id: log.resource_id,
-      ...originalData,
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'category_reverted',
-      resource_type: 'categories',
-      resource_id: log.resource_id,
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error reverting category:', error);
-    res.status(500).json({ error: 'Failed to revert category' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Restore deleted user
-router.post('/restore/user/:logId', requireAdmin, async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "user_deleted"',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a user deletion' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details || '{}');
-    const userData = details.user;
-
-    if (!userData) {
-      return res.status(400).json({ error: 'No user data found in audit log' });
-    }
-
-    await connection.beginTransaction();
-
-    // Check if username or email already exists
-    const [existing] = await connection.execute(
-      'SELECT id FROM users WHERE username = ? OR email = ?',
-      [userData.username, userData.email]
-    );
-
-    if (existing.length > 0) {
-      await connection.rollback();
-      return res
-        .status(409)
-        .json({ error: 'User with this username or email already exists' });
-    }
-
-    // Generate a temporary password
-    const bcrypt = require('bcryptjs');
-    const tempPassword = 'changeme' + Math.random().toString(36).slice(-8);
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
-
-    // Restore the user
-    const [result] = await connection.execute(
-      'INSERT INTO users (username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?)',
-      [
-        userData.username,
-        userData.email,
-        passwordHash,
-        userData.role || 'user',
-        0, // Set as inactive, needs password reset
-      ]
-    );
-
-    const restoredUserId = result.insertId;
-
-    // Create audit log for restoration
-    await createAuditLog(
-      req.user.id,
-      'user_restored',
-      'users',
-      restoredUserId,
-      {
-        restored_from_log_id: log.id,
-        original_deletion_date: log.created_at,
-        restored_by: req.user.username,
-        restored_data: userData,
-        temp_password: tempPassword,
-        requires_password_reset: true,
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'User restored successfully',
-      user_id: restoredUserId,
-      temp_password: tempPassword,
-      note: 'User is inactive and must reset password',
-    });
-
-    // Broadcast user restoration
-    broadcast('user_restored', {
-      id: restoredUserId,
-      username: userData.username,
-      email: userData.email,
-      role: userData.role,
-      is_active: 0,
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'user_restored',
-      resource_type: 'users',
-      resource_id: restoredUserId,
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error restoring user:', error);
-    res.status(500).json({ error: 'Failed to restore user' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Revert user to original state
-router.post('/revert/user/:logId', requireAdmin, async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "user_updated"',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a user update' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details || '{}');
-    const originalData = details.original_data;
-
-    if (!originalData) {
-      return res
-        .status(400)
-        .json({ error: 'No original data found in audit log' });
-    }
-
-    await connection.beginTransaction();
-
-    // Check if user still exists
-    const [existing] = await connection.execute(
-      'SELECT * FROM users WHERE id = ?',
-      [log.resource_id]
-    );
-
-    if (existing.length === 0) {
-      await connection.rollback();
-      return res.status(400).json({ error: 'User no longer exists' });
-    }
-
-    // Build update query based on available original data
-    const updates = [];
-    const values = [];
-
-    if (originalData.username) {
-      updates.push('username = ?');
-      values.push(originalData.username);
-    }
-    if (originalData.email) {
-      updates.push('email = ?');
-      values.push(originalData.email);
-    }
-    if (originalData.role) {
-      updates.push('role = ?');
-      values.push(originalData.role);
-    }
-    if (originalData.is_active !== undefined) {
-      updates.push('is_active = ?');
-      values.push(originalData.is_active);
-    }
-
-    values.push(log.resource_id);
-
-    // Revert the user
-    await connection.execute(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-      values
-    );
-
-    // Create audit log for reversion
-    await createAuditLog(
-      req.user.id,
-      'user_reverted',
-      'users',
-      log.resource_id,
-      {
-        reverted_from_log_id: log.id,
-        reverted_to_data: originalData,
-        reverted_from_data: details.new_data,
-        reverted_by: req.user.username,
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'User reverted to original state successfully',
-    });
-
-    // Broadcast user update
-    broadcast('user_updated', {
-      id: log.resource_id,
-      ...originalData,
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'user_reverted',
-      resource_type: 'users',
-      resource_id: log.resource_id,
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error reverting user:', error);
-    res.status(500).json({ error: 'Failed to revert user' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Restore deleted service
-router.post('/restore/appliances/:logId', async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    // Check if user is admin or made the original change
-    const userRole = req.user.role;
-    const userId = req.user.id;
-    
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "appliance_deleted"',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a service deletion' });
-    }
-
-    const log = logs[0];
-    
-    // Check permissions: admin or user who made the deletion
-    if (userRole !== 'Administrator' && userRole !== 'admin' && log.user_id !== userId) {
-      return res.status(403).json({ 
-        error: 'You can only restore services you deleted yourself' 
-      });
-    }
-    const details = JSON.parse(log.details || '{}');
-    const serviceData = details.service || details.appliance;
-
-    if (!serviceData) {
-      return res
-        .status(400)
-        .json({ error: 'No service data found in audit log' });
-    }
-
-    // Use new name if provided, otherwise use original name
-    const serviceName = req.body.newName || serviceData.name;
-
-    await connection.beginTransaction();
-
-    // Check if service name already exists
-    const [existing] = await connection.execute(
-      'SELECT id FROM appliances WHERE name = ?',
-      [serviceName]
-    );
-
-    if (existing.length > 0) {
-      await connection.rollback();
-      return res
-        .status(409)
-        .json({ error: 'Service with this name already exists' });
-    }
-
-    // Restore background image if it was saved
-    let restoredBackgroundImage = serviceData.background_image;
-    if (details.backgroundImageData) {
-      const newFilename = await restoreBackgroundImageFromAuditLog(details.backgroundImageData);
-      if (newFilename) {
-        restoredBackgroundImage = newFilename;
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not a category update');
       }
-    }
 
-    // Restore the service
-    const [result] = await connection.execute(
-      `INSERT INTO appliances (
-        name, url, description, icon, color, category, isFavorite,
-        start_command, stop_command, status_command, auto_start, ssh_connection,
-        transparency, blur_amount, open_mode_mini, open_mode_mobile, open_mode_desktop,
-        service_status, background_image
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        serviceName,  // Use the new name here
-        serviceData.url,
-        serviceData.description || null,
-        serviceData.icon || 'Box',
-        serviceData.color || '#007AFF',
-        serviceData.category || null,
-        serviceData.isFavorite || 0,
-        serviceData.startCommand || serviceData.start_command || null,
-        serviceData.stopCommand || serviceData.stop_command || null,
-        serviceData.statusCommand || serviceData.status_command || null,
-        serviceData.autoStart || serviceData.auto_start || 0,
-        serviceData.sshConnection || serviceData.ssh_connection || null,
-        serviceData.transparency || 0.7,
-        serviceData.blurAmount || serviceData.blur_amount || 20,
-        serviceData.openModeMini || serviceData.open_mode_mini || 'browser_tab',
-        serviceData.openModeMobile || serviceData.open_mode_mobile || 'browser_tab',
-        serviceData.openModeDesktop || serviceData.open_mode_desktop || 'browser_tab',
-        'unknown',
-        restoredBackgroundImage || null,
-      ]
-    );
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const originalData = details.original_data;
 
-    const restoredServiceId = result.insertId;
+      if (!originalData) {
+        throw new Error('No original data found in audit log');
+      }
 
-    // Restore custom commands if any
-    if (details.customCommands && details.customCommands.length > 0) {
-      for (const cmd of details.customCommands) {
-        try {
-          await connection.execute(
-            `INSERT INTO appliance_commands (appliance_id, description, command, ssh_host_id)
-            VALUES (?, ?, ?, ?)`,
-            [
-              restoredServiceId,
-              cmd.description,
-              cmd.command,
-              cmd.ssh_host_id || null,
-            ]
-          );
-        } catch (cmdError) {
-          console.error('Error restoring custom command:', cmdError);
-          // Continue with other commands even if one fails
+      // Check if category still exists
+      const existing = await trx.select('categories',
+        { id: log.resourceId },
+        { limit: 1 }
+      );
+
+      if (existing.length === 0) {
+        throw new Error('Category no longer exists');
+      }
+
+      // Revert the category
+      await trx.update('categories', {
+        name: originalData.name,
+        icon: originalData.icon,
+        color: originalData.color,
+        description: originalData.description
+      }, { id: log.resourceId });
+
+      // Create audit log for revert
+      await createAuditLog(
+        req.user.id,
+        'category_reverted',
+        'category',
+        log.resourceId,
+        {
+          revertedFromLogId: req.params.logId,
+          revertedData: originalData,
+          previousData: details.new_data
+        },
+        getClientIp(req)
+      );
+
+      // Broadcast the update
+      broadcast('category_updated', {
+        categoryId: log.resourceId,
+        revertedBy: req.user.username
+      });
+
+      return {
+        success: true,
+        message: 'Category reverted to original state',
+        categoryId: log.resourceId
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error reverting category:', error);
+    res.status(error.message.includes('not found') ? 404 : 500)
+      .json({ error: error.message || 'Failed to revert category' });
+  }
+});// Revert user to original state
+router.post('/revert/user/:logId', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId,
+        action: 'user_updated'
+      }, { limit: 1 });
+
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not a user update');
+      }
+
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const originalData = details.original_data;
+
+      if (!originalData) {
+        throw new Error('No original data found in audit log');
+      }
+
+      // Check if user still exists
+      const existing = await trx.select('users',
+        { id: log.resourceId },
+        { limit: 1 }
+      );
+
+      if (existing.length === 0) {
+        throw new Error('User no longer exists');
+      }
+
+      // Build update data based on available original data
+      const updateData = {};
+      
+      if (originalData.username !== undefined) {
+        updateData.username = originalData.username;
+      }
+      if (originalData.email !== undefined) {
+        updateData.email = originalData.email;
+      }
+      if (originalData.role !== undefined) {
+        updateData.role = originalData.role;
+      }
+      if (originalData.is_active !== undefined) {
+        updateData.isActive = originalData.is_active;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        throw new Error('No fields to revert');
+      }
+
+      // Revert the user
+      await trx.update('users', updateData, { id: log.resourceId });
+
+      // Create audit log for reversion
+      await createAuditLog(
+        req.user.id,
+        'user_reverted',
+        'users',
+        log.resourceId,
+        {
+          revertedFromLogId: log.id,
+          revertedToData: originalData,
+          revertedFromData: details.new_data,
+          revertedBy: req.user.username
+        },
+        getClientIp(req)
+      );
+
+      // Broadcast updates
+      broadcast('user_updated', {
+        id: log.resourceId,
+        ...originalData
+      });
+
+      return {
+        success: true,
+        message: 'User reverted to original state successfully',
+        userId: log.resourceId
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error reverting user:', error);
+    res.status(error.message.includes('not found') ? 404 : 500)
+      .json({ error: error.message || 'Failed to revert user' });
+  }
+});
+// Restore deleted appliance
+router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId,
+        action: 'appliance_deleted'
+      }, { limit: 1 });
+
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not an appliance deletion');
+      }
+
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const applianceData = details.service || details.appliance;
+
+      if (!applianceData) {
+        throw new Error('No appliance data found in audit log');
+      }
+
+      // Use new name if provided, otherwise use original name
+      const applianceName = req.body.newName || applianceData.name;
+
+      // Check if appliance name already exists
+      const existing = await trx.select('appliances',
+        { name: applianceName },
+        { limit: 1 }
+      );
+
+      if (existing.length > 0) {
+        throw new Error('Appliance with this name already exists');
+      }
+
+      // Restore background image if it was saved
+      let restoredBackgroundImage = applianceData.background_image;
+      if (details.backgroundImageData) {
+        const newFilename = await restoreBackgroundImageFromAuditLog(details.backgroundImageData);
+        if (newFilename) {
+          restoredBackgroundImage = newFilename;
         }
       }
-    }
 
-    // Create audit log for restoration
-    await createAuditLog(
-      req.user.id,
-      'appliance_restore',
-      'appliances',
-      restoredServiceId,
-      {
-        restored_from_log_id: log.id,
-        original_deletion_date: log.created_at,
-        restored_by: req.user.username,
-        restored_data: serviceData,
-        custom_commands_restored: details.customCommands
-          ? details.customCommands.length
-          : 0,
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'Service restored successfully',
-      service_id: restoredServiceId,
-    });
-
-    // Broadcast service restoration as created event
-    broadcast('appliance_created', {
-      id: restoredServiceId,
-      ...serviceData,
-      name: serviceName,  // Override with new name if different
-      service_status: 'unknown',
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'appliance_restore',
-      resource_type: 'appliances',
-      resource_id: restoredServiceId,
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error restoring service:', error);
-    res.status(500).json({ error: 'Failed to restore service' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Revert service to original state
-router.post('/revert/appliances/:logId', async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    // Check if user is admin or made the original change
-    const userRole = req.user.role;
-    const userId = req.user.id;
-    
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action = "appliance_update"',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a service update' });
-    }
-
-    const log = logs[0];
-    
-    // Check permissions: admin or user who made the update
-    if (userRole !== 'Administrator' && userRole !== 'admin' && log.user_id !== userId) {
-      return res.status(403).json({ 
-        error: 'You can only revert changes you made yourself' 
+      // Restore the appliance
+      const insertResult = await trx.insert('appliances', {
+        name: applianceName,
+        url: applianceData.url,
+        description: applianceData.description,
+        icon: applianceData.icon,
+        color: applianceData.color,
+        category: applianceData.category,
+        isFavorite: applianceData.isFavorite || 0,
+        startCommand: applianceData.start_command,
+        stopCommand: applianceData.stop_command,
+        statusCommand: applianceData.status_command,
+        restartCommand: applianceData.restart_command,
+        autoStart: applianceData.auto_start || 0,
+        sshConnection: applianceData.ssh_connection,
+        transparency: applianceData.transparency,
+        blurAmount: applianceData.blur_amount,
+        openModeMini: applianceData.open_mode_mini,
+        openModeMobile: applianceData.open_mode_mobile,
+        openModeDesktop: applianceData.open_mode_desktop,
+        serviceStatus: applianceData.service_status,
+        backgroundImage: restoredBackgroundImage,
+        remoteDesktopEnabled: applianceData.remote_desktop_enabled,
+        remoteDesktopType: applianceData.remote_desktop_type,
+        remoteProtocol: applianceData.remote_protocol,
+        remoteHost: applianceData.remote_host,
+        remotePort: applianceData.remote_port,
+        remoteUsername: applianceData.remote_username,
+        remotePasswordEncrypted: applianceData.remote_password_encrypted,
+        rustdeskId: applianceData.rustdeskId,
+        rustdeskPasswordEncrypted: applianceData.rustdesk_password_encrypted,
+        rustdeskInstalled: applianceData.rustdesk_installed,
+        rustdeskInstallationDate: applianceData.rustdesk_installation_date,
+        guacamolePerformanceMode: applianceData.guacamolePerformanceMode,
+        orderIndex: applianceData.order_index
       });
-    }
-    
-    const details = JSON.parse(log.details || '{}');
-    const originalData = details.original_data;
 
-    if (!originalData) {
-      return res
-        .status(400)
-        .json({ error: 'No original data found in audit log' });
-    }
+      const restoredApplianceId = insertResult.insertId;
 
-    await connection.beginTransaction();
+      // Restore commands if they existed
+      if (details.commands && Array.isArray(details.commands)) {
+        for (const cmd of details.commands) {
+          await trx.insert('appliance_commands', {
+            applianceId: restoredApplianceId,
+            description: cmd.description,
+            command: cmd.command,
+            hostId: cmd.host_id,
+            orderIndex: cmd.order_index || 0
+          });
+        }
+      }
 
-    // Check if service still exists
-    const [existing] = await connection.execute(
-      'SELECT * FROM appliances WHERE id = ?',
-      [log.resource_id]
-    );
+      // Create audit log for restoration
+      await createAuditLog(
+        req.user.id,
+        'appliance_restored',
+        'appliances',
+        restoredApplianceId,
+        {
+          restoredFromLogId: req.params.logId,
+          restoredApplianceData: applianceData,
+          newName: applianceName !== applianceData.name ? applianceName : undefined
+        },
+        getClientIp(req)
+      );
 
-    if (existing.length === 0) {
-      await connection.rollback();
-      return res.status(400).json({ error: 'Service no longer exists' });
-    }
+      // Broadcast the restoration
+      broadcast('appliance_restored', {
+        applianceId: restoredApplianceId,
+        applianceName: applianceName,
+        restoredBy: req.user.username
+      });
 
-    // Store current data before reverting (for potential re-revert)
-    const currentData = existing[0];
-
-    // Revert the service
-    await connection.execute(
-      `UPDATE appliances SET 
-        name = ?, url = ?, description = ?, icon = ?, color = ?, 
-        category = ?, isFavorite = ?, start_command = ?, stop_command = ?, 
-        status_command = ?, auto_start = ?, ssh_connection = ?,
-        transparency = ?, blur_amount = ?, open_mode_mini = ?, 
-        open_mode_mobile = ?, open_mode_desktop = ?, background_image = ?
-      WHERE id = ?`,
-      [
-        originalData.name,
-        originalData.url,
-        originalData.description,
-        originalData.icon,
-        originalData.color,
-        originalData.category,
-        originalData.isFavorite || 0,
-        originalData.start_command || null,
-        originalData.stop_command || null,
-        originalData.status_command || null,
-        originalData.auto_start || 0,
-        originalData.ssh_connection || null,
-        originalData.transparency || 0.7,
-        originalData.blur_amount || 20,
-        originalData.open_mode_mini || 'browser_tab',
-        originalData.open_mode_mobile || 'browser_tab',
-        originalData.open_mode_desktop || 'browser_tab',
-        originalData.background_image || null,
-        log.resource_id,
-      ]
-    );
-
-    // Create audit log for reversion
-    await createAuditLog(
-      req.user.id,
-      'appliance_reverted',
-      'appliances',
-      log.resource_id,
-      {
-        reverted_from_log_id: log.id,
-        original_data: currentData, // Current data becomes the "original" for potential re-revert
-        new_data: originalData, // We're reverting TO this data
-        fields_updated: Object.keys(originalData),
-        reverted_by: req.user.username,
-        note: 'Änderung rückgängig gemacht',
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'Service reverted to original state successfully',
+      return {
+        success: true,
+        message: 'Appliance restored successfully',
+        applianceId: restoredApplianceId,
+        applianceName: applianceName
+      };
     });
 
-    // Broadcast service update
-    broadcast('appliance_updated', {
-      id: log.resource_id,
-      ...originalData,
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'appliance_reverted',
-      resource_type: 'appliances',
-      resource_id: log.resource_id,
-    });
+    res.json(result);
   } catch (error) {
-    await connection.rollback();
-    console.error('Error reverting service:', error);
-    res.status(500).json({ error: 'Failed to revert service' });
-  } finally {
-    connection.release();
+    console.error('Error restoring appliance:', error);
+    res.status(error.message.includes('already exists') ? 409 : 500)
+      .json({ error: error.message || 'Failed to restore appliance' });
   }
 });
+// Revert appliance to original state
+router.post('/revert/appliances/:logId', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId,
+        action: 'appliance_update'
+      }, { limit: 1 });
 
-// Restore deleted user
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not an appliance update');
+      }
+
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const originalData = details.original_data;
+
+      if (!originalData) {
+        throw new Error('No original data found in audit log');
+      }
+
+      // Check if appliance still exists
+      const existing = await trx.select('appliances',
+        { id: log.resourceId },
+        { limit: 1 }
+      );
+
+      if (existing.length === 0) {
+        throw new Error('Appliance no longer exists');
+      }
+
+      // Build update data from original data
+      const updateData = {};
+      
+      // Map all the fields from snake_case to camelCase
+      if (originalData.name !== undefined) updateData.name = originalData.name;
+      if (originalData.url !== undefined) updateData.url = originalData.url;
+      if (originalData.description !== undefined) updateData.description = originalData.description;
+      if (originalData.icon !== undefined) updateData.icon = originalData.icon;
+      if (originalData.color !== undefined) updateData.color = originalData.color;
+      if (originalData.category !== undefined) updateData.category = originalData.category;
+      if (originalData.isFavorite !== undefined) updateData.isFavorite = originalData.isFavorite;
+      if (originalData.start_command !== undefined) updateData.startCommand = originalData.start_command;
+      if (originalData.stop_command !== undefined) updateData.stopCommand = originalData.stop_command;
+      if (originalData.status_command !== undefined) updateData.statusCommand = originalData.status_command;
+      if (originalData.restart_command !== undefined) updateData.restartCommand = originalData.restart_command;
+      if (originalData.auto_start !== undefined) updateData.autoStart = originalData.auto_start;
+      if (originalData.ssh_connection !== undefined) updateData.sshConnection = originalData.ssh_connection;
+      if (originalData.transparency !== undefined) updateData.transparency = originalData.transparency;
+      if (originalData.blur_amount !== undefined) updateData.blurAmount = originalData.blur_amount;
+      if (originalData.background_image !== undefined) updateData.backgroundImage = originalData.background_image;
+      if (originalData.remote_desktop_enabled !== undefined) updateData.remoteDesktopEnabled = originalData.remote_desktop_enabled;
+      if (originalData.remote_desktop_type !== undefined) updateData.remoteDesktopType = originalData.remote_desktop_type;
+      if (originalData.remote_protocol !== undefined) updateData.remoteProtocol = originalData.remote_protocol;
+      if (originalData.remote_host !== undefined) updateData.remoteHost = originalData.remote_host;
+      if (originalData.remote_port !== undefined) updateData.remotePort = originalData.remote_port;
+      if (originalData.remote_username !== undefined) updateData.remoteUsername = originalData.remote_username;
+
+      if (Object.keys(updateData).length === 0) {
+        throw new Error('No fields to revert');
+      }
+
+      // Revert the appliance
+      await trx.update('appliances', updateData, { id: log.resourceId });
+
+      // Create audit log for reversion
+      await createAuditLog(
+        req.user.id,
+        'appliance_reverted',
+        'appliances',
+        log.resourceId,
+        {
+          revertedFromLogId: req.params.logId,
+          revertedToData: originalData,
+          revertedFromData: details.new_data,
+          revertedBy: req.user.username
+        },
+        getClientIp(req)
+      );
+
+      // Broadcast updates
+      broadcast('appliance_updated', {
+        id: log.resourceId,
+        ...originalData
+      });
+
+      return {
+        success: true,
+        message: 'Appliance reverted to original state successfully',
+        applianceId: log.resourceId
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error reverting appliance:', error);
+    res.status(error.message.includes('not found') ? 404 : 500)
+      .json({ error: error.message || 'Failed to revert appliance' });
+  }
+});
+// Restore deleted users (batch/duplicate route)
 router.post('/restore/users/:logId', requireAdmin, async (req, res) => {
-  const connection = await pool.getConnection();
-
   try {
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("user_delete", "user_deleted")',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a user deletion' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details || '{}');
-    const userData = details.user;
-
-    if (!userData) {
-      return res.status(400).json({ error: 'No user data found in audit log' });
-    }
-
-    await connection.beginTransaction();
-
-    // Check if username or email already exists
-    const [existing] = await connection.execute(
-      'SELECT id FROM users WHERE username = ? OR email = ?',
-      [userData.username, userData.email]
-    );
-
-    if (existing.length > 0) {
-      await connection.rollback();
-      return res
-        .status(409)
-        .json({ error: 'User with this username or email already exists' });
-    }
-
-    // Restore the user (reuse the password hash from the deleted user)
-    const [result] = await connection.execute(
-      'INSERT INTO users (username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?)',
-      [
-        userData.username,
-        userData.email,
-        userData.password_hash || '', // Password hash should be preserved
-        userData.role || 'user',
-        userData.is_active !== undefined ? userData.is_active : 1,
-      ]
-    );
-
-    const restoredUserId = result.insertId;
-
-    // Create audit log for restoration
-    await createAuditLog(
-      req.user.id,
-      'user_restore',
-      'users',
-      restoredUserId,
-      {
-        restored_from_log_id: log.id,
-        original_deletion_date: log.created_at,
-        restored_by: req.user.username,
-        restored_data: userData,
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'User restored successfully',
-      user_id: restoredUserId,
-    });
-
-    // Broadcast user restoration
-    broadcast('user_created', {
-      id: restoredUserId,
-      username: userData.username,
-      email: userData.email,
-      role: userData.role,
-      is_active: userData.is_active,
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'user_restore',
-      resource_type: 'users',
-      resource_id: restoredUserId,
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error restoring user:', error);
-    res.status(500).json({ error: 'Failed to restore user' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Revert user to original state
-router.post('/revert/users/:logId', requireAdmin, async (req, res) => {
-  const connection = await pool.getConnection();
-
-  try {
-    // Get the audit log
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("user_update", "user_updated", "user_reverted")',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Audit log not found or not a user update' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details || '{}');
-    const originalData = details.original_data;
-
-    if (!originalData) {
-      return res
-        .status(400)
-        .json({ error: 'No original data found in audit log' });
-    }
-
-    await connection.beginTransaction();
-
-    // Check if user still exists
-    const [existing] = await connection.execute(
-      'SELECT * FROM users WHERE id = ?',
-      [log.resource_id]
-    );
-
-    if (existing.length === 0) {
-      await connection.rollback();
-      return res.status(400).json({ error: 'User no longer exists' });
-    }
-
-    // Store current data for audit log
-    const currentData = existing[0];
-
-    // Build update query dynamically
-    const updates = [];
-    const values = [];
-
-    if (originalData.username !== undefined) {
-      updates.push('username = ?');
-      values.push(originalData.username);
-    }
-    if (originalData.email !== undefined) {
-      updates.push('email = ?');
-      values.push(originalData.email);
-    }
-    if (originalData.role !== undefined) {
-      updates.push('role = ?');
-      values.push(originalData.role);
-    }
-    if (originalData.is_active !== undefined) {
-      updates.push('is_active = ?');
-      values.push(originalData.is_active);
-    }
-
-    if (updates.length === 0) {
-      await connection.rollback();
-      return res.status(400).json({ error: 'No fields to revert' });
-    }
-
-    values.push(log.resource_id);
-
-    // Revert the user
-    await connection.execute(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-      values
-    );
-
-    // Create audit log for reversion
-    await createAuditLog(
-      req.user.id,
-      'user_reverted',
-      'users',
-      log.resource_id,
-      {
-        reverted_from_log_id: log.id,
-        original_data: currentData,
-        reverted_to: originalData,
-        reverted_by: req.user.username,
-        fields_updated: Object.keys(originalData),
-      },
-      getClientIp(req)
-    );
-
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'User reverted to original state successfully',
-    });
-
-    // Broadcast user update
-    broadcast('user_updated', {
-      id: log.resource_id,
-      ...originalData,
-    });
-
-    // Broadcast audit log update
-    broadcast('audit_log_created', {
-      action: 'user_reverted',
-      resource_type: 'users',
-      resource_id: log.resource_id,
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error reverting user:', error);
-    res.status(500).json({ error: 'Failed to revert user' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Revert SSH host to original state
-router.post('/revert/ssh_hosts/:logId', requireAdmin, async (req, res) => {
-  console.log('SSH Host Revert Request received for logId:', req.params.logId);
-  const connection = await pool.getConnection();
-
-  try {
-    // Get the audit log entry
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("ssh_host_update", "ssh_host_updated")',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res.status(404).json({ error: 'Audit log not found' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details);
-
-    if (!details.old_data) {
-      return res
-        .status(400)
-        .json({ error: 'No previous state available for revert' });
-    }
-
-    await connection.beginTransaction();
-
-    // Revert SSH host to old state
-    await connection.execute(
-      `
-      UPDATE ssh_hosts 
-      SET hostname = ?, host = ?, username = ?, port = ?, key_name = ?
-      WHERE id = ?
-    `,
-      [
-        details.old_data.hostname,
-        details.old_data.host,
-        details.old_data.username,
-        details.old_data.port,
-        details.old_data.key_name,
-        log.resource_id,
-      ]
-    );
-
-    // Create audit log for revert
-    await createAuditLog(
-      req.user?.id || null,
-      'ssh_host_reverted',
-      'ssh_host',
-      log.resource_id,
-      {
-        action_type: 'revert',
-        reverted_from_log_id: log.id,
-        old_data: details.new_data,
-        new_data: details.old_data,
-        reverted_by: req.user?.username || 'unknown',
-      },
-      req.clientIp
-    );
-
-    await connection.commit();
-
-    // Regenerate SSH config
-    try {
-      const { generateSSHConfig } = require('../utils/sshManager');
-      await generateSSHConfig();
-    } catch (error) {
-      console.log('SSH config regeneration skipped:', error.message);
-    }
-
-    res.json({
-      success: true,
-      message: 'SSH host successfully reverted to previous state',
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error reverting SSH host:', error);
-    res.status(500).json({ error: 'Failed to revert SSH host' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Restore deleted SSH host
-router.post('/restore/ssh_hosts/:logId', requireAdmin, async (req, res) => {
-  console.log('SSH Host Restore Request received for logId:', req.params.logId);
-  const connection = await pool.getConnection();
-
-  try {
-    // Get the audit log entry
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("ssh_host_delete", "ssh_host_deleted")',
-      [req.params.logId]
-    );
-
-    if (logs.length === 0) {
-      return res.status(404).json({ error: 'Audit log not found' });
-    }
-
-    const log = logs[0];
-    const details = JSON.parse(log.details);
-
-    if (!details.deleted_host) {
-      return res
-        .status(400)
-        .json({ error: 'No deleted host data available for restore' });
-    }
-
-    await connection.beginTransaction();
-
-    // Check if host still exists (marked as inactive)
-    const [existing] = await connection.execute(
-      'SELECT id FROM ssh_hosts WHERE id = ? AND is_active = FALSE',
-      [log.resource_id]
-    );
-
-    if (existing.length > 0) {
-      // Restore soft-deleted host by setting is_active to TRUE
-      await connection.execute(
-        'UPDATE ssh_hosts SET is_active = TRUE WHERE id = ?',
-        [log.resource_id]
-      );
-    } else {
-      // Check if a host with same connection details already exists
-      const [duplicate] = await connection.execute(
-        'SELECT id FROM ssh_hosts WHERE host = ? AND username = ? AND port = ? AND is_active = TRUE',
-        [details.deleted_host.host, details.deleted_host.username, details.deleted_host.port]
-      );
-      
-      if (duplicate.length > 0) {
-        await connection.rollback();
-        return res.status(409).json({ 
-          error: 'SSH host with this connection already exists',
-          details: `A host with ${details.deleted_host.username}@${details.deleted_host.host}:${details.deleted_host.port} already exists`
-        });
-      }
-      
-      // Re-create if hard deleted
-      const [result] = await connection.execute(
-        `
-        INSERT INTO ssh_hosts (hostname, host, username, port, key_name, is_active)
-        VALUES (?, ?, ?, ?, ?, TRUE)
-      `,
-        [
-          details.deleted_host.hostname,
-          details.deleted_host.host,
-          details.deleted_host.username,
-          details.deleted_host.port,
-          details.deleted_host.key_name || 'dashboard',
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId,
+        $or: [
+          { action: 'user_delete' },
+          { action: 'user_deleted' }
         ]
+      }, { limit: 1 });
+
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not a user deletion');
+      }
+
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const userData = details.user;
+
+      if (!userData) {
+        throw new Error('No user data found in audit log');
+      }
+
+      // Check if username or email already exists
+      const existing = await trx.select('users', {
+        $or: [
+          { username: userData.username },
+          { email: userData.email }
+        ]
+      }, { limit: 1 });
+
+      if (existing.length > 0) {
+        throw new Error('User with this username or email already exists');
+      }
+
+      // Restore the user (reuse the password hash from the deleted user)
+      const insertResult = await trx.insert('users', {
+        username: userData.username,
+        email: userData.email,
+        passwordHash: userData.password_hash || '',
+        role: userData.role || 'user',
+        isActive: userData.is_active !== undefined ? userData.is_active : 1
+      });
+
+      const restoredUserId = insertResult.insertId;
+
+      // Create audit log for restoration
+      await createAuditLog(
+        req.user.id,
+        'user_restored',
+        'users',
+        restoredUserId,
+        {
+          restoredFromLogId: req.params.logId,
+          restoredUserData: userData,
+          restoredBy: req.user.username
+        },
+        getClientIp(req)
       );
 
-      // Update resource_id in case it's different
-      log.resource_id = result.insertId;
-    }
+      // Broadcast the restoration
+      broadcast('user_restored', {
+        id: restoredUserId,
+        username: userData.username,
+        email: userData.email,
+        role: userData.role,
+        isActive: userData.is_active
+      });
 
-    // Create audit log for restore
-    await createAuditLog(
-      req.user?.id || null,
-      'ssh_host_restored',
-      'ssh_host',
-      log.resource_id,
-      {
-        action_type: 'restore',
-        restored_from_log_id: log.id,
-        restored_data: details.deleted_host,
-        restored_by: req.user?.username || 'unknown',
-      },
-      req.clientIp
-    );
-
-    await connection.commit();
-
-    // Regenerate SSH config
-    try {
-      const sshManager = require('../routes/ssh');
-      if (sshManager && sshManager.generateSSHConfig) {
-        await sshManager.generateSSHConfig();
-      }
-    } catch (error) {
-      console.log('SSH config regeneration skipped:', error.message);
-    }
-
-    // Send SSE events
-    // First send the restored event for audit log
-    broadcast('ssh_host_restored', {
-      id: log.resource_id,
-      hostname: details.deleted_host.hostname,
-      restored_by: req.user?.username || 'unknown',
+      return {
+        success: true,
+        message: 'User restored successfully',
+        userId: restoredUserId,
+        username: userData.username
+      };
     });
 
-    // Then send created event to trigger UI refresh
-    broadcast('ssh_host_created', {
-      id: log.resource_id,
-      hostname: details.deleted_host.hostname,
-      host: details.deleted_host.host,
-      username: details.deleted_host.username,
-      port: details.deleted_host.port,
-      key_name: details.deleted_host.key_name,
-    });
-
-    res.json({
-      success: true,
-      message: 'SSH host successfully restored',
-    });
+    res.json(result);
   } catch (error) {
-    await connection.rollback();
-    console.error('Error restoring SSH host:', error);
-    res.status(500).json({ error: 'Failed to restore SSH host' });
-  } finally {
-    connection.release();
+    console.error('Error restoring user:', error);
+    res.status(error.message.includes('already exists') ? 409 : 500)
+      .json({ error: error.message || 'Failed to restore user' });
+  }
+});
+// Revert users to original state (batch/duplicate route)
+router.post('/revert/users/:logId', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId,
+        $or: [
+          { action: 'user_update' },
+          { action: 'user_updated' },
+          { action: 'user_reverted' }
+        ]
+      }, { limit: 1 });
+
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not a user update');
+      }
+
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const originalData = details.original_data;
+
+      if (!originalData) {
+        throw new Error('No original data found in audit log');
+      }
+
+      // Check if user still exists
+      const existing = await trx.select('users',
+        { id: log.resourceId },
+        { limit: 1 }
+      );
+
+      if (existing.length === 0) {
+        throw new Error('User no longer exists');
+      }
+
+      // Build update data from original data
+      const updateData = {};
+      
+      if (originalData.username !== undefined) {
+        updateData.username = originalData.username;
+      }
+      if (originalData.email !== undefined) {
+        updateData.email = originalData.email;
+      }
+      if (originalData.role !== undefined) {
+        updateData.role = originalData.role;
+      }
+      if (originalData.is_active !== undefined) {
+        updateData.isActive = originalData.is_active;
+      }
+      if (originalData.password_hash !== undefined) {
+        updateData.passwordHash = originalData.password_hash;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        throw new Error('No fields to revert');
+      }
+
+      // Revert the user
+      await trx.update('users', updateData, { id: log.resourceId });
+
+      // Create audit log for reversion
+      await createAuditLog(
+        req.user.id,
+        'user_reverted',
+        'users',
+        log.resourceId,
+        {
+          revertedFromLogId: req.params.logId,
+          revertedToData: originalData,
+          revertedFromData: details.new_data || existing[0],
+          revertedBy: req.user.username
+        },
+        getClientIp(req)
+      );
+
+      // Broadcast updates
+      broadcast('user_updated', {
+        id: log.resourceId,
+        ...originalData
+      });
+
+      return {
+        success: true,
+        message: 'User reverted to original state successfully',
+        userId: log.resourceId
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error reverting user:', error);
+    res.status(error.message.includes('not found') ? 404 : 500)
+      .json({ error: error.message || 'Failed to revert user' });
+  }
+});
+// Restore deleted host
+router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId,
+        action: 'host_deleted'
+      }, { limit: 1 });
+
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not a host deletion');
+      }
+
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+
+      if (!details.name) {
+        throw new Error('No host data found in audit log');
+      }
+
+      // Check if host with same name already exists
+      const existing = await trx.select('hosts',
+        { name: details.name },
+        { limit: 1 }
+      );
+
+      if (existing.length > 0) {
+        throw new Error(`Host with name "${details.name}" already exists`);
+      }
+
+      // Restore the host
+      const insertResult = await trx.insert('hosts', {
+        name: details.name,
+        description: details.description || null,
+        hostname: details.hostname,
+        port: details.port,
+        username: details.username,
+        password: details.password,
+        privateKey: details.private_key,
+        sshKeyName: details.sshKeyName,
+        icon: details.icon,
+        color: details.color,
+        transparency: details.transparency,
+        blur: details.blur,
+        remoteDesktopEnabled: details.remote_desktop_enabled,
+        remoteDesktopType: details.remote_desktop_type,
+        remoteProtocol: details.remote_protocol,
+        remotePort: details.remote_port,
+        remoteUsername: details.remote_username,
+        remotePassword: details.remote_password,
+        guacamolePerformanceMode: details.guacamole_performance_mode,
+        rustdeskId: details.rustdesk_id,
+        rustdeskPassword: details.rustdeskPassword,
+        createdBy: req.user.id,
+        updatedBy: req.user.id
+      });
+
+      const restoredHostId = insertResult.insertId;
+
+      // Create audit log for restoration
+      await createAuditLog(
+        req.user.id,
+        'host_restored',
+        'hosts',
+        restoredHostId,
+        {
+          restoredFromLogId: req.params.logId,
+          restoredHostData: details,
+          restoredBy: req.user.username
+        },
+        getClientIp(req)
+      );
+
+      // Broadcast the restoration
+      broadcast('host_restored', {
+        hostId: restoredHostId,
+        hostName: details.name,
+        restoredBy: req.user.username
+      });
+
+      return {
+        success: true,
+        message: 'Host restored successfully',
+        hostId: restoredHostId,
+        hostName: details.name
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error restoring host:', error);
+    res.status(error.message.includes('already exists') ? 409 : 500)
+      .json({ error: error.message || 'Failed to restore host' });
   }
 });
 
-// Revert SSH host to original state
-router.post('/revert/ssh_hosts/:logId', requireAdmin, async (req, res) => {
-  console.log('SSH Host Revert Request received for logId:', req.params.logId);
-  const connection = await pool.getConnection();
-
+// Revert host to original state
+router.post('/revert/hosts/:logId', requireAdmin, async (req, res) => {
   try {
-    // Get the audit log entry
-    const [logs] = await connection.execute(
-      'SELECT * FROM audit_logs WHERE id = ? AND action IN ("ssh_host_update", "ssh_host_updated", "ssh_host_reverted")',
-      [req.params.logId]
-    );
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId,
+        action: 'host_updated'
+      }, { limit: 1 });
 
-    if (logs.length === 0) {
-      return res.status(404).json({ error: 'Audit log not found' });
-    }
+      if (logs.length === 0) {
+        throw new Error('Audit log not found or not a host update');
+      }
 
-    const log = logs[0];
-    const details = JSON.parse(log.details);
+      const log = logs[0];
+      const details = JSON.parse(log.details || '{}');
+      const originalData = details.oldValues || details.original_data;
 
-    if (!details.old_data) {
-      return res
-        .status(400)
-        .json({ error: 'No previous state available for revert' });
-    }
+      if (!originalData) {
+        throw new Error('No original data found in audit log');
+      }
 
-    await connection.beginTransaction();
+      // Check if host still exists
+      const existing = await trx.select('hosts',
+        { id: log.resourceId },
+        { limit: 1 }
+      );
 
-    // Revert SSH host to old state
-    await connection.execute(
-      `
-      UPDATE ssh_hosts 
-      SET hostname = ?, host = ?, username = ?, port = ?, key_name = ?
-      WHERE id = ?
-    `,
-      [
-        details.old_data.hostname,
-        details.old_data.host,
-        details.old_data.username,
-        details.old_data.port,
-        details.old_data.key_name,
-        log.resource_id,
-      ]
-    );
+      if (existing.length === 0) {
+        throw new Error('Host no longer exists');
+      }
 
-    // Create audit log for revert
-    await createAuditLog(
-      req.user?.id || null,
-      'ssh_host_reverted',
-      'ssh_host',
-      log.resource_id,
-      {
-        action_type: 'revert',
-        reverted_from_log_id: log.id,
-        old_data: details.new_data || details.old_data,
-        new_data: details.old_data,
-        reverted_by: req.user?.username || 'unknown',
-      },
-      req.clientIp
-    );
+      // Build update data from original data
+      const updateData = {};
+      
+      if (originalData.name !== undefined) updateData.name = originalData.name;
+      if (originalData.description !== undefined) updateData.description = originalData.description;
+      if (originalData.hostname !== undefined) updateData.hostname = originalData.hostname;
+      if (originalData.port !== undefined) updateData.port = originalData.port;
+      if (originalData.username !== undefined) updateData.username = originalData.username;
+      if (originalData.password !== undefined) updateData.password = originalData.password;
+      if (originalData.private_key !== undefined) updateData.privateKey = originalData.private_key;
+      if (originalData.sshKeyName !== undefined) updateData.sshKeyName = originalData.sshKeyName;
+      if (originalData.icon !== undefined) updateData.icon = originalData.icon;
+      if (originalData.color !== undefined) updateData.color = originalData.color;
+      if (originalData.transparency !== undefined) updateData.transparency = originalData.transparency;
+      if (originalData.blur !== undefined) updateData.blur = originalData.blur;
+      if (originalData.remote_desktop_enabled !== undefined) updateData.remoteDesktopEnabled = originalData.remote_desktop_enabled;
+      if (originalData.remote_desktop_type !== undefined) updateData.remoteDesktopType = originalData.remote_desktop_type;
+      if (originalData.remote_protocol !== undefined) updateData.remoteProtocol = originalData.remote_protocol;
+      if (originalData.remote_port !== undefined) updateData.remotePort = originalData.remote_port;
+      if (originalData.remote_username !== undefined) updateData.remoteUsername = originalData.remote_username;
+      if (originalData.remote_password !== undefined) updateData.remotePassword = originalData.remote_password;
 
-    await connection.commit();
+      if (Object.keys(updateData).length === 0) {
+        throw new Error('No fields to revert');
+      }
 
-    // Regenerate SSH config
-    try {
-      const { generateSSHConfig } = require('../utils/sshManager');
-      await generateSSHConfig();
-    } catch (error) {
-      console.log('SSH config regeneration skipped:', error.message);
-    }
+      // Revert the host
+      await trx.update('hosts', updateData, { id: log.resourceId });
 
-    // Send SSE events
-    // First send the reverted event for audit log
-    broadcast('ssh_host_reverted', {
-      id: log.resource_id,
-      hostname: details.old_data.hostname,
-      reverted_by: req.user?.username || 'unknown',
+      // Create audit log for reversion
+      await createAuditLog(
+        req.user.id,
+        'host_reverted',
+        'hosts',
+        log.resourceId,
+        {
+          revertedFromLogId: req.params.logId,
+          revertedToData: originalData,
+          revertedFromData: details.changes || details.new_data,
+          revertedBy: req.user.username
+        },
+        getClientIp(req)
+      );
+
+      // Broadcast updates
+      broadcast('host_updated', {
+        id: log.resourceId,
+        ...originalData
+      });
+
+      return {
+        success: true,
+        message: 'Host reverted to original state successfully',
+        hostId: log.resourceId
+      };
     });
 
-    // Then send updated event to trigger UI refresh
-    broadcast('ssh_host_updated', {
-      id: log.resource_id,
-      hostname: details.old_data.hostname,
-      host: details.old_data.host,
-      username: details.old_data.username,
-      port: details.old_data.port,
-      key_name: details.old_data.key_name,
-    });
-
-    res.json({
-      success: true,
-      message: 'SSH host successfully reverted to previous state',
-    });
+    res.json(result);
   } catch (error) {
-    await connection.rollback();
-    console.error('Error reverting SSH host:', error);
-    res.status(500).json({ error: 'Failed to revert SSH host' });
-  } finally {
-    connection.release();
+    console.error('Error reverting host:', error);
+    res.status(error.message.includes('not found') ? 404 : 500)
+      .json({ error: error.message || 'Failed to revert host' });
   }
 });
 

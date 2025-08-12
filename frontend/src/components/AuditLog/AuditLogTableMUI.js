@@ -20,6 +20,10 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   ChevronDown,
@@ -43,9 +47,10 @@ import {
   Hash,
   Layers,
   RotateCcw,
+  X,
 } from 'lucide-react';
-import SSHAuditDetailMUI from './SSHAuditDetailMUI';
 import axios from '../../utils/axiosConfig';
+import AuditLogDetail from './AuditLogDetail';
 
 const AuditLogTableMUI = ({
   logs,
@@ -55,6 +60,7 @@ const AuditLogTableMUI = ({
   formatActionName,
   getActionIcon,
   getActionColor,
+  onRefresh,
 }) => {
   const theme = useTheme();
   const [viewModes, setViewModes] = useState({});
@@ -62,6 +68,8 @@ const AuditLogTableMUI = ({
   const containerRef = React.useRef(null);
   const [restoringLogs, setRestoringLogs] = useState(new Set());
   const [restoreResults, setRestoreResults] = useState({});
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedLogEntry, setSelectedLogEntry] = useState(null);
   
   // Common header cell styles
   const headerCellStyle = {
@@ -99,6 +107,24 @@ const AuditLogTableMUI = ({
 
   // Switch to widget view when width < 600px
   const useWidgetView = containerWidth < 600;
+
+  // Handler für Detail-Ansicht
+  const handleOpenDetail = (log) => {
+    setSelectedLogEntry(log);
+    setDetailDialogOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setDetailDialogOpen(false);
+    setSelectedLogEntry(null);
+  };
+
+  const handleDetailRestore = () => {
+    handleCloseDetail();
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
 
   // Toggle between JSON and formatted view
   const toggleViewMode = (logId) => {
@@ -174,6 +200,30 @@ const AuditLogTableMUI = ({
       is_active: 'Status',
       email: 'E-Mail',
       password: 'Passwort',
+      // Host-spezifische Felder
+      hostname: 'Hostname',
+      port: 'Port',
+      ssh_key_name: 'SSH-Schlüssel',
+      icon: 'Icon',
+      color: 'Farbe',
+      transparency: 'Transparenz',
+      blur: 'Unschärfe',
+      remote_desktop_enabled: 'Remote Desktop aktiviert',
+      remote_desktop_type: 'Remote Desktop Typ',
+      remote_protocol: 'Remote Protokoll',
+      remote_port: 'Remote Port',
+      remote_username: 'Remote Benutzername',
+      guacamole_performance_mode: 'Guacamole Performance',
+      rustdesk_id: 'RustDesk ID',
+      changes: 'Änderungen',
+      oldValues: 'Alte Werte',
+      privateKey: 'Privater Schlüssel',
+      sshKeyName: 'SSH-Schlüssel',
+      remoteDesktopEnabled: 'Remote Desktop aktiviert',
+      remoteDesktopType: 'Remote Desktop Typ',
+      remoteProtocol: 'Remote Protokoll',
+      remotePort: 'Remote Port',
+      remoteUsername: 'Remote Benutzername',
     };
 
     return translations[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -198,7 +248,8 @@ const AuditLogTableMUI = ({
     }
 
     if (key.includes('_at') || key === 'timestamp') {
-      return new Date(value).toLocaleString('de-DE', {
+      const date = new Date(value);
+      return date.toLocaleString('de-DE', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -293,6 +344,30 @@ const AuditLogTableMUI = ({
         } else if (serviceName) {
           return serviceName;
         }
+      }
+      
+      // Appliance/Service specific handling
+      if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+        // Check for service object (used in create operations)
+        if (details.service && details.service.name) {
+          return details.service.name;
+        }
+        // Check for appliance object (used in delete operations)
+        if (details.appliance && details.appliance.name) {
+          return details.appliance.name;
+        }
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.name) {
+          return details.old_data.name;
+        }
+        if (details.new_data && details.new_data.name) {
+          return details.new_data.name;
+        }
+        // Check for direct appliance_name field (used in access logs)
+        if (details.appliance_name) {
+          return details.appliance_name;
+        }
+        return details.name || null;
       }
       
       // SSH Host specific handling
@@ -414,6 +489,9 @@ const AuditLogTableMUI = ({
     if (log.action === 'ssh_host_deleted') {
       return { canRestore: true, type: 'restore', resourceType: 'ssh_hosts' };
     }
+    if (log.action === 'host_deleted') {
+      return { canRestore: true, type: 'restore', resourceType: 'hosts' };
+    }
 
     // Updated actions
     if (log.action === 'appliance_update' || log.action === 'appliance_updated') {
@@ -428,6 +506,9 @@ const AuditLogTableMUI = ({
     if (log.action === 'ssh_host_updated') {
       return { canRestore: true, type: 'revert', resourceType: 'ssh_hosts' };
     }
+    if (log.action === 'host_updated') {
+      return { canRestore: true, type: 'revert', resourceType: 'hosts' };
+    }
 
     return { canRestore: false };
   };
@@ -437,15 +518,12 @@ const AuditLogTableMUI = ({
     const restoreInfo = canRestore(log);
     if (!restoreInfo.canRestore) return;
 
-    console.log('Starting restore for log:', log);
-    console.log('Restore info:', restoreInfo);
-
     // Get resource name for confirmation
     let resourceName = '';
     if (log.details) {
       try {
         const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
-        const resource = details.appliance || details.service || details.category || details.user || details.ssh_host || {};
+        const resource = details.appliance || details.service || details.category || details.user || details.ssh_host || details.host || details;
         resourceName = resource.name || resource.service_name || resource.appliance_name || resource.username || '';
       } catch (e) {
         console.error('Error parsing details for name:', e);
@@ -458,7 +536,7 @@ const AuditLogTableMUI = ({
       : `Möchten Sie diesen Eintrag wirklich ${actionText}?`;
 
     if (!window.confirm(confirmMessage)) {
-      console.log('Restore cancelled by user');
+
       return;
     }
 
@@ -472,28 +550,29 @@ const AuditLogTableMUI = ({
         // Map resource types to endpoints
         if (restoreInfo.resourceType === 'appliances') {
           endpoint = restoreInfo.type === 'restore' 
-            ? `/api/audit-restore/restore/appliances/${log.id}`
-            : `/api/audit-restore/revert/appliances/${log.id}`;
+            ? `/api/auditRestore/restore/appliances/${log.id}`
+            : `/api/auditRestore/revert/appliances/${log.id}`;
         } else if (restoreInfo.resourceType === 'categories') {
           endpoint = restoreInfo.type === 'restore'
-            ? `/api/audit-restore/restore/category/${log.id}`
-            : `/api/audit-restore/revert/category/${log.id}`;
+            ? `/api/auditRestore/restore/category/${log.id}`
+            : `/api/auditRestore/revert/category/${log.id}`;
         } else if (restoreInfo.resourceType === 'users') {
           endpoint = restoreInfo.type === 'restore'
-            ? `/api/audit-restore/restore/user/${log.id}`
-            : `/api/audit-restore/revert/user/${log.id}`;
+            ? `/api/auditRestore/restore/user/${log.id}`
+            : `/api/auditRestore/revert/user/${log.id}`;
         } else if (restoreInfo.resourceType === 'ssh_hosts') {
           endpoint = restoreInfo.type === 'restore'
-            ? `/api/audit-restore/restore/ssh_hosts/${log.id}`
-            : `/api/audit-restore/revert/ssh_hosts/${log.id}`;
+            ? `/api/auditRestore/restore/ssh_hosts/${log.id}`
+            : `/api/auditRestore/revert/ssh_hosts/${log.id}`;
+        } else if (restoreInfo.resourceType === 'hosts') {
+          endpoint = restoreInfo.type === 'restore'
+            ? `/api/auditRestore/restore/hosts/${log.id}`
+            : `/api/auditRestore/revert/hosts/${log.id}`;
         }
 
-        console.log('Calling endpoint:', endpoint);
-        
         // Add new name to request body if provided
         const requestData = newName ? { newName } : {};
         const response = await axios.post(endpoint, requestData);
-        console.log('Response:', response);
 
         if (response.data.success) {
           setRestoreResults(prev => ({
@@ -554,14 +633,346 @@ const AuditLogTableMUI = ({
 
   // Render details
   const renderDetails = (log) => {
-    if (!log.details) return null;
+    if (!log.details) {
+      return (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Keine Detailinformationen verfügbar
+          </Typography>
+        </Box>
+      );
+    }
 
     const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
     const isJsonView = viewModes[log.id] === 'json';
 
-    // Special rendering for SSH commands
-    if (log.action === 'command_execute' || log.action === 'command_executed' || log.action === 'command_execute_failed') {
-      return <SSHAuditDetailMUI details={details} />;
+    // Helper function to render update table
+    const renderUpdateTable = (title, changes, oldValues) => {
+      return (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            {title}
+          </Typography>
+          <TableContainer component={Paper} sx={{ 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.03)' 
+              : 'rgba(0, 0, 0, 0.02)',
+            border: `1px solid ${theme.palette.divider}`,
+          }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Feldname</TableCell>
+                  <TableCell sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Alter Wert</TableCell>
+                  <TableCell sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Neuer Wert</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {Object.entries(changes).map(([field, newValue]) => (
+                  <TableRow key={field}>
+                    <TableCell sx={{ fontWeight: 500 }}>
+                      {formatFieldName(field)}
+                    </TableCell>
+                    <TableCell sx={{ color: 'error.main' }}>
+                      {formatFieldValue(oldValues?.[field])}
+                    </TableCell>
+                    <TableCell sx={{ color: 'success.main' }}>
+                      {formatFieldValue(newValue)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      );
+    };
+
+    // Helper function to render deletion details
+    const renderDeletionTable = (title, data) => {
+      // Filter out sensitive fields
+      const filteredData = Object.entries(data)
+        .filter(([key]) => !['password', 'password_hash', 'remote_password', 'rustdesk_password', 
+                            'private_key', 'ssh_private_key', 'vnc_password', 'rdp_password'].includes(key));
+
+      return (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'error.main' }}>
+            {title}
+          </Typography>
+          <TableContainer component={Paper} sx={{ 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.03)' 
+              : 'rgba(0, 0, 0, 0.02)',
+            border: `1px solid ${theme.palette.divider}`,
+          }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Feldname</TableCell>
+                  <TableCell sx={{
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Wert</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredData.map(([key, value]) => (
+                  <TableRow key={key}>
+                    <TableCell sx={{ fontWeight: 500 }}>
+                      {formatFieldName(key)}
+                    </TableCell>
+                    <TableCell>{formatFieldValue(value)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      );
+    };
+
+    // Format field names for display
+    const formatFieldName = (fieldName) => {
+      const translations = {
+        name: 'Name',
+        hostname: 'Hostname',
+        ip_address: 'IP-Adresse',
+        remote_address: 'Remote-Adresse',
+        port: 'Port',
+        username: 'Benutzername',
+        email: 'E-Mail',
+        role: 'Rolle',
+        is_active: 'Aktiv',
+        use_https: 'HTTPS verwenden',
+        remote_desktop_enabled: 'Remote Desktop',
+        remote_desktop_type: 'Remote Desktop Typ',
+        category_id: 'Kategorie',
+        visibility: 'Sichtbarkeit',
+        icon: 'Icon',
+        description: 'Beschreibung',
+        url: 'URL',
+        created_at: 'Erstellt am',
+        updated_at: 'Aktualisiert am',
+        last_used: 'Zuletzt verwendet',
+        display_name: 'Anzeigename',
+        vnc_enabled: 'VNC aktiviert',
+        rdp_enabled: 'RDP aktiviert',
+        ssh_enabled: 'SSH aktiviert',
+      };
+      return translations[fieldName] || fieldName;
+    };
+
+    // Format field values for display
+    const formatFieldValue = (value) => {
+      if (value === null || value === undefined) return '-';
+      
+      // Handle boolean values (including 0/1 from database)
+      if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
+      if (value === 1 || value === '1' || value === true) return 'Ja';
+      if (value === 0 || value === '0' || value === false) return 'Nein';
+      
+      // Handle objects and arrays
+      if (typeof value === 'object') {
+        // Check if it's an array
+        if (Array.isArray(value)) {
+          return value.map(item => {
+            if (typeof item === 'object') {
+              return JSON.stringify(item, null, 2);
+            }
+            return item;
+          }).join(', ');
+        }
+        
+        // For objects, check if it's already a parsed changes object
+        if (value.old !== undefined && value.new !== undefined) {
+          return `${value.old} → ${value.new}`;
+        }
+        
+        // For other objects, return formatted JSON
+        return JSON.stringify(value, null, 2);
+      }
+      
+      return value;
+    };
+
+    // Handle different action types
+    // Updates (appliance, host, user, category)
+    if (log.action.includes('_update') || log.action.includes('_updated')) {
+      if (details.changes || details.old_data) {
+        let changes = {};
+        let oldValues = {};
+        
+        // Check if changes already contain old/new structure (like in host_update)
+        if (details.changes && typeof details.changes === 'object') {
+          const firstKey = Object.keys(details.changes)[0];
+          if (firstKey && details.changes[firstKey] && 
+              typeof details.changes[firstKey] === 'object' && 
+              'old' in details.changes[firstKey] && 
+              'new' in details.changes[firstKey]) {
+            // Extract old and new values from structured changes
+            Object.entries(details.changes).forEach(([field, change]) => {
+              if (typeof change === 'object' && change.old !== undefined && change.new !== undefined) {
+                oldValues[field] = change.old;
+                changes[field] = change.new;
+              } else {
+                changes[field] = change;
+              }
+            });
+          } else {
+            // Use changes as is
+            changes = details.changes;
+            oldValues = details.oldValues || details.old_data || {};
+          }
+        } else if (details.old_data && details.new_data) {
+          changes = details.new_data;
+          oldValues = details.old_data;
+        } else {
+          changes = details.changes || details.new_data || {};
+          oldValues = details.oldValues || details.old_data || {};
+        }
+        
+        return (
+          <>
+            {renderUpdateTable('Geänderte Felder', changes, oldValues)}
+            {/* Restore button for updates */}
+            {canRestore(log).canRestore && (
+              <Box sx={{ mt: 2 }}>
+                <Button
+                  startIcon={<History size={16} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRestore(log);
+                  }}
+                  disabled={restoringLogs.has(log.id)}
+                  sx={{
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(34, 197, 94, 0.2)' 
+                      : 'rgba(34, 197, 94, 0.15)',
+                    color: theme.palette.mode === 'dark' ? '#86efac' : '#22c55e',
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(34, 197, 94, 0.3)' 
+                        : 'rgba(34, 197, 94, 0.25)',
+                    },
+                  }}
+                >
+                  {restoringLogs.has(log.id) ? 'Wird zurückgesetzt...' : 'Änderungen zurücksetzen'}
+                </Button>
+              </Box>
+            )}
+          </>
+        );
+      }
+    }
+
+    // Deletions (appliance, host, user, category)
+    if (log.action.includes('_delete') || log.action.includes('_deleted')) {
+      const title = log.action.includes('appliance') ? 'Gelöschte Appliance-Details' :
+                    log.action.includes('host') ? 'Gelöschte Host-Details' :
+                    log.action.includes('user') ? 'Gelöschte Benutzer-Details' :
+                    log.action.includes('category') ? 'Gelöschte Kategorie-Details' :
+                    'Gelöschte Details';
+      return (
+        <>
+          {renderDeletionTable(title, details)}
+          {/* Restore button for deletions */}
+          {canRestore(log).canRestore && (
+            <Box sx={{ mt: 2 }}>
+              <Button
+                startIcon={<RefreshCw size={16} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRestore(log);
+                }}
+                disabled={restoringLogs.has(log.id)}
+                sx={{
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(34, 197, 94, 0.2)' 
+                    : 'rgba(34, 197, 94, 0.15)',
+                  color: theme.palette.mode === 'dark' ? '#86efac' : '#22c55e',
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(34, 197, 94, 0.3)' 
+                      : 'rgba(34, 197, 94, 0.25)',
+                  },
+                }}
+              >
+                {restoringLogs.has(log.id) ? 'Wird wiederhergestellt...' : 'Wiederherstellen'}
+              </Button>
+            </Box>
+          )}
+        </>
+      );
+    }
+
+    // Special rendering for SSH file upload
+    if (log.action === 'ssh_file_upload' && details.files) {
+      return (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Upload Details
+          </Typography>
+          
+          {/* Host information */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              <strong>Host:</strong> {details.hostname || details.host_ip}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              <strong>Zielverzeichnis:</strong> {details.target_path}
+            </Typography>
+          </Box>
+
+          {/* Files table */}
+          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell align="right">Anzahl Bytes</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {details.files.map((file, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{file.name}</TableCell>
+                    <TableCell align="right">
+                      {file.bytes.toLocaleString('de-DE')} Bytes
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      );
     }
 
     if (isJsonView) {
@@ -614,62 +1025,64 @@ const AuditLogTableMUI = ({
 
       const Icon = icon;
       return (
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <Typography 
-            variant="subtitle2" 
+            variant="h6" 
             sx={{ 
               display: 'flex', 
               alignItems: 'center', 
               gap: 1, 
-              mb: 1,
-              color: 'text.secondary',
+              mb: 2,
               fontWeight: 600,
             }}
           >
-            <Icon size={16} />
+            <Icon size={18} />
             {title}
           </Typography>
-          <Box sx={{ pl: 3 }}>
-            {Object.entries(detailsObj).map(([key, value]) => {
-              const DetailIcon = getDetailIcon(key);
-              return (
-                <Box 
-                  key={key} 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: 2, 
-                    mb: 1,
-                    py: 0.5,
-                  }}
-                >
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: 0.5,
-                      color: 'text.secondary',
-                      minWidth: '150px',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <DetailIcon size={14} />
-                    {formatFieldName(key)}:
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      wordBreak: 'break-word',
-                      flex: 1,
-                    }}
-                  >
-                    {formatValue(key, value)}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
+          <TableContainer component={Paper} sx={{ 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.03)' 
+              : 'rgba(0, 0, 0, 0.02)',
+            border: `1px solid ${theme.palette.divider}`,
+          }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ 
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Feldname</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.03)',
+                  }}>Wert</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {Object.entries(detailsObj).map(([key, value]) => (
+                  <TableRow key={key}>
+                    <TableCell sx={{ 
+                      fontWeight: 500,
+                      color: theme.palette.text.secondary,
+                    }}>
+                      {formatFieldName(key)}
+                    </TableCell>
+                    <TableCell sx={{
+                      color: theme.palette.text.primary,
+                    }}>
+                      {formatValue(key, value)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
       );
     };
@@ -752,7 +1165,7 @@ const AuditLogTableMUI = ({
                   startIcon={restoringLogs.has(log.id) ? <CircularProgress size={16} /> : <RotateCcw size={16} />}
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('Restore button clicked for log:', log.id);
+
                     handleRestore(log);
                   }}
                   disabled={restoringLogs.has(log.id)}
@@ -807,7 +1220,7 @@ const AuditLogTableMUI = ({
           {logs.map(log => {
             const isExpanded = expandedRows.has(log.id);
             const resourceName = getResourceName(log);
-            const resourceDisplay = resourceName || 
+            const resourceDisplay = log.resource_name || resourceName || 
               (log.resource_type && log.resource_id 
                 ? `${formatResourceType(log.resource_type)} #${log.resource_id}` 
                 : formatResourceType(log.resource_type));
@@ -835,7 +1248,7 @@ const AuditLogTableMUI = ({
                   {/* Compact header row */}
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ minWidth: '80px' }}>
-                      {formatTimestamp(log.created_at)}
+                      {formatTimestamp(log.createdAt)}
                     </Typography>
                     <Chip
                       icon={getActionIcon(log.action)}
@@ -869,11 +1282,11 @@ const AuditLogTableMUI = ({
                       </Stack>
                     )}
 
-                    {log.ip_address && (
+                    {log.ipAddress && (
                       <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
                         <Globe size={12} style={{ opacity: 0.6 }} />
                         <Typography variant="caption" color="text.secondary">
-                          {log.ip_address}
+                          {log.ipAddress}
                         </Typography>
                       </Stack>
                     )}
@@ -882,8 +1295,16 @@ const AuditLogTableMUI = ({
 
                 {/* Expanded details */}
                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                  <Divider />
-                  {renderDetails(log)}
+                  <Box sx={{ 
+                    p: 2, 
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : 'rgba(0, 0, 0, 0.02)',
+                    color: theme.palette.text.primary
+                  }}>
+                    <Divider sx={{ mb: 2, opacity: 0.3 }} />
+                    {renderDetails(log)}
+                  </Box>
                 </Collapse>
               </Box>
             );
@@ -944,13 +1365,19 @@ const AuditLogTableMUI = ({
               >
                 IP-Adresse
               </TableCell>
+              <TableCell
+                sx={headerCellStyle}
+                align="center"
+              >
+                Aktionen
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {logs.map(log => {
               const isExpanded = expandedRows.has(log.id);
               const resourceName = getResourceName(log);
-              const resourceDisplay = resourceName || 
+              const resourceDisplay = log.resource_name || resourceName || 
                 (log.resource_type && log.resource_id 
                   ? `${formatResourceType(log.resource_type)} #${log.resource_id}` 
                   : formatResourceType(log.resource_type));
@@ -971,7 +1398,6 @@ const AuditLogTableMUI = ({
                       transition: 'background-color 0.2s ease',
                     }}
                     onClick={() => {
-                      console.log('Row clicked, toggling expand for log:', log.id);
                       onToggleExpand(log.id);
                     }}
                   >
@@ -982,7 +1408,7 @@ const AuditLogTableMUI = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" noWrap>
-                        {formatTimestamp(log.created_at)}
+                        {formatTimestamp(log.createdAt)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -1006,14 +1432,38 @@ const AuditLogTableMUI = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {log.ip_address || '-'}
+                        {log.ipAddress || '-'}
                       </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Details anzeigen">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDetail(log);
+                          }}
+                          sx={{
+                            color: theme.palette.primary.main,
+                          }}
+                        >
+                          <Eye size={16} />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+                    <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
                       <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                        {renderDetails(log)}
+                        <Box sx={{ 
+                          p: 2,
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.05)' 
+                            : 'rgba(0, 0, 0, 0.02)',
+                          color: theme.palette.text.primary
+                        }}>
+                          {renderDetails(log)}
+                        </Box>
                       </Collapse>
                     </TableCell>
                   </TableRow>
@@ -1023,6 +1473,47 @@ const AuditLogTableMUI = ({
           </TableBody>
         </Table>
       </TableContainer>
+      
+      {/* Detail Dialog */}
+      <Dialog
+        open={detailDialogOpen}
+        onClose={handleCloseDetail}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(30, 30, 40, 0.95)' 
+              : 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center' 
+        }}>
+          <Typography variant="h6">Audit-Log Details</Typography>
+          <IconButton
+            edge="end"
+            color="inherit"
+            onClick={handleCloseDetail}
+            aria-label="close"
+          >
+            <X />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedLogEntry && (
+            <AuditLogDetail
+              entry={selectedLogEntry}
+              onClose={handleCloseDetail}
+              onRestore={handleDetailRestore}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

@@ -1,8 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { X, Maximize2, Minimize2, RefreshCw, ExternalLink } from 'lucide-react';
+import TerminalIcon from '@mui/icons-material/Terminal';
 import './TTYDTerminal.css';
 import { moveTerminalToNewWindow } from '../utils/terminalWindow';
+import axios from '../utils/axiosConfig';
+import '../utils/terminalErrorSuppressor';
 
 const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = null, title = 'Terminal' }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
@@ -16,9 +19,10 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   if (host) {
     sshData = {
       hostId: host.id || hostId,
-      host: host.hostname || host.host || '',
-      user: host.username || host.user || '',
-      port: host.port || 22
+      host: host.host || '',  // host.host ist die tatsächliche IP-Adresse
+      user: host.username || '',
+      port: host.port || 22,
+      sessionId: host.sessionId || null  // Session-ID wenn vorhanden
     };
   }
   // Priorität 2: Appliance-Daten
@@ -32,14 +36,16 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
             hostId: appliance.id,
             user: match[1],
             host: match[2],
-            port: parseInt(match[3], 10)
+            port: parseInt(match[3], 10),
+            // SSH-Schlüssel-Name hinzufügen
+            keyName: appliance.sshKeyName || appliance.ssh_key_name || 'dashboard'
           };
         }
       }
       // Fallback: Verwende SSH-Host-ID wenn verfügbar
-      else if (appliance.ssh_host_id && appliance.ssh_host) {
+      else if (appliance.sshHostId && appliance.ssh_host) {
         sshData = {
-          hostId: appliance.ssh_host_id,
+          hostId: appliance.sshHostId,
           host: appliance.ssh_host.hostname || appliance.ssh_host.name || '',
           user: appliance.ssh_host.username || '',
           port: appliance.ssh_host.port || 22
@@ -47,7 +53,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
       } else if (appliance.sshHost) {
         // Alternative Property-Namen
         sshData = {
-          hostId: appliance.sshHostId || appliance.ssh_host_id || '',
+          hostId: appliance.sshHostId || appliance.sshHostId || '',
           host: appliance.sshHost || '',
           user: appliance.sshUser || '',
           port: appliance.sshPort || 22
@@ -70,9 +76,16 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   // Füge die SSH-Parameter zur URL hinzu
   const params = new URLSearchParams();
   
-  // Priorisiere hostId wenn verfügbar
-  if (hostId) {
-    params.append('hostId', hostId);
+  // Session-ID hat höchste Priorität
+  if (host && host.sessionId) {
+    params.append('session', host.sessionId);
+  } else if (sshData.sessionId) {
+    params.append('session', sshData.sessionId);
+  }
+  
+  // Füge alle SSH-Daten hinzu, auch hostId aus sshData
+  if (sshData.hostId || hostId) {
+    params.append('hostId', sshData.hostId || hostId);
   }
   
   // Füge SSH-Daten hinzu
@@ -82,22 +95,30 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
   if (sshData.user) {
     params.append('user', sshData.user);
   }
-  if (sshData.port && sshData.port !== 22) {
+  if (sshData.port) {
     params.append('port', sshData.port);
+  }
+  // SSH-Schlüssel-Name hinzufügen
+  if (sshData.keyName) {
+    params.append('keyName', sshData.keyName);
   }
   
   // Terminal läuft über nginx proxy auf /terminal/
   const terminalUrl = `/terminal/${params.toString() ? '?' + params.toString() : ''}`;
   
+  // Erstelle den Anzeige-Titel
+  const displayTitle = (() => {
+    if (host && host.name) {
+      return `Terminal - ${host.name}`;
+    } else if (sshData.host) {
+      // Versuche den Hostname aus den Daten zu extrahieren
+      return `Terminal - ${sshData.host}`;
+    } else if (appliance && appliance.name) {
+      return `Terminal - ${appliance.name}`;
+    }
+    return title;
+  })();
   // Debug-Ausgabe
-  console.log('TTYDTerminal Debug:', {
-    terminalUrl,
-    params: params.toString(),
-    sshData,
-    appliance,
-    host,
-    hostId
-  });
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -110,7 +131,27 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
     }
   };
 
-  const handleOpenInNewWindow = () => {
+  const handleOpenInNewWindow = async () => {
+    // Create session before opening new window
+    if (sshData.hostId || (sshData.host && sshData.user)) {
+      try {
+        const sessionData = {};
+        if (sshData.hostId) {
+          sessionData.hostId = sshData.hostId;
+        } else if (sshData.host && sshData.user) {
+          sessionData.sshConnection = `${sshData.user}@${sshData.host}:${sshData.port || 22}`;
+        }
+        
+        const response = await axios.post('/api/terminal/session', sessionData);
+
+        // Wait for session file to be written
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error('Failed to create terminal session:', error);
+      }
+    }
+    
+    // Now open the window
     moveTerminalToNewWindow(sshData, onHide);
   };
 
@@ -133,8 +174,8 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
       >
         <div className="terminal-header">
           <h3 className="terminal-title">
-            <span className="terminal-icon">_</span>
-            {title}
+            <TerminalIcon style={{ fontSize: 20, marginRight: 8, verticalAlign: 'middle' }} />
+            {displayTitle}
           </h3>
           <div className="terminal-controls">
             <button
@@ -181,7 +222,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
               background: '#000'
             }}
             onLoad={(e) => {
-              console.log('Terminal iframe loaded:', e.target.src);
+
             }}
             onError={(e) => {
               console.error('Terminal iframe error:', e);

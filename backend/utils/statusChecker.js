@@ -30,12 +30,13 @@ class ServiceStatusChecker {
     // Load interval from settings
     try {
       const [settings] = await pool.execute(
-        'SELECT setting_value FROM user_settings WHERE setting_key = ?',
-        ['service_status_refresh_interval']
+        'SELECT setting_value FROM user_settings WHERE setting_key = ? OR setting_key = ?',
+        ['service_status_refresh_interval', 'service_poll_interval']
       );
 
       if (settings.length > 0) {
         this.checkInterval = parseInt(settings[0].setting_value) * 1000;
+        console.log(`📊 Service check interval set to ${settings[0].setting_value} seconds`);
       }
     } catch (error) {
       console.error('Error loading status check interval:', error);
@@ -63,7 +64,7 @@ class ServiceStatusChecker {
     console.log('🛑 Status checker stopped');
   }
 
-  async checkHostAvailability(hostname, host, username, port = 22) {
+  async checkHostAvailability(hostname, host, username, port = 22, sshKeyName = null) {
     const hostKey = `${username}@${host}:${port}`;
     const now = Date.now();
 
@@ -80,7 +81,8 @@ class ServiceStatusChecker {
       console.log(`🔍 Checking host availability: ${hostname} (${hostKey})`);
 
       // Try a simple SSH connection test with very short timeout
-      const testCommand = `ssh -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "echo OK" 2>&1`;
+      const keyPath = sshKeyName ? `-i ~/.ssh/id_rsa_${sshKeyName}` : '-i ~/.ssh/id_rsa_dashboard';
+      const testCommand = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "echo OK" 2>&1`;
 
       const result = await execAsync(testCommand, { timeout: 5000 });
 
@@ -94,18 +96,38 @@ class ServiceStatusChecker {
         return false;
       }
     } catch (error) {
-      console.log(
-        `❌ Host ${hostname} is unavailable: ${error.message.split('\n')[0]}`
-      );
-      this.hostAvailability.set(hostKey, false);
-      return false;
+      // Check if it's an authentication error
+      const errorMsg = error.message.toLowerCase();
+      if (errorMsg.includes('too many authentication failures') || 
+          errorMsg.includes('permission denied')) {
+        console.log(
+          `⚠️  Host ${hostname} has authentication issues: ${error.message.split('\n')[0]}`
+        );
+        // Return true to allow status check with potentially different command
+        this.hostAvailability.set(hostKey, true);
+        return true;
+      } else {
+        console.log(
+          `❌ Host ${hostname} is unavailable: ${error.message.split('\n')[0]}`
+        );
+        this.hostAvailability.set(hostKey, false);
+        return false;
+      }
     }
   }
 
   async checkAllServices() {
     try {
+      // Get services with their SSH connection info from hosts table
       const [services] = await pool.execute(
-        'SELECT id, name, status_command, service_status FROM appliances WHERE status_command IS NOT NULL AND status_command != ""'
+        `SELECT a.id, a.name, a.status_command, a.service_status, a.ssh_connection,
+                h.hostname, h.username, h.port, h.ssh_key_name
+         FROM appliances a
+         LEFT JOIN hosts h ON (
+           a.ssh_connection = CONCAT(h.username, '@', h.hostname, ':', h.port) OR
+           a.ssh_connection = CONCAT(h.username, '@', h.hostname)
+         )
+         WHERE a.status_command IS NOT NULL AND a.status_command != ""`
       );
 
       if (services.length === 0) {
@@ -118,13 +140,48 @@ class ServiceStatusChecker {
       const servicesByHost = new Map();
 
       for (const service of services) {
-        const hostInfo = this.extractHostInfo(service.status_command);
+        let hostInfo = null;
+        
+        // First try to use SSH connection from appliance settings
+        if (service.ssh_connection) {
+          if (service.hostname) {
+            // We have host info from the JOIN
+            hostInfo = {
+              hostname: service.hostname,
+              host: service.hostname,
+              username: service.username,
+              port: service.port || 22,
+              sshKeyName: service.ssh_key_name
+            };
+          } else {
+            // Parse SSH connection string
+            const sshParts = service.ssh_connection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
+            if (sshParts) {
+              hostInfo = {
+                hostname: sshParts[2],
+                host: sshParts[2],
+                username: sshParts[1] || 'root',
+                port: parseInt(sshParts[3] || '22'),
+                sshKeyName: 'dashboard'
+              };
+            }
+          }
+        }
+        
+        // Fallback: extract from status_command if no SSH connection configured
+        if (!hostInfo) {
+          hostInfo = this.extractHostInfo(service.status_command);
+        }
+        
         if (hostInfo) {
           const hostKey = `${hostInfo.username}@${hostInfo.host}:${hostInfo.port}`;
           if (!servicesByHost.has(hostKey)) {
             servicesByHost.set(hostKey, { hostInfo, services: [] });
           }
-          servicesByHost.get(hostKey).services.push(service);
+          servicesByHost.get(hostKey).services.push({
+            ...service,
+            hostInfo // Store host info with service
+          });
         } else {
           // Local command or unrecognized format
           servicesByHost.set('local', {
@@ -150,7 +207,8 @@ class ServiceStatusChecker {
             hostInfo.hostname || hostInfo.host,
             hostInfo.host,
             hostInfo.username,
-            hostInfo.port
+            hostInfo.port,
+            hostInfo.sshKeyName
           );
 
           if (isAvailable) {
@@ -218,8 +276,29 @@ class ServiceStatusChecker {
       let errorOutput = '';
 
       try {
+        let commandToExecute = service.status_command;
+        
+        // If we have SSH connection info, build the proper SSH command
+        if (service.hostInfo && service.ssh_connection) {
+          const { username, host, port, sshKeyName } = service.hostInfo;
+          
+          // Extract just the command part (remove any ssh prefix if present)
+          let baseCommand = service.status_command;
+          const sshRegex = /^ssh\s+.*?\s+['"]?(.+?)['"]?$/;
+          const match = baseCommand.match(sshRegex);
+          if (match) {
+            baseCommand = match[1];
+          }
+          
+          // Build proper SSH command with the configured connection
+          const keyPath = sshKeyName ? `-i ~/.ssh/id_rsa_${sshKeyName}` : '-i ~/.ssh/id_rsa_dashboard';
+          commandToExecute = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
+          
+          console.log(`📡 Using SSH connection from settings: ${username}@${host}:${port}`);
+        }
+        
         // Execute the status command
-        const result = await executeSSHCommand(service.status_command, 15000);
+        const result = await executeSSHCommand(commandToExecute, 15000);
         output = result.stdout || '';
         errorOutput = result.stderr || '';
 
@@ -260,10 +339,11 @@ class ServiceStatusChecker {
           errorMsg.includes('connection timed out') ||
           errorMsg.includes('no route to host') ||
           errorMsg.includes('host is down') ||
-          errorMsg.includes('could not resolve hostname')
+          errorMsg.includes('could not resolve hostname') ||
+          errorMsg.includes('too many authentication failures')
         ) {
-          newStatus = 'offline';
-          errorOutput = 'Host unreachable';
+          newStatus = 'error'; // Änderung: SSH-Auth-Fehler als 'error' statt 'offline'
+          errorOutput = 'SSH authentication failed';
         } else if (errorMsg.includes('permission denied')) {
           newStatus = 'error';
           errorOutput = 'Permission denied';

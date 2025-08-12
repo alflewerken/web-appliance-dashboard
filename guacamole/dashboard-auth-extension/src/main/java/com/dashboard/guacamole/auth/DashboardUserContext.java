@@ -38,9 +38,16 @@ public class DashboardUserContext implements UserContext {
         this.authenticatedUser = authenticatedUser;
         this.username = authenticatedUser.getIdentifier();
         
-        // Lade Verbindungen für diese Appliance
-        Map<String, GuacamoleConfiguration> configs = 
-            connectionProvider.getConnectionsForAppliance(authenticatedUser.getApplianceId());
+        // Lade Verbindungen basierend auf Token-Typ
+        Map<String, GuacamoleConfiguration> configs;
+        
+        if (authenticatedUser.isHostToken()) {
+            // Host-basierte Verbindungen
+            configs = connectionProvider.getConnectionsForHost(authenticatedUser.getHostId());
+        } else {
+            // Appliance-basierte Verbindungen
+            configs = connectionProvider.getConnectionsForAppliance(authenticatedUser.getApplianceId());
+        }
         
         // Erstelle Connection-Objekte
         Map<String, Connection> connections = new HashMap<>();
@@ -74,8 +81,9 @@ public class DashboardUserContext implements UserContext {
             Collections.emptySet()
         );
         
-        logger.info("Created user context for {} with {} connections", 
-                    username, connections.size());
+        logger.info("Created user context for {} with {} connections (type: {})", 
+                    username, connections.size(), 
+                    authenticatedUser.isHostToken() ? "host" : "appliance");
     }
     
     @Override
