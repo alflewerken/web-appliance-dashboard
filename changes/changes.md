@@ -32625,3 +32625,86 @@ networks:
 STATUS: ✅ Veraltete docker-compose.prod.yml entfernt - Projekt aufgeräumt
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 09:20:00 - Fix für Legacy Frontend-Kompatibilität bei Service Check Route
+
+PROBLEM:
+Auf manchen Hosts (z.B. 192.168.178.29) lief noch eine ältere Frontend-Version, die
+`/api/services/check-all` (kebab-case) aufrief, während das Backend nur `/api/services/checkAll`
+(camelCase) unterstützte. Dies führte zu 404-Fehlern beim Service-Check.
+
+URSACHE:
+Inkonsistente Namenskonventionen zwischen verschiedenen Versionen des Frontends.
+Alte gecachte Frontend-Builds in nginx Containern.
+
+LÖSUNG:
+Backend unterstützt jetzt beide Routen für Rückwärtskompatibilität:
+- `/api/services/checkAll` (neue Route, camelCase)
+- `/api/services/check-all` (Legacy Route, kebab-case)
+
+GEÄNDERTE DATEIEN:
+
+backend/routes/services.js:
+PATCH:
+```javascript
+-// POST /api/services/check-all - Trigger status check for all services
+-router.post('/checkAll', async (req, res) => {
+-  try {
+-    console.log('🔄 Service check requested');
+-    
+-    // Clear host cache to force fresh checks
+-    statusChecker.clearHostCache();
+-    
+-    // Run the check
+-    await statusChecker.forceCheck();
+-    
+-    res.json({
+-      message: 'Status check initiated',
+-      timestamp: new Date().toISOString(),
+-    });
+-  } catch (error) {
+-    console.error('Error in service check:', error);
+-    res.status(500).json({ error: 'Failed to check services' });
+-  }
+-});
++// POST /api/services/check-all - Trigger status check for all services
++// Support both /checkAll (new) and /check-all (legacy) for backwards compatibility
++router.post('/checkAll', checkAllHandler);
++router.post('/check-all', checkAllHandler); // Legacy route for old frontend versions
++
++async function checkAllHandler(req, res) {
++  try {
++    console.log('🔄 Service check requested');
++    
++    // Clear host cache to force fresh checks
++    statusChecker.clearHostCache();
++    
++    // Run the check
++    await statusChecker.forceCheck();
++    
++    res.json({
++      message: 'Status check initiated',
++      timestamp: new Date().toISOString(),
++    });
++  } catch (error) {
++    console.error('Error in service check:', error);
++    res.status(500).json({ error: 'Failed to check services' });
++  }
++}
+```
+
+RESULTAT:
+✅ Beide Route-Varianten funktionieren jetzt
+✅ Alte Frontend-Versionen bleiben kompatibel
+✅ Keine 404-Fehler mehr bei Service-Checks
+
+EMPFEHLUNG:
+Auf betroffenen Hosts sollte trotzdem das Frontend aktualisiert werden:
+1. Container neu bauen: `docker compose down && docker compose pull && docker compose up -d`
+2. Oder manuell: `docker compose restart webserver`
+
+STATUS: ✅ Legacy-Kompatibilität für Service-Check Route implementiert
+
+════════════════════════════════════════════════════════════════════════════════
