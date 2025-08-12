@@ -36028,3 +36028,55 @@ docker-compose up -d
 STATUS: ✅ BEHOBEN UND GEPUSHT
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 16:54:00 - Neue Development Tools: update-local Script
+
+FEATURE: Automatisiertes Repository-Synchronisations-Script für Entwickler
+
+MOTIVATION:
+In modernen Projekten kommen Updates aus verschiedenen Quellen (Dependabot, Team-Mitglieder,
+Dependencies). Manuelle Synchronisation ist fehleranfällig und zeitaufwändig.
+
+NEUE DATEIEN:
+
+scripts/update-local.sh (155 Zeilen):
+- Automatische Repository-Synchronisation mit GitHub
+- Intelligentes Change-Management mit automatischem Stashing
+- NPM Dependency-Updates für alle Subprojekte (backend, frontend, terminal-app)
+- Optionale Docker Image Updates
+- Dependabot PR-Statistiken
+- Branch-Management mit optionalem Rebase
+- Farbcodierte Ausgabe für bessere Lesbarkeit
+
+scripts/update-local.md (274 Zeilen):
+- Umfassende Dokumentation des Scripts
+- Workflow-Integration Beispiele
+- Troubleshooting-Guide
+- Best Practices
+- Erweiterte Nutzungsszenarien (Cron, Git Hooks, Aliases)
+
+VERWENDUNG:
+```bash
+# Einmalig ausführbar machen
+chmod +x scripts/update-local.sh
+
+# Repository updaten
+./scripts/update-local.sh
+```
+
+FEATURES:
+✅ Erkennt uncommitted changes und bietet Stashing
+✅ Zeigt Anzahl offener Dependabot PRs
+✅ Aktualisiert alle NPM Dependencies
+✅ Optional: Docker Images pullen
+✅ Merkt sich aktuelle Branch und wechselt zurück
+✅ Optional: Rebase auf main
+
+GIT COMMIT: 5bf57f2
+MESSAGE: "feat: Add update-local script for automated repository synchronization"
+PUSH: Erfolgreich zu origin/main
+
+STATUS: ✅ Hinzugefügt und dokumentiert
+
+════════════════════════════════════════════════════════════════════════════════
