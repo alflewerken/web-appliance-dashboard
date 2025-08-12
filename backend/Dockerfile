@@ -6,7 +6,7 @@ FROM node:20-alpine
 # Setze Arbeitsverzeichnis
 WORKDIR /app
 
-# Installiere System-Dependencies inkl. SSH-Tools
+# Installiere System-Dependencies inkl. SSH-Tools und Docker CLI
 # Entferne Build-Tools, da wir node-pty vermeiden werden
 RUN apk update && \
     apk add --no-cache \
@@ -17,6 +17,7 @@ RUN apk update && \
     bash \
     curl \
     rsync \
+    docker-cli \
     && rm -rf /var/cache/apk/*
 
 # Erstelle SSH-Verzeichnis mit korrekten Berechtigungen

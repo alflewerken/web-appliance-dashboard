@@ -1,12 +1,9 @@
 services:
-  # MariaDB Database
+  # Database Service
   database:
     image: mariadb:latest
     container_name: ${DB_CONTAINER_NAME:-appliance_db}
     restart: always
-    # Datenbank sollte niemals von außen erreichbar sein
-    # ports:
-    #   - "${DB_EXTERNAL_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -14,62 +11,44 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./init-db:/docker-entrypoint-initdb.d
+      - ./init-db:/docker-entrypoint-initdb.d:ro
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password='${MYSQL_ROOT_PASSWORD}' || exit 1"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-      retries: ${HEALTH_CHECK_RETRIES:-20}
+      retries: ${HEALTH_CHECK_RETRIES:-5}
       start_period: 40s
 
-  # Node.js Backend API with SSH Support
+  # Backend API
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
     container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
     restart: always
-    # Backend sollte nur intern erreichbar sein (Production)
-    # Für Entwicklung: Port aktivieren
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     environment:
-      # Database Configuration
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+      DB_HOST: ${DB_HOST:-database}
+      DB_PORT: ${DB_PORT:-3306}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-      # Security
       JWT_SECRET: ${JWT_SECRET}
       SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
       NODE_ENV: ${NODE_ENV:-production}
-      # CORS Settings
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-      # SSH Configuration
       SSH_TOOLS_ENABLED: ${SSH_TOOLS_ENABLED:-true}
       SSH_AUTO_INIT: ${SSH_AUTO_INIT:-true}
-      # Guacamole Integration
       GUACAMOLE_URL: ${GUACAMOLE_URL}
       GUACAMOLE_PROXY_URL: ${GUACAMOLE_PROXY_URL}
       GUACAMOLE_DB_HOST: ${GUACAMOLE_DB_HOST:-appliance_guacamole_db}
       GUACAMOLE_DB_NAME: ${GUACAMOLE_DB_NAME:-guacamole_db}
       GUACAMOLE_DB_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
       GUACAMOLE_DB_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
-      # External URL for remote access
       EXTERNAL_URL: ${EXTERNAL_URL}
-      # Features
-      FEATURE_AUDIT_LOG: ${FEATURE_AUDIT_LOG:-true}
-      FEATURE_BACKUP_RESTORE: ${FEATURE_BACKUP_RESTORE:-true}
-      FEATURE_SSH_TERMINAL: ${FEATURE_SSH_TERMINAL:-true}
-      FEATURE_SERVICE_CONTROL: ${FEATURE_SERVICE_CONTROL:-true}
-      FEATURE_USER_MANAGEMENT: ${FEATURE_USER_MANAGEMENT:-true}
-      FEATURE_REMOTE_DESKTOP: ${FEATURE_REMOTE_DESKTOP:-true}
-      # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-combined}
-      # Docker host access
       DOCKER_HOST_INTERNAL: 'true'
     depends_on:
       database:
@@ -79,42 +58,35 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./backend:/app
-      - /app/node_modules
       - ssh_keys:/root/.ssh
       - uploads:/app/uploads
-      # Shared temp directory für Terminal-Sessions
       - terminal_sessions:/tmp/terminal-sessions
-      # Docker socket for container management
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Optional: Mount lokales SSH-Keys Verzeichnis für Entwicklung
-      # - ./ssh-keys:/root/.ssh
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:3001/api/health && which ssh && which ssh-copy-id && which sshpass"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:3001/api/health"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 40s
 
-  # Nginx Web Server with custom image
+  # Nginx Web Server
   webserver:
-    build: ./nginx
+    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
     container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
     restart: always
     ports:
       - "${NGINX_HTTP_PORT:-9080}:80"
       - "${NGINX_HTTPS_PORT:-9443}:443"
     volumes:
-      # Mount frontend build as read-only
-      - ./frontend/build:/usr/share/nginx/html:ro
-      # Override conf.d if needed for development
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend
       - ttyd
-      # Guacamole is optional - webserver should start without it
     networks:
       - ${NETWORK_NAME:-appliance_network}
+    environment:
+      BACKEND_URL: http://backend:3001
+      EXTERNAL_URL: ${EXTERNAL_URL:-http://localhost:9080}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
@@ -123,12 +95,9 @@ services:
 
   # ttyd Web Terminal
   ttyd:
-    build: ./ttyd
+    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
     container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
     restart: always
-    # ttyd läuft über nginx proxy auf /terminal/
-    # ports:
-    #   - "${TTYD_PORT:-7681}:7681"
     command: >
       ttyd
       --writable
@@ -137,16 +106,11 @@ services:
       --terminal-type xterm-256color
       /scripts/ttyd-ssh-wrapper.sh
     environment:
-      # Nur Port als Standard, keine Host/User Defaults mehr
       SSH_PORT: ${TTYD_DEFAULT_PORT:-22}
     networks:
       - ${NETWORK_NAME:-appliance_network}
     volumes:
-      # SSH-Keys für Terminal-Zugriff
       - ssh_keys:/root/.ssh
-      # Optional: Shared scripts
-      - ./scripts:/scripts:ro
-      # Shared temp directory für Session-Dateien
       - terminal_sessions:/tmp/terminal-sessions
     healthcheck:
       test: ["CMD", "sh", "-c", "pidof ttyd || exit 1"]
@@ -154,10 +118,6 @@ services:
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
 
-  # ====================================================================
-  # REMOTE DESKTOP SERVICES (GUACAMOLE)
-  # ====================================================================
-  
   # Guacamole Proxy Daemon
   guacd:
     image: guacamole/guacd:1.5.5
@@ -168,17 +128,6 @@ services:
       - guacamole_record:/record:rw
     environment:
       GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-warning}
-      # Performance Tuning
-      GUACD_MAX_THREADS: 8
-      GUACD_BIND_HOST: 0.0.0.0
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '1.0'
-          memory: 1G
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
@@ -211,7 +160,7 @@ services:
 
   # Guacamole Web Application
   guacamole:
-    build: ./guacamole
+    image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
     container_name: ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole}
     restart: always
     depends_on:
@@ -225,28 +174,20 @@ services:
       POSTGRES_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
       POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
-      # Integration settings
       HEADER_ENABLED: 'true'
       HTTP_AUTH_HEADER: 'REMOTE_USER'
-      # CORS für iFrame
       EXTENSION_PRIORITY: '*'
-      # Optional: Custom settings
       GUACAMOLE_HOME: /etc/guacamole
-      # JWT Settings für Extension
       JWT_SECRET: ${JWT_SECRET}
       DB_HOST: database
       DB_PORT: 3306
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      # Standard SSH-Zugangsdaten für SFTP
-      DEFAULT_SSH_USER: ${DEFAULT_SSH_USER:-alflewerken}
+      DEFAULT_SSH_USER: ${DEFAULT_SSH_USER:-}
       DEFAULT_SSH_PASS: ${DEFAULT_SSH_PASS:-}
     volumes:
       - guacamole_home:/etc/guacamole
-    # Port wird nicht nach außen geöffnet - nur über nginx erreichbar
-    # ports:
-    #   - "${GUACAMOLE_PORT:-9070}:8080"
     networks:
       appliance_network:
         aliases:
@@ -258,10 +199,6 @@ services:
       retries: ${HEALTH_CHECK_RETRIES:-3}
       start_period: 60s
 
-  # ====================================================================
-  # RUSTDESK SERVICES
-  # ====================================================================
-  
   # RustDesk ID/Rendezvous Server
   rustdesk-server:
     image: rustdesk/rustdesk-server:latest
@@ -272,15 +209,14 @@ services:
       - RELAY=0.0.0.0:21117
       - PORT=21116
     ports:
-      - "${RUSTDESK_ID_PORT:-21216}:21116"  # ID Server TCP (external:internal)
-      - "${RUSTDESK_ID_PORT:-21216}:21116/udp"  # ID Server UDP
-      - "${RUSTDESK_WEB_PORT:-21218}:21118"  # Web Client (21218 extern -> 21118 intern)
-      - "${RUSTDESK_API_PORT:-21219}:21119"  # API (21219 extern -> 21119 intern)
+      - "${RUSTDESK_ID_PORT:-21216}:21116"
+      - "${RUSTDESK_ID_PORT:-21216}:21116/udp"
+      - "${RUSTDESK_WEB_PORT:-21218}:21118"
+      - "${RUSTDESK_API_PORT:-21219}:21119"
     volumes:
       - rustdesk_data:/root
     networks:
       - ${NETWORK_NAME:-appliance_network}
-    # Removed healthcheck - RustDesk container has no shell or common tools
 
   # RustDesk Relay Server
   rustdesk-relay:
@@ -289,93 +225,36 @@ services:
     command: hbbr
     restart: always
     ports:
-      - "${RUSTDESK_RELAY_PORT:-21217}:21117"  # Relay Server (21217 extern -> 21117 intern)
-      - "${RUSTDESK_WEBSOCKET_PORT:-21220}:21120"  # Websocket (21220 extern -> 21120 intern)
+      - "${RUSTDESK_RELAY_PORT:-21217}:21117"
+      - "${RUSTDESK_WEBSOCKET_PORT:-21220}:21120"
     volumes:
       - rustdesk_data:/root
     networks:
       - ${NETWORK_NAME:-appliance_network}
-    # Removed healthcheck - RustDesk container has no shell or common tools
 
-
-
-# ====================================================================
-# VOLUMES
-# ====================================================================
+# Volumes
 volumes:
-  # Main application data
   db_data:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=database"
-      - "project=web-appliance-dashboard"
-      
   ssh_keys:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=ssh-keys"
-      - "project=web-appliance-dashboard"
-      
   uploads:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=uploads"
-      - "project=web-appliance-dashboard"
-      
   terminal_sessions:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-false}"
-      - "purpose=terminal-sessions"
-      - "project=web-appliance-dashboard"
-
-  # Guacamole volumes
   guacamole_db:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=guacamole-database"
-      - "project=web-appliance-dashboard"
-      
   guacamole_drive:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-false}"
-      - "purpose=guacamole-file-transfer"
-      - "project=web-appliance-dashboard"
-      
   guacamole_record:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-false}"
-      - "purpose=guacamole-session-recording"
-      - "project=web-appliance-dashboard"
-      
   guacamole_home:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=guacamole-configuration"
-      - "project=web-appliance-dashboard"
-
-  # RustDesk volumes
   rustdesk_data:
     driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=rustdesk-data"
-      - "project=web-appliance-dashboard"
 
-# ====================================================================
-# NETWORKS
-# ====================================================================
+# Networks
 networks:
   appliance_network:
     name: ${NETWORK_NAME:-appliance_network}
     driver: bridge
-    labels:
-      - "project=web-appliance-dashboard"
-      - "environment=${NODE_ENV:-production}"

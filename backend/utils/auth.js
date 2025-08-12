@@ -10,15 +10,20 @@ const JWT_SECRET =
 // Middleware für Token-Verifikation
 const verifyToken = async (req, res, next) => {
   console.log('[VERIFY_TOKEN] Called for:', req.method, req.url);
-  console.log('[VERIFY_TOKEN] Headers:', req.headers.authorization);
+  console.log('[VERIFY_TOKEN] Headers authorization:', req.headers.authorization);
+  console.log('[VERIFY_TOKEN] Full headers:', Object.keys(req.headers));
   console.log('[VERIFY_TOKEN] Query:', req.query);
   
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    const token = authHeader?.split(' ')[1];
 
     if (!token) {
+      console.log('[VERIFY_TOKEN] No token found in request');
       return res.status(401).json({ error: 'No token provided' });
     }
+
+    console.log('[VERIFY_TOKEN] Token found, verifying...');
 
     // Verify JWT token
     const decoded = jwt.verify(token, JWT_SECRET);

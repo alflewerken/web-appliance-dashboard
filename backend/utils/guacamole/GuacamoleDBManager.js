@@ -4,13 +4,20 @@ const crypto = require('crypto');
 class GuacamoleDBManager {
   constructor() {
     // Verbindung zur Guacamole PostgreSQL Datenbank
-    this.pool = new Pool({
+    const config = {
       host: process.env.GUACAMOLE_DB_HOST || 'appliance_guacamole_db',
       port: 5432,
       database: process.env.GUACAMOLE_DB_NAME || 'guacamole_db',
       user: process.env.GUACAMOLE_DB_USER || 'guacamole_user',
       password: process.env.GUACAMOLE_DB_PASSWORD || 'guacamole_pass123'
+    };
+    
+    console.log('[GuacamoleDBManager] Connecting with config:', {
+      ...config,
+      password: '***' // Hide password in logs
     });
+    
+    this.pool = new Pool(config);
   }
 
   /**

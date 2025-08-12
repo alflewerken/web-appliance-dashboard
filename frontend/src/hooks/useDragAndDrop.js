@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { BackupService } from '../services/backupService';
+import RestoreKeyDialog from '../components/RestoreKeyDialog';
+import React from 'react';
+import ReactDOM from 'react-dom';
 
 export const useDragAndDrop = (
   showSettingsModal,
@@ -14,6 +17,68 @@ export const useDragAndDrop = (
   setSelectedServiceForPanel,
   setShowServicePanel
 ) => {
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
+
+  // Funktion zum Wiederherstellen mit Schlüssel
+  const handleRestoreWithKey = async (decryptionKey) => {
+    if (pendingRestoreFile) {
+      try {
+        const result = await BackupService.restoreBackup(pendingRestoreFile, decryptionKey);
+        if (result.success) {
+          if (result.reloadRequired) {
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          }
+        } else {
+          alert('Fehler beim Wiederherstellen: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Error during restore:', error);
+        alert('Fehler beim Wiederherstellen: ' + error.message);
+      }
+      setPendingRestoreFile(null);
+    }
+    setShowRestoreDialog(false);
+  };
+
+  // Render den Dialog wenn nötig
+  React.useEffect(() => {
+    if (showRestoreDialog && pendingRestoreFile) {
+      const dialogContainer = document.createElement('div');
+      dialogContainer.id = 'restore-dialog-container';
+      document.body.appendChild(dialogContainer);
+      
+      ReactDOM.render(
+        <RestoreKeyDialog
+          open={showRestoreDialog}
+          onClose={() => {
+            setShowRestoreDialog(false);
+            setPendingRestoreFile(null);
+            ReactDOM.unmountComponentAtNode(dialogContainer);
+            document.body.removeChild(dialogContainer);
+          }}
+          onRestore={(key) => {
+            handleRestoreWithKey(key);
+            ReactDOM.unmountComponentAtNode(dialogContainer);
+            document.body.removeChild(dialogContainer);
+          }}
+          fileName={pendingRestoreFile?.name || 'backup.json'}
+        />,
+        dialogContainer
+      );
+      
+      return () => {
+        const container = document.getElementById('restore-dialog-container');
+        if (container) {
+          ReactDOM.unmountComponentAtNode(container);
+          document.body.removeChild(container);
+        }
+      };
+    }
+  }, [showRestoreDialog, pendingRestoreFile]);
+
   // Hilfsfunktion zur Bestimmung der Kategorie für neue Services
   const getValidCategoryForNewService = () => {
     const staticCategories = ['all', 'favorites', 'recent'];
@@ -123,39 +188,46 @@ export const useDragAndDrop = (
   };
 
   const processBackupFile = async file => {
-    try {
-      const result = await BackupService.restoreFromFile(file);
-
-      if (result.success) {
-        if (result.reloadRequired) {
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-        }
-      } else {
-        console.warn('Failed to move appliance - no result returned');
-      }
-    } catch (error) {
-      console.error('Error during drag and drop:', error);
-    }
+    // Zeige den Schlüssel-Dialog
+    setPendingRestoreFile(file);
+    setShowRestoreDialog(true);
   };
 
   const handleDragEnter = e => {
+    // Wenn wir im Backup-Tab sind, Event durchlassen
+    if (showSettingsModal && activeSettingsTab === 'backup') {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
   };
 
   const handleDragOver = e => {
+    // Wenn wir im Backup-Tab sind, Event durchlassen
+    if (showSettingsModal && activeSettingsTab === 'backup') {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
   };
 
   const handleDragLeave = e => {
+    // Wenn wir im Backup-Tab sind, Event durchlassen
+    if (showSettingsModal && activeSettingsTab === 'backup') {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
   };
 
   const handleDrop = async e => {
+    // Wenn wir im Backup-Tab sind, Event durchlassen für den lokalen Handler
+    if (showSettingsModal && activeSettingsTab === 'backup') {
+      // Nicht preventDefault/stopPropagation aufrufen!
+      // Der BackupTab Component handled das selbst
+      return;
+    }
+    
     e.preventDefault();
     e.stopPropagation();
 
@@ -165,17 +237,7 @@ export const useDragAndDrop = (
         const file = e.dataTransfer.files[0];
 
         // Verarbeitung basierend auf UI-Zustand
-        if (showSettingsModal && activeSettingsTab === 'backup') {
-          // Im Backup-Tab: Nur JSON-Dateien akzeptieren
-          if (
-            file.name.toLowerCase().endsWith('.json') ||
-            file.type === 'application/json'
-          ) {
-            await processBackupFile(file);
-          } else {
-          }
-          return;
-        } else if (showSettingsModal && activeSettingsTab === 'background') {
+        if (showSettingsModal && activeSettingsTab === 'background') {
           // Im Background-Tab: Nur Bilder akzeptieren
           if (file.type.startsWith('image/')) {
             try {
@@ -193,14 +255,8 @@ export const useDragAndDrop = (
             file.name.toLowerCase().endsWith('.json') ||
             file.type === 'application/json'
           ) {
-            const switchToBackup = window.confirm(
-              '📄 JSON-Backup-Datei erkannt!\n\n' +
-                'Möchten Sie zum Backup-Tab wechseln und die Datei wiederherstellen?'
-            );
-            if (switchToBackup) {
-              setActiveSettingsTab('backup');
-              setTimeout(() => processBackupFile(file), 300);
-            }
+            // Direkt den Schlüssel-Dialog zeigen
+            processBackupFile(file);
           } else if (file.type.startsWith('image/')) {
             const switchToBackground = window.confirm(
               '🖼️ Bilddatei erkannt!\n\n' +
@@ -253,20 +309,8 @@ export const useDragAndDrop = (
             file.name.toLowerCase().endsWith('.json') ||
             file.type === 'application/json'
           ) {
-            const openSettings = window.confirm(
-              '📄 JSON-Backup-Datei erkannt!\n\n' +
-                'Möchten Sie die Einstellungen öffnen und das Backup wiederherstellen?\n\n' +
-                '✅ JA - Einstellungen öffnen\n' +
-                '❌ NEIN - Direkt wiederherstellen'
-            );
-
-            if (openSettings) {
-              setShowSettingsModal(true);
-              setActiveSettingsTab('backup');
-              setTimeout(() => processBackupFile(file), 500);
-            } else {
-              await processBackupFile(file);
-            }
+            // Direkt den Schlüssel-Dialog zeigen
+            processBackupFile(file);
             return;
           } else {
             return;

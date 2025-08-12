@@ -98,6 +98,31 @@ function formatBytes(bytes) {
 // Backup endpoint - Export all data INCLUDING settings and background images
 router.get('/backup', verifyToken, async (req, res) => {
   try {
+    // Get encryption key from environment
+    const encryptionKey = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET || 'default-insecure-key-change-this-in-production!!';
+    
+    // Function to encrypt password for backup
+    const encryptPassword = (plainPassword) => {
+      if (!plainPassword) return null;
+      
+      try {
+        const crypto = require('crypto');
+        const algorithm = 'aes-256-cbc';
+        
+        // Create cipher using the encryption key
+        const key = crypto.createHash('sha256').update(String(encryptionKey)).digest();
+        const iv = Buffer.alloc(16, 0); // Fixed IV for simplicity (in production, use random IV)
+        
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
+        let encrypted = cipher.update(plainPassword, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        
+        return encrypted;
+      } catch (error) {
+        console.error('Failed to encrypt password:', error.message);
+        return plainPassword; // Return plain password if encryption fails
+      }
+    };
     // Fetch all appliances
     const appliances = await db.select('appliances', {}, { orderBy: 'createdAt' });
 
@@ -163,8 +188,15 @@ router.get('/backup', verifyToken, async (req, res) => {
     // Fetch hosts table (SSH Terminal hosts)
     let hosts = [];
     try {
-      hosts = await db.select('hosts', {}, { orderBy: 'createdAt' });
-      console.log(`✅ Fetched ${hosts.length} terminal hosts`);
+      const rawHosts = await db.select('hosts', {}, { orderBy: 'createdAt' });
+      // Encrypt passwords in hosts
+      hosts = rawHosts.map(host => ({
+        ...host,
+        password: encryptPassword(host.password),
+        remotePassword: encryptPassword(host.remotePassword),
+        rustdeskPassword: encryptPassword(host.rustdeskPassword)
+      }));
+      console.log(`✅ Fetched ${hosts.length} terminal hosts (passwords encrypted)`);
     } catch (error) {
       console.error('Error fetching hosts for backup:', error.message);
     }
@@ -172,8 +204,15 @@ router.get('/backup', verifyToken, async (req, res) => {
     // Fetch services table
     let services = [];
     try {
-      services = await db.select('services', {}, { orderBy: 'createdAt' });
-      console.log(`✅ Fetched ${services.length} proxy services`);
+      const rawServices = await db.select('services', {}, { orderBy: 'createdAt' });
+      // Encrypt passwords in services
+      services = rawServices.map(service => ({
+        ...service,
+        sshPassword: encryptPassword(service.sshPassword),
+        vncPassword: encryptPassword(service.vncPassword),
+        rdpPassword: encryptPassword(service.rdpPassword)
+      }));
+      console.log(`✅ Fetched ${services.length} proxy services (passwords encrypted)`);
     } catch (error) {
       console.error('Error fetching services for backup:', error.message);
     }
@@ -663,14 +702,14 @@ router.get('/backup', verifyToken, async (req, res) => {
       resource_type: 'backup',
       resource_id: null,
     });
-
-    // Get encryption key from environment
-    const encryptionKey = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET || 'default-insecure-key-change-this-in-production!!';
     
     // Add encryption key to response (but not to the backup file)
+    // We use a special format that includes timestamp
+    const backupEncryptionKey = `enc_backup_${new Date().toISOString().split('T')[0]}_${encryptionKey.substring(0, 32)}`;
+    
     const responseData = {
       ...backupData,
-      encryption_key: encryptionKey
+      encryption_key: backupEncryptionKey
     };
 
     // Log backup size information
@@ -700,10 +739,13 @@ router.get('/backup', verifyToken, async (req, res) => {
 router.post('/restore', verifyToken, async (req, res) => {
   try {
     const backupData = req.body;
+    const decryptionKey = backupData.decryption_key || null;
+    delete backupData.decryption_key; // Remove from backup data
 
     console.log('Starting enhanced restore process...');
     console.log('Backup version:', backupData.version);
     console.log('Backup created:', backupData.created_at);
+    console.log('Decryption key provided:', !!decryptionKey);
 
     // Validate backup structure
     if (!backupData.data || !Array.isArray(backupData.data.appliances)) {
@@ -721,6 +763,31 @@ router.post('/restore', verifyToken, async (req, res) => {
         '⚠️ Detected older backup version. Using compatibility mode.'
       );
     }
+
+    // Function to decrypt password if key is provided
+    const decryptPassword = (encryptedPassword) => {
+      if (!decryptionKey || !encryptedPassword) {
+        return null;
+      }
+      
+      try {
+        const crypto = require('crypto');
+        const algorithm = 'aes-256-cbc';
+        
+        // Create decipher using the provided key
+        const key = crypto.createHash('sha256').update(String(decryptionKey)).digest();
+        const iv = Buffer.alloc(16, 0); // Same IV as used in encryption
+        
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decrypted = decipher.update(encryptedPassword, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        return decrypted;
+      } catch (error) {
+        console.error('Failed to decrypt password:', error.message);
+        return null;
+      }
+    };
 
     // Destructure with support for both old and new table names
     const {
@@ -1305,7 +1372,7 @@ router.post('/restore', verifyToken, async (req, res) => {
               port: host.port || 22,
               username: host.username,
               icon: host.icon || 'Server',
-              password: host.password || null,
+              password: decryptPassword(host.password) || host.password || null,
               privateKey: host.private_key || host.privateKey || null,
               color: host.color || '#007AFF',
               transparency: host.transparency !== undefined ? host.transparency : 0.10,
@@ -1320,10 +1387,10 @@ router.post('/restore', verifyToken, async (req, res) => {
               remoteProtocol: host.remote_protocol || host.remoteProtocol || null,
               remotePort: host.remote_port || host.remotePort || null,
               remoteUsername: host.remote_username || host.remoteUsername || null,
-              remotePassword: host.remote_password || host.remotePassword || null,
+              remotePassword: decryptPassword(host.remote_password || host.remotePassword) || host.remote_password || host.remotePassword || null,
               guacamolePerformanceMode: host.guacamolePerformanceMode || 'balanced',
               rustdeskId: host.rustdesk_id || host.rustdeskId || null,
-              rustdeskPassword: host.rustdeskPassword || null,
+              rustdeskPassword: decryptPassword(host.rustdeskPassword) || host.rustdeskPassword || null,
               isActive: host.is_active !== undefined ? host.is_active : (host.isActive !== false)
             };
 
@@ -1371,13 +1438,13 @@ router.post('/restore', verifyToken, async (req, res) => {
               sshHost: service.ssh_host || service.sshHost || null,
               sshPort: service.ssh_port || service.sshPort || 22,
               sshUsername: service.ssh_username || service.sshUsername || null,
-              sshPassword: service.ssh_password || service.sshPassword || null,
+              sshPassword: decryptPassword(service.ssh_password || service.sshPassword) || service.ssh_password || service.sshPassword || null,
               sshPrivateKey: service.ssh_private_key || service.sshPrivateKey || null,
               vncPort: service.vnc_port || service.vncPort || 5900,
-              vncPassword: service.vnc_password || service.vncPassword || null,
+              vncPassword: decryptPassword(service.vnc_password || service.vncPassword) || service.vnc_password || service.vncPassword || null,
               rdpPort: service.rdp_port || service.rdpPort || 3389,
               rdpUsername: service.rdp_username || service.rdpUsername || null,
-              rdpPassword: service.rdp_password || service.rdpPassword || null,
+              rdpPassword: decryptPassword(service.rdp_password || service.rdpPassword) || service.rdp_password || service.rdpPassword || null,
               createdAt: service.created_at || service.createdAt || new Date(),
               updatedAt: service.updated_at || service.updatedAt || new Date()
             };

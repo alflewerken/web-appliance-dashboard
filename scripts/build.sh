@@ -103,11 +103,11 @@ fix_env_file() {
 apply_simple_fixes() {
     print_status "info" "Applying simple environment fixes..."
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        sed -i '' 's/YOUR_GUACAMOLE_DB_PASSWORD_HERE/guacamole_pass123/g' .env 2>/dev/null || true
-        sed -i '' 's/YOUR_DB_PASSWORD_HERE/dashboard_pass123/g' .env 2>/dev/null || true
-        sed -i '' 's/YOUR_MYSQL_ROOT_PASSWORD_HERE/rootpass123/g' .env 2>/dev/null || true
-        sed -i '' 's/YOUR_MYSQL_USER_PASSWORD_HERE/dashboard_pass123/g' .env 2>/dev/null || true
+        # macOS - need to use sed -i'' (no space) or sed -i '.bak'
+        sed -i'' -e 's/YOUR_GUACAMOLE_DB_PASSWORD_HERE/guacamole_pass123/' .env 2>/dev/null || true
+        sed -i'' -e 's/YOUR_DB_PASSWORD_HERE/dashboard_pass123/' .env 2>/dev/null || true
+        sed -i'' -e 's/YOUR_MYSQL_ROOT_PASSWORD_HERE/rootpass123/' .env 2>/dev/null || true
+        sed -i'' -e 's/YOUR_MYSQL_USER_PASSWORD_HERE/dashboard_pass123/' .env 2>/dev/null || true
     else
         # Linux
         sed -i 's/YOUR_GUACAMOLE_DB_PASSWORD_HERE/guacamole_pass123/g' .env 2>/dev/null || true
@@ -134,38 +134,118 @@ fix_external_url_and_cors() {
         PRIMARY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.0.1 | head -1)
     fi
     
-    # Build EXTERNAL_URL - default to localhost if no IP found
-    if [ -n "$PRIMARY_IP" ]; then
+    # Check if we already have a configured domain in .env
+    CONFIGURED_DOMAIN=""
+    if [ -f .env ]; then
+        CONFIGURED_DOMAIN=$(grep "^CONFIGURED_DOMAIN=" .env | cut -d= -f2- || echo "")
+    fi
+    
+    # Ask for domain if not configured or if refresh explicitly requested
+    if [ -z "$CONFIGURED_DOMAIN" ] || [ "$ASK_DOMAIN" = true ]; then
+        echo ""
+        print_status "info" "🌐 Configure Access Domain"
+        echo "========================"
+        echo "The dashboard needs to know how it will be accessed."
+        echo "This is important for CORS configuration and reverse proxy setups."
+        echo ""
+        echo "Detected system information (for reference):"
+        echo "  Hostname: $HOSTNAME"
+        if [ -n "$PRIMARY_IP" ]; then
+            echo "  Primary IP: $PRIMARY_IP"
+        fi
+        echo ""
+        echo "Enter the domain or IP address where this dashboard will be accessed."
+        echo "For production behind a reverse proxy, use your actual domain."
+        echo ""
+        echo "Examples:"
+        echo "  - Production with domain: dashboard.example.com"
+        echo "  - Production with subdomain: appliances.company.internal"
+        echo "  - Local development: localhost"
+        echo "  - LAN access by IP: 192.168.1.100"
+        echo "  - Multiple access points: app.company.com,192.168.1.100"
+        echo ""
+        
+        # Read user input
+        if [ -t 0 ]; then
+            # Interactive mode
+            read -p "Enter domain/hostname [press Enter for localhost]: " USER_DOMAIN
+        else
+            # Non-interactive mode
+            print_status "warning" "Non-interactive mode detected. Using localhost."
+            USER_DOMAIN=""
+        fi
+        
+        # Process user input
+        if [ -z "$USER_DOMAIN" ]; then
+            # User pressed Enter - use only localhost
+            CONFIGURED_DOMAIN="localhost"
+        else
+            CONFIGURED_DOMAIN="$USER_DOMAIN"
+        fi
+        
+        # Save configured domain to .env
+        if grep -q "^CONFIGURED_DOMAIN=" .env 2>/dev/null; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i'' -e "s|^CONFIGURED_DOMAIN=.*|CONFIGURED_DOMAIN=${CONFIGURED_DOMAIN}|" .env
+            else
+                sed -i "s|^CONFIGURED_DOMAIN=.*|CONFIGURED_DOMAIN=${CONFIGURED_DOMAIN}|" .env
+            fi
+        else
+            echo "CONFIGURED_DOMAIN=${CONFIGURED_DOMAIN}" >> .env
+        fi
+        
+        print_status "success" "Domain configured: ${CONFIGURED_DOMAIN}"
+    fi
+    
+    # Parse configured domains
+    IFS=',' read -ra DOMAINS <<< "$CONFIGURED_DOMAIN"
+    
+    # Always include localhost
+    if [[ ! " ${DOMAINS[@]} " =~ " localhost " ]]; then
+        DOMAINS+=("localhost")
+    fi
+    
+    # Determine primary domain for EXTERNAL_URL
+    PRIMARY_DOMAIN="${DOMAINS[0]}"
+    
+    # Build EXTERNAL_URL
+    if [ "$PRIMARY_DOMAIN" = "localhost" ] && [ -n "$PRIMARY_IP" ]; then
+        # If primary is localhost but we have an IP, use IP for better network access
         EXTERNAL_URL="http://${PRIMARY_IP}:9080"
-        print_status "info" "Detected IP: $PRIMARY_IP"
     else
-        EXTERNAL_URL="http://localhost:9080"
-        print_status "warning" "Could not detect IP, using localhost"
+        EXTERNAL_URL="http://${PRIMARY_DOMAIN}:9080"
     fi
     
     # Build CORS origins list
-    CORS_ORIGINS="http://localhost,https://localhost,http://localhost:9080,https://localhost:9443"
-    
-    # Add hostname variants
-    if [ -n "$HOSTNAME" ] && [ "$HOSTNAME" != "localhost" ]; then
-        CORS_ORIGINS="${CORS_ORIGINS},http://${HOSTNAME}:9080,https://${HOSTNAME}:9443"
-        if [ "$LOCAL_HOSTNAME" != "$HOSTNAME" ]; then
-            CORS_ORIGINS="${CORS_ORIGINS},http://${LOCAL_HOSTNAME}:9080,https://${LOCAL_HOSTNAME}:9443"
-            CORS_ORIGINS="${CORS_ORIGINS},http://${LOCAL_HOSTNAME}.local:9080,https://${LOCAL_HOSTNAME}.local:9443"
+    CORS_ORIGINS=""
+    for DOMAIN in "${DOMAINS[@]}"; do
+        if [ -n "$CORS_ORIGINS" ]; then
+            CORS_ORIGINS="${CORS_ORIGINS},"
         fi
-    fi
+        CORS_ORIGINS="${CORS_ORIGINS}http://${DOMAIN},https://${DOMAIN}"
+        
+        # Add with ports
+        CORS_ORIGINS="${CORS_ORIGINS},http://${DOMAIN}:9080,https://${DOMAIN}:9443"
+    done
     
-    # Add IP address
-    if [ -n "$PRIMARY_IP" ]; then
+    # Also add detected system info if not already included
+    if [ -n "$HOSTNAME" ] && [[ ! " ${DOMAINS[@]} " =~ " ${HOSTNAME} " ]]; then
+        CORS_ORIGINS="${CORS_ORIGINS},http://${HOSTNAME}:9080,https://${HOSTNAME}:9443"
+    fi
+    if [ -n "$LOCAL_HOSTNAME" ] && [[ ! " ${DOMAINS[@]} " =~ " ${LOCAL_HOSTNAME} " ]]; then
+        CORS_ORIGINS="${CORS_ORIGINS},http://${LOCAL_HOSTNAME}:9080,https://${LOCAL_HOSTNAME}:9443"
+        CORS_ORIGINS="${CORS_ORIGINS},http://${LOCAL_HOSTNAME}.local:9080,https://${LOCAL_HOSTNAME}.local:9443"
+    fi
+    if [ -n "$PRIMARY_IP" ] && [[ ! " ${DOMAINS[@]} " =~ " ${PRIMARY_IP} " ]]; then
         CORS_ORIGINS="${CORS_ORIGINS},http://${PRIMARY_IP}:9080,https://${PRIMARY_IP}:9443"
     fi
     
     # Update or add EXTERNAL_URL in .env
     if grep -q "^EXTERNAL_URL=" .env; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s|^EXTERNAL_URL=.*|EXTERNAL_URL=${EXTERNAL_URL}|" .env
+            sed -i'' -e "s|^EXTERNAL_URL=.*|EXTERNAL_URL=${EXTERNAL_URL}|" .env
         else
-            sed -i "s|^EXTERNAL_URL=.*|EXTERNAL_URL=${EXTERNAL_URL}|g" .env
+            sed -i "s|^EXTERNAL_URL=.*|EXTERNAL_URL=${EXTERNAL_URL}|" .env
         fi
     else
         echo "EXTERNAL_URL=${EXTERNAL_URL}" >> .env
@@ -174,9 +254,9 @@ fix_external_url_and_cors() {
     # Update or add ALLOWED_ORIGINS in .env
     if grep -q "^ALLOWED_ORIGINS=" .env; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${CORS_ORIGINS}|" .env
+            sed -i'' -e "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${CORS_ORIGINS}|" .env
         else
-            sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${CORS_ORIGINS}|g" .env
+            sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${CORS_ORIGINS}|" .env
         fi
     else
         echo "ALLOWED_ORIGINS=${CORS_ORIGINS}" >> .env
@@ -185,14 +265,14 @@ fix_external_url_and_cors() {
     # Also update CORS_ORIGIN for compatibility
     if grep -q "^CORS_ORIGIN=" .env; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s|^CORS_ORIGIN=.*|CORS_ORIGIN=${CORS_ORIGINS}|" .env
+            sed -i'' -e "s|^CORS_ORIGIN=.*|CORS_ORIGIN=${CORS_ORIGINS}|" .env
         else
-            sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=${CORS_ORIGINS}|g" .env
+            sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=${CORS_ORIGINS}|" .env
         fi
     fi
     
     print_status "success" "EXTERNAL_URL set to: ${EXTERNAL_URL}"
-    print_status "success" "CORS configured for: localhost, ${HOSTNAME}, ${PRIMARY_IP}"
+    print_status "success" "CORS configured for: ${CONFIGURED_DOMAIN}"
 }
 
 # Function to ensure critical variables exist
@@ -202,7 +282,7 @@ ensure_critical_variables() {
     # Check for critical variables and generate if missing
     if ! grep -q "^DB_PASSWORD=" .env || grep -q "^DB_PASSWORD=YOUR_" .env; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' 's/^DB_PASSWORD=.*/DB_PASSWORD=dashboard_pass123/g' .env 2>/dev/null || echo "DB_PASSWORD=dashboard_pass123" >> .env
+            sed -i'' -e 's/^DB_PASSWORD=.*/DB_PASSWORD=dashboard_pass123/' .env 2>/dev/null || echo "DB_PASSWORD=dashboard_pass123" >> .env
         else
             sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=dashboard_pass123/g' .env 2>/dev/null || echo "DB_PASSWORD=dashboard_pass123" >> .env
         fi
@@ -212,7 +292,7 @@ ensure_critical_variables() {
     if ! grep -q "^JWT_SECRET=" .env || grep -q "^JWT_SECRET=YOUR_" .env; then
         JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo 'default-jwt-secret-change-in-production')
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/g" .env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> .env
+            sed -i'' -e "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> .env
         else
             sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/g" .env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> .env
         fi
@@ -222,7 +302,7 @@ ensure_critical_variables() {
     if ! grep -q "^SSH_KEY_ENCRYPTION_SECRET=" .env || grep -q "^SSH_KEY_ENCRYPTION_SECRET=YOUR_" .env; then
         SSH_SECRET=$(openssl rand -hex 32 2>/dev/null || echo 'default-ssh-secret-change-in-production')
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/^SSH_KEY_ENCRYPTION_SECRET=.*/SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET/g" .env 2>/dev/null || echo "SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET" >> .env
+            sed -i'' -e "s/^SSH_KEY_ENCRYPTION_SECRET=.*/SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET/" .env 2>/dev/null || echo "SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET" >> .env
         else
             sed -i "s/^SSH_KEY_ENCRYPTION_SECRET=.*/SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET/g" .env 2>/dev/null || echo "SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET" >> .env
         fi
@@ -475,12 +555,14 @@ show_help() {
     echo "  --help                Show this help message"
     echo "  --refresh             Quick restart of frontend and backend"
     echo "  --cold-start          Full system start with all checks (default)"
+    echo "  --configure-domain    Reconfigure domain/hostname for CORS"
     echo "  --no-remote-desktop   Disable Remote Desktop (Guacamole)"
     echo "  --nocache             Clear all caches before building"
     echo ""
     echo "EXAMPLES:"
     echo "  $0                    # Full start with all checks"
     echo "  $0 --refresh          # Quick restart for development"
+    echo "  $0 --configure-domain # Change domain configuration"
     echo "  $0 --nocache          # Full rebuild with cache clearing"
     echo ""
     echo "AFTER CLONE/RESTART:"
@@ -494,6 +576,7 @@ show_help() {
 ENABLE_REMOTE_DESKTOP=true
 CLEAR_CACHE=false
 REFRESH_MODE=false
+ASK_DOMAIN=false
 
 for arg in "$@"; do
     case $arg in
@@ -511,6 +594,9 @@ for arg in "$@"; do
             ;;
         --cold-start)
             # This is now default behavior
+            ;;
+        --configure-domain)
+            ASK_DOMAIN=true
             ;;
         *)
             print_status "warning" "Unknown option: $arg"

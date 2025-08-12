@@ -300,14 +300,24 @@ GUACAMOLE_DB_NAME=guacamole_db
 GUACAMOLE_DB_USER=guacamole_user
 GUACAMOLE_DB_PASSWORD=guacamole_pass123
 
-# Container Names - WICHTIG: Diese müssen mit den Service-Namen übereinstimmen!
-DB_CONTAINER_NAME=database
-BACKEND_CONTAINER_NAME=backend
-WEBSERVER_CONTAINER_NAME=webserver
-TTYD_CONTAINER_NAME=ttyd
-GUACAMOLE_CONTAINER_NAME=guacamole
-GUACAMOLE_DB_CONTAINER_NAME=guacamole_db
-GUACD_CONTAINER_NAME=guacd
+# RustDesk Configuration
+RUSTDESK_ID_PORT=21216
+RUSTDESK_WEB_PORT=21218
+RUSTDESK_API_PORT=21219
+RUSTDESK_RELAY_PORT=21217
+RUSTDESK_WEBSOCKET_PORT=21220
+
+# Container Names - Mit appliance_ Prefix wie in der Entwicklungsumgebung
+DB_CONTAINER_NAME=appliance_db
+BACKEND_CONTAINER_NAME=appliance_backend
+WEBSERVER_CONTAINER_NAME=appliance_webserver
+TTYD_CONTAINER_NAME=appliance_ttyd
+GUACAMOLE_CONTAINER_NAME=appliance_guacamole
+GUACAMOLE_DB_CONTAINER_NAME=appliance_guacamole_db
+GUACD_CONTAINER_NAME=appliance_guacd
+# RustDesk behält die eigenen Namen ohne Prefix
+RUSTDESK_SERVER_CONTAINER=rustdesk-server
+RUSTDESK_RELAY_CONTAINER=rustdesk-relay
 
 # Network
 NETWORK_NAME=appliance_network
@@ -323,156 +333,14 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     echo "⚠️  Could not generate SSL certificates, using HTTP only"
 }
 
-# Create docker-compose.yml with correct service names
-echo "📝 Creating docker-compose configuration..."
-cat > docker-compose.yml << 'EOF'
-services:
-  # Database - Service name MUST be 'database' for backend to find it
-  database:
-    image: mariadb:10.11
-    container_name: database
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./init-db:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "${DB_EXTERNAL_PORT:-3306}:3306"
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Backend API - Service name MUST be 'backend' for nginx to find it
-  backend:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
-    container_name: backend
-    restart: always
-    depends_on:
-      database:
-        condition: service_healthy
-    environment:
-      DB_HOST: database
-      DB_PORT: 3306
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      JWT_SECRET: ${JWT_SECRET}
-      SESSION_SECRET: ${SESSION_SECRET}
-      SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
-      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-      NODE_ENV: production
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${HOME}/.ssh:/root/.ssh
-    ports:
-      - "${BACKEND_PORT:-3001}:3001"
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-
-  # Frontend - wird von nginx nicht verwendet (nginx hat frontend eingebaut)
-  frontend:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
-    container_name: frontend
-    restart: always
-    depends_on:
-      - backend
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      - REACT_APP_API_URL=http://backend:3001
-
-  # Nginx webserver - Service name MUST be 'webserver'
-  webserver:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
-    container_name: webserver
-    restart: always
-    depends_on:
-      - backend
-      - frontend
-    ports:
-      - "${HTTP_PORT:-9080}:80"
-      - "${HTTPS_PORT:-9443}:443"
-    volumes:
-      - ./ssl:/etc/nginx/ssl:ro
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      BACKEND_URL: http://backend:3001
-      EXTERNAL_URL: ${EXTERNAL_URL:-http://localhost:9080}
-
-  # Terminal - Service name MUST be 'ttyd' for nginx to find it
-  ttyd:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
-    container_name: ttyd
-    restart: always
-    ports:
-      - "7681:7681"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${HOME}/.ssh:/root/.ssh:ro
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      - TTYD_USERNAME=${TTYD_USERNAME:-admin}
-      - TTYD_PASSWORD=${TTYD_PASSWORD:-admin}
-
-  # Guacamole components - Service names are critical!
-  guacd:
-    image: guacamole/guacd:latest
-    container_name: guacd
-    restart: always
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      GUACD_LOG_LEVEL: info
-
-  guacamole_db:
-    image: postgres:13
-    container_name: guacamole_db
-    restart: always
-    environment:
-      POSTGRES_DB: ${GUACAMOLE_DB_NAME:-guacamole_db}
-      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
-      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
-    volumes:
-      - guacamole_db_data:/var/lib/postgresql/data
-      - ./guacamole:/docker-entrypoint-initdb.d:ro
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-
-  guacamole:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
-    container_name: guacamole
-    restart: always
-    depends_on:
-      - guacd
-      - guacamole_db
-    environment:
-      GUACD_HOSTNAME: guacd
-      POSTGRESQL_HOSTNAME: guacamole_db
-      POSTGRESQL_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
-      POSTGRESQL_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
-      POSTGRESQL_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-
-volumes:
-  db_data:
-  guacamole_db_data:
-
-networks:
-  appliance_network:
-    driver: bridge
-EOF
+# Download docker-compose.yml from repository
+echo "📝 Downloading docker-compose configuration..."
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.production.yml \
+    -o docker-compose.yml 2>/dev/null || {
+    echo "❌ Failed to download docker-compose.yml"
+    exit 1
+}
+echo "✅ Docker compose configuration downloaded"
 
 # Pull images with progress indication
 echo "🐳 Downloading Docker images (this may take a few minutes)..."
@@ -480,14 +348,15 @@ echo "=================================================="
 
 # Define all images that need to be pulled
 IMAGES=(
-    "mariadb:10.11"
+    "mariadb:latest"
     "ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"
     "ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest"
     "ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest"
     "ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest"
     "ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest"
-    "guacamole/guacd:latest"
-    "postgres:13"
+    "guacamole/guacd:1.5.5"
+    "postgres:15-alpine"
+    "rustdesk/rustdesk-server:latest"
 )
 
 # Pull each image with status

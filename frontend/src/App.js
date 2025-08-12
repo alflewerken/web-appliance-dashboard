@@ -1149,10 +1149,10 @@ function Dashboard() {
   return (
     <div
       className={`music-app ${isMiniDashboard ? 'mini-dashboard' : ''} ${isMobile ? 'mobile-layout' : ''} ${isMobile && sidebarOpen ? 'sidebar-active' : ''} ${currentBackground && backgroundSettings.enabled ? 'has-background-image' : ''} ${showServicePanel ? 'has-service-panel' : ''} ${showUserManagement ? 'has-user-panel' : ''} ${showSettingsModal ? 'has-settings-panel' : ''} ${showAuditLog ? 'has-audit-log-panel' : ''} ${showHostPanel ? 'has-host-panel' : ''} ${!isMobile && desktopSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDragEnter={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragEnter}
+      onDragOver={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragOver}
+      onDragLeave={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragLeave}
+      onDrop={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDrop}
       data-panels={`${showHostPanel ? 'host ' : ''}${showAuditLog ? 'audit ' : ''}${showServicePanel ? 'service ' : ''}${showUserManagement ? 'user ' : ''}${showSettingsModal ? 'settings' : ''}`}
       style={{
         '--background-blur': `${backgroundSettings.blur}px`,
