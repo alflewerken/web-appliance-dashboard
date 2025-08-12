@@ -100,25 +100,25 @@ update_production() {
     # Copy and modify
     cp "$DEV_COMPOSE" "$PROD_COMPOSE"
     
+    # Use GNU sed without the empty string parameter
     # Replace build contexts with images
-    sed -i '' 's|build:$|image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest|' "$PROD_COMPOSE"
-    sed -i '' 's|build: ./backend|image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest|' "$PROD_COMPOSE"
-    sed -i '' 's|build: ./nginx|image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest|' "$PROD_COMPOSE"
-    sed -i '' 's|build: ./ttyd|image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest|' "$PROD_COMPOSE"
-    sed -i '' 's|build: ./guacamole|image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest|' "$PROD_COMPOSE"
+    sed -i 's|build: ./backend|image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest|g' "$PROD_COMPOSE"
+    sed -i 's|build: ./nginx|image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest|g' "$PROD_COMPOSE"
+    sed -i 's|build: ./ttyd|image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest|g' "$PROD_COMPOSE"
+    sed -i 's|build: ./guacamole|image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest|g' "$PROD_COMPOSE"
     
     # Remove build context blocks (multi-line)
-    sed -i '' '/^    build:$/,/^    [a-z]/{ /^    build:$/d; /^      context:/d; /^      dockerfile:/d; }' "$PROD_COMPOSE"
+    sed -i '/^    build:$/,/^    [a-z]/{ /^    build:$/d; /^      context:/d; /^      dockerfile:/d; }' "$PROD_COMPOSE"
     
     # Remove development volumes
-    sed -i '' 's|- ./backend:/app||' "$PROD_COMPOSE"
-    sed -i '' 's|- /app/node_modules||' "$PROD_COMPOSE"
-    sed -i '' 's|- ./frontend/build:/usr/share/nginx/html:ro||' "$PROD_COMPOSE"
-    sed -i '' 's|- ./nginx/conf.d:/etc/nginx/conf.d:ro||' "$PROD_COMPOSE"
-    sed -i '' 's|- ./scripts:/scripts:ro||' "$PROD_COMPOSE"
+    sed -i 's|- ./backend:/app||g' "$PROD_COMPOSE"
+    sed -i 's|- /app/node_modules||g' "$PROD_COMPOSE"
+    sed -i 's|- ./frontend/build:/usr/share/nginx/html:ro||g' "$PROD_COMPOSE"
+    sed -i 's|- ./nginx/conf.d:/etc/nginx/conf.d:ro||g' "$PROD_COMPOSE"
+    sed -i 's|- ./scripts:/scripts:ro||g' "$PROD_COMPOSE"
     
     # Clean up empty volume sections
-    sed -i '' '/^    volumes:$/{ N; s/volumes:\n    $/volumes:\n      - dummy:/dummy/; }' "$PROD_COMPOSE"
+    sed -i '/^    volumes:$/{ N; s/volumes:\n    $/volumes:\n      - dummy:\/dummy/; }' "$PROD_COMPOSE"
     
     echo "✅ Production template updated!"
     echo ""
