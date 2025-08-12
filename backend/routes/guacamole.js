@@ -183,7 +183,8 @@ router.post('/token/:applianceId', async (req, res) => {
           connectionName: connectionInfo.connectionName,
           connectionId: connectionId
         },
-        getClientIp(req)
+        getClientIp(req),
+        appliance.name  // Add resource name for display
       );
       
       console.log('Generated Guacamole URL with token:', {

@@ -762,7 +762,8 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
             remote_host: host.hostname,
             performance_mode: performanceMode
           },
-          getClientIp(req)
+          getClientIp(req),
+          host.name  // Add resource name for display
         );
         
         return res.json({

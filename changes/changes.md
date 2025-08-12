@@ -35320,3 +35320,651 @@ Beispiel: 2025-08-12 14:32:00
 STATUS: ⚠️ Dokumentiert zur Nachvollziehbarkeit
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 14:37:00 - Git Commit: Container-Namen Vereinheitlichung
+
+GIT COMMIT:
+Commit Hash: d8260eb
+Message: "Fix: Container-Namen Vereinheitlichung und Docker-Compose Synchronisation"
+
+ZUSAMMENFASSUNG DER ÄNDERUNGEN:
+- 33 Dateien geändert
+- 4954 Zeilen hinzugefügt
+- 433 Zeilen entfernt
+
+WICHTIGSTE ÄNDERUNGEN:
+✅ Container-Namen zwischen Dev und Production vereinheitlicht (appliance_ Prefix)
+✅ Neues Template-System für docker-compose.production.yml implementiert
+✅ Sync-Script (sync-compose.sh) für automatische Synchronisation erstellt
+✅ install.sh lädt jetzt docker-compose.production.yml statt inline Generation
+✅ Dokumentation in scripts/sync-compose.md hinzugefügt
+✅ Backup/Restore Dialog für verschlüsselte Backups verbessert
+✅ Guacamole und Host Remote Desktop Token Fehler behoben
+
+NEUE DATEIEN:
+- docker-compose.production.yml (Production Template)
+- scripts/sync-compose.sh (Synchronisations-Tool)
+- scripts/sync-compose.md (Dokumentation)
+- frontend/src/components/RestoreKeyDialog.js (Backup-Dialog)
+
+STATUS: ✅ Erfolgreich committed
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 14:40:00 - Convention: Git Commits nur in Englisch
+
+NEUE REGEL:
+Ab sofort werden alle Git Commit Messages ausschließlich in Englisch verfasst.
+
+BEGRÜNDUNG:
+- Internationale Zusammenarbeit
+- Bessere Lesbarkeit für Open Source
+- Konsistenz mit Code-Kommentaren
+- Standard in der Entwickler-Community
+
+COMMIT MESSAGE FORMAT:
+```
+<type>: <subject>
+
+<body>
+
+<footer>
+```
+
+TYPES:
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation changes
+- style: Code style changes
+- refactor: Code refactoring
+- test: Test changes
+- chore: Build process or auxiliary tool changes
+
+BEISPIEL:
+```
+fix: Unify container names between dev and production
+
+- Add appliance_ prefix to all container names
+- Keep RustDesk containers with standard names
+- Update install.sh to use consistent naming
+
+Fixes inconsistency issues in multi-environment deployments.
+```
+
+STATUS: ✅ Convention established
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 14:42:00 - Git Push: Changes pushed to remote repository
+
+GIT PUSH:
+Successfully pushed to origin/main
+
+DETAILS:
+- From: 0448e53
+- To: d8260eb
+- Branch: main -> main
+- Repository: https://github.com/alflewerken/web-appliance-dashboard.git
+
+PUSHED CHANGES:
+✅ Container name unification with appliance_ prefix
+✅ Docker-compose.production.yml template system
+✅ Sync script for docker-compose synchronization
+✅ Documentation for sync process
+✅ Backup/restore improvements
+✅ Remote desktop token fixes
+
+STATUS: ✅ Successfully pushed to GitHub
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 15:15:00 - Script für lokale Repository-Aktualisierung erstellt
+
+PROBLEM:
+Dependabot erstellt automatisch Pull Requests für Dependency-Updates auf GitHub.
+Das lokale Entwicklungs-Repository muss regelmäßig mit diesen Updates synchronisiert werden.
+
+LÖSUNG:
+Neues Update-Script erstellt, das den gesamten Update-Prozess automatisiert.
+
+NEUE DATEI:
+
+scripts/update-local.sh:
++#!/bin/bash
++
++# Update Local Development Repository
++# Dieses Script hält dein lokales Repository auf dem neuesten Stand
++
++set -e
++
++echo "🔄 Updating local repository..."
++echo "================================"
++
++# Farben für bessere Lesbarkeit
++RED='\033[0;31m'
++GREEN='\033[0;32m'
++YELLOW='\033[1;33m'
++BLUE='\033[0;34m'
++NC='\033[0m' # No Color
++
++# [... vollständiges Script mit 155 Zeilen ...]
++
++# Hauptfunktionen des Scripts:
++# 1. Prüft auf uncommitted changes und stasht diese bei Bedarf
++# 2. Fetcht und pulled die neuesten Änderungen von origin/main
++# 3. Zeigt alle offenen Dependabot PRs mit Statistiken
++# 4. Aktualisiert npm dependencies in allen Unterverzeichnissen
++# 5. Optional: Pulled die neuesten Docker images
++# 6. Optional: Rebased feature branches auf main
++# 7. Restored gestashte Änderungen
++
++WORKFLOW FÜR DEPENDENCY-UPDATES:
+
+1. **Automatische Updates durch Dependabot:**
+   - Dependabot prüft täglich auf neue Versionen
+   - Erstellt automatisch Pull Requests auf GitHub
+   - Führt Tests in GitHub Actions aus
+
+2. **Review und Merge auf GitHub:**
+   - Gehe zu https://github.com/alflewerken/web-appliance-dashboard/pulls
+   - Prüfe die Dependabot PRs
+   - Merge die PRs wenn alle Tests grün sind
+
+3. **Lokales Repository aktualisieren:**
+   ```bash
+   ./scripts/update-local.sh
+   ```
+   Das Script:
+   - Holt die gemergten Updates
+   - Aktualisiert npm dependencies
+   - Zeigt offene Dependabot PRs
+   - Optional: Docker images update
+
+4. **Container neu bauen (wenn nötig):**
+   ```bash
+   ./scripts/build.sh --refresh
+   ```
+
+FEATURES DES UPDATE-SCRIPTS:
+
+✅ **Sicheres Stashing:** Speichert uncommitted changes automatisch
+✅ **Dependabot-Übersicht:** Zeigt Anzahl der Updates nach Typ (Docker, NPM, Actions)
+✅ **NPM Updates:** Führt `npm install` in allen Projekt-Verzeichnissen aus
+✅ **Docker Updates:** Optional pull der neuesten Images
+✅ **Branch Management:** Wechselt zurück zur ursprünglichen Branch
+✅ **Rebase Option:** Kann feature branches auf main rebasen
+✅ **Farbige Ausgabe:** Bessere Lesbarkeit mit Farben und Emojis
+
+VORTEILE:
+- Ein einziger Befehl für kompletten Update-Prozess
+- Verhindert Merge-Konflikte durch regelmäßige Updates
+- Hält Dependencies aktuell und sicher
+- Automatisches Handling von uncommitted changes
+- Übersicht über alle offenen Dependabot PRs
+
+VERWENDUNG:
+```bash
+# Script ausführbar machen (einmalig)
+chmod +x scripts/update-local.sh
+
+# Repository updaten
+./scripts/update-local.sh
+```
+
+STATUS: ✅ Update-Script implementiert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 15:15:44 - Dokumentation für update-local.sh erstellt
+
+BESCHREIBUNG:
+Umfassende Dokumentation für das Update-Script zur Repository-Synchronisation erstellt.
+
+NEUE DATEI:
+
+scripts/update-local.md:
++# Update Local Development Repository
++
++## Übersicht
++Das `update-local.sh` Script automatisiert die Synchronisation deines lokalen 
++Entwicklungs-Repositories mit den neuesten Änderungen aus GitHub.
++
++[Vollständige Dokumentation mit 274 Zeilen]
++
++INHALT DER DOKUMENTATION:
++
++1. **Übersicht & Motivation**
++   - Warum das Script notwendig ist
++   - Welche Update-Quellen es gibt
++
++2. **Features**
++   - Sicheres Change-Management mit Stashing
++   - Dependabot-Integration mit Statistiken
++   - Automatisches Dependency-Management
++   - Docker-Integration
++   - Branch-Management mit Rebase
++
++3. **Installation & Verwendung**
++   - Einmalige Installation
++   - Standard-Update Prozess
++   - Ablauf in 5 Phasen erklärt
++
++4. **Interaktive Prompts**
++   - Stash Changes Dialog
++   - Docker Images Update
++   - Rebase Feature Branch
++
++5. **Ausgabe-Interpretation**
++   - Farbcodes und ihre Bedeutung
++   - Dependabot-Statistiken verstehen
++
++6. **Workflow-Integration**
++   - Tägliche Routine
++   - Feature-Entwicklung Workflow
++   - Best Practices
++
++7. **Troubleshooting**
++   - Häufige Fehler und Lösungen
++   - Merge-Konflikte
++   - NPM Install Probleme
++   - Docker Pull Fehler
++
++8. **Erweiterte Nutzung**
++   - Cron-Automatisierung
++   - Git Hooks Integration
++   - Shell-Aliases
++
++9. **Technische Details**
++   - Verwendete Git-Befehle
++   - NPM Update-Strategie
++   - Performance-Überlegungen
++
++10. **Verbindungen**
++    - Verwandte Scripts
++    - build.sh Integration
++    - sync-compose.sh Verbindung
++
++HIGHLIGHTS DER DOKUMENTATION:
+
+✅ **Vollständige Workflow-Beschreibung** mit konkreten Beispielen
+✅ **Farbcodierte Terminal-Ausgaben** für bessere Lesbarkeit
+✅ **Troubleshooting-Sektion** mit Lösungen für häufige Probleme
+✅ **Best Practices** mit DO's und DON'Ts
+✅ **Integration-Tipps** für tägliche Entwicklung
+✅ **Technische Details** für fortgeschrittene Nutzer
+
+Die Dokumentation ermöglicht es jedem Entwickler:
+- Das Script sofort produktiv zu nutzen
+- Probleme selbstständig zu lösen
+- Den Update-Workflow zu verstehen
+- Die Dependabot-Integration optimal zu nutzen
+
+STATUS: ✅ Dokumentation vollständig
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 15:36:01 - Fix: build.sh startet jetzt RustDesk Container
+
+PROBLEM:
+Das build.sh Script startete die RustDesk Remote Desktop Container nicht automatisch,
+obwohl sie in der docker-compose.yml definiert sind.
+
+LÖSUNG:
+build.sh erweitert um RustDesk-Container-Management.
+
+GEÄNDERTE DATEI:
+
+scripts/build.sh:
+
+PATCH 1 - RustDesk Services beim Start hinzugefügt (nach Zeile ~786):
+```bash
+    # Start Guacamole web
+    docker compose up -d guacamole
+    
+    echo -n "⏳ Waiting for Guacamole"
+    if wait_for_healthy "appliance_guacamole"; then
+        echo ""
+        print_status "success" "Guacamole is ready"
+    else
+        echo ""
+        print_status "warning" "Guacamole health check failed"
+    fi
++    
++    # Start RustDesk services
++    print_status "info" "Starting RustDesk Remote Desktop services..."
++    
++    # Start RustDesk ID/Rendezvous Server
++    docker compose up -d rustdesk-server
++    
++    # Start RustDesk Relay Server
++    docker compose up -d rustdesk-relay
++    
++    # Give them a moment to start
++    sleep 3
++    
++    # Check if they're running
++    if docker ps | grep -q "rustdesk-server"; then
++        print_status "success" "RustDesk ID Server is running"
++    else
++        print_status "warning" "RustDesk ID Server failed to start"
++    fi
++    
++    if docker ps | grep -q "rustdesk-relay"; then
++        print_status "success" "RustDesk Relay Server is running"
++    else
++        print_status "warning" "RustDesk Relay Server failed to start"
++    fi
+ fi
+```
+
+PATCH 2 - RustDesk zur Service-Verifikation hinzugefügt (Zeile ~796):
+```bash
+ ALL_HEALTHY=true
+ SERVICES="database backend webserver ttyd"
+ if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
+-    SERVICES="$SERVICES guacamole guacamole-postgres guacd"
++    SERVICES="$SERVICES guacamole guacamole-postgres guacd rustdesk-server rustdesk-relay"
+ fi
+```
+
+PATCH 3 - Container-Namen-Mapping für RustDesk (Zeile ~800):
+```bash
+ for SERVICE in $SERVICES; do
+     CONTAINER="appliance_${SERVICE}"
+     if [ "$SERVICE" = "guacamole-postgres" ]; then
+         CONTAINER="appliance_guacamole_db"
+     elif [ "$SERVICE" = "database" ]; then
+         CONTAINER="appliance_db"
++    elif [ "$SERVICE" = "rustdesk-server" ]; then
++        CONTAINER="rustdesk-server"
++    elif [ "$SERVICE" = "rustdesk-relay" ]; then
++        CONTAINER="rustdesk-relay"
+     fi
+```
+
+RESULTAT:
+✅ RustDesk Container werden jetzt automatisch beim Build gestartet
+✅ Status-Verifikation prüft auch RustDesk Services
+✅ Container laufen erfolgreich auf den konfigurierten Ports:
+   - rustdesk-server: 21216 (ID Server), 21218, 21219
+   - rustdesk-relay: 21217 (Relay), 21220 (WebSocket)
+
+VERWENDUNG:
+```bash
+# Normaler Build mit allen Remote Desktop Services
+./scripts/build.sh
+
+# Ohne Remote Desktop Services (kein Guacamole, kein RustDesk)
+./scripts/build.sh --no-remote-desktop
+
+# Quick Refresh (startet nur Frontend/Backend neu, nicht RustDesk)
+./scripts/build.sh --refresh
+```
+
+STATUS: ✅ Behoben - RustDesk Container werden jetzt korrekt gestartet
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 15:53:39 - Fix: Fehlende Ressource-Namen in Audit-Logs
+
+PROBLEM:
+In den Audit-Logs wurde die Spalte "Ressource" bei den Aktionen remote_desktop_access 
+und host_update nicht ausgefüllt, obwohl der Name in den Details vorhanden war.
+
+URSACHE:
+Der createAuditLog Funktion fehlte der letzte Parameter (resourceName), der für die
+Anzeige in der Ressource-Spalte verwendet wird.
+
+LÖSUNG:
+Den resourceName Parameter bei allen Audit-Log-Aufrufen hinzugefügt.
+
+GEÄNDERTE DATEIEN:
+
+backend/routes/guacamole.js:
+
+PATCH - Resource Name für remote_desktop_access hinzugefügt (Zeile ~184):
+```javascript
+      await createAuditLog(
+        userId,
+        'remote_desktop_access',
+        'appliances',
+        applianceId,
+        { 
+          appliance_name: appliance.name,
+          protocol: appliance.remote_protocol,
+          host: appliance.remote_host,
+          connectionName: connectionInfo.connectionName,
+          connectionId: connectionId
+        },
+        getClientIp(req),
+-        getClientIp(req)
++        getClientIp(req),
++        appliance.name  // Add resource name for display
+      );
+```
+
+backend/routes/hosts.js:
+
+PATCH - Resource Name für remote_desktop_access hinzugefügt (Zeile ~765):
+```javascript
+        await createAuditLog(
+          req.user.id,
+          'remote_desktop_access',
+          'hosts',
+          hostId,
+          {
+            host_name: host.name,
+            protocol: host.remoteProtocol,
+            remote_host: host.hostname,
+            performance_mode: performanceMode
+          },
+          getClientIp(req),
+-          getClientIp(req)
++          getClientIp(req),
++          host.name  // Add resource name for display
+        );
+```
+
+HINWEIS:
+Die host_update Aktionen hatten bereits den resourceName Parameter korrekt gesetzt.
+
+RESULTAT:
+✅ Neue Audit-Log-Einträge zeigen jetzt den Ressource-Namen in der Spalte an
+✅ Bestehende Einträge bleiben unverändert (nur neue Einträge betroffen)
+✅ Konsistente Anzeige über alle Aktionstypen
+
+VERIFIKATION:
+Nach Container-Neustart werden bei neuen Remote-Desktop-Zugriffen die Namen
+der Appliances bzw. Hosts in der Ressource-Spalte angezeigt.
+
+STATUS: ✅ Behoben
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 16:06:19 - Fix: Audit-Log Details für host_update korrekt anzeigen
+
+PROBLEM:
+1. Bei host_update wurde in der Detail-Ansicht ein JSON-String angezeigt statt einer 
+   formatierten Tabelle mit Alter Wert / Neuer Wert
+2. Remote-Desktop-Zugriffe über Guacamole zeigten keine Ressource an
+3. Host-Update zeigte keine Ressource an
+
+URSACHE:
+1. Das Frontend konnte nicht mit der strukturierten changes-Object umgehen, wo jedes
+   Feld bereits {old: ..., new: ...} enthielt
+2. Die formatFieldValue Funktion formatierte Objekte nur als JSON-String
+
+LÖSUNG:
+Frontend-Code erweitert, um verschiedene Datenstrukturen korrekt zu verarbeiten.
+
+GEÄNDERTE DATEIEN:
+
+frontend/src/components/AuditLog/AuditLogTableMUI.js:
+
+PATCH 1 - formatFieldValue verbessert (Zeile ~790):
+```javascript
+    const formatFieldValue = (value) => {
+      if (value === null || value === undefined) return '-';
+      
+      // Handle boolean values (including 0/1 from database)
+      if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
+      if (value === 1 || value === '1' || value === true) return 'Ja';
+      if (value === 0 || value === '0' || value === false) return 'Nein';
+      
+-      // Handle objects
+-      if (typeof value === 'object') return JSON.stringify(value);
++      // Handle objects and arrays
++      if (typeof value === 'object') {
++        // Check if it's an array
++        if (Array.isArray(value)) {
++          return value.map(item => {
++            if (typeof item === 'object') {
++              return JSON.stringify(item, null, 2);
++            }
++            return item;
++          }).join(', ');
++        }
++        
++        // For objects, check if it's already a parsed changes object
++        if (value.old !== undefined && value.new !== undefined) {
++          return `${value.old} → ${value.new}`;
++        }
++        
++        // For other objects, return formatted JSON
++        return JSON.stringify(value, null, 2);
++      }
+      
+      return value;
+    };
+```
+
+PATCH 2 - Update-Handling für strukturierte changes (Zeile ~820):
+```javascript
+    // Handle different action types
+    // Updates (appliance, host, user, category)
+    if (log.action.includes('_update') || log.action.includes('_updated')) {
+      if (details.changes || details.old_data) {
+-        const changes = details.changes || details.new_data || {};
+-        const oldValues = details.oldValues || details.old_data || {};
++        let changes = {};
++        let oldValues = {};
++        
++        // Check if changes already contain old/new structure (like in host_update)
++        if (details.changes && typeof details.changes === 'object') {
++          const firstKey = Object.keys(details.changes)[0];
++          if (firstKey && details.changes[firstKey] && 
++              typeof details.changes[firstKey] === 'object' && 
++              'old' in details.changes[firstKey] && 
++              'new' in details.changes[firstKey]) {
++            // Extract old and new values from structured changes
++            Object.entries(details.changes).forEach(([field, change]) => {
++              if (typeof change === 'object' && change.old !== undefined && change.new !== undefined) {
++                oldValues[field] = change.old;
++                changes[field] = change.new;
++              } else {
++                changes[field] = change;
++              }
++            });
++          } else {
++            // Use changes as is
++            changes = details.changes;
++            oldValues = details.oldValues || details.old_data || {};
++          }
++        } else if (details.old_data && details.new_data) {
++          changes = details.new_data;
++          oldValues = details.old_data;
++        } else {
++          changes = details.changes || details.new_data || {};
++          oldValues = details.oldValues || details.old_data || {};
++        }
++        
+        return (
+```
+
+BACKEND-FIXES (bereits angewendet):
+- guacamole.js: resourceName Parameter hinzugefügt für Appliance-Namen
+- hosts.js: resourceName Parameter für Host-Namen bei remote_desktop_access
+- hosts.js: resourceName bereits korrekt für host_update
+
+RESULTAT:
+✅ host_update Details zeigen jetzt eine formatierte Tabelle mit Feldname, Alter Wert, Neuer Wert
+✅ Komplexe Objekte in changes werden korrekt aufgelöst
+✅ Ressource-Namen werden bei allen Aktionen angezeigt (nach Backend-Neustart)
+✅ Frontend kann mit verschiedenen Audit-Log-Strukturen umgehen
+
+VERIFIKATION:
+Nach Frontend-Build und Container-Neustart:
+- Host-Updates zeigen strukturierte Tabellen statt JSON-Strings
+- Neue Remote-Desktop-Zugriffe zeigen Ressource-Namen
+- Bestehende Einträge ohne Ressource bleiben unverändert (historische Daten)
+
+STATUS: ✅ Behoben
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 16:27:30 - Fix: MariaDB Health Check schlägt bei Passwörtern mit Sonderzeichen fehl
+
+PROBLEM:
+Bei der Installation über install.sh auf macbook.local schlägt der Health Check für appliance_db 
+(MariaDB Container) fehl, obwohl die Datenbank korrekt läuft und erreichbar ist.
+
+URSACHE:
+Das automatisch generierte Root-Passwort enthält Sonderzeichen (+, /, =), die im Health Check 
+Command nicht korrekt escaped werden. Beispiel-Passwort: 9FiG9tnP+O0X/gt+dE09igXTK51bKI6PEsWqP1w7bE8=
+
+Der Health Check verwendet single quotes ('${MYSQL_ROOT_PASSWORD}'), die in der YAML-Syntax
+von docker-compose nicht ausreichen, um die Shell-Substitution korrekt durchzuführen.
+
+DIAGNOSE:
+- Container Status: unhealthy
+- Manueller Test funktioniert: docker exec appliance_db mariadb-admin ping -h localhost -u root --password='...'
+- Problem liegt im docker-compose.yml Health Check Command
+
+LÖSUNG:
+Double quotes statt single quotes im Health Check verwenden für korrekte Variable-Substitution.
+
+GEÄNDERTE DATEI:
+
+docker-compose.yml:
+
+PATCH - Health Check Quoting für MariaDB korrigiert (Zeile ~20):
+```yaml
+    healthcheck:
+-      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password='${MYSQL_ROOT_PASSWORD}' || exit 1"]
++      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password=\"${MYSQL_ROOT_PASSWORD}\" || exit 1"]
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-20}
+      start_period: 40s
+```
+
+RESULTAT:
+✅ Health Check funktioniert jetzt auch mit Passwörtern, die Sonderzeichen enthalten
+✅ Installation über install.sh läuft vollständig durch
+✅ Keine Änderung der Passwort-Generierung notwendig
+
+VERIFIKATION:
+Nach docker-compose down && docker-compose up -d database:
+- Health Check Status wird nach ~40s zu "healthy"
+- Backend und andere Services können sich erfolgreich verbinden
+
+STATUS: ✅ Behoben
+
+════════════════════════════════════════════════════════════════════════════════
+

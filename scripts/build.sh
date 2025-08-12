@@ -780,6 +780,31 @@ if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
         echo ""
         print_status "warning" "Guacamole health check failed"
     fi
+    
+    # Start RustDesk services
+    print_status "info" "Starting RustDesk Remote Desktop services..."
+    
+    # Start RustDesk ID/Rendezvous Server
+    docker compose up -d rustdesk-server
+    
+    # Start RustDesk Relay Server
+    docker compose up -d rustdesk-relay
+    
+    # Give them a moment to start
+    sleep 3
+    
+    # Check if they're running
+    if docker ps | grep -q "rustdesk-server"; then
+        print_status "success" "RustDesk ID Server is running"
+    else
+        print_status "warning" "RustDesk ID Server failed to start"
+    fi
+    
+    if docker ps | grep -q "rustdesk-relay"; then
+        print_status "success" "RustDesk Relay Server is running"
+    else
+        print_status "warning" "RustDesk Relay Server failed to start"
+    fi
 fi
 
 # Step 7: Verify all services
@@ -789,7 +814,7 @@ sleep 3
 ALL_HEALTHY=true
 SERVICES="database backend webserver ttyd"
 if [ "$ENABLE_REMOTE_DESKTOP" = true ]; then
-    SERVICES="$SERVICES guacamole guacamole-postgres guacd"
+    SERVICES="$SERVICES guacamole guacamole-postgres guacd rustdesk-server rustdesk-relay"
 fi
 
 for SERVICE in $SERVICES; do
@@ -798,6 +823,10 @@ for SERVICE in $SERVICES; do
         CONTAINER="appliance_guacamole_db"
     elif [ "$SERVICE" = "database" ]; then
         CONTAINER="appliance_db"
+    elif [ "$SERVICE" = "rustdesk-server" ]; then
+        CONTAINER="rustdesk-server"
+    elif [ "$SERVICE" = "rustdesk-relay" ]; then
+        CONTAINER="rustdesk-relay"
     fi
     
     if docker ps | grep -q "$CONTAINER"; then
