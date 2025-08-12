@@ -29,9 +29,9 @@ jobs:
         node-version: '20'
 
     - name: Build Frontend
-      working-directory: ./frontend
       run: |
-        echo "Building frontend in frontend directory..."
+        echo "Building frontend..."
+        cd frontend
         npm ci
         npm run build
         echo "Frontend built successfully"

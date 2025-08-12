@@ -37496,3 +37496,46 @@ NÄCHSTER SCHRITT:
 GitHub Actions läuft jetzt erneut und sollte erfolgreich durchlaufen.
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 23:27:32 - FINALE LÖSUNG: GitHub Actions Workflow mit Frontend-Build
+
+PROBLEM:
+npm ci konnte package-lock.json nicht finden:
+"The npm ci command can only install with an existing package-lock.json"
+
+URSACHE:
+Der npm ci Befehl lief im Root-Verzeichnis des Repositories,
+aber package-lock.json befindet sich im frontend/ Unterverzeichnis.
+
+LÖSUNG:
+`working-directory: ./frontend` zum Build-Step hinzugefügt:
+
+```yaml
+- name: Build Frontend
+  working-directory: ./frontend
+  run: |
+    npm ci
+    npm run build
+```
+
+WORKFLOW JETZT:
+1. Checkout Repository
+2. Setup Node.js 20
+3. Build Frontend (im frontend/ Verzeichnis)
+4. Kopiere Build nach nginx/
+5. Baue alle Docker Images
+6. Push zu GitHub Container Registry
+
+GIT COMMIT: 5d90355
+MESSAGE: "fix: Correct frontend build in GitHub Actions with working-directory"
+
+VORTEILE:
+✅ Frontend wird automatisch bei jedem Push gebaut
+✅ Keine manuellen Build-Schritte mehr nötig
+✅ nginx-Image enthält immer das aktuelle Frontend
+✅ package-lock.json wird korrekt gefunden
+
+STATUS: ✅ Workflow sollte jetzt erfolgreich durchlaufen
+
+════════════════════════════════════════════════════════════════════════════════

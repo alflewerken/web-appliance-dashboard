@@ -3,7 +3,8 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
+# package-lock.json sollte im Repository sein für CI/CD
+# package-lock.json
 yarn.lock
 
 # Production builds
