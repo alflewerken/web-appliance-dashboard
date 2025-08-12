@@ -35968,3 +35968,63 @@ STATUS: ✅ Behoben
 
 ════════════════════════════════════════════════════════════════════════════════
 
+
+
+## 2025-08-12 16:48:00 - KRITISCHER FIX: MariaDB Health Check tatsächlich angewendet
+
+PROBLEM:
+Der Health Check Fix war nur in changes.md dokumentiert, aber nicht in den tatsächlichen
+docker-compose Dateien angewendet. Installation schlägt weiterhin fehl bei Passwörtern
+mit Sonderzeichen.
+
+URSACHE:
+Diskrepanz zwischen Dokumentation und tatsächlichem Code - Fix wurde dokumentiert aber
+nicht implementiert.
+
+LÖSUNG:
+Health Check Syntax in beiden docker-compose Dateien korrigiert.
+
+GEÄNDERTE DATEIEN:
+
+docker-compose.yml:
+```yaml
+    healthcheck:
+-      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password='${MYSQL_ROOT_PASSWORD}' || exit 1"]
++      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password=\"${MYSQL_ROOT_PASSWORD}\" || exit 1"]
+```
+
+docker-compose.production.yml:
+```yaml
+    healthcheck:
+-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
++      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password=\"${MYSQL_ROOT_PASSWORD}\" || exit 1"]
+```
+
+GIT COMMIT: 06d679c
+MESSAGE: "fix: MariaDB health check with special characters in passwords"
+PUSH: Erfolgreich zu origin/main
+
+SOFORTMASSNAHME für macbook.local:
+```bash
+cd /Users/alflewerken/docker/web-appliance-dashboard
+# Installation abbrechen mit Ctrl+C falls noch läuft
+docker-compose down
+git pull
+docker-compose up -d database
+# Warten bis healthy
+docker-compose up -d
+```
+
+ALTERNATIV (Quick Fix ohne git pull):
+```bash
+cd /Users/alflewerken/docker/web-appliance-dashboard
+docker-compose down
+# docker-compose.yml manuell editieren und single quotes durch double quotes ersetzen
+vi docker-compose.yml
+# Zeile ~20: password='${MYSQL_ROOT_PASSWORD}' → password=\"${MYSQL_ROOT_PASSWORD}\"
+docker-compose up -d
+```
+
+STATUS: ✅ BEHOBEN UND GEPUSHT
+
+════════════════════════════════════════════════════════════════════════════════
