@@ -264,11 +264,11 @@ cat > .env << EOF
 # Database Configuration
 DB_HOST=database
 DB_PORT=3306
-DB_NAME=appliance_db
+DB_NAME=appliance_dashboard
 DB_USER=dashboard_user
 DB_PASSWORD=${DB_PASS}
 MYSQL_ROOT_PASSWORD=${ROOT_PASS}
-MYSQL_DATABASE=appliance_db
+MYSQL_DATABASE=appliance_dashboard
 MYSQL_USER=dashboard_user
 MYSQL_PASSWORD=${DB_PASS}
 
