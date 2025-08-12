@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BackupService } from '../services/backupService';
 import RestoreKeyDialog from '../components/RestoreKeyDialog';
 import React from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM from 'react-dom/client';
 
 export const useDragAndDrop = (
   showSettingsModal,
@@ -45,35 +45,53 @@ export const useDragAndDrop = (
 
   // Render den Dialog wenn nötig
   React.useEffect(() => {
+    let root = null;
+    let dialogContainer = null;
+    
     if (showRestoreDialog && pendingRestoreFile) {
-      const dialogContainer = document.createElement('div');
+      dialogContainer = document.createElement('div');
       dialogContainer.id = 'restore-dialog-container';
       document.body.appendChild(dialogContainer);
       
-      ReactDOM.render(
+      // Use createRoot API for React 18+
+      root = ReactDOM.createRoot(dialogContainer);
+      root.render(
         <RestoreKeyDialog
           open={showRestoreDialog}
           onClose={() => {
             setShowRestoreDialog(false);
             setPendingRestoreFile(null);
-            ReactDOM.unmountComponentAtNode(dialogContainer);
-            document.body.removeChild(dialogContainer);
+            if (root) {
+              root.unmount();
+              root = null;
+            }
+            const container = document.getElementById('restore-dialog-container');
+            if (container && container.parentNode) {
+              container.parentNode.removeChild(container);
+            }
           }}
           onRestore={(key) => {
             handleRestoreWithKey(key);
-            ReactDOM.unmountComponentAtNode(dialogContainer);
-            document.body.removeChild(dialogContainer);
+            if (root) {
+              root.unmount();
+              root = null;
+            }
+            const container = document.getElementById('restore-dialog-container');
+            if (container && container.parentNode) {
+              container.parentNode.removeChild(container);
+            }
           }}
           fileName={pendingRestoreFile?.name || 'backup.json'}
-        />,
-        dialogContainer
+        />
       );
       
       return () => {
+        if (root) {
+          root.unmount();
+        }
         const container = document.getElementById('restore-dialog-container');
-        if (container) {
-          ReactDOM.unmountComponentAtNode(container);
-          document.body.removeChild(container);
+        if (container && container.parentNode) {
+          container.parentNode.removeChild(container);
         }
       };
     }

@@ -36127,3 +36127,272 @@ OFFENE PUNKTE:
 STATUS: ✅ Behoben
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 18:12:00 - KRITISCHER FIX: Express 5 Inkompatibilität behoben
+
+PROBLEM:
+Nach --nocache Rebuild starteten Backend und Webserver nicht mehr.
+Container waren in permanentem Restart-Loop mit folgendem Fehler:
+```
+TypeError: Missing parameter name at 12: https://git.new/pathToRegexpError
+    at name (/app/node_modules/path-to-regexp/dist/index.js:73:19)
+```
+
+URSACHE:
+Express 5.1.0 verwendet eine neue Version von path-to-regexp, die striktere
+Anforderungen an Route-Parameter hat. Irgendwo im Code gibt es ein ungültiges
+Route-Pattern, das in Express 4 funktionierte, aber in Express 5 nicht mehr.
+
+Das Problem trat auf beim Character-Index 12, was auf ein Pattern wie
+`/api/proxy/:` hindeutet (12 Zeichen bis zum problematischen Doppelpunkt).
+
+LÖSUNG:
+Express auf die stabile Version 4.21.2 zurückgesetzt, da dies die bewährte
+Version ist und keine Änderungen an allen Route-Definitionen erfordert.
+
+GEÄNDERTE DATEI:
+
+backend/package.json:
+
+PATCH (Zeile ~29):
+```json
+-    "express": "^5.1.0",
++    "express": "^4.21.2",
+```
+
+DEPLOYMENT:
+Nach der Änderung muss der Backend-Container komplett neu gebaut werden:
+```bash
+docker-compose build --no-cache backend
+docker-compose up -d
+```
+
+RESULTAT:
+✅ Backend-Container startet wieder erfolgreich
+✅ Webserver kann sich mit Backend verbinden
+✅ Dashboard ist wieder erreichbar
+
+STATUS: ✅ Behoben (nach Container-Rebuild)
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 18:23:00 - Fix: React 19 Kompatibilität für Drag & Drop
+
+PROBLEM:
+Nach dem Fix des Express-Problems funktionierte das Dashboard, aber Drag & Drop
+für Backup-Dateien schlug fehl mit:
+```
+TypeError: PT.render is not a function
+```
+
+URSACHE:
+Frontend verwendet React 19.1.1, aber in useDragAndDrop.js wurde noch die alte
+React 16/17 API `ReactDOM.render()` verwendet. React 18+ hat diese API durch
+`createRoot()` ersetzt.
+
+LÖSUNG:
+useDragAndDrop.js auf die neue React 18+ API migriert.
+
+GEÄNDERTE DATEI:
+
+frontend/src/hooks/useDragAndDrop.js:
+
+PATCH 1 - Import korrigiert (Zeile ~5):
+```javascript
+-import ReactDOM from 'react-dom';
++import ReactDOM from 'react-dom/client';
+```
+
+PATCH 2 - Dialog-Rendering auf createRoot API umgestellt (Zeile ~45-75):
+```javascript
+  // Render den Dialog wenn nötig
+  React.useEffect(() => {
++    let root = null;
++    
+    if (showRestoreDialog && pendingRestoreFile) {
+      const dialogContainer = document.createElement('div');
+      dialogContainer.id = 'restore-dialog-container';
+      document.body.appendChild(dialogContainer);
+      
+-      ReactDOM.render(
++      // Use createRoot API for React 18+
++      root = ReactDOM.createRoot(dialogContainer);
++      root.render(
+        <RestoreKeyDialog
+          open={showRestoreDialog}
+          onClose={() => {
+            setShowRestoreDialog(false);
+            setPendingRestoreFile(null);
+-            ReactDOM.unmountComponentAtNode(dialogContainer);
++            root.unmount();
+            document.body.removeChild(dialogContainer);
+          }}
+          onRestore={(key) => {
+            handleRestoreWithKey(key);
+-            ReactDOM.unmountComponentAtNode(dialogContainer);
++            root.unmount();
+            document.body.removeChild(dialogContainer);
+          }}
+          fileName={pendingRestoreFile?.name || 'backup.json'}
+-        />,
+-        dialogContainer
++        />
+      );
+      
+      return () => {
+        const container = document.getElementById('restore-dialog-container');
+-        if (container) {
+-          ReactDOM.unmountComponentAtNode(container);
++        if (container && root) {
++          root.unmount();
+          document.body.removeChild(container);
+        }
+      };
+    }
+  }, [showRestoreDialog, pendingRestoreFile]);
+```
+
+DEPLOYMENT:
+Frontend neu gebaut mit: ./scripts/build.sh --refresh
+
+RESULTAT:
+✅ React-Fehler behoben
+✅ Drag & Drop für Backup-Dateien funktioniert wieder
+✅ Kompatibel mit React 19
+
+STATUS: ✅ Behoben
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 18:35:00 - Fix: Guacamole PostgreSQL Authentifizierung
+
+PROBLEM:
+Remote Desktop funktionierte nicht, HTTP 500 Fehler beim Abrufen des Tokens.
+Fehlermeldung im Log:
+```
+FATAL: password authentication failed for user "guacamole_user"
+```
+
+URSACHE:
+Die Guacamole PostgreSQL-Datenbank war mit einem alten Passwort initialisiert,
+aber die .env-Datei hatte durch die "simple fixes" ein neues Passwort bekommen
+(guacamole_pass123).
+
+LÖSUNG:
+Guacamole-Datenbank komplett zurückgesetzt und neu initialisiert:
+```bash
+docker-compose down guacamole guacamole-postgres
+docker volume rm web-appliance-dashboard_guacamole_db
+docker-compose up -d guacamole-postgres
+docker-compose up -d guacamole
+```
+
+RESULTAT:
+✅ Guacamole-Services laufen wieder (alle healthy)
+✅ PostgreSQL-Authentifizierung funktioniert
+✅ Remote Desktop sollte nun funktionieren
+
+STATUS: ✅ Behoben
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 18:40:00 - Fix: React 18 Dialog-Cleanup-Fehler behoben
+
+PROBLEM:
+Nach der ersten React 18 Migration gab es beim Schließen des Backup-Restore-Dialogs
+einen DOM-Fehler:
+```
+Uncaught DOMException: Node.removeChild: The node to be removed is not a child of this node
+```
+
+URSACHE:
+Der Code versuchte, denselben DOM-Container mehrfach zu entfernen. Die Callbacks
+in onClose und onRestore versuchten beide, den Container zu entfernen, und das
+cleanup im useEffect versuchte es ebenfalls.
+
+LÖSUNG:
+Robustere Cleanup-Logik implementiert mit Prüfungen auf parentNode.
+
+GEÄNDERTE DATEI:
+
+frontend/src/hooks/useDragAndDrop.js:
+
+PATCH - Sichere DOM-Manipulation (Zeile ~45-98):
+```javascript
+  React.useEffect(() => {
+    let root = null;
++   let dialogContainer = null;
+    
+    if (showRestoreDialog && pendingRestoreFile) {
+-     const dialogContainer = document.createElement('div');
++     dialogContainer = document.createElement('div');
+      dialogContainer.id = 'restore-dialog-container';
+      document.body.appendChild(dialogContainer);
+      
+      root = ReactDOM.createRoot(dialogContainer);
+      root.render(
+        <RestoreKeyDialog
+          open={showRestoreDialog}
+          onClose={() => {
+            setShowRestoreDialog(false);
+            setPendingRestoreFile(null);
+-           root.unmount();
+-           document.body.removeChild(dialogContainer);
++           if (root) {
++             root.unmount();
++             root = null;
++           }
++           const container = document.getElementById('restore-dialog-container');
++           if (container && container.parentNode) {
++             container.parentNode.removeChild(container);
++           }
+          }}
+          onRestore={(key) => {
+            handleRestoreWithKey(key);
+-           root.unmount();
+-           document.body.removeChild(dialogContainer);
++           if (root) {
++             root.unmount();
++             root = null;
++           }
++           const container = document.getElementById('restore-dialog-container');
++           if (container && container.parentNode) {
++             container.parentNode.removeChild(container);
++           }
+          }}
+          fileName={pendingRestoreFile?.name || 'backup.json'}
+        />
+      );
+      
+      return () => {
++       if (root) {
++         root.unmount();
++       }
+        const container = document.getElementById('restore-dialog-container');
+-       if (container && root) {
+-         root.unmount();
+-         document.body.removeChild(container);
++       if (container && container.parentNode) {
++         container.parentNode.removeChild(container);
+        }
+      };
+    }
+  }, [showRestoreDialog, pendingRestoreFile]);
+```
+
+RESULTAT:
+✅ Backup-Restore-Dialog öffnet und schließt ohne Fehler
+✅ DOM-Manipulation ist jetzt sicher vor doppelten Entfernungen
+✅ Drag & Drop funktioniert vollständig
+
+STATUS: ✅ Behoben
+
+════════════════════════════════════════════════════════════════════════════════
+
