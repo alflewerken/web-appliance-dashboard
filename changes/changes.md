@@ -37428,3 +37428,40 @@ ersetzt werden, um zukünftige Probleme zu vermeiden.
 STATUS: ⚠️ Workflow-Problem identifiziert und Lösung vorbereitet
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 23:07:35 - GitHub Actions Workflow verbessert: Automatischer Frontend-Build
+
+IMPLEMENTIERTE LÖSUNG:
+Die docker-publish.yml Workflow wurde erweitert, um das Frontend automatisch
+zu bauen, bevor das nginx-Image erstellt wird.
+
+NEUE WORKFLOW-SCHRITTE:
+1. **Setup Node.js**: Node.js 20 mit npm cache
+2. **Build Frontend**: npm ci && npm run build in frontend/
+3. **Copy to Nginx**: Build-Artefakte nach nginx/ kopieren
+4. **Build nginx Image**: Mit frischem Frontend-Bundle
+
+VORTEILE:
+✅ Frontend wird IMMER frisch gebaut bei jedem Push
+✅ Keine manuellen Build-Schritte mehr nötig
+✅ Keine veralteten Bundles mehr im nginx-Image
+✅ Frontend-Änderungen werden automatisch in nginx übernommen
+✅ Konsistente Builds in der CI/CD-Pipeline
+
+ENTFERNT:
+- Separates Frontend Docker Image (war nicht nötig)
+- Build-Schritt für Frontend-Image
+
+GIT COMMIT: 77dcf1e
+MESSAGE: "fix: Improve GitHub Actions workflow to build frontend before nginx"
+
+AUSWIRKUNG:
+Ab sofort wird bei jedem Push zu main:
+1. Das Frontend automatisch neu gebaut
+2. Die aktuellen Bundles ins nginx-Image integriert
+3. Keine manuellen Schritte mehr erforderlich
+
+STATUS: ✅ Workflow erfolgreich verbessert und deployed
+
+════════════════════════════════════════════════════════════════════════════════
