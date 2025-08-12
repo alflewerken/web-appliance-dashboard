@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Terminal">
+  <link rel="manifest" href="/terminal-manifest.json">
+  <title>Terminal - Web Appliance Dashboard</title>
+  
+  <!-- TTYD Configuration Override - Eliminiert unnötige Fehler und Warnungen -->
+  <script src="/js/ttyd-config.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body {
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    
+    #terminal-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #terminal-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #000;
+    }
+    
+    .terminal-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      z-index: 100;
+      -webkit-app-region: drag;
+    }
+    
+    .terminal-title {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    
+    .terminal-controls {
+      display: flex;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .control-button {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      color: #fff;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+    
+    .control-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .control-button.close {
+      background: rgba(255, 59, 48, 0.2);
+      border-color: rgba(255, 59, 48, 0.3);
+    }
+    
+    .control-button.close:hover {
+      background: rgba(255, 59, 48, 0.3);
+      border-color: rgba(255, 59, 48, 0.4);
+    }
+    
+    #terminal-iframe-wrapper {
+      position: absolute;
+      top: 32px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    
+    /* Vollbild-Modus */
+    body.fullscreen .terminal-header {
+      display: none;
+    }
+    
+    body.fullscreen #terminal-iframe-wrapper {
+      top: 0;
+    }
+    
+    /* PWA-Modus Anpassungen */
+    @media (display-mode: standalone) {
+      .terminal-header {
+        height: env(safe-area-inset-top, 32px);
+        padding-top: env(safe-area-inset-top, 0);
+      }
+      
+      #terminal-iframe-wrapper {
+        top: calc(32px + env(safe-area-inset-top, 0));
+        padding-bottom: env(safe-area-inset-bottom, 0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal-container">
+    <div class="terminal-header">
+      <div class="terminal-title">Terminal</div>
+      <div class="terminal-controls">
+        <button class="control-button" onclick="toggleFullscreen()" title="Vollbild">⛶</button>
+        <button class="control-button close" onclick="closeTerminal()" title="Schließen">✕</button>
+      </div>
+    </div>
+    <div id="terminal-iframe-wrapper">
+      <iframe id="terminal-iframe" src="/terminal/"></iframe>
+    </div>
+  </div>
+  
+  <script>
+    // Close function with debugging
+    function closeTerminal() {
+      console.log('closeTerminal() called');
+      console.log('Window opener:', window.opener);
+      console.log('Window name:', window.name);
+      console.log('User Agent:', navigator.userAgent);
+      
+      // Try different methods
+      try {
+        window.close();
+        console.log('window.close() executed');
+      } catch (err) {
+        console.error('window.close() error:', err);
+      }
+      
+      // If still open after 100ms, try other methods
+      setTimeout(() => {
+        if (!window.closed) {
+          console.log('Window still open, trying alternative methods');
+          
+          // Method 1: Set opener to null
+          try {
+            window.opener = null;
+            window.close();
+          } catch (err) {}
+          
+          // Method 2: Open blank and close
+          try {
+            window.open('', '_self', '');
+            window.close();
+          } catch (err) {}
+          
+          // Method 3: Navigate away
+          window.location.href = 'about:blank';
+        }
+      }, 100);
+    }
+    
+    // Get terminal parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const terminalParams = new URLSearchParams();
+    
+    // Pass through all parameters
+    for (const [key, value] of urlParams) {
+      terminalParams.append(key, value);
+    }
+    
+    // Update iframe src with parameters
+    const iframe = document.getElementById('terminal-iframe');
+    const terminalUrl = `/terminal/${terminalParams.toString() ? '?' + terminalParams.toString() : ''}`;
+    iframe.src = terminalUrl;
+    
+    // Debug-Log
+    console.log('Terminal URL:', terminalUrl);
+    
+    // Vollbild-Funktionalität
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          document.body.classList.add('fullscreen');
+        }).catch(err => {
+          console.log('Fullscreen nicht möglich:', err);
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          document.body.classList.remove('fullscreen');
+        });
+      }
+    }
+    
+    // ESC-Taste zum Beenden des Vollbildmodus
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        document.body.classList.remove('fullscreen');
+      }
+    });
+    
+    // Service Worker Registration für PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/terminal-sw.js')
+        .then(registration => {
+          console.log('Service Worker registered:', registration.scope);
+        })
+        .catch(error => {
+          console.log('Service Worker registration failed:', error);
+        });
+    }
+    
+    // PWA Installation
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Verhindere Chrome 67 und älter vom automatischen Anzeigen des Prompts
+      e.preventDefault();
+      // Speichere das Event für später
+      deferredPrompt = e;
+      // Zeige einen eigenen Install-Button
+      showInstallButton();
+    });
+    
+    function showInstallButton() {
+      // Füge einen Install-Button zur Header-Leiste hinzu
+      const installBtn = document.createElement('button');
+      installBtn.className = 'control-button';
+      installBtn.innerHTML = '📥';
+      installBtn.title = 'Als App installieren';
+      installBtn.onclick = installPWA;
+      
+      const controls = document.querySelector('.terminal-controls');
+      controls.insertBefore(installBtn, controls.firstChild);
+    }
+    
+    async function installPWA() {
+      if (deferredPrompt) {
+        // Zeige den Install-Prompt
+        deferredPrompt.prompt();
+        // Warte auf die Antwort des Users
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response: ${outcome}`);
+        // Wir können das Event nur einmal verwenden
+        deferredPrompt = null;
+      }
+    }
+    
+    // Prüfe ob bereits als PWA läuft
+    if (window.matchMedia('(display-mode: standalone)').matches || 
+        window.navigator.standalone === true) {
+      console.log('Running as PWA');
+      document.body.classList.add('pwa-mode');
+      // Entferne den normalen Header im PWA-Modus
+      document.querySelector('.terminal-header').style.display = 'none';
+      document.querySelector('#terminal-iframe-wrapper').style.top = '0';
+    }
+    
+    // Handle window close
+    window.addEventListener('beforeunload', (e) => {
+      // Optional: Add any cleanup code here
+    });
+    
+    // Tastenkombinationen
+    document.addEventListener('keydown', (e) => {
+      // F11 für Vollbild
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+      // Cmd/Ctrl + W zum Schließen
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+        e.preventDefault();
+        console.log('Cmd+W pressed - attempting to close window');
+        
+        // Verschiedene Close-Methoden versuchen
+        try {
+          window.close();
+          console.log('window.close() called');
+        } catch (err) {
+          console.error('window.close() failed:', err);
+        }
+        
+        try {
+          self.close();
+          console.log('self.close() called');
+        } catch (err) {
+          console.error('self.close() failed:', err);
+        }
+        
+        // Falls wir einen opener haben
+        if (window.opener) {
+          console.log('Window has opener');
+          try {
+            window.opener = null;
+            window.close();
+            console.log('Tried closing after nulling opener');
+          } catch (err) {
+            console.error('Close after nulling opener failed:', err);
+          }
+        }
+        
+        // Letzte Option: Navigation
+        setTimeout(() => {
+          if (!window.closed) {
+            console.log('Window still open, trying navigation');
+            window.location.href = 'about:blank';
+          }
+        }, 100);
+      }
+    });
+    
+    // Fehlerbehandlung für iframe
+    iframe.addEventListener('error', (e) => {
+      console.error('Terminal iframe error:', e);
+    });
+    
+    iframe.addEventListener('load', () => {
+      console.log('Terminal iframe loaded successfully');
+    });
+  </script>
+</body>
+</html>

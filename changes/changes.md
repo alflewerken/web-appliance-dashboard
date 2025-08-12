@@ -32945,3 +32945,279 @@ RESULTAT:
 STATUS: ✅ Install-Script mit flexibler Verzeichniswahl implementiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-01-14 10:15:00 - Install-Script Fix: Interaktive Domain-Abfrage bei curl | bash
+
+PROBLEM:
+Das Install-Script fragte nicht nach der gewünschten Domain, wenn es über `curl | bash` ausgeführt wurde.
+Die Eingabe-Prompts funktionierten nicht, weil stdin bereits vom Pipe belegt war.
+Stattdessen wurden automatisch die erkannten Hostnamen verwendet, was für Reverse-Proxy-Setups unpraktisch war.
+
+LÖSUNG:
+1. **Eingabe über /dev/tty statt stdin**:
+   - Bei `curl | bash` wird die Eingabe von `/dev/tty` gelesen
+   - Unterstützt sowohl direktes Ausführen als auch Piping
+   - Fallback auf nicht-interaktiven Modus wenn kein TTY verfügbar
+
+2. **Vereinfachte Domain-Konfiguration**:
+   - Klare Frage nach der gewünschten Domain
+   - Bei leerer Eingabe wird nur `localhost` verwendet
+   - Erkannte System-Infos werden nur als Referenz angezeigt
+
+GEÄNDERTE DATEIEN:
+
+install.sh:
+PATCH für Domain-Abfrage:
+```bash
+-# Ask user for hostname configuration
+-echo ""
+-echo "🌐 Configure Access URLs"
+-echo "========================"
+-echo "The dashboard needs to know how it will be accessed."
+-echo "This is important for CORS configuration and reverse proxy setups."
+-echo ""
+-echo "Detected system information:"
+-echo "  Hostname: $SYSTEM_HOSTNAME"
+-if [ -n "$PRIMARY_IP" ]; then
+-    echo "  Primary IP: $PRIMARY_IP"
+-fi
+-echo ""
+-echo "How will you access this dashboard? (separate multiple with commas)"
+-echo "Examples:"
+-echo "  - Local only: localhost"
+-echo "  - LAN access: 192.168.1.100,macbook.local"
+-echo "  - With domain: dashboard.example.com"
+-echo "  - Behind proxy: app.company.com,192.168.1.100"
+-echo ""
+-read -p "Enter hostname(s) [default: localhost,$SYSTEM_HOSTNAME,$PRIMARY_IP]: " USER_HOSTNAMES
++# Ask user for hostname configuration
++echo ""
++echo "🌐 Configure Access Domain"
++echo "========================"
++echo "The dashboard needs to know how it will be accessed."
++echo "This is important for CORS configuration and reverse proxy setups."
++echo ""
++echo "Detected system information (for reference):"
++echo "  Hostname: $SYSTEM_HOSTNAME"
++if [ -n "$PRIMARY_IP" ]; then
++    echo "  Primary IP: $PRIMARY_IP"
++fi
++echo ""
++echo "Enter the domain or IP address where this dashboard will be accessed."
++echo "For production behind a reverse proxy, use your actual domain."
++echo ""
++echo "Examples:"
++echo "  - Production with domain: dashboard.example.com"
++echo "  - Production with subdomain: appliances.company.internal"
++echo "  - Local development: localhost"
++echo "  - LAN access by IP: 192.168.1.100"
++echo "  - Multiple access points: app.company.com,192.168.1.100"
++echo ""
++
++# When piped through bash, stdin is already used, so we need to read from /dev/tty
++if [ -t 0 ]; then
++    # Interactive mode (script run directly)
++    read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES
++elif [ -e /dev/tty ]; then
++    # Piped mode (curl | bash) - read from terminal
++    read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES </dev/tty
++else
++    # Non-interactive mode
++    echo "⚠️  Non-interactive mode detected. Using default: localhost"
++    USER_HOSTNAMES=""
++fi
+```
+
+PATCH für Eingabe-Verarbeitung:
+```bash
+-# Process user input
+-if [ -z "$USER_HOSTNAMES" ]; then
+-    # Use defaults
+-    HOSTNAMES=("localhost" "$SYSTEM_HOSTNAME")
+-    if [ -n "$PRIMARY_IP" ]; then
+-        HOSTNAMES+=("$PRIMARY_IP")
+-    fi
+-else
+-    # Parse user input
+-    IFS=',' read -ra HOSTNAMES <<< "$USER_HOSTNAMES"
+-fi
+-
+-# Always include localhost
+-if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
+-    HOSTNAMES+=("localhost")
+-fi
++# Process user input
++if [ -z "$USER_HOSTNAMES" ]; then
++    # User pressed Enter - use only localhost
++    HOSTNAMES=("localhost")
++else
++    # Parse user input
++    IFS=',' read -ra HOSTNAMES <<< "$USER_HOSTNAMES"
++    # Always include localhost for local access
++    if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
++        HOSTNAMES+=("localhost")
++    fi
++fi
+```
+
+PATCH für Verzeichnis-Bestätigung (auch mit /dev/tty):
+```bash
+-# Ask for confirmation if directory exists
+-if [ -d "$INSTALL_DIR" ]; then
+-    echo "⚠️  Directory already exists: $INSTALL_DIR"
+-    read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r
+-    echo ""
+-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+-        echo "Installation cancelled."
+-        exit 1
+-    fi
+-fi
++# Ask for confirmation if directory exists
++if [ -d "$INSTALL_DIR" ]; then
++    echo "⚠️  Directory already exists: $INSTALL_DIR"
++    
++    # Read confirmation from /dev/tty for piped input
++    if [ -t 0 ]; then
++        read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r
++    elif [ -e /dev/tty ]; then
++        read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r </dev/tty
++    else
++        echo "Cannot prompt for confirmation in non-interactive mode. Exiting."
++        exit 1
++    fi
++    
++    echo ""
++    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
++        echo "Installation cancelled."
++        exit 1
++    fi
++fi
+```
+
+PATCH für verbesserte Ausgabe:
+```bash
+-echo ""
+-echo "✅ Configured access URLs:"
+-for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
+-    echo "   - $HOST"
+-done
++echo ""
++echo "✅ Configured for access via:"
++for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
++    echo "   • $HOST"
++done
++echo ""
+```
+
+RESULTAT:
+✅ Interaktive Domain-Abfrage funktioniert jetzt mit `curl | bash`
+✅ Benutzer kann gewünschte Domain für Reverse-Proxy angeben
+✅ Keine automatische Verwendung erkannter Hostnamen mehr
+✅ Sauberer Fallback auf localhost bei leerer Eingabe
+✅ Bessere Unterstützung für Produktionsumgebungen
+
+VERWENDUNG:
+```bash
+# Installation mit Domain-Abfrage
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+# -> Fragt nach Domain, z.B. "dashboard.company.com"
+
+# Lokale Installation (Enter drücken für localhost)
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+# -> Enter drücken, verwendet nur localhost
+```
+
+STATUS: ✅ Install-Script mit funktionierender interaktiver Domain-Abfrage bei curl | bash
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-01-14 10:25:00 - Install-Script: Entfernung der verwirrenden Usage-Anleitung
+
+PROBLEM:
+Das Install-Script zeigte eine Usage-Anleitung während der Installation an, was keinen Sinn macht,
+da das Script zu diesem Zeitpunkt bereits läuft. Dies verwirrte nur die Benutzer.
+
+LÖSUNG:
+Entfernung der Usage-Anleitung aus dem laufenden Script.
+
+GEÄNDERTE DATEIEN:
+
+install.sh:
+PATCH:
+```bash
+-echo "🚀 Web Appliance Dashboard - Quick Installer"
+-echo "==========================================="
+-echo ""
+-echo "Usage: curl -sSL <url> | bash        # Installs in ./web-appliance-dashboard"
+-echo "       curl -sSL <url> | bash -s /path/to/install   # Custom install path"
+-echo ""
++echo "🚀 Web Appliance Dashboard - Quick Installer"
++echo "==========================================="
++echo ""
+```
+
+RESULTAT:
+✅ Keine verwirrende Usage-Information mehr während der Installation
+✅ Klarerer und direkterer Installationsprozess
+
+STATUS: ✅ Verwirrende Usage-Anleitung entfernt
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-01-14 10:45:00 - Frontend Build Fix: Korrektur falscher API-Routes in nginx Images
+
+PROBLEM:
+Die installierten Apps konnten Audit-Logs nicht laden, weil die nginx Docker Images ein altes
+Frontend-Build mit falschen API-Routes enthielten:
+- Falsch: `/api/audit-logs` (kebab-case)
+- Richtig: `/api/auditLogs` (camelCase gemäß Naming Convention)
+
+URSACHE:
+Die nginx/static Dateien enthielten alte Frontend-Builds mit kebab-case Routes,
+obwohl der Frontend-Source-Code korrekt camelCase verwendet.
+
+LÖSUNG:
+1. Frontend neu gebaut mit korrekten camelCase Routes
+2. nginx/static mit dem neuen Build aktualisiert
+3. nginx Docker Image neu gebaut
+
+GEÄNDERTE DATEIEN:
+
+nginx/static/js/bundle.*.js:
+- Alte Bundles mit `/api/audit-logs` entfernt
+- Neue Bundles mit `/api/auditLogs` hinzugefügt
+
+VERIFIZIERUNG:
+```bash
+# Überprüfung der API-Routes im Build:
+grep -o "api/audit[^\"']*" bundle.*.js | sort -u
+# Ergebnis: api/auditLogs (korrekt in camelCase)
+```
+
+WICHTIG:
+Die Naming Convention bleibt unverändert:
+- Frontend → Backend: IMMER camelCase
+- Backend → DB: IMMER über QueryBuilder mit automatischem Mapping
+- nginx ist nur ein transparenter Proxy ohne URL-Transformation
+
+RESULTAT:
+✅ Frontend-Build verwendet jetzt korrekte camelCase API-Routes
+✅ nginx Docker Image mit korrektem Frontend aktualisiert
+✅ Audit-Logs funktionieren wieder in installierten Apps
+
+DEPLOYMENT:
+Betroffene Installationen müssen das nginx Image neu pullen:
+```bash
+docker compose pull webserver
+docker compose up -d webserver
+```
+
+STATUS: ✅ Frontend-Build mit korrekten API-Routes wiederhergestellt
+
+════════════════════════════════════════════════════════════════════════════════

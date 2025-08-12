@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Launcher</title>
+    <script>
+        // Get URL from query parameter
+        const params = new URLSearchParams(window.location.search);
+        const targetUrl = params.get('url');
+        
+        if (targetUrl) {
+            // Redirect to the target URL
+            window.location.href = targetUrl;
+        } else {
+            document.body.innerHTML = '<p>No URL specified</p>';
+        }
+    </script>
+</head>
+<body>
+    <p>Redirecting...</p>
+</body>
+</html>
