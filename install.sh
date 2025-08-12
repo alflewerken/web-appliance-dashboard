@@ -115,50 +115,66 @@ fi
 # Create .env file with secure defaults
 echo "🔐 Generating secure configuration..."
 
-# Detect all possible hostnames and IPs for CORS configuration
-echo "🌐 Detecting system hostnames and IPs..."
-HOSTNAMES=()
-
-# Add localhost variations
-HOSTNAMES+=("localhost")
-HOSTNAMES+=("127.0.0.1")
-HOSTNAMES+=("::1")
-
-# Get system hostname
+# Get system hostname for reference
+SYSTEM_HOSTNAME="localhost"
 if command -v hostname &> /dev/null; then
-    SYSTEM_HOSTNAME=$(hostname 2>/dev/null)
-    if [ -n "$SYSTEM_HOSTNAME" ]; then
-        HOSTNAMES+=("$SYSTEM_HOSTNAME")
-        # Also add without .local if it has it
-        HOSTNAMES+=("${SYSTEM_HOSTNAME%.local}")
-        # Also add with .local if it doesn't have it
-        if [[ ! "$SYSTEM_HOSTNAME" == *.local ]]; then
-            HOSTNAMES+=("${SYSTEM_HOSTNAME}.local")
-        fi
-    fi
-    
-    # Get FQDN
-    FQDN=$(hostname -f 2>/dev/null)
-    if [ -n "$FQDN" ] && [ "$FQDN" != "$SYSTEM_HOSTNAME" ]; then
-        HOSTNAMES+=("$FQDN")
+    DETECTED_HOSTNAME=$(hostname 2>/dev/null)
+    if [ -n "$DETECTED_HOSTNAME" ]; then
+        SYSTEM_HOSTNAME="$DETECTED_HOSTNAME"
     fi
 fi
 
-# Get IP addresses
+# Get primary IP address for reference
+PRIMARY_IP=""
 if command -v ip &> /dev/null; then
     # Linux
-    IP_ADDRESSES=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.')
+    PRIMARY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -1)
 elif command -v ifconfig &> /dev/null; then
     # macOS/BSD
-    IP_ADDRESSES=$(ifconfig | grep 'inet ' | awk '{print $2}' | grep -v '^127\.')
+    PRIMARY_IP=$(ifconfig | grep 'inet ' | awk '{print $2}' | grep -v '^127\.' | head -1)
 fi
 
-for IP in $IP_ADDRESSES; do
-    HOSTNAMES+=("$IP")
-done
+# Ask user for hostname configuration
+echo ""
+echo "🌐 Configure Access URLs"
+echo "========================"
+echo "The dashboard needs to know how it will be accessed."
+echo "This is important for CORS configuration and reverse proxy setups."
+echo ""
+echo "Detected system information:"
+echo "  Hostname: $SYSTEM_HOSTNAME"
+if [ -n "$PRIMARY_IP" ]; then
+    echo "  Primary IP: $PRIMARY_IP"
+fi
+echo ""
+echo "How will you access this dashboard? (separate multiple with commas)"
+echo "Examples:"
+echo "  - Local only: localhost"
+echo "  - LAN access: 192.168.1.100,macbook.local"
+echo "  - With domain: dashboard.example.com"
+echo "  - Behind proxy: app.company.com,192.168.1.100"
+echo ""
+read -p "Enter hostname(s) [default: localhost,$SYSTEM_HOSTNAME,$PRIMARY_IP]: " USER_HOSTNAMES
 
-# Remove duplicates
-UNIQUE_HOSTNAMES=($(printf "%s\n" "${HOSTNAMES[@]}" | sort -u))
+# Process user input
+if [ -z "$USER_HOSTNAMES" ]; then
+    # Use defaults
+    HOSTNAMES=("localhost" "$SYSTEM_HOSTNAME")
+    if [ -n "$PRIMARY_IP" ]; then
+        HOSTNAMES+=("$PRIMARY_IP")
+    fi
+else
+    # Parse user input
+    IFS=',' read -ra HOSTNAMES <<< "$USER_HOSTNAMES"
+fi
+
+# Always include localhost
+if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
+    HOSTNAMES+=("localhost")
+fi
+
+# Remove duplicates and clean up
+UNIQUE_HOSTNAMES=($(printf "%s\n" "${HOSTNAMES[@]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort -u))
 
 # Build ALLOWED_ORIGINS string
 ALLOWED_ORIGINS=""
@@ -167,12 +183,13 @@ for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
         ALLOWED_ORIGINS="${ALLOWED_ORIGINS},"
     fi
     ALLOWED_ORIGINS="${ALLOWED_ORIGINS}http://${HOST}:${HTTP_PORT}"
-    if [ -f "ssl/cert.pem" ] || [ "$HTTPS_PORT" != "" ]; then
+    if [ "$HTTPS_PORT" != "" ]; then
         ALLOWED_ORIGINS="${ALLOWED_ORIGINS},https://${HOST}:${HTTPS_PORT}"
     fi
 done
 
-echo "📝 Detected hostnames and IPs:"
+echo ""
+echo "✅ Configured access URLs:"
 for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
     echo "   - $HOST"
 done
@@ -186,9 +203,10 @@ SSH_KEY=$(openssl rand -hex 32 2>/dev/null || echo "default-ssh-secret-change-in
 TTYD_PASS=$(openssl rand -base64 16 2>/dev/null || echo "ttyd_pass123")
 
 # Determine primary hostname for EXTERNAL_URL
-PRIMARY_HOST="localhost"
-if [ -n "$SYSTEM_HOSTNAME" ]; then
-    PRIMARY_HOST="$SYSTEM_HOSTNAME"
+# Use the first user-provided hostname, or fallback to localhost
+PRIMARY_HOST="${UNIQUE_HOSTNAMES[0]}"
+if [ -z "$PRIMARY_HOST" ]; then
+    PRIMARY_HOST="localhost"
 fi
 
 cat > .env << EOF
@@ -406,9 +424,40 @@ networks:
     driver: bridge
 EOF
 
-# Pull images
-echo "🐳 Pulling Docker images..."
-docker compose pull 2>/dev/null || echo "⚠️  Some images couldn't be pulled"
+# Pull images with progress indication
+echo "🐳 Downloading Docker images (this may take a few minutes)..."
+echo "=================================================="
+
+# Define all images that need to be pulled
+IMAGES=(
+    "mariadb:10.11"
+    "ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"
+    "ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest"
+    "ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest"
+    "ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest"
+    "ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest"
+    "guacamole/guacd:latest"
+    "postgres:13"
+)
+
+# Pull each image with status
+TOTAL_IMAGES=${#IMAGES[@]}
+CURRENT=0
+
+for IMAGE in "${IMAGES[@]}"; do
+    CURRENT=$((CURRENT + 1))
+    echo ""
+    echo "[$CURRENT/$TOTAL_IMAGES] Downloading: $IMAGE"
+    if docker pull "$IMAGE"; then
+        echo "   ✅ Downloaded successfully"
+    else
+        echo "   ⚠️  Failed to download $IMAGE (will retry during startup)"
+    fi
+done
+
+echo ""
+echo "✅ Image download complete!"
+echo ""
 
 # Start services
 echo "🚀 Starting services..."

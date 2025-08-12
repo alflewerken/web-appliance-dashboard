@@ -32708,3 +32708,143 @@ Auf betroffenen Hosts sollte trotzdem das Frontend aktualisiert werden:
 STATUS: ✅ Legacy-Kompatibilität für Service-Check Route implementiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+
+## 2025-08-12 09:35:00 - Verbesserung des Install-Scripts: Interaktive Hostname-Konfiguration und Download-Fortschritt
+
+PROBLEM:
+1. Die automatische Hostname-Erkennung war unzuverlässig und berücksichtigte nicht Reverse-Proxy-Setups
+2. Beim Download der Docker-Images gab es keine Fortschrittsanzeige, was den Eindruck erweckte, die Installation hänge
+
+LÖSUNG:
+1. **Interaktive Hostname-Abfrage**: 
+   - Benutzer wird nach gewünschten Hostnamen/Domains gefragt
+   - Unterstützt mehrere Hostnamen (komma-separiert)
+   - Zeigt erkannte System-Informationen als Referenz
+   - Beispiele für verschiedene Szenarien (lokal, LAN, Domain, Reverse-Proxy)
+
+2. **Detaillierte Download-Fortschrittsanzeige**:
+   - Zeigt jeden Image-Download einzeln mit Fortschrittszähler [1/8], [2/8], etc.
+   - Klare Statusmeldungen für jeden Download
+   - Fehlerbehandlung wenn Images nicht heruntergeladen werden können
+
+GEÄNDERTE DATEIEN:
+
+install.sh:
+PATCH für Hostname-Konfiguration:
+```bash
+-# Detect all possible hostnames and IPs for CORS configuration
+-echo "🌐 Detecting system hostnames and IPs..."
+-HOSTNAMES=()
+-[... automatische Erkennung ...]
++# Get system hostname for reference
++SYSTEM_HOSTNAME="localhost"
++if command -v hostname &> /dev/null; then
++    DETECTED_HOSTNAME=$(hostname 2>/dev/null)
++    if [ -n "$DETECTED_HOSTNAME" ]; then
++        SYSTEM_HOSTNAME="$DETECTED_HOSTNAME"
++    fi
++fi
++
++# Get primary IP address for reference
++PRIMARY_IP=""
++if command -v ip &> /dev/null; then
++    # Linux
++    PRIMARY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -1)
++elif command -v ifconfig &> /dev/null; then
++    # macOS/BSD
++    PRIMARY_IP=$(ifconfig | grep 'inet ' | awk '{print $2}' | grep -v '^127\.' | head -1)
++fi
++
++# Ask user for hostname configuration
++echo ""
++echo "🌐 Configure Access URLs"
++echo "========================"
++echo "The dashboard needs to know how it will be accessed."
++echo "This is important for CORS configuration and reverse proxy setups."
++echo ""
++echo "Detected system information:"
++echo "  Hostname: $SYSTEM_HOSTNAME"
++if [ -n "$PRIMARY_IP" ]; then
++    echo "  Primary IP: $PRIMARY_IP"
++fi
++echo ""
++echo "How will you access this dashboard? (separate multiple with commas)"
++echo "Examples:"
++echo "  - Local only: localhost"
++echo "  - LAN access: 192.168.1.100,macbook.local"
++echo "  - With domain: dashboard.example.com"
++echo "  - Behind proxy: app.company.com,192.168.1.100"
++echo ""
++read -p "Enter hostname(s) [default: localhost,$SYSTEM_HOSTNAME,$PRIMARY_IP]: " USER_HOSTNAMES
++
++# Process user input
++if [ -z "$USER_HOSTNAMES" ]; then
++    # Use defaults
++    HOSTNAMES=("localhost" "$SYSTEM_HOSTNAME")
++    if [ -n "$PRIMARY_IP" ]; then
++        HOSTNAMES+=("$PRIMARY_IP")
++    fi
++else
++    # Parse user input
++    IFS=',' read -ra HOSTNAMES <<< "$USER_HOSTNAMES"
++fi
+```
+
+PATCH für Download-Fortschritt:
+```bash
+-# Pull images
+-echo "🐳 Pulling Docker images..."
+-docker compose pull 2>/dev/null || echo "⚠️  Some images couldn't be pulled"
++# Pull images with progress indication
++echo "🐳 Downloading Docker images (this may take a few minutes)..."
++echo "=================================================="
++
++# Define all images that need to be pulled
++IMAGES=(
++    "mariadb:10.11"
++    "ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"
++    "ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest"
++    "ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest"
++    "ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest"
++    "ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest"
++    "guacamole/guacd:latest"
++    "postgres:13"
++)
++
++# Pull each image with status
++TOTAL_IMAGES=${#IMAGES[@]}
++CURRENT=0
++
++for IMAGE in "${IMAGES[@]}"; do
++    CURRENT=$((CURRENT + 1))
++    echo ""
++    echo "[$CURRENT/$TOTAL_IMAGES] Downloading: $IMAGE"
++    if docker pull "$IMAGE"; then
++        echo "   ✅ Downloaded successfully"
++    else
++        echo "   ⚠️  Failed to download $IMAGE (will retry during startup)"
++    fi
++done
++
++echo ""
++echo "✅ Image download complete!"
+```
+
+NEUE FEATURES:
+✅ Interaktive Konfiguration für Hostnamen/Domains
+✅ Unterstützung für Reverse-Proxy-Szenarien
+✅ Detaillierter Download-Fortschritt mit Zähler
+✅ Bessere Benutzererfahrung während der Installation
+✅ Flexiblere CORS-Konfiguration basierend auf Benutzereingabe
+
+RESULTAT:
+- Benutzer haben volle Kontrolle über die Zugriffs-URLs
+- Installation zeigt klaren Fortschritt beim Image-Download
+- Besser geeignet für Produktionsumgebungen mit Reverse-Proxies
+- Keine verwirrenden automatisch erkannten Hostnamen mehr
+
+STATUS: ✅ Install-Script mit interaktiver Konfiguration und Download-Fortschritt verbessert
+
+════════════════════════════════════════════════════════════════════════════════
