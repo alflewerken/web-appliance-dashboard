@@ -36926,3 +36926,116 @@ DOKUMENTATIONS-UPDATES:
 STATUS: ✅ Committed (noch nicht gepusht)
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 20:01:00 - Git Push erfolgreich durchgeführt
+
+GIT PUSH ZUSAMMENFASSUNG:
+
+1. HAUPTCOMMIT:
+   - Hash: ed92702
+   - Message: "chore: Clean up scripts directory and update documentation"
+   - Erfolgreich zu origin/main gepusht
+
+2. DOKUMENTATIONS-COMMIT:
+   - Hash: eca74f6
+   - Message: "docs: Document git commit ed92702 in changes.md"
+   - Erfolgreich zu origin/main gepusht
+
+GITHUB STATUS:
+✅ Alle Änderungen sind jetzt auf GitHub verfügbar
+✅ Branch main ist aktuell mit origin/main
+✅ Keine ausstehenden lokalen Änderungen
+
+ÄNDERUNGEN LIVE AUF GITHUB:
+- 7 veraltete Scripts entfernt
+- README-Dateien mit Backup-Warnungen aktualisiert
+- Version 1.1.3 Updates dokumentiert
+- Vollständige Änderungshistorie in changes.md
+
+URL: https://github.com/alflewerken/web-appliance-dashboard
+
+STATUS: ✅ Vollständig synchronisiert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 20:06:00 - README Update-Sektion für Einzeiler-Installation angepasst
+
+PROBLEM:
+Die Update-Anweisungen in beiden README-Dateien setzten voraus, dass das Projekt
+über Git geklont wurde. Bei der empfohlenen Installation über den Einzeiler
+existiert jedoch kein Git-Repository, wodurch `git pull` nicht funktioniert.
+
+LÖSUNG:
+Update-Sektion in beiden README-Dateien erweitert mit zwei Methoden:
+1. Methode 1: Für Einzeiler-Installation (curl-basiertes Update)
+2. Methode 2: Für Git-Installation (bisherige Methode)
+
+GEÄNDERTE DATEIEN:
+
+README.md:
+
+PATCH (Update-Sektion):
+- Hinzugefügt: "Method 1: If installed via one-liner (Recommended)"
+- curl-basierte Update-Befehle für docker-compose Dateien
+- docker compose pull & up -d für Image-Updates
+- Bisherige Git-Methode als "Method 2: If cloned from GitHub"
+
+README.de.md:
+
+PATCH (Update-Sektion):
+- Hinzugefügt: "Methode 1: Bei Installation über Einzeiler (Empfohlen)"
+- curl-basierte Update-Befehle für docker-compose Dateien
+- docker compose pull & up -d für Image-Updates
+- Bisherige Git-Methode als "Methode 2: Bei Installation von GitHub"
+- Entfernt: ./scripts/backup.sh Befehl (existiert nicht)
+
+VERBESSERUNGEN:
+✅ Update-Anweisungen funktionieren jetzt für beide Installationsmethoden
+✅ Einzeiler-Installation (Hauptmethode) hat nun korrekte Update-Befehle
+✅ Verweis auf update-local.sh Script für automatisierte Updates
+✅ Klare Trennung zwischen den beiden Update-Methoden
+
+STATUS: ✅ Dokumentation korrigiert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 20:08:00 - README Update-Sektion vereinfacht
+
+PROBLEM:
+Die Update-Sektion war zu kompliziert mit zwei verschiedenen Methoden.
+Da die meisten Nutzer über den Einzeiler installieren, war das verwirrend.
+
+LÖSUNG:
+Update-Sektion radikal vereinfacht - nur noch die einfache Docker-Methode,
+die für alle Installationsarten funktioniert.
+
+GEÄNDERTE DATEIEN:
+
+README.md & README.de.md:
+
+VEREINFACHUNG:
+- Entfernt: Komplexe Unterscheidung zwischen Installations-Methoden
+- Entfernt: curl-Befehle für docker-compose Downloads
+- Entfernt: Git-spezifische Befehle
+- Entfernt: build.sh Referenzen
+
+NEUE EINFACHE LÖSUNG:
+```bash
+cd ~/web-appliance-dashboard
+docker compose pull
+docker compose up -d
+```
+
+VORTEILE:
+✅ Funktioniert für ALLE Installationsarten
+✅ Nur 3 einfache Befehle
+✅ Keine Verwirrung mehr
+✅ Docker-Images werden von GitHub Container Registry gezogen
+✅ Automatische Updates ohne manuelle Downloads
+
+STATUS: ✅ Dokumentation vereinfacht
+
+════════════════════════════════════════════════════════════════════════════════

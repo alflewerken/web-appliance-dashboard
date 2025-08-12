@@ -67,29 +67,21 @@ Dies entfernt:
 > Navigieren Sie zu **Einstellungen → Backup** im Dashboard und erstellen Sie ein vollständiges Backup.
 > Dies stellt sicher, dass Sie Ihre Konfiguration und Daten bei Bedarf wiederherstellen können.
 
-Um auf die neueste Version des Web Appliance Dashboards zu aktualisieren:
-
-### Vollständiges Update (Sauberer Neuaufbau)
 ```bash
 # Zum Installationsverzeichnis wechseln
 cd ~/web-appliance-dashboard
 
-# Daten zuerst sichern!
-./scripts/backup.sh
-
-# Neueste Änderungen holen
-git pull
-
-# Alles von Grund auf neu bauen
-./scripts/build.sh --nocache
+# Neueste Docker-Images ziehen und neu starten
+docker compose pull
+docker compose up -d
 ```
 
+Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
+
 ### Update-Hinweise
-- **Immer Backup** der Daten vor größeren Updates erstellen
-- `--refresh` für schnelle Updates verwenden (Daten und Konfigurationen bleiben erhalten)
-- `--nocache` für sauberen Neuaufbau verwenden (empfohlen für Major-Version-Updates)
-- [CHANGELOG.md](CHANGELOG.md) auf Breaking Changes prüfen
 - Datenbank-Migrationen laufen automatisch beim Start
+- Ihre Daten und Konfigurationen bleiben erhalten
+- Versionsänderungen finden Sie im [CHANGELOG.md](https://github.com/alflewerken/web-appliance-dashboard/blob/main/CHANGELOG.md)
 
 ## 🌟 Features
 
