@@ -36396,3 +36396,497 @@ STATUS: ✅ Behoben
 
 ════════════════════════════════════════════════════════════════════════════════
 
+
+
+## 2025-08-12 19:29:00 - Backup-Hinweis in README-Dateien hinzugefügt
+
+PROBLEM:
+In den README-Dateien fehlte ein prominenter Hinweis, dass vor Updates unbedingt
+ein Backup über die Web-Oberfläche durchgeführt werden sollte. Dies könnte zu
+Datenverlust bei Updates führen.
+
+LÖSUNG:
+Prominenten Warnhinweis in beiden README-Dateien (README.md und README.de.md)
+in der Update-Sektion hinzugefügt, der explizit auf das UI-Backup hinweist.
+
+GEÄNDERTE DATEIEN:
+
+README.md:
+
+PATCH (Zeile ~63-67):
+```markdown
+-## 🔄 Update
+-
+-To update to the latest version of Web Appliance Dashboard:
+-
+-### Full Update (Clean Rebuild)
++## 🔄 Update
++
++> ⚠️ **IMPORTANT: Before updating, always create a backup through the Web UI!**
++> 
++> Navigate to **Settings → Backup** in the dashboard and create a full backup.
++> This ensures you can restore your configuration and data if needed.
++
++To update to the latest version of Web Appliance Dashboard:
++
++### Full Update (Clean Rebuild)
+```
+
+README.de.md:
+
+PATCH (Zeile ~63-67):
+```markdown
+-## 🔄 Update
+-
+-Um auf die neueste Version des Web Appliance Dashboards zu aktualisieren:
+-
+-### Vollständiges Update (Sauberer Neuaufbau)
++## 🔄 Update
++
++> ⚠️ **WICHTIG: Vor dem Update immer ein Backup über die Web-Oberfläche erstellen!**
++> 
++> Navigieren Sie zu **Einstellungen → Backup** im Dashboard und erstellen Sie ein vollständiges Backup.
++> Dies stellt sicher, dass Sie Ihre Konfiguration und Daten bei Bedarf wiederherstellen können.
++
++Um auf die neueste Version des Web Appliance Dashboards zu aktualisieren:
++
++### Vollständiges Update (Sauberer Neuaufbau)
+```
+
+RESULTAT:
+✅ Backup-Hinweis prominent in beiden README-Dateien platziert
+✅ Nutzer werden vor Updates explizit auf UI-Backup hingewiesen
+✅ Reduziert Risiko von Datenverlust bei Updates
+
+STATUS: ✅ Dokumentation verbessert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 19:31:00 - README "Neueste Updates" Sektion aktualisiert
+
+PROBLEM:
+Die "Latest Updates" bzw. "Neueste Updates" Sektion in beiden README-Dateien
+zeigte noch Version 1.1.2 und enthielt nicht die aktuellen Fixes von Version 1.1.3.
+
+LÖSUNG:
+Beide README-Dateien mit den neuesten Updates von Version 1.1.3 aktualisiert,
+inklusive aller wichtigen Fixes und Verbesserungen.
+
+GEÄNDERTE DATEIEN:
+
+README.md:
+
+PATCH (Zeile ~112-127):
+```markdown
+-Latest Updates (v1.1.2)
+-
+-### 📖 New User Guide
+-- ✅ Comprehensive documentation with 600+ lines
+-- ✅ Personal story behind the project
+-- ✅ Mobile-first documentation with iPhone screenshots
+-- ✅ Practical workflows instead of feature lists
+-- ✅ Clean UI Philosophy documented
+-
+-### Host-First Concept
++Latest Updates
++
++### 🚀 Version 1.1.3 (August 2025)
++- ✅ **React 19 Compatibility** - Full support for React 19.1.1
++- ✅ **Express 4 Stability** - Resolved routing issues, stable backend
++- ✅ **Improved Backup/Restore** - Fixed drag-and-drop functionality
++- ✅ **Remote Desktop Fixed** - Guacamole authentication working
++- ✅ **Enhanced Documentation** - Added prominent backup warnings before updates
++
++### 📖 New User Guide
++- ✅ Comprehensive documentation with 600+ lines
++- ✅ Personal story behind the project
++- ✅ Mobile-first documentation with iPhone screenshots
++- ✅ Practical workflows instead of feature lists
++- ✅ Clean UI Philosophy documented
++
++### Host-First Concept
+```
+
+README.de.md:
+
+PATCH (Zeile ~115-130):
+```markdown
+-Neueste Updates (v1.1.2)
+-
+-### 📖 Neues Benutzerhandbuch
+-- ✅ Umfassende Dokumentation mit 600+ Zeilen
+-- ✅ Persönliche Entstehungsgeschichte des Projekts
+-- ✅ Mobile-First Dokumentation mit iPhone Screenshots
+-- ✅ Praktische Workflows statt Feature-Listen
+-- ✅ Clean UI Philosophy dokumentiert
+-
+-### Host-First Konzept
++Neueste Updates
++
++### 🚀 Version 1.1.3 (August 2025)
++- ✅ **React 19 Kompatibilität** - Volle Unterstützung für React 19.1.1
++- ✅ **Express 4 Stabilität** - Routing-Probleme gelöst, stabiles Backend
++- ✅ **Verbessertes Backup/Restore** - Drag-and-Drop Funktionalität repariert
++- ✅ **Remote Desktop repariert** - Guacamole Authentifizierung funktioniert
++- ✅ **Erweiterte Dokumentation** - Prominente Backup-Warnungen vor Updates hinzugefügt
++
++### 📖 Neues Benutzerhandbuch
++- ✅ Umfassende Dokumentation mit 600+ Zeilen
++- ✅ Persönliche Entstehungsgeschichte des Projekts
++- ✅ Mobile-First Dokumentation mit iPhone Screenshots
++- ✅ Praktische Workflows statt Feature-Listen
++- ✅ Clean UI Philosophy dokumentiert
++
++### Host-First Konzept
+```
+
+INHALT DER UPDATES:
+- React 19.1.1 volle Kompatibilität
+- Express auf stabile Version 4.21.2 zurückgesetzt
+- Drag-and-Drop für Backup/Restore funktioniert wieder
+- Guacamole Remote Desktop Authentifizierung repariert
+- Backup-Warnungen in Dokumentation hinzugefügt
+
+RESULTAT:
+✅ README-Dateien zeigen jetzt aktuelle Version 1.1.3
+✅ Alle wichtigen Fixes und Verbesserungen dokumentiert
+✅ Konsistente Updates in beiden Sprachen
+
+STATUS: ✅ Dokumentation aktualisiert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 19:34:00 - Script-Bereinigung: check-sftp-password.sh entfernt
+
+PROBLEM:
+Das Script check-sftp-password.sh war ein veraltetes Debug/Diagnose-Tool, das nicht
+mehr benötigt wird. SFTP-Konfiguration erfolgt automatisch über GuacamoleDBManager.js.
+
+ANALYSE:
+- SFTP wird automatisch bei VNC/RDP-Verbindungen konfiguriert
+- Credentials werden aus SSH-Host-Daten oder Remote-Desktop-Daten übernommen
+- Manuelle Passwort-Setzung über Script ist nicht mehr notwendig
+- Script wurde nur für Troubleshooting verwendet
+
+LÖSUNG:
+Script check-sftp-password.sh aus dem scripts/ Verzeichnis entfernt.
+
+GELÖSCHTE DATEI:
+
+scripts/check-sftp-password.sh (kompletter Inhalt als -PATCH):
+```bash
+-#!/bin/bash
+-
+-# Check and fix SFTP password configuration
+-
+-echo "========================================"
+-echo "SFTP Password Configuration Check"
+-echo "========================================"
+-echo ""
+-
+-# First, let's see what credentials are configured
+-echo "1. Current SFTP configuration:"
+-docker exec -i appliance_guacamole_db psql -U guacamole_user -d guacamole_db -x -c "
+-SELECT 
+-    c.connection_name,
+-    MAX(CASE WHEN p.parameter_name = 'hostname' THEN p.parameter_value END) as vnc_host,
+-    MAX(CASE WHEN p.parameter_name = 'username' THEN p.parameter_value END) as vnc_user,
+-    MAX(CASE WHEN p.parameter_name = 'sftp-hostname' THEN p.parameter_value END) as sftp_host,
+-    MAX(CASE WHEN p.parameter_name = 'sftp-username' THEN p.parameter_value END) as sftp_user,
+-    LENGTH(MAX(CASE WHEN p.parameter_name = 'sftp-password' THEN p.parameter_value END)) as sftp_pass_length
+-FROM guacamole_connection c
+-LEFT JOIN guacamole_connection_parameter p ON c.connection_id = p.connection_id
+-WHERE c.connection_name LIKE 'dashboard-%'
+-GROUP BY c.connection_id, c.connection_name;
+-"
+-
+-echo ""
+-echo "2. Checking appliance SSH configuration in main database:"
+-docker exec -i appliance_database mysql -uroot -prootpassword123 appliance_dashboard -e "
+-SELECT 
+-    a.id,
+-    a.name,
+-    a.ssh_host_id,
+-    h.hostname as ssh_hostname,
+-    h.username as ssh_username,
+-    CASE WHEN h.password_encrypted IS NOT NULL THEN 'SET' ELSE 'NOT SET' END as ssh_password
+-FROM appliances a
+-LEFT JOIN ssh_hosts h ON a.ssh_host_id = h.id
+-WHERE a.remote_desktop_enabled = 1;
+-" 2>/dev/null || echo "Could not query SSH hosts"
+-
+-echo ""
+-echo "3. Let me set a default password for SFTP (you should change this):"
+-read -p "Enter SSH password for SFTP (or press Enter to skip): " SSH_PASS
+-
+-if [ ! -z "$SSH_PASS" ]; then
+-    # Update SFTP password for all connections
+-    docker exec -i appliance_guacamole_db psql -U guacamole_user -d guacamole_db <<EOF
+-UPDATE guacamole_connection_parameter
+-SET parameter_value = '$SSH_PASS'
+-WHERE parameter_name = 'sftp-password'
+-AND connection_id IN (
+-    SELECT connection_id FROM guacamole_connection 
+-    WHERE connection_name LIKE 'dashboard-%'
+-);
+-EOF
+-    echo "Password updated!"
+-else
+-    echo "Skipped password update"
+-fi
+-
+-echo ""
+-echo "4. Final check - restart services:"
+-docker-compose restart guacd guacamole
+-
+-echo ""
+-echo "========================================"
+-echo "✅ Configuration checked!"
+-echo "========================================"
+-echo ""
+-echo "Important: For SFTP to work, you need:"
+-echo "1. Valid SSH credentials (username/password)"
+-echo "2. SSH access to the target host"
+-echo "3. Write permissions in the upload directory (/tmp)"
+-echo ""
+-echo "Test SSH access with:"
+-echo "ssh username@hostname"
+```
+
+BEGRÜNDUNG:
+- SFTP-Konfiguration erfolgt automatisch in GuacamoleDBManager.js
+- Manuelle Eingriffe in die Guacamole-DB sind nicht mehr notwendig
+- Script war nur für Debugging/Troubleshooting gedacht
+- Reduziert Verwirrung und hält scripts/ Verzeichnis sauber
+
+RESULTAT:
+✅ Veraltetes Script entfernt
+✅ scripts/ Verzeichnis aufgeräumt
+✅ SFTP-Funktionalität bleibt vollständig erhalten (automatische Konfiguration)
+
+STATUS: ✅ Bereinigung durchgeführt
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 19:37:00 - Script-Bereinigung: Veraltete fix- Scripts entfernt
+
+PROBLEM:
+Drei temporäre fix- Scripts waren noch im scripts/ Verzeichnis vorhanden, obwohl
+sie nicht mehr benötigt werden. Diese Scripts waren Workarounds für Probleme,
+die mittlerweile im Code gelöst sind.
+
+ANALYSE:
+1. fix-macos-vnc.sh - VNC-Einstellungen für macOS (jetzt automatisch)
+2. fix-nginx-temp.sh - Temporärer nginx-Workaround (nginx läuft stabil)
+3. fix-vnc-connection.sh - Manuelle VNC-Reparatur (automatisch gelöst)
+
+Keine der Scripts wird mehr referenziert oder benötigt.
+
+LÖSUNG:
+Alle drei fix- Scripts aus dem scripts/ Verzeichnis entfernt.
+
+GELÖSCHTE DATEIEN (1/3):
+
+scripts/fix-macos-vnc.sh (kompletter Inhalt als -PATCH):
+```bash
+-#!/bin/bash
+-
+-# Update VNC connection for macOS compatibility
+-echo "Updating VNC connection for macOS compatibility..."
+-
+-docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db << 'EOF'
+--- Update VNC parameters for macOS
+-UPDATE guacamole_connection_parameter 
+-SET parameter_value = CASE parameter_name
+-    WHEN 'color_depth' THEN '16'  -- macOS prefers 16-bit
+-    WHEN 'swap-red-blue' THEN 'true'  -- macOS uses BGR
+-    ELSE parameter_value
+-END
+-WHERE parameter_name IN ('color_depth', 'swap-red-blue')
+-AND connection_id IN (SELECT connection_id FROM guacamole_connection WHERE protocol = 'vnc');
+```
+```bash
+--- Add macOS specific encoding
+-INSERT INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value)
+-SELECT connection_id, 'encodings', 'zrle ultra copyrect hextile zlib corre rre raw'
+-FROM guacamole_connection 
+-WHERE protocol = 'vnc'
+-AND connection_id NOT IN (
+-    SELECT connection_id FROM guacamole_connection_parameter 
+-    WHERE parameter_name = 'encodings'
+-);
+-
+--- Show current VNC settings
+-SELECT 
+-    c.connection_name,
+-    cp.parameter_name,
+-    cp.parameter_value
+-FROM guacamole_connection c
+-JOIN guacamole_connection_parameter cp ON c.connection_id = cp.connection_id
+-WHERE c.protocol = 'vnc'
+-ORDER BY c.connection_name, cp.parameter_name;
+-EOF
+-
+-echo ""
+-echo "VNC connections updated for macOS compatibility!"
+-echo "Please restart Guacamole: docker restart appliance_guacamole"
+```
+
+GELÖSCHTE DATEIEN (2/3):
+
+scripts/fix-nginx-temp.sh (kompletter Inhalt als -PATCH):
+```bash
+-#!/bin/bash
+-# Temporary fix script for nginx issue
+-
+-cd ~/web-appliance-dashboard
+-
+-# Stop webserver
+-docker compose stop webserver
+-
+-# Edit docker-compose.yml to use standard nginx
+-sed -i.bak 's|image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest|image: nginx:alpine|' docker-compose.yml
+-
+-# Create nginx config without Lua
+-mkdir -p nginx-config
+-cat > nginx-config/default.conf << 'EOF'
+-server {
+-    listen 80 default_server;
+-    server_name _;
+-    
+-    location / {
+-        root /usr/share/nginx/html;
+-        try_files $uri $uri/ /index.html;
+-    }
+-    
+-    location /api {
+-        proxy_pass http://backend:3001;
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Real-IP $remote_addr;
+-    }
+```
+```bash
+-    
+-    location /terminal {
+-        proxy_pass http://ttyd:7681;
+-        proxy_http_version 1.1;
+-        proxy_set_header Upgrade $http_upgrade;
+-        proxy_set_header Connection "upgrade";
+-    }
+-}
+-EOF
+-
+-# Start with standard nginx
+-docker run -d --name appliance_webserver \
+-  --network appliance_network \
+-  -p 80:80 -p 443:443 \
+-  -v $(pwd)/nginx-config/default.conf:/etc/nginx/conf.d/default.conf:ro \
+-  nginx:alpine
+-
+-echo "Temporary nginx fix applied!"
+-echo "Access the dashboard at http://localhost"
+```
+
+GELÖSCHTE DATEIEN (3/3):
+
+scripts/fix-vnc-connection.sh (kompletter Inhalt als -PATCH):
+```bash
+-#!/bin/bash
+-
+-# Fix VNC Connection for macOS Screen Sharing
+-# This script updates the Guacamole connection parameters for macOS
+-
+-echo "=== Fixing VNC Connection Parameters for macOS ==="
+-
+-# Check if Screen Sharing is enabled
+-if system_profiler SPFirewallDataType | grep -q "Screen Sharing: On"; then
+-    echo "✅ Screen Sharing is enabled"
+-else
+-    echo "⚠️  Screen Sharing is NOT enabled!"
+-    echo "Please enable it in System Settings > General > Sharing > Screen Sharing"
+-    echo ""
+-fi
+-
+-# Get the local IP address
+-LOCAL_IP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1 || echo "localhost")
+-echo "Local IP: $LOCAL_IP"
+-
+-# Update connection parameters in Guacamole database
+-docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db <<EOF
+--- Update VNC connections to use correct hostname
+-UPDATE guacamole_connection_parameter 
+-SET parameter_value = '$LOCAL_IP'
+-WHERE parameter_name = 'hostname' 
+-AND connection_id IN (
+-    SELECT connection_id FROM guacamole_connection 
+-    WHERE protocol = 'vnc'
+-);
+```
+```bash
+-
+--- Set correct VNC password if needed
+-UPDATE guacamole_connection_parameter 
+-SET parameter_value = 'vnc123'
+-WHERE parameter_name = 'password' 
+-AND connection_id IN (
+-    SELECT connection_id FROM guacamole_connection 
+-    WHERE protocol = 'vnc'
+-);
+-
+--- Disable authentication for VNC (macOS doesn't need username)
+-DELETE FROM guacamole_connection_parameter 
+-WHERE parameter_name = 'username' 
+-AND connection_id IN (
+-    SELECT connection_id FROM guacamole_connection 
+-    WHERE protocol = 'vnc'
+-);
+-
+--- Show current configuration
+-SELECT 
+-    c.connection_name,
+-    c.protocol,
+-    cp_host.parameter_value as hostname,
+-    cp_port.parameter_value as port,
+-    cp_pass.parameter_value as password
+-FROM guacamole_connection c
+-LEFT JOIN guacamole_connection_parameter cp_host 
+-    ON c.connection_id = cp_host.connection_id AND cp_host.parameter_name = 'hostname'
+-LEFT JOIN guacamole_connection_parameter cp_port 
+-    ON c.connection_id = cp_port.connection_id AND cp_port.parameter_name = 'port'
+```
+```bash
+-LEFT JOIN guacamole_connection_parameter cp_pass 
+-    ON c.connection_id = cp_pass.connection_id AND cp_pass.parameter_name = 'password'
+-WHERE c.protocol = 'vnc';
+-EOF
+-
+-echo ""
+-echo "=== Configuration Updated ==="
+-echo ""
+-echo "Next steps:"
+-echo "1. Enable Screen Sharing in macOS System Settings"
+-echo "2. Set VNC password to 'vnc123' (or update the script with your password)"
+-echo "3. Restart Guacamole container: docker restart appliance_guacamole"
+-echo "4. Try connecting again through the web interface"
+-echo ""
+-echo "Alternative: Use RustDesk instead of VNC for better performance"
+```
+
+BEGRÜNDUNG:
+- Alle drei Scripts waren temporäre Workarounds für spezifische Probleme
+- fix-macos-vnc.sh: VNC-Einstellungen werden jetzt automatisch konfiguriert
+- fix-nginx-temp.sh: nginx läuft stabil mit dem aktuellen Setup
+- fix-vnc-connection.sh: VNC-Verbindungen werden automatisch verwaltet
+- Scripts könnten Verwirrung stiften und suggerieren, dass manuelle Fixes nötig sind
+
+RESULTAT:
+✅ Drei veraltete fix- Scripts entfernt
+✅ scripts/ Verzeichnis weiter aufgeräumt
+✅ Keine funktionalen Einschränkungen - alle Fixes sind im Code integriert
+
+STATUS: ✅ Bereinigung durchgeführt
+
+════════════════════════════════════════════════════════════════════════════════

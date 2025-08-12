@@ -5,6 +5,46 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2025-08-12
+
+### Fixed
+- **Express 5 Compatibility** - Downgraded to Express 4.21.2
+  - Fixed container restart loops caused by path-to-regexp incompatibility
+  - Backend and webserver containers now start successfully
+  - All routing functionality restored
+- **React 19 Compatibility** - Updated drag-and-drop implementation
+  - Migrated from deprecated ReactDOM.render to createRoot API
+  - Fixed "PT.render is not a function" error
+  - Backup restore drag-and-drop now fully functional
+- **DOM Cleanup Issues** - Improved React dialog lifecycle
+  - Fixed "Node.removeChild" errors in backup restore dialog
+  - Added proper null checks before DOM manipulation
+  - Prevented duplicate removal attempts
+- **Guacamole Authentication** - Reset PostgreSQL database
+  - Fixed password mismatch between .env and database initialization
+  - Remote Desktop connections now working properly
+  - HTTP 500 errors resolved
+- **Build Script Compatibility** - Fixed sed commands for GNU sed
+  - Updated sync-compose.sh to work with both GNU and BSD sed
+  - Production docker-compose generation now working
+
+### Changed
+- **Dependencies**
+  - Express: 5.1.0 → 4.21.2 (downgrade for stability)
+  - React: Already at 19.1.1 (fixed compatibility issues)
+  
+### Removed
+- **Temporary Files** - Cleaned up development artifacts
+  - Removed temp-fix/ directory with old patch scripts
+  - Removed backend/debug-routes.js debugging script
+  - Repository cleaned of all temporary development files
+
+### Documentation
+- **Version Badges** - Updated to reflect actual versions
+  - React badge: 18.2 → 19.1
+  - Node.js badge: 20+ → 18+ (minimum requirement)
+  - Backend README version: 1.1.0 → 1.1.2
+
 ## [1.1.2] - 2025-08-10
 
 ### Added

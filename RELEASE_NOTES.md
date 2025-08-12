@@ -1,105 +1,78 @@
-# 🎉 Web Appliance Dashboard v1.1.2 - Production Ready
+# 🎉 Web Appliance Dashboard v1.1.3 - Critical Fixes Release
 
-## From a homelab enthusiast for homelab enthusiasts!
+## Emergency fixes for Docker rebuild issues
 
-After months of development and refinement, I'm excited to share version 1.1.2 of the Web Appliance Dashboard with the community. This release represents a major milestone with comprehensive documentation, a cleaned codebase, and full bilingual support.
+This release addresses critical compatibility issues that prevented the application from running after a clean Docker rebuild. All major functionality has been restored.
 
-## ✨ Highlights
+## 🔧 Critical Fixes
 
-### 📖 Complete Documentation Overhaul
-- **600+ lines** comprehensive user guide with personal narrative
-- **Host-First Concept** - Clear onboarding process
-- **Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
-- **Mobile Experience Guide** with real iPhone screenshots
-- **Practical workflows** showing actual time savings
+### 🐛 Express 5 Compatibility Issues - FIXED
+- **Problem**: Container restart loops after clean rebuild
+- **Solution**: Downgraded Express from 5.1.0 to 4.21.2
+- **Impact**: Backend and webserver containers now start successfully
 
-### 🌍 Full Bilingual Support
-- English README as default for international accessibility
-- Complete German documentation maintained
-- All guides translated and synchronized
-- Screenshots and references updated
+### ⚛️ React 19 Compatibility - RESOLVED
+- **Problem**: Drag-and-drop backup restore completely broken
+- **Solution**: Migrated to React 18+ createRoot API
+- **Impact**: Full backup/restore functionality restored
 
-### 🧹 Massive Codebase Cleanup
-- **70,000+ lines** of debug and test code removed
-- Production-ready, clean repository
-- All temporary files and unused scripts deleted
-- Optimized Docker configurations
+### 🗄️ Guacamole Database Authentication - FIXED
+- **Problem**: Remote Desktop connections failing with HTTP 500
+- **Solution**: Reset PostgreSQL database with correct credentials
+- **Impact**: Remote Desktop fully operational
 
-### 🔒 Security Improvements
-- Example secrets properly neutralized
-- Security reporting via GitHub Security Advisories
-- Encryption key management improved
-- No sensitive data in repository
+### 🛠️ Build Script Compatibility - FIXED
+- **Problem**: sync-compose.sh failing with GNU sed
+- **Solution**: Updated sed commands for cross-platform compatibility
+- **Impact**: Production builds now working
 
-## 📸 Key Features
+## 📦 Dependencies
 
-- **Central Dashboard** - Manage VMs, Docker containers, and services
-- **SSH Integration** - One-click terminal access
-- **Remote Desktop** - VNC/RDP via Apache Guacamole
-- **Service Control** - Start/stop/restart services remotely
-- **Audit Logging** - Full compliance support with undo
-- **Mobile First** - PWA-capable, works perfectly on smartphones
-- **Backup & Restore** - Complete system backup with encryption
-- **Multi-User Support** - Role-based access (in development)
+### Changed
+- Express: `5.1.0` → `4.21.2` (downgrade for stability)
+- React: `19.1.1` (compatibility issues fixed)
+- Node.js: `18+` minimum requirement
+
+## 🧹 Repository Cleanup
+- Removed all temporary debug files
+- Cleaned up `temp-fix/` directory
+- Removed `backend/debug-routes.js`
+- Repository is now production-ready
+
+## 📊 Version Information
+- **Project Version**: 1.1.3
+- **Express**: 4.21.2
+- **React**: 19.1.1
+- **Node.js**: 18+ (minimum)
+- **Docker**: Ready
 
 ## 🚀 Quick Start
 
+For new installations:
 ```bash
-# Clone repository
-git clone https://github.com/alflewerken/web-appliance-dashboard.git
-cd web-appliance-dashboard
-
-# Setup environment (generates secure keys automatically)
-./scripts/setup-env.sh
-
-# Build and start
-./scripts/build.sh
-
-# Access dashboard
-http://localhost:9080
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
 ```
 
-Default credentials: `admin` / `admin123` (change immediately!)
+For existing installations experiencing issues:
+```bash
+# Pull latest changes
+git pull
 
-## 📚 Documentation
+# Rebuild with no cache
+./scripts/build.sh --nocache
 
-- [User Guide](docs/user-guide-v2/USER-GUIDE.en.md) - Complete walkthrough
-- [German Guide](docs/user-guide-v2/USER-GUIDE.md) - Deutsche Anleitung
-- [CHANGELOG](CHANGELOG.md) - Detailed changes
+# Or use quick refresh
+./scripts/build.sh --refresh
+```
 
-## 🐛 Bug Fixes in v1.1.2
+## 💡 Notes
 
-- User status display corrected
-- Nginx configuration errors resolved
-- QueryBuilder double mapping fixed
-- SSH file upload issues resolved
-- Remote Desktop after logout works again
-
-## 💬 Personal Note
-
-> After 30 years in IT and countless tools, I just wanted a dashboard that works. No frills, no cloud dependency, no monthly fees. Just a solid, beautiful tool for my homelab. If it helps you manage your homelab better - mission accomplished!
+This release focuses entirely on stability and compatibility. No new features were added. If you experienced container restart loops or drag-and-drop issues after rebuilding, this update will resolve those problems.
 
 ## 🙏 Acknowledgments
 
-Thanks to the open source community and all the projects that made this possible. Special thanks to everyone who will test and provide feedback!
-
-## 📦 Docker Images
-
-The nginx image is available on GitHub Container Registry:
-```bash
-docker pull ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
-```
-
-## 🗺️ What's Next
-
-- Multi-user functionality improvements
-- Metrics dashboard
-- Auto-discovery of services
-- AI assistant for bulk operations
-- Kubernetes support
+Thanks to the community for patience while these critical issues were resolved. The project is now more stable and maintainable with Express 4.x.
 
 ---
 
-**Happy Homelabbing!** 🚀
-
-*From Alf, 56, IT enthusiast since the C64*
+**Full Changelog**: [v1.1.2...v1.1.3](https://github.com/alflewerken/web-appliance-dashboard/compare/v1.1.2...v1.1.3)

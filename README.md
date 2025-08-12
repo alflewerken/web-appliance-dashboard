@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19.1-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.2-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.3-brightgreen.svg)](package.json)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
 > **"From a homelab enthusiast for homelab enthusiasts"**
@@ -60,6 +60,34 @@ This will remove:
 - All configuration files
 - All Docker images (optional)
 
+## 🔄 Update
+
+> ⚠️ **IMPORTANT: Before updating, always create a backup through the Web UI!**
+> 
+> Navigate to **Settings → Backup** in the dashboard and create a full backup.
+> This ensures you can restore your configuration and data if needed.
+
+To update to the latest version of Web Appliance Dashboard:
+
+### Full Update (Clean Rebuild)
+```bash
+# Navigate to installation directory
+cd ~/web-appliance-dashboard
+
+# Pull latest changes
+git pull
+
+# Rebuild everything from scratch
+./scripts/build.sh --nocache
+```
+
+### Update Notes
+- **Always backup** your data before major updates
+- Use `--refresh` for quick updates (keeps data and configs)
+- Use `--nocache` for clean rebuild (recommended for major version updates)
+- Check [CHANGELOG.md](CHANGELOG.md) for breaking changes
+- Database migrations run automatically on startup
+
 ## 🌟 Features
 
 ### Core Features
@@ -81,7 +109,14 @@ This will remove:
 - **🔍 Full-text Search** - Quick search across all services
 - **💡 Smart Categories** - Automatic grouping with service counter
 
-## 🆕 Latest Updates (v1.1.2)
+## 🆕 Latest Updates
+
+### 🚀 Version 1.1.3 (August 2025)
+- ✅ **React 19 Compatibility** - Full support for React 19.1.1
+- ✅ **Express 4 Stability** - Resolved routing issues, stable backend
+- ✅ **Improved Backup/Restore** - Fixed drag-and-drop functionality
+- ✅ **Remote Desktop Fixed** - Guacamole authentication working
+- ✅ **Enhanced Documentation** - Added prominent backup warnings before updates
 
 ### 📖 New User Guide
 - ✅ Comprehensive documentation with 600+ lines

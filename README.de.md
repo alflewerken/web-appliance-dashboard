@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19.1-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.2-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.3-brightgreen.svg)](package.json)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
 > **"Von einem Homelab-Enthusiasten für Homelab-Enthusiasten"**
@@ -60,6 +60,37 @@ Dies entfernt:
 - Alle Konfigurationsdateien
 - Alle Docker Images (optional)
 
+## 🔄 Update
+
+> ⚠️ **WICHTIG: Vor dem Update immer ein Backup über die Web-Oberfläche erstellen!**
+> 
+> Navigieren Sie zu **Einstellungen → Backup** im Dashboard und erstellen Sie ein vollständiges Backup.
+> Dies stellt sicher, dass Sie Ihre Konfiguration und Daten bei Bedarf wiederherstellen können.
+
+Um auf die neueste Version des Web Appliance Dashboards zu aktualisieren:
+
+### Vollständiges Update (Sauberer Neuaufbau)
+```bash
+# Zum Installationsverzeichnis wechseln
+cd ~/web-appliance-dashboard
+
+# Daten zuerst sichern!
+./scripts/backup.sh
+
+# Neueste Änderungen holen
+git pull
+
+# Alles von Grund auf neu bauen
+./scripts/build.sh --nocache
+```
+
+### Update-Hinweise
+- **Immer Backup** der Daten vor größeren Updates erstellen
+- `--refresh` für schnelle Updates verwenden (Daten und Konfigurationen bleiben erhalten)
+- `--nocache` für sauberen Neuaufbau verwenden (empfohlen für Major-Version-Updates)
+- [CHANGELOG.md](CHANGELOG.md) auf Breaking Changes prüfen
+- Datenbank-Migrationen laufen automatisch beim Start
+
 ## 🌟 Features
 
 ### Core Features
@@ -81,7 +112,14 @@ Dies entfernt:
 - **🔍 Volltextsuche** - Schnelle Suche über alle Services
 - **💡 Smart Categories** - Automatische Gruppierung mit Service-Counter
 
-## 🆕 Neueste Updates (v1.1.2)
+## 🆕 Neueste Updates
+
+### 🚀 Version 1.1.3 (August 2025)
+- ✅ **React 19 Kompatibilität** - Volle Unterstützung für React 19.1.1
+- ✅ **Express 4 Stabilität** - Routing-Probleme gelöst, stabiles Backend
+- ✅ **Verbessertes Backup/Restore** - Drag-and-Drop Funktionalität repariert
+- ✅ **Remote Desktop repariert** - Guacamole Authentifizierung funktioniert
+- ✅ **Erweiterte Dokumentation** - Prominente Backup-Warnungen vor Updates hinzugefügt
 
 ### 📖 Neues Benutzerhandbuch
 - ✅ Umfassende Dokumentation mit 600+ Zeilen
