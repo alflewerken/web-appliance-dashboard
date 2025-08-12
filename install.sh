@@ -61,166 +61,6 @@ echo "📁 Installing to: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# Download docker-compose.yml
-echo "📥 Downloading configuration..."
-curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.yml \
-    -o docker-compose.original.yml || {
-    echo "❌ Failed to download docker-compose.yml"
-    exit 1
-}
-
-# Create a modified docker-compose.yml that uses pre-built images
-echo "📝 Configuring to use pre-built images..."
-cat > docker-compose.yml << 'EOF'
-services:
-  # Database
-  database:
-    image: mariadb:10.11
-    container_name: ${DB_CONTAINER_NAME:-appliance_db}
-    hostname: database  # WICHTIG: Backend erwartet diesen Hostnamen!
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - db_data:/var/lib/mysql
-    ports:
-      - "${DB_EXTERNAL_PORT:-3306}:3306"
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Backend API - using ghcr.io image
-  backend:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
-    container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
-    hostname: backend  # WICHTIG: nginx erwartet diesen Hostnamen!
-    restart: always
-    depends_on:
-      database:
-        condition: service_healthy
-    environment:
-      DB_HOST: ${DB_HOST:-database}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      JWT_SECRET: ${JWT_SECRET}
-      SESSION_SECRET: ${SESSION_SECRET}
-      SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
-      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-      NODE_ENV: production
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${HOME}/.ssh:/root/.ssh
-    ports:
-      - "${BACKEND_PORT:-3001}:3001"
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-
-  # Frontend - using ghcr.io image
-  frontend:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
-    container_name: ${FRONTEND_CONTAINER_NAME:-appliance_frontend}
-    restart: always
-    depends_on:
-      - backend
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      - REACT_APP_API_URL=http://backend:3001
-
-  # Nginx webserver - using ghcr.io image
-  webserver:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
-    container_name: ${WEBSERVER_CONTAINER_NAME:-appliance_webserver}
-    restart: always
-    depends_on:
-      - backend
-      - frontend
-    ports:
-      - "${HTTP_PORT:-9080}:80"
-      - "${HTTPS_PORT:-9443}:443"
-    volumes:
-      - ./ssl:/etc/nginx/ssl:ro
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      BACKEND_URL: http://backend:3001
-      EXTERNAL_URL: ${EXTERNAL_URL:-http://localhost:9080}
-
-  # Terminal (ttyd) - using ghcr.io image
-  ttyd:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
-    container_name: ${TTYD_CONTAINER_NAME:-appliance_ttyd}
-    restart: always
-    ports:
-      - "7681:7681"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${HOME}/.ssh:/root/.ssh:ro
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      - TTYD_USERNAME=${TTYD_USERNAME:-admin}
-      - TTYD_PASSWORD=${TTYD_PASSWORD:-admin}
-
-  # Guacamole components
-  guacd:
-    image: guacamole/guacd:latest
-    container_name: ${GUACD_CONTAINER_NAME:-appliance_guacd}
-    restart: always
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-    environment:
-      GUACD_LOG_LEVEL: info
-
-  guacamole_db:
-    image: postgres:13
-    container_name: ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db}
-    restart: always
-    environment:
-      POSTGRES_DB: ${GUACAMOLE_DB_NAME:-guacamole_db}
-      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
-      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
-    volumes:
-      - guacamole_db_data:/var/lib/postgresql/data
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-
-  guacamole:
-    image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
-    container_name: ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole}
-    restart: always
-    depends_on:
-      - guacd
-      - guacamole_db
-    environment:
-      GUACD_HOSTNAME: guacd
-      POSTGRES_HOSTNAME: ${GUACAMOLE_DB_HOST:-guacamole_db}
-      POSTGRES_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
-      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
-      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
-      GUACAMOLE_HOME: /etc/guacamole
-    networks:
-      - ${NETWORK_NAME:-appliance_network}
-
-volumes:
-  db_data:
-  guacamole_db_data:
-
-networks:
-  appliance_network:
-    driver: bridge
-EOF
-
 # Create necessary directories
 mkdir -p init-db ssl guacamole scripts
 
@@ -257,58 +97,12 @@ DEFAULT_HTTP_PORT=9080
 DEFAULT_HTTPS_PORT=9443
 DEFAULT_BACKEND_PORT=3001
 DEFAULT_DB_PORT=3306
-DEFAULT_RUSTDESK_ID_PORT=21116
-DEFAULT_RUSTDESK_RELAY_PORT=21117
-DEFAULT_RUSTDESK_WEB_PORT=21118
-DEFAULT_RUSTDESK_API_PORT=21119
-DEFAULT_RUSTDESK_WS_PORT=21120
 
 # Find available ports
 HTTP_PORT=$(find_available_port $DEFAULT_HTTP_PORT)
 HTTPS_PORT=$(find_available_port $DEFAULT_HTTPS_PORT)
 BACKEND_PORT=$(find_available_port $DEFAULT_BACKEND_PORT)
 DB_PORT=$(find_available_port $DEFAULT_DB_PORT)
-
-# RustDesk ports - if any is in use, shift all RustDesk ports together
-if check_port $DEFAULT_RUSTDESK_ID_PORT || check_port $DEFAULT_RUSTDESK_RELAY_PORT || \
-   check_port $DEFAULT_RUSTDESK_WEB_PORT || check_port $DEFAULT_RUSTDESK_API_PORT || \
-   check_port $DEFAULT_RUSTDESK_WS_PORT; then
-    echo "⚠️  RustDesk ports conflict detected, finding alternative port range..."
-    
-    # Find a base port where 5 consecutive ports are free
-    BASE_PORT=22116
-    for attempt in $(seq 0 20); do
-        TEST_BASE=$((BASE_PORT + (attempt * 10)))
-        if ! check_port $TEST_BASE && ! check_port $((TEST_BASE + 1)) && \
-           ! check_port $((TEST_BASE + 2)) && ! check_port $((TEST_BASE + 3)) && \
-           ! check_port $((TEST_BASE + 4)); then
-            RUSTDESK_ID_PORT=$TEST_BASE
-            RUSTDESK_RELAY_PORT=$((TEST_BASE + 1))
-            RUSTDESK_WEB_PORT=$((TEST_BASE + 2))
-            RUSTDESK_API_PORT=$((TEST_BASE + 3))
-            RUSTDESK_WS_PORT=$((TEST_BASE + 4))
-            echo "✅ Found alternative RustDesk ports: $RUSTDESK_ID_PORT-$RUSTDESK_WS_PORT"
-            break
-        fi
-    done
-    
-    # If still not found, disable RustDesk
-    if [ -z "$RUSTDESK_ID_PORT" ]; then
-        echo "⚠️  Could not find 5 consecutive free ports for RustDesk"
-        echo "   RustDesk will be disabled. You can enable it later by editing docker-compose.yml"
-        RUSTDESK_ID_PORT=""
-        RUSTDESK_RELAY_PORT=""
-        RUSTDESK_WEB_PORT=""
-        RUSTDESK_API_PORT=""
-        RUSTDESK_WS_PORT=""
-    fi
-else
-    RUSTDESK_ID_PORT=$DEFAULT_RUSTDESK_ID_PORT
-    RUSTDESK_RELAY_PORT=$DEFAULT_RUSTDESK_RELAY_PORT
-    RUSTDESK_WEB_PORT=$DEFAULT_RUSTDESK_WEB_PORT
-    RUSTDESK_API_PORT=$DEFAULT_RUSTDESK_API_PORT
-    RUSTDESK_WS_PORT=$DEFAULT_RUSTDESK_WS_PORT
-fi
 
 # Report port configuration
 if [ "$HTTP_PORT" != "$DEFAULT_HTTP_PORT" ]; then
@@ -358,13 +152,6 @@ BACKEND_PORT=${BACKEND_PORT}
 DB_EXTERNAL_PORT=${DB_PORT}
 EXTERNAL_URL=http://localhost:${HTTP_PORT}
 
-# RustDesk Ports (if available)
-${RUSTDESK_ID_PORT:+RUSTDESK_ID_PORT=${RUSTDESK_ID_PORT}}
-${RUSTDESK_RELAY_PORT:+RUSTDESK_RELAY_PORT=${RUSTDESK_RELAY_PORT}}
-${RUSTDESK_WEB_PORT:+RUSTDESK_WEB_PORT=${RUSTDESK_WEB_PORT}}
-${RUSTDESK_API_PORT:+RUSTDESK_API_PORT=${RUSTDESK_API_PORT}}
-${RUSTDESK_WEBSOCKET_PORT:+RUSTDESK_WEBSOCKET_PORT=${RUSTDESK_WS_PORT}}
-
 # TTYD Configuration
 TTYD_USERNAME=admin
 TTYD_PASSWORD=${TTYD_PASS}
@@ -372,19 +159,19 @@ TTYD_PASSWORD=${TTYD_PASS}
 # Guacamole Configuration (CRITICAL: Use correct password!)
 GUACAMOLE_URL=http://localhost:${HTTP_PORT}/guacamole
 GUACAMOLE_PROXY_URL=/guacamole/
-GUACAMOLE_DB_HOST=appliance_guacamole_db
+GUACAMOLE_DB_HOST=guacamole_db
 GUACAMOLE_DB_NAME=guacamole_db
 GUACAMOLE_DB_USER=guacamole_user
 GUACAMOLE_DB_PASSWORD=guacamole_pass123
 
-# Container Names
-DB_CONTAINER_NAME=appliance_db
-BACKEND_CONTAINER_NAME=appliance_backend
-WEBSERVER_CONTAINER_NAME=appliance_webserver
-TTYD_CONTAINER_NAME=appliance_ttyd
-GUACAMOLE_CONTAINER_NAME=appliance_guacamole
-GUACAMOLE_DB_CONTAINER_NAME=appliance_guacamole_db
-GUACD_CONTAINER_NAME=appliance_guacd
+# Container Names - WICHTIG: Diese müssen mit den Service-Namen übereinstimmen!
+DB_CONTAINER_NAME=database
+BACKEND_CONTAINER_NAME=backend
+WEBSERVER_CONTAINER_NAME=webserver
+TTYD_CONTAINER_NAME=ttyd
+GUACAMOLE_CONTAINER_NAME=guacamole
+GUACAMOLE_DB_CONTAINER_NAME=guacamole_db
+GUACD_CONTAINER_NAME=guacd
 
 # Network
 NETWORK_NAME=appliance_network
@@ -400,17 +187,160 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     echo "⚠️  Could not generate SSL certificates, using HTTP only"
 }
 
+# Create docker-compose.yml with correct service names
+echo "📝 Creating docker-compose configuration..."
+cat > docker-compose.yml << 'EOF'
+services:
+  # Database - Service name MUST be 'database' for backend to find it
+  database:
+    image: mariadb:10.11
+    container_name: database
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${DB_EXTERNAL_PORT:-3306}:3306"
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API - Service name MUST be 'backend' for nginx to find it
+  backend:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest
+    container_name: backend
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
+      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      NODE_ENV: production
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${HOME}/.ssh:/root/.ssh
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+  # Frontend - wird von nginx nicht verwendet (nginx hat frontend eingebaut)
+  frontend:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-frontend:latest
+    container_name: frontend
+    restart: always
+    depends_on:
+      - backend
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    environment:
+      - REACT_APP_API_URL=http://backend:3001
+
+  # Nginx webserver - Service name MUST be 'webserver'
+  webserver:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-nginx:latest
+    container_name: webserver
+    restart: always
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "${HTTP_PORT:-9080}:80"
+      - "${HTTPS_PORT:-9443}:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    environment:
+      BACKEND_URL: http://backend:3001
+      EXTERNAL_URL: ${EXTERNAL_URL:-http://localhost:9080}
+
+  # Terminal - Service name MUST be 'ttyd' for nginx to find it
+  ttyd:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-ttyd:latest
+    container_name: ttyd
+    restart: always
+    ports:
+      - "7681:7681"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${HOME}/.ssh:/root/.ssh:ro
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    environment:
+      - TTYD_USERNAME=${TTYD_USERNAME:-admin}
+      - TTYD_PASSWORD=${TTYD_PASSWORD:-admin}
+
+  # Guacamole components - Service names are critical!
+  guacd:
+    image: guacamole/guacd:latest
+    container_name: guacd
+    restart: always
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+    environment:
+      GUACD_LOG_LEVEL: info
+
+  guacamole_db:
+    image: postgres:13
+    container_name: guacamole_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+    volumes:
+      - guacamole_db_data:/var/lib/postgresql/data
+      - ./guacamole:/docker-entrypoint-initdb.d:ro
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+  guacamole:
+    image: ghcr.io/alflewerken/web-appliance-dashboard-guacamole:latest
+    container_name: guacamole
+    restart: always
+    depends_on:
+      - guacd
+      - guacamole_db
+    environment:
+      GUACD_HOSTNAME: guacd
+      POSTGRESQL_HOSTNAME: guacamole_db
+      POSTGRESQL_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
+      POSTGRESQL_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
+      POSTGRESQL_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
+    networks:
+      - ${NETWORK_NAME:-appliance_network}
+
+volumes:
+  db_data:
+  guacamole_db_data:
+
+networks:
+  appliance_network:
+    driver: bridge
+EOF
+
 # Pull images
 echo "🐳 Pulling Docker images..."
 docker compose pull 2>/dev/null || echo "⚠️  Some images couldn't be pulled"
-
-# If RustDesk ports are not available, remove RustDesk services from docker-compose
-if [ -z "$RUSTDESK_ID_PORT" ]; then
-    echo "📝 Disabling RustDesk services in docker-compose.yml..."
-    # Comment out RustDesk services
-    sed -i.bak '/rustdesk-server:/,/^[[:space:]]*$/{s/^/#/}' docker-compose.yml
-    sed -i.bak '/rustdesk-relay:/,/^[[:space:]]*$/{s/^/#/}' docker-compose.yml
-fi
 
 # Start services
 echo "🚀 Starting services..."
@@ -419,7 +349,7 @@ docker compose up -d
 # Wait for database
 echo "⏳ Waiting for database to be ready..."
 for i in {1..30}; do
-    if docker exec appliance_db mysqladmin ping -h localhost -u root -p${ROOT_PASS} &>/dev/null; then
+    if docker exec database mysqladmin ping -h localhost -u root -p${ROOT_PASS} &>/dev/null; then
         echo "✅ Database is ready"
         break
     fi
@@ -428,37 +358,21 @@ for i in {1..30}; do
 done
 echo ""
 
-# Initialize database schema
+# Initialize database schema if needed
 echo "📝 Initializing database schema..."
 if [ -f "init-db/01-init.sql" ]; then
-    docker exec -i appliance_db mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
+    docker exec -i database mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
         echo "⚠️  Some tables might already exist (this is normal)"
     }
     echo "✅ Database schema initialized"
-else
-    echo "⚠️  Database schema file not found - downloading..."
-    curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/init-db/01-init.sql \
-        -o init-db/01-init.sql 2>/dev/null || echo "❌ Could not download schema"
-    if [ -f "init-db/01-init.sql" ]; then
-        docker exec -i appliance_db mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
-            echo "⚠️  Some tables might already exist (this is normal)"
-        }
-        echo "✅ Database schema initialized"
-    fi
 fi
-
-# Create admin user if not exists
-echo "👤 Creating admin user..."
-docker exec appliance_db mariadb -u root -p${ROOT_PASS} appliance_dashboard -e \
-    "INSERT IGNORE INTO users (username, email, password_hash, role) VALUES 
-     ('admin', 'admin@localhost', '\$2a\$10\$YourHashHere', 'Administrator');" 2>/dev/null || true
 
 # Initialize Guacamole database if needed
 echo "🔧 Checking Guacamole database..."
 sleep 5
 
 # Check if Guacamole tables exist
-TABLES_EXIST=$(docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
+TABLES_EXIST=$(docker exec guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
     "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
 
 if [ "$TABLES_EXIST" = "f" ]; then
@@ -466,18 +380,17 @@ if [ "$TABLES_EXIST" = "f" ]; then
     
     # Try to load local schema files first
     if [ -f "guacamole/001-create-schema.sql" ]; then
-        docker exec -i appliance_guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+        docker exec -i guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
             < guacamole/001-create-schema.sql >/dev/null 2>&1
         
         if [ -f "guacamole/002-create-admin-user.sql" ]; then
-            docker exec -i appliance_guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+            docker exec -i guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
                 < guacamole/002-create-admin-user.sql >/dev/null 2>&1
         fi
         
         echo "✅ Guacamole database initialized"
     else
         echo "⚠️  Guacamole schema files not found - Remote Desktop may not work initially"
-        echo "   Run: cd $INSTALL_DIR && ./scripts/build.sh"
     fi
     
     # Restart Guacamole
@@ -502,15 +415,8 @@ echo "📝 Default Credentials:"
 echo "   Dashboard: admin / admin123"
 echo "   Guacamole: guacadmin / guacadmin"
 echo ""
-if [ -n "$RUSTDESK_ID_PORT" ]; then
-    echo "🖥️  RustDesk Ports:"
-    echo "   ID Server: ${RUSTDESK_ID_PORT}"
-    echo "   Relay: ${RUSTDESK_RELAY_PORT}"
-    echo "   Web: ${RUSTDESK_WEB_PORT}"
-    echo ""
-fi
 echo "📁 Installation: $INSTALL_DIR"
-echo "🛠️  Maintenance: cd $INSTALL_DIR && ./scripts/build.sh --help"
+echo "🛠️  Maintenance: cd $INSTALL_DIR && docker compose"
 echo ""
 echo "🛑 Stop: cd $INSTALL_DIR && docker compose down"
 echo "🔄 Update: cd $INSTALL_DIR && docker compose pull && docker compose up -d"
