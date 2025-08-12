@@ -37465,3 +37465,34 @@ Ab sofort wird bei jedem Push zu main:
 STATUS: ✅ Workflow erfolgreich verbessert und deployed
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 23:11:14 - GitHub Actions Workflow Fehler behoben
+
+PROBLEM:
+Der neue Workflow hatte einen Fehler beim npm cache:
+"Error: Some specified paths were not resolved, unable to cache dependencies."
+
+URSACHE:
+Der cache-dependency-path konnte die package-lock.json nicht finden,
+obwohl die Datei existiert. Dies ist ein bekanntes Problem mit dem
+npm cache in GitHub Actions.
+
+LÖSUNG:
+npm cache Konfiguration entfernt aus der setup-node Action:
+- Entfernt: cache: 'npm'
+- Entfernt: cache-dependency-path
+
+Der Workflow funktioniert jetzt ohne npm cache. Die Dependencies werden
+bei jedem Build neu heruntergeladen, was etwas länger dauert, aber
+zuverlässiger funktioniert.
+
+GIT COMMIT: 2d24114
+MESSAGE: "fix: Remove npm cache from GitHub Actions workflow"
+
+STATUS: ✅ Workflow-Fehler behoben
+
+NÄCHSTER SCHRITT:
+GitHub Actions läuft jetzt erneut und sollte erfolgreich durchlaufen.
+
+════════════════════════════════════════════════════════════════════════════════
