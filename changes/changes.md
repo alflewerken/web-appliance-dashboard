@@ -36080,3 +36080,50 @@ PUSH: Erfolgreich zu origin/main
 STATUS: ✅ Hinzugefügt und dokumentiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 17:22:00 - Fix: React 18 Dependency-Konflikt behoben
+
+PROBLEM:
+npm install im Frontend schlug fehl mit Dependency-Konflikt:
+- react-swipeable-views unterstützt nur React 15-17
+- Projekt verwendet React 18.3.1
+- Installation blockiert, update-local.sh Script konnte nicht durchlaufen
+
+ANALYSE:
+Code-Suche ergab: react-swipeable-views wird nirgends im Code verwendet
+- Keine Imports von SwipeableViews
+- Nur CSS-Kommentare erwähnen es
+- Vermutlich Legacy-Dependency von früherem Code
+
+LÖSUNG:
+Ungenutzte Dependencies aus package.json entfernt.
+
+GEÄNDERTE DATEI:
+
+frontend/package.json:
+```json
+    "lucide-react": "^0.263.1",
+    "react": "^18.3.1",
+-    "react-dom": "^18.3.1",
+-    "react-swipeable-views": "^0.14.0",
+-    "react-swipeable-views-utils": "^0.14.0"
++    "react-dom": "^18.3.1"
+```
+
+GIT COMMIT: 3e7f7d0
+MESSAGE: "fix: Remove unused react-swipeable-views dependency"
+PUSH: Erfolgreich zu origin/main
+
+RESULTAT:
+✅ npm install läuft jetzt ohne Fehler durch
+✅ update-local.sh Script kann vollständig ausgeführt werden
+✅ Keine funktionalen Änderungen (Package wurde nicht verwendet)
+
+OFFENE PUNKTE:
+- Node Version Warning: undici benötigt Node 20.18.1+, aktuell läuft Node 18.20.8
+- 17 Dependabot PRs warten auf Review (3 Docker, 9 NPM, 5 GitHub Actions)
+
+STATUS: ✅ Behoben
+
+════════════════════════════════════════════════════════════════════════════════
