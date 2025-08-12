@@ -115,6 +115,68 @@ fi
 # Create .env file with secure defaults
 echo "🔐 Generating secure configuration..."
 
+# Detect all possible hostnames and IPs for CORS configuration
+echo "🌐 Detecting system hostnames and IPs..."
+HOSTNAMES=()
+
+# Add localhost variations
+HOSTNAMES+=("localhost")
+HOSTNAMES+=("127.0.0.1")
+HOSTNAMES+=("::1")
+
+# Get system hostname
+if command -v hostname &> /dev/null; then
+    SYSTEM_HOSTNAME=$(hostname 2>/dev/null)
+    if [ -n "$SYSTEM_HOSTNAME" ]; then
+        HOSTNAMES+=("$SYSTEM_HOSTNAME")
+        # Also add without .local if it has it
+        HOSTNAMES+=("${SYSTEM_HOSTNAME%.local}")
+        # Also add with .local if it doesn't have it
+        if [[ ! "$SYSTEM_HOSTNAME" == *.local ]]; then
+            HOSTNAMES+=("${SYSTEM_HOSTNAME}.local")
+        fi
+    fi
+    
+    # Get FQDN
+    FQDN=$(hostname -f 2>/dev/null)
+    if [ -n "$FQDN" ] && [ "$FQDN" != "$SYSTEM_HOSTNAME" ]; then
+        HOSTNAMES+=("$FQDN")
+    fi
+fi
+
+# Get IP addresses
+if command -v ip &> /dev/null; then
+    # Linux
+    IP_ADDRESSES=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.')
+elif command -v ifconfig &> /dev/null; then
+    # macOS/BSD
+    IP_ADDRESSES=$(ifconfig | grep 'inet ' | awk '{print $2}' | grep -v '^127\.')
+fi
+
+for IP in $IP_ADDRESSES; do
+    HOSTNAMES+=("$IP")
+done
+
+# Remove duplicates
+UNIQUE_HOSTNAMES=($(printf "%s\n" "${HOSTNAMES[@]}" | sort -u))
+
+# Build ALLOWED_ORIGINS string
+ALLOWED_ORIGINS=""
+for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
+    if [ -n "$ALLOWED_ORIGINS" ]; then
+        ALLOWED_ORIGINS="${ALLOWED_ORIGINS},"
+    fi
+    ALLOWED_ORIGINS="${ALLOWED_ORIGINS}http://${HOST}:${HTTP_PORT}"
+    if [ -f "ssl/cert.pem" ] || [ "$HTTPS_PORT" != "" ]; then
+        ALLOWED_ORIGINS="${ALLOWED_ORIGINS},https://${HOST}:${HTTPS_PORT}"
+    fi
+done
+
+echo "📝 Detected hostnames and IPs:"
+for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
+    echo "   - $HOST"
+done
+
 # Generate passwords
 DB_PASS=$(openssl rand -base64 24 2>/dev/null || echo "dashboard_pass123")
 ROOT_PASS=$(openssl rand -base64 32 2>/dev/null || echo "root_pass123")
@@ -122,6 +184,12 @@ JWT=$(openssl rand -hex 32 2>/dev/null || echo "default-jwt-secret-change-in-pro
 SESSION=$(openssl rand -hex 32 2>/dev/null || echo "default-session-secret-change-in-production")
 SSH_KEY=$(openssl rand -hex 32 2>/dev/null || echo "default-ssh-secret-change-in-production")
 TTYD_PASS=$(openssl rand -base64 16 2>/dev/null || echo "ttyd_pass123")
+
+# Determine primary hostname for EXTERNAL_URL
+PRIMARY_HOST="localhost"
+if [ -n "$SYSTEM_HOSTNAME" ]; then
+    PRIMARY_HOST="$SYSTEM_HOSTNAME"
+fi
 
 cat > .env << EOF
 # Auto-generated secure configuration
@@ -142,15 +210,15 @@ SESSION_SECRET=${SESSION}
 SSH_KEY_ENCRYPTION_SECRET=${SSH_KEY}
 ENCRYPTION_SECRET=${SSH_KEY}
 
-# CORS Settings
-ALLOWED_ORIGINS=http://localhost,https://localhost
+# CORS Settings - Auto-detected hostnames and IPs
+ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
 
 # Network Configuration  
 HTTP_PORT=${HTTP_PORT}
 HTTPS_PORT=${HTTPS_PORT}
 BACKEND_PORT=${BACKEND_PORT}
 DB_EXTERNAL_PORT=${DB_PORT}
-EXTERNAL_URL=http://localhost:${HTTP_PORT}
+EXTERNAL_URL=http://${PRIMARY_HOST}:${HTTP_PORT}
 
 # TTYD Configuration
 TTYD_USERNAME=admin
@@ -406,9 +474,16 @@ echo ""
 echo "✅ Installation complete!"
 echo ""
 echo "📱 Access your dashboard at:"
-echo "   🌐 http://localhost:${HTTP_PORT}"
+# Show all detected access URLs
+for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
+    echo "   🌐 http://${HOST}:${HTTP_PORT}"
+done
 if [ -f "ssl/cert.pem" ]; then
-    echo "   🔒 https://localhost:${HTTPS_PORT} (self-signed certificate)"
+    echo ""
+    echo "   With HTTPS (self-signed certificate):"
+    for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
+        echo "   🔒 https://${HOST}:${HTTPS_PORT}"
+    done
 fi
 echo ""
 echo "📝 Default Credentials:"
