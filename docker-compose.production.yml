@@ -15,7 +15,7 @@ services:
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password=\"${MYSQL_ROOT_PASSWORD}\" || exit 1"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-5}
