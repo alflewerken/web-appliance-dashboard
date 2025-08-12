@@ -9,9 +9,6 @@ set -e
 echo "🚀 Web Appliance Dashboard - Quick Installer"
 echo "==========================================="
 echo ""
-echo "Usage: curl -sSL <url> | bash        # Installs in ./web-appliance-dashboard"
-echo "       curl -sSL <url> | bash -s /path/to/install   # Custom install path"
-echo ""
 
 # Function to check if a port is in use
 check_port() {
