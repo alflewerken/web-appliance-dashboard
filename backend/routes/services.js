@@ -53,7 +53,11 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/services/check-all - Trigger status check for all services
-router.post('/checkAll', async (req, res) => {
+// Support both /checkAll (new) and /check-all (legacy) for backwards compatibility
+router.post('/checkAll', checkAllHandler);
+router.post('/check-all', checkAllHandler); // Legacy route for old frontend versions
+
+async function checkAllHandler(req, res) {
   try {
     console.log('🔄 Service check requested');
     
@@ -71,7 +75,7 @@ router.post('/checkAll', async (req, res) => {
     console.error('Error in service check:', error);
     res.status(500).json({ error: 'Failed to check services' });
   }
-});
+}
 
 // GET /api/services/:id/status - Get status for a specific service
 router.get('/:id/status', async (req, res) => {

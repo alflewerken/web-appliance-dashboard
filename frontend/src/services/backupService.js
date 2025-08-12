@@ -75,11 +75,11 @@ export class BackupService {
     }
   }
 
-  static async restoreBackup(file) {
-    return this.restoreFromFile(file);
+  static async restoreBackup(file, decryptionKey = null) {
+    return this.restoreFromFile(file, decryptionKey);
   }
 
-  static async restoreFromFile(file) {
+  static async restoreFromFile(file, decryptionKey = null) {
     try {
       // Read file
       const fileContent = await file.text();
@@ -93,6 +93,11 @@ export class BackupService {
         backupData = JSON.parse(fileContent);
       } catch (parseError) {
         throw new Error(`Ungültige JSON-Datei: ${parseError.message}`);
+      }
+
+      // Add decryption key if provided
+      if (decryptionKey) {
+        backupData.decryption_key = decryptionKey;
       }
 
       // Validate backup structure

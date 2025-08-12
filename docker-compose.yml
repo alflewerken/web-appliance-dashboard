@@ -14,11 +14,11 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init-db:/docker-entrypoint-initdb.d
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password='${MYSQL_ROOT_PASSWORD}' || exit 1"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password=\"${MYSQL_ROOT_PASSWORD}\" || exit 1"]
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-20}
       start_period: 40s
@@ -30,9 +30,10 @@ services:
       dockerfile: Dockerfile
     container_name: ${BACKEND_CONTAINER_NAME:-appliance_backend}
     restart: always
-    # Backend sollte nur intern erreichbar sein
-    # ports:
-    #   - "${BACKEND_PORT:-3001}:3001"
+    # Backend sollte nur intern erreichbar sein (Production)
+    # Für Entwicklung: Port aktivieren
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
     environment:
       # Database Configuration
       DB_HOST: ${DB_HOST}
@@ -84,6 +85,8 @@ services:
       - uploads:/app/uploads
       # Shared temp directory für Terminal-Sessions
       - terminal_sessions:/tmp/terminal-sessions
+      # Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       # Optional: Mount lokales SSH-Keys Verzeichnis für Entwicklung
       # - ./ssh-keys:/root/.ssh
     healthcheck:
@@ -195,7 +198,9 @@ services:
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
     volumes:
       - guacamole_db:/var/lib/postgresql/data
-      - ./guacamole/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+      - ./guacamole/001-create-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./guacamole/002-create-admin-user.sql:/docker-entrypoint-initdb.d/02-admin.sql:ro
+      - ./guacamole/custom-sftp.sql:/docker-entrypoint-initdb.d/03-custom-sftp.sql:ro
     networks:
       - ${NETWORK_NAME:-appliance_network}
     healthcheck:
@@ -267,10 +272,10 @@ services:
       - RELAY=0.0.0.0:21117
       - PORT=21116
     ports:
-      - "${RUSTDESK_ID_PORT:-21116}:21116"  # ID Server TCP
-      - "${RUSTDESK_ID_PORT:-21116}:21116/udp"  # ID Server UDP
-      - "${RUSTDESK_WEB_PORT:-21118}:21118"  # Web Client
-      - "${RUSTDESK_API_PORT:-21119}:21119"  # API
+      - "${RUSTDESK_ID_PORT:-21216}:21116"  # ID Server TCP (external:internal)
+      - "${RUSTDESK_ID_PORT:-21216}:21116/udp"  # ID Server UDP
+      - "${RUSTDESK_WEB_PORT:-21218}:21118"  # Web Client (21218 extern -> 21118 intern)
+      - "${RUSTDESK_API_PORT:-21219}:21119"  # API (21219 extern -> 21119 intern)
     volumes:
       - rustdesk_data:/root
     networks:
@@ -284,8 +289,8 @@ services:
     command: hbbr
     restart: always
     ports:
-      - "${RUSTDESK_RELAY_PORT:-21117}:21117"  # Relay Server
-      - "${RUSTDESK_WEBSOCKET_PORT:-21120}:21120"  # Websocket (für Web Client)
+      - "${RUSTDESK_RELAY_PORT:-21217}:21117"  # Relay Server (21217 extern -> 21117 intern)
+      - "${RUSTDESK_WEBSOCKET_PORT:-21220}:21120"  # Websocket (21220 extern -> 21120 intern)
     volumes:
       - rustdesk_data:/root
     networks:

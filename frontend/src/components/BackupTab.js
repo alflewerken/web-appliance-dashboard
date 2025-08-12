@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -22,6 +22,7 @@ import {
 import { keyframes } from '@mui/system';
 import { BackupService } from '../services/backupService';
 import EncryptionKeyDialog from './EncryptionKeyDialog';
+import RestoreKeyDialog from './RestoreKeyDialog';
 import './BackupTab.css';
 
 // Animation definitions
@@ -60,6 +61,8 @@ const BackupTab = () => {
   const [success, setSuccess] = useState('');
   const [encryptionKey, setEncryptionKey] = useState('');
   const [showEncryptionDialog, setShowEncryptionDialog] = useState(false);
+  const [showRestoreKeyDialog, setShowRestoreKeyDialog] = useState(false);
+  const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
 
   const handleCreateBackup = async () => {
     try {
@@ -97,21 +100,27 @@ const BackupTab = () => {
       return;
     }
 
-    await restoreFromFile(file);
+    // Show key dialog for restore
+    console.log('handleDrop: Setting file and showing dialog', file.name);
+    setPendingRestoreFile(file);
+    setShowRestoreKeyDialog(true);
+    console.log('handleDrop: Dialog should be shown now');
   };
 
   const handleFileInputChange = async event => {
     const file = event.target.files[0];
     if (!file) return;
 
-    await restoreFromFile(file);
+    // Show key dialog for restore
+    setPendingRestoreFile(file);
+    setShowRestoreKeyDialog(true);
     event.target.value = '';
   };
 
-  const restoreFromFile = async file => {
+  const restoreFromFile = async (file, decryptionKey = null) => {
     try {
       setRestoreLoading(true);
-      const result = await BackupService.restoreBackup(file);
+      const result = await BackupService.restoreBackup(file, decryptionKey);
 
       if (result.success) {
         setSuccess(result.message);
@@ -127,6 +136,20 @@ const BackupTab = () => {
       setRestoreLoading(false);
     }
   };
+
+  const handleRestoreWithKey = (decryptionKey) => {
+    if (pendingRestoreFile) {
+      restoreFromFile(pendingRestoreFile, decryptionKey);
+      setPendingRestoreFile(null);
+    }
+    setShowRestoreKeyDialog(false);
+  };
+
+  // Debug output
+  useEffect(() => {
+    console.log('showRestoreKeyDialog state:', showRestoreKeyDialog);
+    console.log('pendingRestoreFile:', pendingRestoreFile);
+  }, [showRestoreKeyDialog, pendingRestoreFile]);
 
   return (
     <Box sx={{ height: '100%', overflow: 'auto' }}>
@@ -294,7 +317,7 @@ const BackupTab = () => {
               },
             }}
             onDrop={handleDrop}
-            onDragOver={e => {
+            onDragOver={(e) => {
               e.preventDefault();
               setDragOver(true);
             }}
@@ -476,6 +499,17 @@ const BackupTab = () => {
         open={showEncryptionDialog}
         onClose={() => setShowEncryptionDialog(false)}
         encryptionKey={encryptionKey}
+      />
+
+      {/* Restore Key Dialog */}
+      <RestoreKeyDialog
+        open={showRestoreKeyDialog}
+        onClose={() => {
+          setShowRestoreKeyDialog(false);
+          setPendingRestoreFile(null);
+        }}
+        onRestore={handleRestoreWithKey}
+        fileName={pendingRestoreFile?.name || 'backup.json'}
       />
     </Box>
   );

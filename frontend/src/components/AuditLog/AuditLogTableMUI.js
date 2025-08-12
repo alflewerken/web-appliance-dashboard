@@ -796,8 +796,26 @@ const AuditLogTableMUI = ({
       if (value === 1 || value === '1' || value === true) return 'Ja';
       if (value === 0 || value === '0' || value === false) return 'Nein';
       
-      // Handle objects
-      if (typeof value === 'object') return JSON.stringify(value);
+      // Handle objects and arrays
+      if (typeof value === 'object') {
+        // Check if it's an array
+        if (Array.isArray(value)) {
+          return value.map(item => {
+            if (typeof item === 'object') {
+              return JSON.stringify(item, null, 2);
+            }
+            return item;
+          }).join(', ');
+        }
+        
+        // For objects, check if it's already a parsed changes object
+        if (value.old !== undefined && value.new !== undefined) {
+          return `${value.old} → ${value.new}`;
+        }
+        
+        // For other objects, return formatted JSON
+        return JSON.stringify(value, null, 2);
+      }
       
       return value;
     };
@@ -806,8 +824,38 @@ const AuditLogTableMUI = ({
     // Updates (appliance, host, user, category)
     if (log.action.includes('_update') || log.action.includes('_updated')) {
       if (details.changes || details.old_data) {
-        const changes = details.changes || details.new_data || {};
-        const oldValues = details.oldValues || details.old_data || {};
+        let changes = {};
+        let oldValues = {};
+        
+        // Check if changes already contain old/new structure (like in host_update)
+        if (details.changes && typeof details.changes === 'object') {
+          const firstKey = Object.keys(details.changes)[0];
+          if (firstKey && details.changes[firstKey] && 
+              typeof details.changes[firstKey] === 'object' && 
+              'old' in details.changes[firstKey] && 
+              'new' in details.changes[firstKey]) {
+            // Extract old and new values from structured changes
+            Object.entries(details.changes).forEach(([field, change]) => {
+              if (typeof change === 'object' && change.old !== undefined && change.new !== undefined) {
+                oldValues[field] = change.old;
+                changes[field] = change.new;
+              } else {
+                changes[field] = change;
+              }
+            });
+          } else {
+            // Use changes as is
+            changes = details.changes;
+            oldValues = details.oldValues || details.old_data || {};
+          }
+        } else if (details.old_data && details.new_data) {
+          changes = details.new_data;
+          oldValues = details.old_data;
+        } else {
+          changes = details.changes || details.new_data || {};
+          oldValues = details.oldValues || details.old_data || {};
+        }
+        
         return (
           <>
             {renderUpdateTable('Geänderte Felder', changes, oldValues)}

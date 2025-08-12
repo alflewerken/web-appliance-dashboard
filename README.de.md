@@ -32,8 +32,8 @@ Das war's! Der Installer wird:
 - ✅ Die Datenbank einrichten
 
 Nach der Installation erreichen Sie Ihr Dashboard unter:
-- 🌐 **http://localhost**
-- 🔒 **https://localhost** (selbst-signiertes Zertifikat)
+- 🌐 **http://localhost:9080**
+- 🔒 **https://localhost:9080** (selbst-signiertes Zertifikat)
 
 ## 🗑️ Vollständige Deinstallation
 
@@ -179,8 +179,6 @@ Dieser Befehl:
 - ✅ Erstellt und startet alle Docker-Container
 - ✅ Richtet das Datenbankschema ein
 - ✅ Konfiguriert alle Services
-
-⚠️ **Hinweis**: Beim ersten Start werden Sie nach einem Verschlüsselungsschlüssel für Remote-Passwörter gefragt. Sie können Enter drücken für automatische Generierung oder einen eigenen eingeben.
 
 ### 3. Dashboard öffnen
 ```

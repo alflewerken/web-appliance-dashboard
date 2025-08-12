@@ -10,6 +10,8 @@ const bcrypt = require('bcryptjs');
 const sseManager = require('../utils/sseManager');
 const { getClientIp } = require('../utils/getClientIp');
 const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
+const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
+const { Pool } = require('pg');
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
@@ -622,8 +624,22 @@ router.put('/:id', verifyToken, async (req, res) => {
 // Get remote desktop token for host
 router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
   try {
+    console.log('[HOSTS] /remoteDesktopToken called');
+    console.log('[HOSTS] req.user:', req.user);
+    console.log('[HOSTS] req.params:', req.params);
+    console.log('[HOSTS] req.body:', req.body);
     const hostId = req.params.id;
     const { performanceMode = 'balanced' } = req.body;
+    
+    // Check if req.user exists
+    if (!req.user || !req.user.id) {
+      console.error('[HOSTS] req.user is missing:', req.user);
+      return res.status(500).json({
+        success: false,
+        error: 'Authentication failed - user not found in request',
+        details: 'req.user is undefined'
+      });
+    }
     
     // Check if host exists and user owns it
     const host = await db.findOne('hosts', {
@@ -732,6 +748,8 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
         const baseUrl = getGuacamoleUrl(req);
         const guacamoleUrl = `${baseUrl}/guacamole/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
         
+        logger.info(`Generated Guacamole URL for host ${hostId}: ${guacamoleUrl}`);
+        
         // Create audit log
         await createAuditLog(
           req.user.id,
@@ -744,7 +762,8 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
             remote_host: host.hostname,
             performance_mode: performanceMode
           },
-          getClientIp(req)
+          getClientIp(req),
+          host.name  // Add resource name for display
         );
         
         return res.json({

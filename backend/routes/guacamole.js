@@ -65,8 +65,20 @@ async function getGuacamoleAuthToken(forceNew = false) {
  */
 router.post('/token/:applianceId', async (req, res) => {
   try {
+    console.log('[GUACAMOLE] /token/:applianceId called');
+    console.log('[GUACAMOLE] req.user:', req.user);
+    console.log('[GUACAMOLE] req.params:', req.params);
+    console.log('[GUACAMOLE] req.body:', req.body);
+    
     const { applianceId } = req.params;
     const { performanceMode = 'balanced' } = req.body; // Neu: Performance Mode
+    
+    // Prüfe ob req.user existiert
+    if (!req.user || !req.user.id) {
+      console.error('[GUACAMOLE] req.user is missing or incomplete:', req.user);
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const userId = req.user.id;
     
     // Prüfe ob Appliance existiert
@@ -171,7 +183,8 @@ router.post('/token/:applianceId', async (req, res) => {
           connectionName: connectionInfo.connectionName,
           connectionId: connectionId
         },
-        getClientIp(req)
+        getClientIp(req),
+        appliance.name  // Add resource name for display
       );
       
       console.log('Generated Guacamole URL with token:', {

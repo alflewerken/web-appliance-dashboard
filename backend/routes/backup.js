@@ -98,6 +98,31 @@ function formatBytes(bytes) {
 // Backup endpoint - Export all data INCLUDING settings and background images
 router.get('/backup', verifyToken, async (req, res) => {
   try {
+    // Get encryption key from environment
+    const encryptionKey = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET || 'default-insecure-key-change-this-in-production!!';
+    
+    // Function to encrypt password for backup
+    const encryptPassword = (plainPassword) => {
+      if (!plainPassword) return null;
+      
+      try {
+        const crypto = require('crypto');
+        const algorithm = 'aes-256-cbc';
+        
+        // Create cipher using the encryption key
+        const key = crypto.createHash('sha256').update(String(encryptionKey)).digest();
+        const iv = Buffer.alloc(16, 0); // Fixed IV for simplicity (in production, use random IV)
+        
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
+        let encrypted = cipher.update(plainPassword, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        
+        return encrypted;
+      } catch (error) {
+        console.error('Failed to encrypt password:', error.message);
+        return plainPassword; // Return plain password if encryption fails
+      }
+    };
     // Fetch all appliances
     const appliances = await db.select('appliances', {}, { orderBy: 'createdAt' });
 
@@ -163,8 +188,15 @@ router.get('/backup', verifyToken, async (req, res) => {
     // Fetch hosts table (SSH Terminal hosts)
     let hosts = [];
     try {
-      hosts = await db.select('hosts', {}, { orderBy: 'createdAt' });
-      console.log(`✅ Fetched ${hosts.length} terminal hosts`);
+      const rawHosts = await db.select('hosts', {}, { orderBy: 'createdAt' });
+      // Encrypt passwords in hosts
+      hosts = rawHosts.map(host => ({
+        ...host,
+        password: encryptPassword(host.password),
+        remotePassword: encryptPassword(host.remotePassword),
+        rustdeskPassword: encryptPassword(host.rustdeskPassword)
+      }));
+      console.log(`✅ Fetched ${hosts.length} terminal hosts (passwords encrypted)`);
     } catch (error) {
       console.error('Error fetching hosts for backup:', error.message);
     }
@@ -172,8 +204,15 @@ router.get('/backup', verifyToken, async (req, res) => {
     // Fetch services table
     let services = [];
     try {
-      services = await db.select('services', {}, { orderBy: 'createdAt' });
-      console.log(`✅ Fetched ${services.length} proxy services`);
+      const rawServices = await db.select('services', {}, { orderBy: 'createdAt' });
+      // Encrypt passwords in services
+      services = rawServices.map(service => ({
+        ...service,
+        sshPassword: encryptPassword(service.sshPassword),
+        vncPassword: encryptPassword(service.vncPassword),
+        rdpPassword: encryptPassword(service.rdpPassword)
+      }));
+      console.log(`✅ Fetched ${services.length} proxy services (passwords encrypted)`);
     } catch (error) {
       console.error('Error fetching services for backup:', error.message);
     }
@@ -264,11 +303,14 @@ router.get('/backup', verifyToken, async (req, res) => {
 
         for (const key of keysResult) {
           try {
-            const privateKeyPath = path.join(sshDir, `id_rsa_${key.key_name}`);
-            const publicKeyPath = path.join(
-              sshDir,
-              `id_rsa_${key.key_name}.pub`
-            );
+            // Use user-specific naming to find the correct SSH key files
+            const keyFileName = `id_rsa_user${key.created_by || key.createdBy}_${key.key_name || key.keyName}`;
+            const privateKeyPath = path.join(sshDir, keyFileName);
+            const publicKeyPath = path.join(sshDir, `${keyFileName}.pub`);
+            
+            // Also try the old naming convention as fallback
+            const oldPrivateKeyPath = path.join(sshDir, `id_rsa_${key.key_name || key.keyName}`);
+            const oldPublicKeyPath = path.join(sshDir, `id_rsa_${key.key_name || key.keyName}.pub`);
 
             let privateKeyContent = key.private_key || '';
             let publicKeyContent = key.public_key || '';
@@ -283,48 +325,76 @@ router.get('/backup', verifyToken, async (req, res) => {
 
             // Try to read actual key files if they exist
             try {
-              const privateExists = await fs
+              // First try user-specific path, then old path
+              let privateExists = await fs
                 .access(privateKeyPath)
                 .then(() => true)
                 .catch(() => false);
+              
+              let actualPrivatePath = privateKeyPath;
+              if (!privateExists) {
+                // Try old path
+                privateExists = await fs
+                  .access(oldPrivateKeyPath)
+                  .then(() => true)
+                  .catch(() => false);
+                if (privateExists) {
+                  actualPrivatePath = oldPrivateKeyPath;
+                }
+              }
+              
               if (privateExists && !hasDbPrivateKey) {
-                privateKeyContent = await fs.readFile(privateKeyPath, 'utf8');
+                privateKeyContent = await fs.readFile(actualPrivatePath, 'utf8');
                 console.log(
-                  `✅ Read private key from filesystem: ${privateKeyPath}`
+                  `✅ Read private key from filesystem: ${actualPrivatePath}`
                 );
                 filesystemSynced = true;
               } else if (hasDbPrivateKey) {
                 console.log(
-                  `✅ Using private key from database for ${key.key_name}`
+                  `✅ Using private key from database for ${key.key_name || key.keyName}`
                 );
                 filesystemSynced = true;
               }
             } catch (readError) {
               console.warn(
-                `⚠️ Could not read private key file ${privateKeyPath}:`,
+                `⚠️ Could not read private key file:`,
                 readError.message
               );
               filesystemError = readError.message;
             }
 
             try {
-              const publicExists = await fs
+              // First try user-specific path, then old path
+              let publicExists = await fs
                 .access(publicKeyPath)
                 .then(() => true)
                 .catch(() => false);
+              
+              let actualPublicPath = publicKeyPath;
+              if (!publicExists) {
+                // Try old path
+                publicExists = await fs
+                  .access(oldPublicKeyPath)
+                  .then(() => true)
+                  .catch(() => false);
+                if (publicExists) {
+                  actualPublicPath = oldPublicKeyPath;
+                }
+              }
+              
               if (publicExists && !hasDbPublicKey) {
-                publicKeyContent = await fs.readFile(publicKeyPath, 'utf8');
+                publicKeyContent = await fs.readFile(actualPublicPath, 'utf8');
                 console.log(
-                  `✅ Read public key from filesystem: ${publicKeyPath}`
+                  `✅ Read public key from filesystem: ${actualPublicPath}`
                 );
               } else if (hasDbPublicKey) {
                 console.log(
-                  `✅ Using public key from database for ${key.key_name}`
+                  `✅ Using public key from database for ${key.key_name || key.keyName}`
                 );
               }
             } catch (readError) {
               console.warn(
-                `⚠️ Could not read public key file ${publicKeyPath}:`,
+                `⚠️ Could not read public key file:`,
                 readError.message
               );
               if (!filesystemError) filesystemError = readError.message;
@@ -340,9 +410,10 @@ router.get('/backup', verifyToken, async (req, res) => {
               key_size_bytes: privateKeyContent.length,
               has_private_key: privateKeyContent.length > 0,
               has_public_key: publicKeyContent.length > 0,
-              // Ensure created_by is included
-              created_by: key.created_by || null,
+              // Ensure created_by is included (this is critical for key path reconstruction)
+              created_by: key.created_by || key.createdBy || null,
               fingerprint: key.fingerprint || null,
+              key_name: key.key_name || key.keyName,  // Ensure consistent field name
             });
           } catch (keyError) {
             console.warn(
@@ -357,9 +428,10 @@ router.get('/backup', verifyToken, async (req, res) => {
               backup_timestamp: new Date().toISOString(),
               has_private_key: (key.private_key || '').length > 0,
               has_public_key: (key.public_key || '').length > 0,
-              // Ensure created_by is included
-              created_by: key.created_by || null,
+              // Ensure created_by is included (this is critical for key path reconstruction)
+              created_by: key.created_by || key.createdBy || null,
               fingerprint: key.fingerprint || null,
+              key_name: key.key_name || key.keyName,  // Ensure consistent field name
             });
           }
         }
@@ -630,14 +702,14 @@ router.get('/backup', verifyToken, async (req, res) => {
       resource_type: 'backup',
       resource_id: null,
     });
-
-    // Get encryption key from environment
-    const encryptionKey = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET || 'default-insecure-key-change-this-in-production!!';
     
     // Add encryption key to response (but not to the backup file)
+    // We use a special format that includes timestamp
+    const backupEncryptionKey = `enc_backup_${new Date().toISOString().split('T')[0]}_${encryptionKey.substring(0, 32)}`;
+    
     const responseData = {
       ...backupData,
-      encryption_key: encryptionKey
+      encryption_key: backupEncryptionKey
     };
 
     // Log backup size information
@@ -667,10 +739,13 @@ router.get('/backup', verifyToken, async (req, res) => {
 router.post('/restore', verifyToken, async (req, res) => {
   try {
     const backupData = req.body;
+    const decryptionKey = backupData.decryption_key || null;
+    delete backupData.decryption_key; // Remove from backup data
 
     console.log('Starting enhanced restore process...');
     console.log('Backup version:', backupData.version);
     console.log('Backup created:', backupData.created_at);
+    console.log('Decryption key provided:', !!decryptionKey);
 
     // Validate backup structure
     if (!backupData.data || !Array.isArray(backupData.data.appliances)) {
@@ -688,6 +763,31 @@ router.post('/restore', verifyToken, async (req, res) => {
         '⚠️ Detected older backup version. Using compatibility mode.'
       );
     }
+
+    // Function to decrypt password if key is provided
+    const decryptPassword = (encryptedPassword) => {
+      if (!decryptionKey || !encryptedPassword) {
+        return null;
+      }
+      
+      try {
+        const crypto = require('crypto');
+        const algorithm = 'aes-256-cbc';
+        
+        // Create decipher using the provided key
+        const key = crypto.createHash('sha256').update(String(decryptionKey)).digest();
+        const iv = Buffer.alloc(16, 0); // Same IV as used in encryption
+        
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decrypted = decipher.update(encryptedPassword, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        return decrypted;
+      } catch (error) {
+        console.error('Failed to decrypt password:', error.message);
+        return null;
+      }
+    };
 
     // Destructure with support for both old and new table names
     const {
@@ -1233,6 +1333,37 @@ router.post('/restore', verifyToken, async (req, res) => {
           for (const host of hosts) {
             console.log(`Restoring host: ${host.name} (${host.hostname})`);
 
+            // Map user ID for createdBy field if users were restored
+            let mappedCreatedBy = host.created_by || host.createdBy || null;
+            if (mappedCreatedBy && users) {
+              const originalUser = users.find(u => u.id === mappedCreatedBy);
+              if (originalUser) {
+                const [userResult] = await connection.execute(
+                  'SELECT id FROM users WHERE username = ? OR email = ?',
+                  [originalUser.username, originalUser.email]
+                );
+                if (userResult.length > 0) {
+                  mappedCreatedBy = userResult[0].id;
+                  console.log(`Mapped createdBy from ${host.created_by || host.createdBy} to ${mappedCreatedBy} for host ${host.name}`);
+                }
+              }
+            }
+            
+            // Map user ID for updatedBy field if users were restored
+            let mappedUpdatedBy = host.updated_by || host.updatedBy || null;
+            if (mappedUpdatedBy && users) {
+              const originalUser = users.find(u => u.id === mappedUpdatedBy);
+              if (originalUser) {
+                const [userResult] = await connection.execute(
+                  'SELECT id FROM users WHERE username = ? OR email = ?',
+                  [originalUser.username, originalUser.email]
+                );
+                if (userResult.length > 0) {
+                  mappedUpdatedBy = userResult[0].id;
+                }
+              }
+            }
+
             const hostData = {
               id: host.id,
               name: host.name,
@@ -1241,25 +1372,25 @@ router.post('/restore', verifyToken, async (req, res) => {
               port: host.port || 22,
               username: host.username,
               icon: host.icon || 'Server',
-              password: host.password || null,
+              password: decryptPassword(host.password) || host.password || null,
               privateKey: host.private_key || host.privateKey || null,
               color: host.color || '#007AFF',
               transparency: host.transparency !== undefined ? host.transparency : 0.10,
               blur: host.blur !== undefined ? host.blur : 0,
               createdAt: host.created_at || host.createdAt || new Date(),
               updatedAt: host.updated_at || host.updatedAt || new Date(),
-              createdBy: host.created_by || host.createdBy || null,
-              updatedBy: host.updated_by || host.updatedBy || null,
-              sshKeyName: host.sshKeyName || null,
+              createdBy: mappedCreatedBy,  // Use mapped user ID
+              updatedBy: mappedUpdatedBy,  // Use mapped user ID
+              sshKeyName: host.sshKeyName || host.ssh_key_name || null,  // Handle both formats
               remoteDesktopEnabled: host.remote_desktop_enabled !== undefined ? host.remote_desktop_enabled : (host.remoteDesktopEnabled || false),
               remoteDesktopType: host.remote_desktop_type || host.remoteDesktopType || 'guacamole',
               remoteProtocol: host.remote_protocol || host.remoteProtocol || null,
               remotePort: host.remote_port || host.remotePort || null,
               remoteUsername: host.remote_username || host.remoteUsername || null,
-              remotePassword: host.remote_password || host.remotePassword || null,
+              remotePassword: decryptPassword(host.remote_password || host.remotePassword) || host.remote_password || host.remotePassword || null,
               guacamolePerformanceMode: host.guacamolePerformanceMode || 'balanced',
               rustdeskId: host.rustdesk_id || host.rustdeskId || null,
-              rustdeskPassword: host.rustdeskPassword || null,
+              rustdeskPassword: decryptPassword(host.rustdeskPassword) || host.rustdeskPassword || null,
               isActive: host.is_active !== undefined ? host.is_active : (host.isActive !== false)
             };
 
@@ -1307,13 +1438,13 @@ router.post('/restore', verifyToken, async (req, res) => {
               sshHost: service.ssh_host || service.sshHost || null,
               sshPort: service.ssh_port || service.sshPort || 22,
               sshUsername: service.ssh_username || service.sshUsername || null,
-              sshPassword: service.ssh_password || service.sshPassword || null,
+              sshPassword: decryptPassword(service.ssh_password || service.sshPassword) || service.ssh_password || service.sshPassword || null,
               sshPrivateKey: service.ssh_private_key || service.sshPrivateKey || null,
               vncPort: service.vnc_port || service.vncPort || 5900,
-              vncPassword: service.vnc_password || service.vncPassword || null,
+              vncPassword: decryptPassword(service.vnc_password || service.vncPassword) || service.vnc_password || service.vncPassword || null,
               rdpPort: service.rdp_port || service.rdpPort || 3389,
               rdpUsername: service.rdp_username || service.rdpUsername || null,
-              rdpPassword: service.rdp_password || service.rdpPassword || null,
+              rdpPassword: decryptPassword(service.rdp_password || service.rdpPassword) || service.rdp_password || service.rdpPassword || null,
               createdAt: service.created_at || service.createdAt || new Date(),
               updatedAt: service.updated_at || service.updatedAt || new Date()
             };
@@ -1428,13 +1559,9 @@ router.post('/restore', verifyToken, async (req, res) => {
             // Restore SSH key files to filesystem
             if (sshKey.private_key && sshKey.key_name) {
               try {
-                // Determine the correct filename based on the user who created it
-                let keyFileName = `id_rsa_${sshKey.key_name}`;
-                
-                // If this is a user-specific dashboard key, use the user-specific naming
-                if (sshKey.key_name === 'dashboard' && createdById) {
-                  keyFileName = `id_rsa_user${createdById}_dashboard`;
-                }
+                // Always use user-specific naming for consistency
+                // This ensures SSH keys work after restore
+                let keyFileName = `id_rsa_user${createdById}_${sshKey.key_name || sshKey.keyName}`;
                 
                 const privateKeyPath = path.join(sshDir, keyFileName);
                 const publicKeyPath = path.join(sshDir, `${keyFileName}.pub`);
@@ -1670,83 +1797,188 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
           JSON.stringify(actualCommands, null, 2)
         );
 
+        // First, let's check which appliances exist
+        const [existingAppliances] = await connection.execute(
+          'SELECT id, name FROM appliances ORDER BY id'
+        );
+        console.log('Existing appliances after restore:', existingAppliances.map(a => `${a.id}: ${a.name}`).join(', '));
+
         for (const command of actualCommands) {
           try {
+            // Handle both camelCase and snake_case field names from backup
+            const applianceId = command.appliance_id || command.applianceId;
+            const hostId = command.host_id || command.hostId || command.ssh_host_id || null;
+            
             console.log(
-              `Restoring command for appliance ${command.appliance_id}: ${command.description}`
+              `Restoring command for appliance ${applianceId}: ${command.description}`
             );
 
             // Check if the appliance exists
             const [appliances] = await connection.execute(
-              'SELECT id FROM appliances WHERE id = ?',
-              [command.appliance_id]
+              'SELECT id, name FROM appliances WHERE id = ?',
+              [applianceId]
             );
 
             if (appliances.length > 0) {
-              const createdAt = command.created_at
-                ? new Date(command.created_at)
+              console.log(`✅ Found appliance: ${appliances[0].name} (ID: ${appliances[0].id})`);
+              const createdAt = command.created_at || command.createdAt
+                ? new Date(command.created_at || command.createdAt)
                     .toISOString()
                     .slice(0, 19)
                     .replace('T', ' ')
                 : new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-              const updatedAt = command.updated_at
-                ? new Date(command.updated_at)
+              const updatedAt = command.updated_at || command.updatedAt
+                ? new Date(command.updated_at || command.updatedAt)
                     .toISOString()
                     .slice(0, 19)
                     .replace('T', ' ')
                 : createdAt;
 
-              // Handle SSH host ID - try to find the SSH host by connection string
-              let newSshHostId = null;
-              if (command.ssh_host_id) {
-                // Find the original SSH host from the backup
-                const originalHost = ssh_hosts?.find(
-                  h => h.id === command.ssh_host_id
-                );
-                if (originalHost) {
-                  // Try to find the matching SSH host in the database by connection string
-                  const [matchingHosts] = await connection.execute(
-                    'SELECT id FROM ssh_hosts WHERE host = ? AND username = ? AND port = ?',
-                    [
-                      originalHost.host,
-                      originalHost.username,
-                      originalHost.port,
-                    ]
-                  );
-                  if (matchingHosts.length > 0) {
-                    newSshHostId = matchingHosts[0].id;
-                    console.log(
-                      `Mapped SSH host ID ${command.ssh_host_id} to new ID ${newSshHostId}`
+              // Handle host ID mapping - now using hosts table instead of ssh_hosts
+              let newHostId = null;
+              if (hostId) {
+                // For new backups with hosts table
+                if (hosts && hosts.length > 0) {
+                  // Try to find the original host from the backup
+                  const originalHost = hosts.find(h => h.id === hostId);
+                  if (originalHost) {
+                    // Try to find the matching host in the database
+                    const [matchingHosts] = await connection.execute(
+                      'SELECT id FROM hosts WHERE hostname = ? AND username = ? AND port = ?',
+                      [
+                        originalHost.hostname || originalHost.host,
+                        originalHost.username,
+                        originalHost.port || 22,
+                      ]
                     );
-                  } else {
-                    console.warn(
-                      `Could not find matching SSH host for ${originalHost.username}@${originalHost.host}:${originalHost.port}`
+                    if (matchingHosts.length > 0) {
+                      newHostId = matchingHosts[0].id;
+                      console.log(
+                        `Mapped host ID ${hostId} to new ID ${newHostId}`
+                      );
+                    } else {
+                      console.warn(
+                        `Could not find matching host for ${originalHost.username}@${originalHost.hostname || originalHost.host}:${originalHost.port || 22}`
+                      );
+                    }
+                  }
+                }
+                // For old backups with ssh_hosts table (legacy support)
+                else if (ssh_hosts && ssh_hosts.length > 0) {
+                  const originalHost = ssh_hosts.find(h => h.id === hostId);
+                  if (originalHost) {
+                    // Try to find the matching host in the new hosts table
+                    const [matchingHosts] = await connection.execute(
+                      'SELECT id FROM hosts WHERE hostname = ? AND username = ? AND port = ?',
+                      [
+                        originalHost.host || originalHost.hostname,
+                        originalHost.username,
+                        originalHost.port || 22,
+                      ]
                     );
+                    if (matchingHosts.length > 0) {
+                      newHostId = matchingHosts[0].id;
+                      console.log(
+                        `Mapped legacy SSH host ID ${hostId} to new host ID ${newHostId}`
+                      );
+                    }
                   }
                 }
               }
 
+              // Don't preserve the original ID to avoid conflicts
               const commandData = {
-                id: command.id,
-                applianceId: command.appliance_id || command.applianceId,
+                applianceId: applianceId,
                 description: command.description,
                 command: command.command,
-                hostId: newSshHostId,
-                createdAt: command.created_at || command.createdAt || new Date(),
-                updatedAt: command.updated_at || command.updatedAt || new Date()
+                hostId: newHostId,
+                createdAt: createdAt,
+                updatedAt: updatedAt
               };
 
               const { sql, values } = prepareInsert('appliance_commands', commandData);
               await connection.execute(sql, values);
               restoredCustomCommands++;
               console.log(
-                `✅ Successfully restored command "${command.description}" for appliance ${command.appliance_id || command.applianceId}`
+                `✅ Successfully restored command "${command.description}" for appliance ${applianceId}`
               );
             } else {
               console.warn(
-                `⚠️ Skipping command "${command.description}" - appliance ${command.appliance_id || command.applianceId} not found`
+                `⚠️ Skipping command "${command.description}" - appliance ${applianceId} not found in database!`
               );
+              
+              // Let's check if there's an appliance with a similar name in the backup
+              const backupAppliances = backupData.data.appliances;
+              if (backupAppliances && Array.isArray(backupAppliances)) {
+                const originalAppliance = backupAppliances.find(a => (a.id === applianceId));
+                if (originalAppliance) {
+                  console.log(`   Original appliance in backup: "${originalAppliance.name}"`);
+                  
+                  // Try to find by name instead
+                  const [appByName] = await connection.execute(
+                    'SELECT id, name FROM appliances WHERE name = ?',
+                    [originalAppliance.name]
+                  );
+                  if (appByName.length > 0) {
+                    console.log(`   ℹ️ Found appliance by name: ${appByName[0].name} with new ID ${appByName[0].id}`);
+                    console.log(`   Retrying command restore with new ID...`);
+                    
+                    // Retry with the new ID
+                    const newApplianceId = appByName[0].id;
+                    const createdAt = command.created_at || command.createdAt
+                      ? new Date(command.created_at || command.createdAt)
+                          .toISOString()
+                          .slice(0, 19)
+                          .replace('T', ' ')
+                      : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+                    const updatedAt = command.updated_at || command.updatedAt
+                      ? new Date(command.updated_at || command.updatedAt)
+                          .toISOString()
+                          .slice(0, 19)
+                          .replace('T', ' ')
+                      : createdAt;
+
+                    // Handle host ID mapping
+                    let newHostId = null;
+                    if (hostId) {
+                      if (hosts && hosts.length > 0) {
+                        const originalHost = hosts.find(h => h.id === hostId);
+                        if (originalHost) {
+                          const [matchingHosts] = await connection.execute(
+                            'SELECT id FROM hosts WHERE hostname = ? AND username = ? AND port = ?',
+                            [
+                              originalHost.hostname || originalHost.host,
+                              originalHost.username,
+                              originalHost.port || 22,
+                            ]
+                          );
+                          if (matchingHosts.length > 0) {
+                            newHostId = matchingHosts[0].id;
+                          }
+                        }
+                      }
+                    }
+
+                    const commandData = {
+                      applianceId: newApplianceId,  // Use the new ID
+                      description: command.description,
+                      command: command.command,
+                      hostId: newHostId,
+                      createdAt: createdAt,
+                      updatedAt: updatedAt
+                    };
+
+                    const { sql, values } = prepareInsert('appliance_commands', commandData);
+                    await connection.execute(sql, values);
+                    restoredCustomCommands++;
+                    console.log(
+                      `✅ Successfully restored command "${command.description}" for appliance ${originalAppliance.name} (new ID: ${newApplianceId})`
+                    );
+                  }
+                }
+              }
             }
           } catch (error) {
             console.error(

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Window Close Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Window Close Test</h1>
+    
+    <button onclick="testWindowClose()">Test window.close()</button>
+    <button onclick="testSelfClose()">Test self.close()</button>
+    <button onclick="testOpenAndClose()">Open new window and close it</button>
+    <button onclick="checkElectronAPI()">Check Electron API</button>
+    
+    <div id="log"></div>
+    
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${time}] ${message}<br>`;
+            console.log(message);
+        }
+        
+        function testWindowClose() {
+            log('Attempting window.close()...');
+            try {
+                window.close();
+                log('window.close() called - if window is still open, it failed');
+            } catch (e) {
+                log('Error: ' + e.message);
+            }
+        }
+        
+        function testSelfClose() {
+            log('Attempting self.close()...');
+            try {
+                self.close();
+                log('self.close() called - if window is still open, it failed');
+            } catch (e) {
+                log('Error: ' + e.message);
+            }
+        }
+        
+        function testOpenAndClose() {
+            log('Opening new window...');
+            const newWin = window.open('about:blank', '_blank', 'width=400,height=300');
+            if (newWin) {
+                log('New window opened successfully');
+                setTimeout(() => {
+                    log('Attempting to close new window...');
+                    newWin.close();
+                    log('Close command sent to new window');
+                }, 2000);
+            } else {
+                log('Failed to open new window');
+            }
+        }
+        
+        function checkElectronAPI() {
+            log('Checking for Electron API...');
+            if (window.electronAPI) {
+                log('✓ Electron API found');
+                log('Available APIs: ' + Object.keys(window.electronAPI).join(', '));
+                if (window.electronAPI.terminal) {
+                    log('✓ Terminal API available');
+                } else {
+                    log('✗ Terminal API not found');
+                }
+            } else {
+                log('✗ Electron API not found');
+            }
+            
+            // Check window properties
+            log('Window opener: ' + (window.opener ? 'exists' : 'null'));
+            log('Window name: ' + window.name);
+            log('Window closed: ' + window.closed);
+        }
+        
+        // Log initial state
+        log('Page loaded');
+        log('User Agent: ' + navigator.userAgent);
+        
+        // Try to detect Electron
+        if (navigator.userAgent.indexOf('Electron') !== -1) {
+            log('Running in Electron');
+        }
+        
+        // Add keyboard listener
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+                log('Cmd/Ctrl+W pressed');
+                e.preventDefault();
+                window.close();
+            }
+        });
+    </script>
+</body>
+</html>

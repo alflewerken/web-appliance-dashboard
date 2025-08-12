@@ -28,11 +28,9 @@
     "@xterm/xterm": "^5.5.0",
     "ansi-to-html": "^0.7.2",
     "axios": "^1.10.0",
-    "lucide-react": "^0.263.1",
+    "lucide-react": "^0.539.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-swipeable-views": "^0.14.0",
-    "react-swipeable-views-utils": "^0.14.0"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
