@@ -37277,3 +37277,31 @@ VERBESSERUNGEN:
 STATUS: ✅ Behoben
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 22:42:59 - Erfolgreiche Aktualisierung und Test auf macbook.local
+
+UPDATE DURCHGEFÜHRT:
+1. Neue Docker Images von GitHub Container Registry gepullt
+2. Backend-Container mit neuem Image aktualisiert
+3. Container erfolgreich neu gestartet
+
+TESTS ERFOLGREICH:
+✅ Health-Check: API antwortet korrekt
+✅ Login: Token wird korrekt generiert
+✅ Logout: Funktioniert OHNE 500er Fehler - gibt "Logged out successfully" zurück
+✅ Audit-Logs: API liefert korrekt die Logs (18 Einträge vorhanden)
+
+BEHOBENE PROBLEME:
+- Kein 500 Internal Server Error mehr beim Logout
+- Browser-Console-Fehler sollten verschwunden sein
+- Audit-Log sollte im Frontend korrekt angezeigt werden
+
+EMPFEHLUNG AN BENUTZER:
+1. Browser-Cache leeren (Cmd+Shift+R)
+2. Neu einloggen auf http://macbook.local:9080
+3. Audit-Log testen
+
+STATUS: ✅ Alle Probleme behoben und verifiziert
+
+════════════════════════════════════════════════════════════════════════════════
