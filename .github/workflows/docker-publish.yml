@@ -23,6 +23,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v5
 
+    # Setup QEMU for multi-platform builds
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+
+    # Setup Docker Buildx for multi-platform builds
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -66,45 +78,65 @@ jobs:
           type=semver,pattern={{major}}
           type=raw,value=latest,enable={{is_default_branch}}
 
+    # Build multi-platform Backend image
     - name: Build and push Backend Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./backend
+        platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-backend:latest
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
+    # Build multi-platform Frontend image
     - name: Build and push Frontend Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
+        platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-frontend:latest
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
+    # Build multi-platform Guacamole image
     - name: Build and push Guacamole Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./guacamole
+        platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-guacamole:latest
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
+    # Build multi-platform Nginx image
     - name: Build and push Nginx Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./nginx
+        platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-nginx:latest
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
+    # Build multi-platform TTYD image
     - name: Build and push TTYD Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./ttyd
+        platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-ttyd:latest
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
     
     - name: Make images public
       if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -115,4 +147,4 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
 
-# Initial build triggered on 2025-08-11 to publish Docker images
+# Multi-platform build support added on 2025-08-13

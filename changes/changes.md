@@ -37539,3 +37539,324 @@ VORTEILE:
 STATUS: ✅ Workflow sollte jetzt erfolgreich durchlaufen
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-12 23:34:08 - ENDGÜLTIGE LÖSUNG: package-lock.json zum Repository hinzugefügt
+
+DAS EIGENTLICHE PROBLEM:
+package-lock.json war in .gitignore und daher NICHT im Repository!
+GitHub Actions konnte deshalb npm ci nicht ausführen, da diese Datei fehlt.
+
+LÖSUNG:
+1. package-lock.json aus .gitignore entfernt (auskommentiert)
+2. frontend/package-lock.json zum Repository hinzugefügt
+3. Root package-lock.json zum Repository hinzugefügt
+4. Workflow vereinfacht
+
+WARUM WAR DAS EIN PROBLEM:
+- npm ci benötigt zwingend package-lock.json
+- npm ci ist schneller und zuverlässiger als npm install in CI/CD
+- package-lock.json garantiert reproduzierbare Builds
+
+GIT COMMITS:
+- 7d18ce9: package-lock.json Dateien hinzugefügt
+- c20e623: Workflow und Dokumentation Updates
+
+WORKFLOW FUNKTIONIERT JETZT:
+✅ package-lock.json ist im Repository
+✅ npm ci kann die Dependencies installieren
+✅ Frontend wird automatisch gebaut
+✅ Build wird nach nginx/ kopiert
+✅ nginx-Image enthält aktuelles Frontend
+
+LESSON LEARNED:
+package-lock.json sollte IMMER im Repository sein für:
+- Reproduzierbare Builds
+- Funktionierende CI/CD
+- Konsistente Dependencies
+
+STATUS: ✅✅✅ ENDGÜLTIG GELÖST
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-13 11:55:00 - Multi-Platform Docker Images Support hinzugefügt
+
+PROBLEM:
+Die Docker Images auf ghcr.io haben nur die Architektur linux/arm64 (Apple Silicon),
+weil sie lokal auf einem Mac gebaut wurden. x86/amd64 Systeme können diese Images
+nicht verwenden.
+
+ANALYSE:
+- Lokale Images: linux/arm64 (wegen Apple Silicon Mac)
+- GitHub Actions: Baute nur für linux/amd64 (ubuntu-latest)
+- Fehlende Unterstützung für Multi-Architektur Builds
+
+LÖSUNG:
+
+1. **GitHub Actions Workflow erweitert** (.github/workflows/docker-publish.yml):
+   - QEMU Setup für Cross-Platform Emulation hinzugefügt
+   - Docker Buildx Setup für Multi-Platform Builds
+   - platforms: linux/amd64,linux/arm64 zu allen Build-Steps
+   - GitHub Actions Cache für schnellere Builds
+
+2. **Lokales Build-Script erstellt** (scripts/build-multiplatform.sh):
+   - Nutzt Docker buildx für Multi-Platform Builds
+   - Unterstützt linux/amd64 und linux/arm64
+   - Option --push für direktes Pushen zu Registry
+   - Lokaler Cache für schnellere Rebuilds
+   - Farbige Ausgabe für bessere Lesbarkeit
+
+VORTEILE:
+✅ Images funktionieren auf x86/amd64 UND arm64 Systemen
+✅ Automatische Multi-Platform Builds in GitHub Actions
+✅ Lokales Script für manuelle Multi-Platform Builds
+✅ Bessere Performance durch Cache-Nutzung
+✅ Unterstützung für Windows/Linux Server und Apple Silicon Macs
+
+VERWENDUNG LOKAL:
+```bash
+# Nur bauen (lokal)
+./scripts/build-multiplatform.sh
+
+# Bauen und zu Registry pushen
+./scripts/build-multiplatform.sh --push
+
+# Nur für bestimmte Platform
+./scripts/build-multiplatform.sh --platform linux/amd64
+```
+
+PATCH .github/workflows/docker-publish.yml:
+```diff
+@@ -19,6 +19,16 @@ jobs:
+     - name: Checkout repository
+       uses: actions/checkout@v5
+ 
++    # Setup QEMU for multi-platform builds
++    - name: Set up QEMU
++      uses: docker/setup-qemu-action@v3
++      with:
++        platforms: linux/amd64,linux/arm64
++
++    # Setup Docker Buildx for multi-platform builds
++    - name: Set up Docker Buildx
++      uses: docker/setup-buildx-action@v3
++      with:
++        platforms: linux/amd64,linux/arm64
++
+     - name: Setup Node.js
+       uses: actions/setup-node@v4
+@@ -66,48 +76,58 @@ jobs:
+           type=semver,pattern={{major}}
+           type=raw,value=latest,enable={{is_default_branch}}
+ 
++    # Build multi-platform Backend image
+     - name: Build and push Backend Docker image
+       uses: docker/build-push-action@v5
+       with:
+         context: ./backend
++        platforms: linux/amd64,linux/arm64
+         push: ${{ github.event_name != 'pull_request' }}
+         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-backend:latest
+         labels: ${{ steps.meta.outputs.labels }}
++        cache-from: type=gha
++        cache-to: type=gha,mode=max
+ 
++    # Build multi-platform Frontend image
+     - name: Build and push Frontend Docker image
+       uses: docker/build-push-action@v5
+       with:
+         context: ./frontend
++        platforms: linux/amd64,linux/arm64
+         push: ${{ github.event_name != 'pull_request' }}
+         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-frontend:latest
+         labels: ${{ steps.meta.outputs.labels }}
++        cache-from: type=gha
++        cache-to: type=gha,mode=max
+ 
++    # Build multi-platform Guacamole image
+     - name: Build and push Guacamole Docker image
+       uses: docker/build-push-action@v5
+       with:
+         context: ./guacamole
++        platforms: linux/amd64,linux/arm64
+         push: ${{ github.event_name != 'pull_request' }}
+         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-guacamole:latest
+         labels: ${{ steps.meta.outputs.labels }}
++        cache-from: type=gha
++        cache-to: type=gha,mode=max
+ 
++    # Build multi-platform Nginx image
+     - name: Build and push Nginx Docker image
+       uses: docker/build-push-action@v5
+       with:
+         context: ./nginx
++        platforms: linux/amd64,linux/arm64
+         push: ${{ github.event_name != 'pull_request' }}
+         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-nginx:latest
+         labels: ${{ steps.meta.outputs.labels }}
++        cache-from: type=gha
++        cache-to: type=gha,mode=max
+ 
++    # Build multi-platform TTYD image
+     - name: Build and push TTYD Docker image
+       uses: docker/build-push-action@v5
+       with:
+         context: ./ttyd
++        platforms: linux/amd64,linux/arm64
+         push: ${{ github.event_name != 'pull_request' }}
+         tags: ${{ env.REGISTRY }}/alflewerken/web-appliance-dashboard-ttyd:latest
+         labels: ${{ steps.meta.outputs.labels }}
++        cache-from: type=gha
++        cache-to: type=gha,mode=max
+ 
+-# Initial build triggered on 2025-08-11 to publish Docker images
++# Multi-platform build support added on 2025-08-13
+```
+
+NEUE DATEI scripts/build-multiplatform.sh:
+```bash
+#!/bin/bash
+
+# Build Multi-Platform Docker Images
+# Builds images for both linux/amd64 and linux/arm64
+
+set -e
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_message() {
+    local color=$1
+    local message=$2
+    echo -e "${color}${message}${NC}"
+}
+
+# Default settings
+REGISTRY="ghcr.io"
+NAMESPACE="alflewerken"
+PUSH=false
+PLATFORMS="linux/amd64,linux/arm64"
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --push)
+            PUSH=true
+            shift
+            ;;
+        --platform)
+            PLATFORMS="$2"
+            shift 2
+            ;;
+        --help)
+            echo "Usage: $0 [options]"
+            echo "Options:"
+            echo "  --push          Push images to registry after building"
+            echo "  --platform      Specify platforms (default: linux/amd64,linux/arm64)"
+            echo "  --help          Show this help message"
+            exit 0
+            ;;
+        *)
+            print_message "$RED" "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+print_message "$BLUE" "============================================"
+print_message "$BLUE" "Building Multi-Platform Docker Images"
+print_message "$BLUE" "Platforms: $PLATFORMS"
+print_message "$BLUE" "Push to registry: $PUSH"
+print_message "$BLUE" "============================================"
+
+# Check if Docker buildx is available
+if ! docker buildx version &> /dev/null; then
+    print_message "$RED" "Docker buildx not found. Please install Docker Desktop or enable buildx."
+    exit 1
+fi
+
+# Create or use existing buildx builder
+BUILDER_NAME="multiplatform-builder"
+if ! docker buildx ls | grep -q "$BUILDER_NAME"; then
+    print_message "$YELLOW" "Creating new buildx builder: $BUILDER_NAME"
+    docker buildx create --name "$BUILDER_NAME" --use --platform="$PLATFORMS"
+else
+    print_message "$GREEN" "Using existing buildx builder: $BUILDER_NAME"
+    docker buildx use "$BUILDER_NAME"
+fi
+
+# Bootstrap builder if needed
+docker buildx inspect --bootstrap
+
+# Build Frontend first (needed for nginx)
+print_message "$YELLOW" "Building frontend..."
+cd frontend
+npm ci
+npm run build
+cd ..
+
+# Copy frontend build to nginx
+print_message "$YELLOW" "Copying frontend build to nginx..."
+rm -rf nginx/static
+cp -r frontend/build/static nginx/
+cp frontend/build/*.* nginx/ 2>/dev/null || true
+
+# Array of services to build
+declare -a services=(
+    "backend"
+    "nginx"
+    "ttyd"
+    "guacamole"
+)
+
+# Build each service
+for service in "${services[@]}"; do
+    print_message "$YELLOW" "Building $service..."
+    
+    TAG="${REGISTRY}/${NAMESPACE}/web-appliance-dashboard-${service}:latest"
+    
+    BUILD_ARGS="--platform=$PLATFORMS"
+    BUILD_ARGS="$BUILD_ARGS --tag $TAG"
+    
+    if [ "$PUSH" = true ]; then
+        BUILD_ARGS="$BUILD_ARGS --push"
+    else
+        BUILD_ARGS="$BUILD_ARGS --load"
+    fi
+    
+    # Add cache options for faster builds
+    BUILD_ARGS="$BUILD_ARGS --cache-from type=local,src=/tmp/.buildx-cache-$service"
+    BUILD_ARGS="$BUILD_ARGS --cache-to type=local,dest=/tmp/.buildx-cache-$service,mode=max"
+    
+    # Build the image
+    if docker buildx build $BUILD_ARGS "./$service"; then
+        print_message "$GREEN" "✓ Successfully built $service"
+    else
+        print_message "$RED" "✗ Failed to build $service"
+        exit 1
+    fi
+done
+
+print_message "$GREEN" "============================================"
+print_message "$GREEN" "All images built successfully!"
+if [ "$PUSH" = true ]; then
+    print_message "$GREEN" "Images have been pushed to $REGISTRY"
+else
+    print_message "$YELLOW" "Images built locally. Use --push to push to registry"
+fi
+print_message "$GREEN" "============================================"
+
+# List built images
+print_message "$BLUE" "\nBuilt images:"
+docker images | grep "${NAMESPACE}/web-appliance-dashboard" | head -n 5
+```
+
+STATUS: ✅ Multi-Platform Support implementiert
+
+════════════════════════════════════════════════════════════════════════════════
