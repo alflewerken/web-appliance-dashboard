@@ -349,13 +349,13 @@ RUSTDESK_RELAY_CONTAINER=rustdesk-relay
 
 # Network
 NETWORK_NAME=appliance_network
+EOF
 
-# Export für docker-compose
+# Export variables for docker-compose (outside of .env file)
 export DB_CONTAINER_NAME BACKEND_CONTAINER_NAME WEBSERVER_CONTAINER_NAME
 export TTYD_CONTAINER_NAME GUACAMOLE_CONTAINER_NAME GUACAMOLE_DB_CONTAINER_NAME
 export GUACD_CONTAINER_NAME RUSTDESK_SERVER_CONTAINER RUSTDESK_RELAY_CONTAINER
 export NETWORK_NAME
-EOF
 
 # Generate SSL certificates
 echo "🔒 Generating SSL certificates..."
