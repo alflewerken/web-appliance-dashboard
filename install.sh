@@ -223,12 +223,12 @@ echo ""
 if [ -t 0 ]; then
     # Interactive mode (script run directly)
     read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES
-elif [ -e /dev/tty ]; then
-    # Piped mode (curl | bash) - read from terminal
-    read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES </dev/tty
+elif [ -c /dev/tty ] && exec < /dev/tty 2>/dev/null; then
+    # Piped mode (curl | bash) - read from terminal if available
+    read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES
 else
-    # Non-interactive mode
-    echo "⚠️  Non-interactive mode detected. Using default: localhost"
+    # Non-interactive mode - use defaults
+    echo "⚠️  Non-interactive mode detected. Using default: localhost and detected hostnames"
     USER_HOSTNAMES=""
 fi
 
