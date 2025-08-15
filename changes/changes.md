@@ -38119,3 +38119,28 @@ Der überarbeitete install.sh sollte jetzt:
 STATUS: ✅ install.sh überarbeitet und verbessert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 17:05:00 - install.sh erweitert für Docker außerhalb des PATH
+
+PROBLEM:
+Auf manchen Systemen (besonders macOS mit Docker Desktop) ist Docker unter 
+/usr/local/bin/docker installiert, aber nicht im PATH verfügbar. Der Installer
+erkannte Docker nicht und brach ab.
+
+LÖSUNG:
+install.sh prüft jetzt auch alternative Docker-Pfade:
+- Sucht Docker zuerst im PATH
+- Prüft dann /usr/local/bin/docker (Docker Desktop Standard)
+- Fügt /usr/local/bin zum PATH hinzu wenn Docker dort gefunden wird
+- Verwendet durchgehend $DOCKER_CMD Variable
+
+ÄNDERUNGEN:
+- Alle "docker" Befehle durch $DOCKER_CMD ersetzt
+- Docker-Version wird angezeigt nach Erkennung
+- Docker Compose Version wird angezeigt nach Erkennung
+- Verbesserte Fehlerbehandlung
+
+STATUS: ✅ Docker-Erkennung verbessert
+
+════════════════════════════════════════════════════════════════════════════════

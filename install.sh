@@ -43,22 +43,33 @@ find_available_port() {
 }
 
 # Check for Docker
-if ! command -v docker &> /dev/null; then
+DOCKER_CMD=""
+if command -v docker &> /dev/null; then
+    DOCKER_CMD="docker"
+elif [ -x "/usr/local/bin/docker" ]; then
+    # Docker Desktop on macOS often installs here
+    DOCKER_CMD="/usr/local/bin/docker"
+    export PATH="/usr/local/bin:$PATH"
+else
     echo "❌ Docker is not installed!"
     echo "Please install Docker first: https://docs.docker.com/get-docker/"
     exit 1
 fi
 
+echo "✅ Found Docker: $($DOCKER_CMD --version)"
+
 # Check for Docker Compose
 DOCKER_COMPOSE_CMD=""
-if docker compose version &> /dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD="docker compose"
+if $DOCKER_CMD compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="$DOCKER_CMD compose"
 elif command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE_CMD="docker-compose"
 else
     echo "❌ Docker Compose is not installed!"
     exit 1
 fi
+
+echo "✅ Found Docker Compose: $($DOCKER_COMPOSE_CMD version)"
 
 # Determine installation directory
 # Use current directory if provided via argument or environment, otherwise use current working directory
@@ -447,7 +458,7 @@ for IMAGE in "${IMAGES[@]}"; do
     CURRENT=$((CURRENT + 1))
     echo ""
     echo "[$CURRENT/$TOTAL_IMAGES] Downloading: $IMAGE"
-    if docker pull "$IMAGE"; then
+    if $DOCKER_CMD pull "$IMAGE"; then
         echo "   ✅ Downloaded successfully"
     else
         echo "   ⚠️  Failed to download $IMAGE (will retry during startup)"
@@ -470,7 +481,7 @@ $DOCKER_COMPOSE_CMD up -d || {
 # Wait for database
 echo "⏳ Waiting for database to be ready..."
 for i in {1..30}; do
-    if docker exec ${DB_CONTAINER_NAME:-appliance_db} mysqladmin ping -h localhost -u root -p${ROOT_PASS} &>/dev/null; then
+    if $DOCKER_CMD exec ${DB_CONTAINER_NAME:-appliance_db} mysqladmin ping -h localhost -u root -p${ROOT_PASS} &>/dev/null; then
         echo "✅ Database is ready"
         break
     fi
@@ -482,7 +493,7 @@ echo ""
 # Initialize database schema if needed
 echo "📝 Initializing database schema..."
 if [ -f "init-db/01-init.sql" ]; then
-    docker exec -i ${DB_CONTAINER_NAME:-appliance_db} mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
+    $DOCKER_CMD exec -i ${DB_CONTAINER_NAME:-appliance_db} mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
         echo "⚠️  Some tables might already exist (this is normal)"
     }
     echo "✅ Database schema initialized"
@@ -493,7 +504,7 @@ echo "🔧 Checking Guacamole database..."
 sleep 5
 
 # Check if Guacamole tables exist
-TABLES_EXIST=$(docker exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -tAc \
+TABLES_EXIST=$($DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -tAc \
     "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
 
 if [ "$TABLES_EXIST" = "f" ]; then
@@ -501,11 +512,11 @@ if [ "$TABLES_EXIST" = "f" ]; then
     
     # Try to load local schema files first
     if [ -f "guacamole/001-create-schema.sql" ]; then
-        docker exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+        $DOCKER_CMD exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
             < guacamole/001-create-schema.sql >/dev/null 2>&1
         
         if [ -f "guacamole/002-create-admin-user.sql" ]; then
-            docker exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+            $DOCKER_CMD exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
                 < guacamole/002-create-admin-user.sql >/dev/null 2>&1
         fi
         
