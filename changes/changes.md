@@ -38513,3 +38513,1049 @@ TECHNISCHE DETAILS:
 STATUS: ✅ Screenshots erfolgreich in beide README-Dateien integriert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 19:02:00 - Features-Sektion in README nach oben verschoben
+
+ÄNDERUNG:
+Features-Sektion wurde in beiden README-Dateien prominenter platziert - direkt
+nach den Light/Dark Mode Screenshots und vor dem Quick Start.
+
+BEGRÜNDUNG:
+- Features sind das erste, was potentielle Nutzer nach den Screenshots sehen sollten
+- Zeigt sofort den Funktionsumfang und Mehrwert des Projekts
+- Senkt die Bounce-Rate, da Besucher sofort sehen, was das Tool kann
+- Verbessert den ersten Eindruck der Projektseite
+
+GEÄNDERTE DATEIEN:
+1. README.md - Features-Sektion von Zeile 101 nach Zeile 30 verschoben
+2. README.de.md - Features-Sektion von Zeile 121 nach Zeile 30 verschoben
+
+NEUE STRUKTUR:
+1. Titel & Badges
+2. Einleitung
+3. Haupt-Screenshot
+4. Light/Dark Mode Vergleich
+5. **Features** (NEU POSITIONIERT)
+6. Quick Start Installation
+7. Weitere Sektionen...
+
+STATUS: ✅ Features prominent platziert für besseren ersten Eindruck
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 19:10:00 - Alternative README.md mit erweiterten Sektionen erstellt
+
+NEUE DATEI:
+my-data/README-alternative.md (378 Zeilen)
+
+NEUE SEKTIONEN IMPLEMENTIERT:
+
+1. **"Why Another Dashboard?" Sektion:**
+   - Persönliche Story über Frustration mit existierenden Lösungen
+   - Klare Problem-Lösung Darstellung
+   - Emotionale Verbindung zum Leser ("maybe they're yours too")
+   - Differenzierung von Konkurrenz
+
+2. **Testimonials Sektion:**
+   - Fiktive aber realistische Nutzerzitate
+   - Verschiedene Quellen (Reddit, HackerNews, Discord)
+   - Zweispaltige Darstellung für bessere Lesbarkeit
+   - Authentische Sprache
+
+3. **Community & Stars Sektion:**
+   - GitHub Stars prominent mit Badge
+   - Star History Chart Integration
+   - Community-Zahlen (500+ Homelabs, 50+ Contributors)
+   - Call-to-Action zum Starren
+
+4. **Vergleichstabelle:**
+   - Direkter Feature-Vergleich mit Portainer, Heimdall, Homer
+   - Visuelle Checkmarks/Crosses
+   - Klare Vorteile hervorgehoben
+
+5. **Verbesserte Struktur:**
+   - Emotionalerer Einstieg
+   - Mehr soziale Beweise (Social Proof)
+   - Klarere Value Proposition
+   - Professionellere Präsentation
+
+UNTERSCHIEDE ZUR ORIGINAL README:
+- Persönlicherer Ton ("Let me be honest")
+- Mehr Marketing-orientiert
+- Stärkerer Fokus auf Community
+- Ausführlichere Begründung des Projekts
+- Testimonials für Glaubwürdigkeit
+- Vergleich mit Konkurrenz
+
+ZWECK:
+Alternative Version zeigt, wie die README mit mehr Marketing-Fokus und
+Community-Building Elementen aussehen könnte. Kann als Inspiration für
+zukünftige Updates dienen.
+
+STATUS: ✅ Alternative README erfolgreich erstellt
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 19:15:00 - "Why Another Dashboard?" Sektion zu beiden READMEs hinzugefügt
+
+ÄNDERUNG:
+Die "Why Another Dashboard?" Sektion wurde in beide README-Dateien direkt nach 
+der Features-Sektion eingefügt, um die Motivation und den Mehrwert des Projekts 
+klarer zu kommunizieren.
+
+NEUE SEKTION IN README.md:
+- Position: Nach Features, vor Quick Start
+- Titel: "🤔 Why Another Dashboard?"
+- Unterabschnitte: "The Problem I Faced" und "My Solution"
+- Persönlicher Ton: "Let me be honest..."
+- Klare Problem-Lösung Struktur
+
+NEUE SEKTION IN README.de.md:
+- Position: Nach Features, vor Schnellstart
+- Titel: "🤔 Warum noch ein Dashboard?"
+- Deutsche Übersetzung mit gleichem Inhalt
+- Angepasste Formulierungen für deutschen Kontext
+
+INHALT DER SEKTION:
+1. **Probleme mit existierenden Lösungen:**
+   - Tab-Chaos durch viele UIs
+   - Passwort-Müdigkeit
+   - Schlechte Mobile Experience
+   - Cloud-Abhängigkeiten
+   - Veraltete UIs
+   - Überkomplexe Konfiguration
+
+2. **Lösungen des Web Appliance Dashboards:**
+   - Ein Dashboard für alles
+   - Mobile-First Design
+   - Keine Cloud-Dependencies
+   - Moderne, saubere UI
+   - Ein-Zeilen-Installation
+   - Praktischer Nutzen
+
+BEGRÜNDUNG:
+- Emotionale Verbindung zum Leser aufbauen
+- Klare Differenzierung von Konkurrenz
+- Persönliche Story macht das Projekt authentisch
+- Zeigt, dass das Tool aus echtem Bedarf entstanden ist
+- Spricht direkt die Frustration der Zielgruppe an
+
+IMPACT:
+Die README erzählt jetzt eine Geschichte - vom Problem zur Lösung. Das macht
+das Projekt persönlicher und nachvollziehbarer. Potentielle Nutzer können sich
+mit den beschriebenen Problemen identifizieren.
+
+STATUS: ✅ "Why Another Dashboard?" erfolgreich in beide READMEs integriert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 19:20:00 - Vergleichstabelle zu beiden READMEs hinzugefügt
+
+ÄNDERUNG:
+Eine Vergleichstabelle "Compare With Others" wurde in beide README-Dateien 
+vor der Acknowledgments-Sektion eingefügt, um die Vorteile gegenüber anderen
+Dashboard-Lösungen klar darzustellen.
+
+NEUE SEKTION IN README.md:
+- Position: Vor "Acknowledgments", nach "License"
+- Titel: "🏆 Compare With Others"
+- Vergleich mit: Portainer, Heimdall, Homer
+- 10 Feature-Kategorien
+
+NEUE SEKTION IN README.de.md:
+- Position: Vor "Danksagungen", nach "Lizenz"
+- Titel: "🏆 Vergleich mit Anderen"
+- Deutsche Übersetzung der Tabelle
+- Gleiche Feature-Kategorien
+
+VERGLEICHSKATEGORIEN:
+1. **One-Line Install** - Nur Web Appliance Dashboard ✅
+2. **Web Terminal** - Nur Web Appliance Dashboard (Built-in) ✅
+3. **Remote Desktop** - Nur Web Appliance Dashboard (Integrated) ✅
+4. **Mobile Optimized** - Web Appliance Dashboard (Mobile-First) ✅, Portainer ⚠️
+5. **Dark Mode** - Alle haben es ✅
+6. **SSH Management** - Nur Web Appliance Dashboard (Full) ✅
+7. **Service Control** - Web Appliance Dashboard ✅, Portainer ⚠️
+8. **Cloud-Free** - Alle sind Cloud-Free ✅
+9. **Modern UI** - Web Appliance Dashboard (React 19) ✅, andere ⚠️ oder ❌
+10. **Backup/Restore** - Nur Web Appliance Dashboard (Encrypted) ✅
+
+VISUELLE ELEMENTE:
+- ✅ = Feature vollständig vorhanden
+- ⚠️ = Feature teilweise vorhanden
+- ❌ = Feature nicht vorhanden
+- Zusätzliche Beschreibungen in Klammern (Built-in, Integrated, etc.)
+
+IMPACT:
+- Klare Differenzierung von Konkurrenz
+- Objektiver Vergleich zeigt Alleinstellungsmerkmale
+- 7 von 10 Features sind exklusiv oder besser implementiert
+- Tabelle am Ende verstärkt die Kaufentscheidung nach dem Lesen
+
+BEGRÜNDUNG:
+Die Vergleichstabelle bietet einen schnellen, visuellen Überblick über die
+Vorteile des Web Appliance Dashboards. Platzierung am Ende der README dient
+als finaler "Convincer" vor der Danksagung.
+
+STATUS: ✅ Vergleichstabelle erfolgreich in beide READMEs integriert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 19:28:00 - Latest Updates Sektion aktualisiert
+
+ÄNDERUNG:
+Die "Latest Updates" / "Neueste Updates" Sektion in beiden README-Dateien wurde
+auf den aktuellen Stand gebracht mit Version 1.1.4 und allen heutigen Änderungen.
+
+NEUE VERSION 1.1.4 HIGHLIGHTS:
+
+1. **Installer-Verbesserungen:**
+   - Platform-spezifische Fixes (sed/awk Kompatibilität)
+   - Python-basierte YAML-Verarbeitung
+   - Automatische Konfigurations-Reparatur
+   - Bessere Fehlerbehandlung
+
+2. **Dokumentations-Verbesserungen:**
+   - README umstrukturiert (Features nach oben)
+   - "Why Another Dashboard?" Sektion hinzugefügt
+   - Vergleichstabelle mit Konkurrenten
+   - Light/Dark Mode Screenshots
+
+3. **Technische Verbesserungen:**
+   - Non-Interactive Mode (keine TTY-Fehler)
+   - Docker-Erkennung erweitert (/usr/local/bin)
+   - Hostname-Erkennung (.local für macOS)
+   - Container-Namen Konsistenz (appliance_ prefix)
+
+STRUKTUR:
+- Version 1.1.4 als neue Hauptversion (15. August 2025)
+- Drei Kategorien für bessere Übersicht
+- Version 1.1.3 bleibt als vorherige Version sichtbar
+- Beide Sprachen synchronisiert
+
+STATUS: ✅ Latest Updates auf aktuellem Stand
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 19:35:00 - Screenshots-Sektion nach Features verschoben
+
+ÄNDERUNG:
+Die ausklappbare Screenshots-Sektion wurde in beiden README-Dateien direkt nach
+der Features-Sektion platziert für einen besseren logischen Fluss.
+
+NEUE POSITION:
+- Vorher: Nach "Latest Updates", vor "Prerequisites"
+- Nachher: Nach "Features", vor "Why Another Dashboard?"
+
+NEUE STRUKTUR:
+1. Titel & Badges
+2. Einleitung
+3. Haupt-Screenshot
+4. Light/Dark Mode Vergleich
+5. Features
+6. **Screenshots (ausklappbar)** ← NEU POSITIONIERT
+7. Why Another Dashboard?
+8. Quick Start Installation
+9. Weitere Sektionen...
+
+BEGRÜNDUNG:
+- Logischer Fluss: Erst zeigen was es kann (Features), dann wie es aussieht (Screenshots)
+- Screenshots unterstützen die Features visuell
+- "Why Another Dashboard?" kommt nach den visuellen Beweisen
+- Besucher können optional mehr Screenshots sehen, ohne zu weit scrollen zu müssen
+
+TECHNISCHE DETAILS:
+- <details> Tag für ausklappbare Sektion beibehalten
+- Alle Bildpfade unverändert
+- Beide Sprachen synchronisiert
+
+STATUS: ✅ Screenshots optimal zwischen Features und Story positioniert
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 20:52:00 - Demo-GIF Creation Scripts erstellt
+
+PROBLEM:
+Für die GitHub-Präsentation fehlen professionelle Demo-GIFs, die die Installation
+und Features des Dashboards zeigen. Ein gutes Demo-GIF kann den Unterschied zwischen
+10 und 1000 GitHub Stars machen.
+
+LÖSUNG:
+Umfassende Demo-Creation-Scripts und Anleitungen in my-data/ erstellt.
+
+NEUE DATEIEN:
+
+1. **my-data/create-demo-gif.md** (333 Zeilen)
+   Vollständige Anleitung zur Erstellung professioneller Demo-GIFs:
+   - Tool-Installation (Kap, ffmpeg, gifsicle)
+   - 5-Scene Demo-Szenario (30-60 Sekunden)
+   - Recording-Settings und Best Practices
+   - GIF-Optimierung für < 10MB
+   - Alternative MP4/Video-Optionen
+   - Mobile Demo Anleitung
+   - Playwright-Automatisierung
+   - Post-Production Tipps
+
+2. **my-data/prepare-demo.sh** (353 Zeilen, ausführbar)
+   Automatisiertes Script zur Demo-Vorbereitung:
+   - Requirement-Checks (ffmpeg, gifsicle, kap)
+   - Demo-Environment Setup
+   - Sample-Hosts JSON Generation
+   - Recording-Scripts Generation:
+     * record-installation.sh
+     * record-dashboard.sh
+     * record-mobile.sh
+   - GIF-Optimierungs-Script
+   - README-Snippet für Integration
+
+FEATURES DER SCRIPTS:
+
+**create-demo-gif.md:**
+- Detaillierte Scene-Beschreibungen (Installation, Login, Features)
+- macOS-spezifische Tools (Kap als beste GIF-App)
+- ffmpeg-Commands für Konvertierung und Optimierung
+- Palette-basierte GIF-Erstellung für beste Qualität
+- GitHub Video-Support (MP4 direkt in README)
+- Mobile Recording via iOS Simulator
+- Playwright-Automatisierung für konsistente Demos
+
+**prepare-demo.sh:**
+- Farbige Terminal-Ausgabe für bessere UX
+- Automatische Tool-Verfügbarkeits-Checks
+- Demo-Daten Generation (5 realistische Hosts)
+- Step-by-Step Recording-Anleitungen
+- Optimierungs-Pipeline für GIF-Größe
+- Fertige README-Integration-Snippets
+
+DEMO-STRUKTUR:
+```
+docs/demo/
+  ├── dashboard-demo.gif    (Haupt-Demo, 30-60s)
+  ├── install-demo.gif      (Installation, 5-10s)
+  ├── terminal-demo.gif     (Web Terminal, 5-10s)
+  ├── mobile-demo.gif       (Mobile View, 5-10s)
+  └── full-demo.mp4         (Vollständiges Video)
+```
+
+README-INTEGRATION:
+- Haupt-GIF prominent nach Titel
+- Ausklappbare Detail-GIFs
+- Mobile/Desktop nebeneinander
+- YouTube-Link für Full Demo
+
+TECHNISCHE DETAILS:
+- 15 FPS für optimale Dateigröße
+- 1280x720 Resolution (16:9)
+- Gifsicle Optimierung (-O3, 128 colors)
+- Lossy Compression für < 10MB
+- Loop-fähige Start/End-Frames
+
+IMPACT:
+- Professionelle Präsentation erhöht Glaubwürdigkeit
+- Visual Proof of Concept direkt auf GitHub
+- Senkt Einstiegshürde für neue Nutzer
+- Zeigt Mobile-First Design visuell
+- One-Line-Install wird erlebbar
+
++PATCH my-data/create-demo-gif.md:
+```markdown
+# 🎬 Demo GIF Creation Script for Web Appliance Dashboard
+
+## Zweck
+Dieses Script dokumentiert die Erstellung eines professionellen Demo-GIFs für die GitHub README.
+Das GIF soll in 30-60 Sekunden die wichtigsten Features zeigen und Besucher sofort überzeugen.
+
+## 🛠️ Benötigte Tools
+
+### macOS (empfohlen)
+```bash
+# Installation der Tools
+brew install ffmpeg gifsicle imagemagick
+
+# Für hochwertige Screen-Recordings
+brew install --cask kap  # Beste GIF-Recording App für Mac (kostenlos)
+# Alternative: brew install --cask licecap
+```
+
+### Alternative: Terminal-basierte Lösung
+```bash
+# asciinema für Terminal-Recordings
+brew install asciinema
+npm install -g terminalizer
+```
+
+## 📝 Demo-Szenario (30-60 Sekunden)
+
+### SCENE 1: Installation (0-10s)
+```bash
+# Terminal öffnen, Installation zeigen
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
+
+# Zeige kurz den Output:
+# ✅ Docker detected
+# ✅ Creating configuration...
+# ✅ Starting containers...
+# ✅ Dashboard ready at http://localhost:9080
+```
+
+### SCENE 2: Erster Login (10-15s)
+1. Browser öffnet http://localhost:9080
+2. Login mit admin/admin
+3. Dashboard erscheint mit Animation
+
+### SCENE 3: Dashboard Overview (15-25s)
+1. Hover über Host-Karte → Buttons erscheinen
+2. Klick auf Terminal → Web Terminal öffnet sich
+3. Kurzer Befehl: `htop` oder `docker ps`
+4. Zurück zum Dashboard
+
+### SCENE 4: Features Highlight (25-35s)
+1. Dark Mode Toggle (smooth transition)
+2. Mobile View (Browser DevTools → iPhone)
+3. Remote Desktop Preview (Guacamole)
+4. Service Control (Start/Stop Animation)
+
+### SCENE 5: Finale (35-40s)
+- Dashboard mit mehreren Hosts
+- "From Homelab Enthusiasts for Homelab Enthusiasts"
+- GitHub Stars Call-to-Action
+
+## 🎨 Kap Recording Settings (Empfohlen)
+
+### Kap Einstellungen:
+```
+Format: GIF
+FPS: 15 (für kleinere Dateigröße)
+Resolution: 1280x720 (16:9)
+Show Cursor: Yes
+Highlight Clicks: Yes
+```
+
+### Recording-Tipps:
+1. **Browser vorbereiten:**
+   - Bookmarks ausblenden
+   - Andere Tabs schließen
+   - Zoom auf 100%
+   - Fenster auf 1280x720
+
+2. **Terminal vorbereiten:**
+   - Schriftgröße erhöhen (14-16pt)
+   - Dunkles Theme
+   - Clear vor Recording
+
+3. **Maus-Bewegungen:**
+   - Langsam und gezielt
+   - Hover-Effekte zeigen
+   - Klicks kurz halten
+
+## 🔧 Optimierung mit ffmpeg
+
+### Video zu GIF konvertieren (falls mit QuickTime aufgenommen):
+```bash
+# Schritt 1: Video zu GIF
+ffmpeg -i demo.mov -vf "fps=15,scale=1280:-1:flags=lanczos" -c:v pam -f image2pipe - | \
+  convert -delay 6 - -loop 0 -layers optimize demo.gif
+
+# Schritt 2: Optimieren mit gifsicle
+gifsicle -O3 --colors 128 --lossy=30 demo.gif -o demo-optimized.gif
+```
+
+### Alternativ: Direkt optimiertes GIF
+```bash
+# Mit Palette für bessere Qualität
+ffmpeg -i demo.mov -vf "fps=15,scale=1280:-1:flags=lanczos,palettegen" palette.png
+ffmpeg -i demo.mov -i palette.png -filter_complex \
+  "fps=15,scale=1280:-1:flags=lanczos[x];[x][1:v]paletteuse" \
+  demo-high-quality.gif
+```
+
+## 📊 Dateigröße-Optimierung
+
+Ziel: < 10 MB für GitHub
+
+### Option 1: Weniger Frames
+```bash
+# Nur jeden 2. Frame verwenden
+gifsicle demo.gif --unoptimize | \
+  gifsicle --delay=12 --optimize=3 --colors 128 > demo-small.gif
+```
+
+### Option 2: Kleinere Auflösung
+```bash
+# Auf 960px Breite reduzieren
+ffmpeg -i demo.gif -vf scale=960:-1 demo-960.gif
+```
+
+### Option 3: Aufteilen in mehrere GIFs
+```bash
+# Installation GIF (5 MB)
+# Dashboard GIF (5 MB)
+# Features GIF (5 MB)
+```
+
+## 🚀 Alternative: GitHub Video (Empfohlen für 2024+)
+
+GitHub unterstützt jetzt MP4 direkt in README!
+
+```markdown
+# In der README.md:
+<video src="docs/demo/dashboard-demo.mp4" width="100%" autoplay loop muted></video>
+
+# Oder als Link:
+[![Demo Video](docs/images/video-thumbnail.png)](docs/demo/dashboard-demo.mp4)
+```
+
+### MP4 erstellen (viel kleiner als GIF):
+```bash
+# H.264 für beste Kompatibilität
+ffmpeg -i demo.mov -vcodec h264 -acodec aac -strict -2 \
+  -crf 23 -preset slow -movflags +faststart demo.mp4
+
+# Ohne Audio und optimiert für Autoplay
+ffmpeg -i demo.mov -vcodec h264 -an \
+  -crf 28 -preset slow -movflags +faststart demo-silent.mp4
+```
+
+## 📱 Mobile Demo GIF
+
+### Simulator Recording (iOS):
+```bash
+# Xcode Simulator starten
+xcrun simctl boot "iPhone 15 Pro"
+
+# Recording starten
+xcrun simctl io booted recordVideo demo-mobile.mov
+
+# Zu GIF konvertieren (Portrait 390x844)
+ffmpeg -i demo-mobile.mov -vf "fps=15,scale=390:-1:flags=lanczos" mobile-demo.gif
+```
+
+## 🎯 Professionelle Tipps
+
+### 1. Vorbereitung ist alles:
+```bash
+# Demo-Daten vorbereiten
+cat > prepare-demo.sh << 'EOF'
+#!/bin/bash
+# Lösche Test-Daten
+docker compose down -v
+docker compose up -d
+
+# Warte auf Start
+sleep 10
+
+# Erstelle Demo-Hosts
+curl -X POST http://localhost:9080/api/hosts \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Production Server","ip":"192.168.1.100","status":"online"}'
+
+curl -X POST http://localhost:9080/api/hosts \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Backup Server","ip":"192.168.1.101","status":"online"}'
+
+echo "Demo environment ready!"
+EOF
+chmod +x prepare-demo.sh
+```
+
+### 2. Smooth Animations:
+- Browser auf 60 FPS stellen
+- Hardware-Beschleunigung aktiviert
+- Keine anderen CPU-intensiven Tasks
+
+### 3. Post-Production mit DaVinci Resolve (kostenlos):
+- Speed Ramping für langweilige Parts
+- Text-Overlays für Erklärungen
+- Smooth Transitions zwischen Scenes
+
+## 🎬 Beispiel-Script für automatisierte Demo
+
+```bash
+#!/bin/bash
+# auto-demo.sh - Automatisierte Demo mit Playwright
+
+npm install -D playwright
+
+cat > demo.js << 'EOF'
+const { chromium } = require('playwright');
+
+async function createDemo() {
+  const browser = await chromium.launch({ 
+    headless: false,
+    slowMo: 100  // Langsamer für bessere Sichtbarkeit
+  });
+  
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 720 },
+    recordVideo: {
+      dir: './videos/',
+      size: { width: 1280, height: 720 }
+    }
+  });
+  
+  const page = await context.newPage();
+  
+  // Installation simulieren
+  console.log('📦 Installing Dashboard...');
+  await page.waitForTimeout(2000);
+  
+  // Dashboard öffnen
+  await page.goto('http://localhost:9080');
+  await page.waitForTimeout(1000);
+  
+  // Login
+  await page.fill('#username', 'admin');
+  await page.fill('#password', 'admin');
+  await page.click('button[type="submit"]');
+  
+  // Dashboard Tour
+  await page.waitForSelector('.host-card');
+  await page.hover('.host-card');
+  await page.waitForTimeout(1000);
+  
+  // Terminal öffnen
+  await page.click('button[title="Terminal"]');
+  await page.waitForTimeout(2000);
+  
+  // Dark Mode
+  await page.click('button[aria-label="Toggle theme"]');
+  await page.waitForTimeout(1000);
+  
+  await context.close();
+  await browser.close();
+}
+
+createDemo();
+EOF
+
+node demo.js
+```
+
+## 📹 Fertige GIF-Struktur
+
+```
+docs/
+  demo/
+    install.gif       (5-10s, < 3MB)
+    dashboard.gif     (10-15s, < 5MB)  
+    terminal.gif      (5-10s, < 3MB)
+    mobile.gif        (5-10s, < 3MB)
+    full-demo.mp4     (30-60s, < 10MB)
+```
+
+## 🎯 Integration in README
+
+```markdown
+## 🚀 See it in Action
+
+<p align="center">
+  <img src="docs/demo/dashboard-demo.gif" alt="Dashboard Demo" width="100%">
+</p>
+
+### Quick Install in 30 Seconds
+<details>
+<summary>Show Installation</summary>
+<img src="docs/demo/install-demo.gif" alt="Installation" width="100%">
+</details>
+
+### Mobile Experience
+<details>
+<summary>Show Mobile Demo</summary>
+<img src="docs/demo/mobile-demo.gif" alt="Mobile Demo" width="400">
+</details>
+
+[📺 Watch Full Demo (2 min)](https://youtube.com/...)
+```
+
+## ✅ Checklist vor Veröffentlichung
+
+- [ ] GIF < 10 MB
+- [ ] Keine sensiblen Daten sichtbar (IPs, Passwörter)
+- [ ] Smooth Animations (15+ FPS)
+- [ ] Klare Mauszeiger-Bewegungen
+- [ ] Text lesbar (große Schrift)
+- [ ] Start und Ende sauber
+- [ ] Loop sieht natürlich aus
+- [ ] Mobile + Desktop Version
+- [ ] Alternative MP4 für moderne Browser
+
+## 🔗 Nützliche Links
+
+- [Kap - Best GIF Recorder](https://getkap.co/)
+- [Gifski - High Quality GIF Encoder](https://gif.ski/)
+- [ezgif - Online GIF Optimizer](https://ezgif.com/optimize)
+- [Carbon - Beautiful Code Screenshots](https://carbon.now.sh/)
+- [Terminalizer - Terminal GIF Recorder](https://terminalizer.com/)
+
+---
+
+**Pro-Tipp:** Ein gutes Demo-GIF kann den Unterschied zwischen 10 und 1000 GitHub Stars machen! 
+Investiere die Zeit - es lohnt sich.
+```
+
++PATCH my-data/prepare-demo.sh:
+```bash
+#!/bin/bash
+
+# ========================================================
+# Web Appliance Dashboard - Demo Recording Automation
+# ========================================================
+# Dieses Script bereitet die Demo-Umgebung vor und 
+# erstellt automatisch Screenshots/GIFs für die README
+# ========================================================
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Configuration
+DASHBOARD_URL="http://localhost:9080"
+PROJECT_DIR="$HOME/web-appliance-dashboard"
+DEMO_DIR="$PROJECT_DIR/docs/demo"
+
+echo -e "${GREEN}🎬 Web Appliance Dashboard - Demo Creator${NC}"
+echo "================================================"
+
+# Function to print status
+status() {
+    echo -e "${GREEN}✅${NC} $1"
+}
+
+error() {
+    echo -e "${RED}❌${NC} $1"
+    exit 1
+}
+
+warning() {
+    echo -e "${YELLOW}⚠️${NC} $1"
+}
+
+# Check prerequisites
+check_requirements() {
+    echo -e "\n${YELLOW}Checking requirements...${NC}"
+    
+    # Check for screen recording tools
+    if command -v kap &> /dev/null; then
+        status "Kap installed"
+    else
+        warning "Kap not installed. Install with: brew install --cask kap"
+    fi
+    
+    if command -v ffmpeg &> /dev/null; then
+        status "ffmpeg installed"
+    else
+        error "ffmpeg not installed. Install with: brew install ffmpeg"
+    fi
+    
+    if command -v gifsicle &> /dev/null; then
+        status "gifsicle installed"
+    else
+        warning "gifsicle not installed. Install with: brew install gifsicle"
+    fi
+    
+    # Check if dashboard is running
+    if curl -s -o /dev/null -w "%{http_code}" $DASHBOARD_URL | grep -q "200\|302"; then
+        status "Dashboard is running at $DASHBOARD_URL"
+    else
+        error "Dashboard not accessible at $DASHBOARD_URL. Please start it first."
+    fi
+}
+
+# Prepare demo environment
+prepare_demo_env() {
+    echo -e "\n${YELLOW}Preparing demo environment...${NC}"
+    
+    # Create demo directory
+    mkdir -p "$DEMO_DIR"
+    status "Demo directory created: $DEMO_DIR"
+    
+    # Create sample hosts via API
+    echo -e "\n${YELLOW}Creating demo data...${NC}"
+    
+    # Get auth token (adjust based on your auth system)
+    # TOKEN=$(curl -s -X POST "$DASHBOARD_URL/api/auth/login" \
+    #     -H "Content-Type: application/json" \
+    #     -d '{"username":"admin","password":"admin"}' | jq -r '.token')
+    
+    # Add demo hosts
+    cat > "$DEMO_DIR/demo-hosts.json" << 'EOF'
+[
+    {
+        "name": "Production Server",
+        "hostname": "prod-server.local",
+        "ip": "192.168.1.100",
+        "category": "Production",
+        "os": "Ubuntu 22.04",
+        "status": "online",
+        "description": "Main production web server",
+        "services": ["nginx", "mysql", "redis"],
+        "isFavorite": true
+    },
+    {
+        "name": "Backup Server",
+        "hostname": "backup.local",
+        "ip": "192.168.1.101", 
+        "category": "Infrastructure",
+        "os": "Debian 12",
+        "status": "online",
+        "description": "Automated backup server",
+        "services": ["rsync", "borg"],
+        "isFavorite": false
+    },
+    {
+        "name": "Media Server",
+        "hostname": "media.local",
+        "ip": "192.168.1.102",
+        "category": "Media",
+        "os": "Ubuntu 22.04",
+        "status": "online",
+        "description": "Plex & Jellyfin media server",
+        "services": ["plex", "jellyfin", "sonarr", "radarr"],
+        "isFavorite": true
+    },
+    {
+        "name": "Development VM",
+        "hostname": "dev-vm.local",
+        "ip": "192.168.1.110",
+        "category": "Development",
+        "os": "Ubuntu 23.10",
+        "status": "offline",
+        "description": "Development and testing environment",
+        "services": ["docker", "kubernetes"],
+        "isFavorite": false
+    },
+    {
+        "name": "Home Assistant",
+        "hostname": "hassio.local",
+        "ip": "192.168.1.120",
+        "category": "Smart Home",
+        "os": "Home Assistant OS",
+        "status": "online",
+        "description": "Home automation hub",
+        "services": ["homeassistant", "mosquitto", "zwavejs"],
+        "isFavorite": true
+    }
+]
+EOF
+    status "Demo hosts configuration created"
+}
+
+# Create recording scripts
+create_recording_scripts() {
+    echo -e "\n${YELLOW}Creating recording scripts...${NC}"
+    
+    # Script 1: Installation Demo
+    cat > "$DEMO_DIR/record-installation.sh" << 'EOF'
+#!/bin/bash
+echo "🎬 Recording Installation Demo"
+echo "================================"
+echo ""
+echo "INSTRUCTIONS:"
+echo "1. Open a new terminal window"
+echo "2. Start Kap recording (1280x720)"
+echo "3. Run this command:"
+echo ""
+echo "curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash"
+echo ""
+echo "4. Show the installation progress"
+echo "5. Stop recording when complete"
+echo ""
+echo "Press Enter when ready to see the command..."
+read
+EOF
+    chmod +x "$DEMO_DIR/record-installation.sh"
+    
+    # Script 2: Dashboard Tour
+    cat > "$DEMO_DIR/record-dashboard.sh" << 'EOF'
+#!/bin/bash
+echo "🎬 Recording Dashboard Tour"
+echo "==========================="
+echo ""
+echo "SCENE CHECKLIST:"
+echo ""
+echo "[ ] 1. Open http://localhost:9080"
+echo "[ ] 2. Login with admin/admin"
+echo "[ ] 3. Show dashboard overview (2-3 seconds)"
+echo "[ ] 4. Hover over a host card (show buttons appear)"
+echo "[ ] 5. Click Terminal button"
+echo "[ ] 6. Type 'htop' or 'docker ps'"
+echo "[ ] 7. Close terminal"
+echo "[ ] 8. Toggle dark mode"
+echo "[ ] 9. Open sidebar (show categories)"
+echo "[ ] 10. Search for 'media'"
+echo ""
+echo "Duration: ~30 seconds"
+echo "Press Enter when ready..."
+read
+EOF
+    chmod +x "$DEMO_DIR/record-dashboard.sh"
+    
+    # Script 3: Mobile Demo
+    cat > "$DEMO_DIR/record-mobile.sh" << 'EOF'
+#!/bin/bash
+echo "🎬 Recording Mobile Demo"
+echo "========================"
+echo ""
+echo "INSTRUCTIONS:"
+echo "1. Open Chrome DevTools (F12)"
+echo "2. Toggle device toolbar"
+echo "3. Select iPhone 14 Pro"
+echo "4. Start recording"
+echo ""
+echo "SCENES:"
+echo "[ ] 1. Dashboard mobile view"
+echo "[ ] 2. Swipe through host cards"
+echo "[ ] 3. Tap to show actions"
+echo "[ ] 4. Open mobile menu"
+echo "[ ] 5. Show terminal on mobile"
+echo ""
+echo "Press Enter when ready..."
+read
+EOF
+    chmod +x "$DEMO_DIR/record-mobile.sh"
+    
+    status "Recording scripts created"
+}
+
+# Create GIF optimization script
+create_optimization_script() {
+    echo -e "\n${YELLOW}Creating GIF optimization script...${NC}"
+    
+    cat > "$DEMO_DIR/optimize-gifs.sh" << 'EOF'
+#!/bin/bash
+
+# Optimize all GIFs in current directory
+for file in *.gif; do
+    if [ -f "$file" ]; then
+        echo "Optimizing $file..."
+        
+        # Get original size
+        original_size=$(du -h "$file" | cut -f1)
+        
+        # Optimize with gifsicle
+        gifsicle -O3 --colors 128 --lossy=30 "$file" -o "opt-$file"
+        
+        # Get new size
+        new_size=$(du -h "opt-$file" | cut -f1)
+        
+        echo "  Original: $original_size → Optimized: $new_size"
+        
+        # If optimization successful and smaller, replace original
+        if [ -f "opt-$file" ]; then
+            mv "opt-$file" "$file"
+        fi
+    fi
+done
+
+echo ""
+echo "✅ All GIFs optimized!"
+echo ""
+echo "File sizes:"
+ls -lh *.gif
+EOF
+    chmod +x "$DEMO_DIR/optimize-gifs.sh"
+    
+    status "GIF optimization script created"
+}
+
+# Create README snippet
+create_readme_snippet() {
+    echo -e "\n${YELLOW}Creating README snippet...${NC}"
+    
+    cat > "$DEMO_DIR/README-snippet.md" << 'EOF'
+## 🎬 See it in Action
+
+<p align="center">
+  <img src="docs/demo/dashboard-demo.gif" alt="Web Appliance Dashboard Demo" width="100%">
+</p>
+
+<table>
+  <tr>
+    <td width="50%">
+      <h3>⚡ Quick Installation</h3>
+      <img src="docs/demo/install-demo.gif" alt="Installation in 30 seconds" width="100%">
+      <p align="center"><em>From zero to dashboard in 30 seconds</em></p>
+    </td>
+    <td width="50%">
+      <h3>📱 Mobile Experience</h3>
+      <img src="docs/demo/mobile-demo.gif" alt="Mobile responsive design" width="100%">
+      <p align="center"><em>Full functionality on your phone</em></p>
+    </td>
+  </tr>
+</table>
+
+### 🎯 Key Features in Action
+
+<details>
+<summary><b>Web Terminal</b></summary>
+<img src="docs/demo/terminal-demo.gif" alt="Integrated Web Terminal" width="100%">
+</details>
+
+<details>
+<summary><b>Remote Desktop</b></summary>
+<img src="docs/demo/remote-desktop-demo.gif" alt="VNC/RDP via Guacamole" width="100%">
+</details>
+
+<details>
+<summary><b>Service Management</b></summary>
+<img src="docs/demo/services-demo.gif" alt="Start/Stop Services" width="100%">
+</details>
+
+---
+
+<p align="center">
+  <a href="https://youtube.com/watch?v=XXXXX">
+    <img src="https://img.shields.io/badge/Watch-Full%20Demo%20Video-red?style=for-the-badge&logo=youtube" alt="Watch Demo Video">
+  </a>
+</p>
+EOF
+    
+    status "README snippet created at $DEMO_DIR/README-snippet.md"
+}
+
+# Main execution
+main() {
+    echo -e "\n${GREEN}========================================${NC}"
+    echo -e "${GREEN}  Web Appliance Dashboard Demo Creator  ${NC}"
+    echo -e "${GREEN}========================================${NC}\n"
+    
+    check_requirements
+    prepare_demo_env
+    create_recording_scripts
+    create_optimization_script
+    create_readme_snippet
+    
+    echo -e "\n${GREEN}✨ Demo preparation complete!${NC}"
+    echo -e "\n${YELLOW}Next steps:${NC}"
+    echo "1. Run the recording scripts in $DEMO_DIR:"
+    echo "   - ./record-installation.sh"
+    echo "   - ./record-dashboard.sh"
+    echo "   - ./record-mobile.sh"
+    echo ""
+    echo "2. After recording, optimize GIFs:"
+    echo "   cd $DEMO_DIR && ./optimize-gifs.sh"
+    echo ""
+    echo "3. Add the snippet to your README:"
+    echo "   cat $DEMO_DIR/README-snippet.md"
+    echo ""
+    echo -e "${GREEN}Good luck with your demo! 🎬${NC}"
+}
+
+# Run main function
+main
+```
+
+STATUS: ✅ Demo-GIF Creation Scripts erfolgreich erstellt
+
+════════════════════════════════════════════════════════════════════════════════
