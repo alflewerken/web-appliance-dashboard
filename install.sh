@@ -376,59 +376,25 @@ curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/
 }
 echo "✅ Docker compose configuration downloaded"
 
-# Fix common docker-compose.yml issues
-echo "🔧 Validating docker-compose configuration..."
-
-# First, fix the specific broken volumes in database service
-echo "   ⚠️  Fixing database volumes configuration..."
-# Fix the broken volumes section in database service
-awk '
-/MYSQL_PASSWORD:/ {
-    print
-    print "    volumes:"
-    next
-}
-/^      - db_data:/ || /^      - \.\/init-db:/ {
-    print
-    next
-}
-{ print }
-' docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
-
-# Check if backend service has image defined
-if ! grep -q "backend:" docker-compose.yml || ! grep -A 5 "backend:" docker-compose.yml | grep -q "image:"; then
-    echo "   ⚠️  Fixing missing backend image..."
-    # Add image to backend service using awk for reliability
-    awk '/^  backend:/ { print; print "    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"; next } { print }' docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
+# Only add backend image if it's missing (don't modify anything else!)
+echo "🔧 Checking configuration..."
+if grep -q "^  backend:" docker-compose.yml && ! grep -A 2 "^  backend:" docker-compose.yml | grep -q "image:"; then
+    echo "   ⚠️  Adding missing backend image..."
+    sed -i.bak '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || \
+    sed -i '' '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null
 fi
-
-# Remove any empty volumes sections
-echo "   ⚠️  Cleaning up empty volumes sections..."
-grep -v "^[[:space:]]*volumes:[[:space:]]*$" docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
-
-echo "   ✅ Configuration validated"
 
 # Validate docker-compose configuration before starting
 echo "🔍 Testing configuration..."
 if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
     echo "❌ Docker Compose configuration is invalid!"
     echo "📋 Error details:"
-    $DOCKER_COMPOSE_CMD config 2>&1 | head -20
+    $DOCKER_COMPOSE_CMD config 2>&1 | grep -E "yaml:|line" | head -5
     echo ""
-    echo "🔧 Attempting automatic fix..."
-    
-    # Try to fix common issues
-    # Remove empty volumes sections completely
-    sed -i.bak '/^\s*volumes:\s*$/d' docker-compose.yml 2>/dev/null || \
-    sed -i '' '/^[[:space:]]*volumes:[[:space:]]*$/d' docker-compose.yml 2>/dev/null
-    
-    # Re-validate
-    if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
-        echo "❌ Could not automatically fix the configuration"
-        echo "Please check docker-compose.yml manually"
-        exit 1
-    fi
-    echo "✅ Configuration fixed automatically"
+    echo "🔧 Please check docker-compose.yml manually or re-run the installer"
+    echo "💡 Tip: You can download a fresh copy with:"
+    echo "   curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.production.yml -o docker-compose.yml"
+    exit 1
 fi
 
 # Pull images with progress indication
