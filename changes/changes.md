@@ -37860,3 +37860,63 @@ docker images | grep "${NAMESPACE}/web-appliance-dashboard" | head -n 5
 STATUS: ✅ Multi-Platform Support implementiert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 15:56:00 - Backup-Ordner aus docs/ entfernt
+
+PROBLEM:
+Im docs-Verzeichnis befanden sich mehrere alte Backup-Ordner, die nicht ins Repository gehören:
+- backup-original-docs/
+- backup-translations-20250727-230414/
+- translation-fixes/
+
+LÖSUNG:
+Entfernung der Backup-Ordner aus dem Repository (lokal und remote).
+
+ENTFERNTE DATEIEN:
+- docs/backup-original-docs/ (11 Dateien)
+  - BACKEND_PROXY_IMPLEMENTATION.md
+  - DEVELOPMENT_SETUP.md
+  - PROXY_IMPLEMENTATION_SUMMARY.md
+  - REMOTE_DESKTOP_PASSWORD_RESTORE.md
+  - api-client-sdks.md
+  - api-reference.md
+  - docker-env-setup.md
+  - integration-guide.md
+  - performance-tuning-guide.md
+  - remote-desktop-setup-guide.md
+  - security-best-practices-guide.md
+
+- docs/backup-translations-20250727-230414/ (11 Dateien)
+  - BACKEND_PROXY_IMPLEMENTATION-ger.md
+  - DEVELOPMENT_SETUP-ger.md
+  - PROXY_IMPLEMENTATION_SUMMARY-ger.md
+  - REMOTE_DESKTOP_PASSWORD_RESTORE-ger.md
+  - api-client-sdks-ger.md
+  - api-reference-ger.md
+  - docker-env-setup-ger.md
+  - integration-guide-ger.md
+  - performance-tuning-guide-ger.md
+  - remote-desktop-setup-guide-ger.md
+  - security-best-practices-guide-ger.md
+
+- docs/translation-fixes/ (4 Dateien)
+  - README-ÜBERARBEITUNG.md
+  - REVIEW-CHECKLISTE.md
+  - ÜBERSETZUNGSBERICHT.md
+  - ÜBERSETZUNGSPROBLEME.md
+
+AUSFÜHRUNG:
+```bash
+git rm -r docs/backup-original-docs docs/backup-translations-20250727-230414 docs/translation-fixes
+```
+
+BEGRÜNDUNG:
+- Backup-Ordner gehören nicht ins Git-Repository
+- Die aktuellen Versionen der Dokumente sind bereits im docs/ Verzeichnis vorhanden
+- Reduziert Repository-Größe und verbessert Übersichtlichkeit
+- Git-History bleibt erhalten für Wiederherstellung bei Bedarf
+
+STATUS: ✅ Entfernt aus Git-Index
+
+════════════════════════════════════════════════════════════════════════════════
