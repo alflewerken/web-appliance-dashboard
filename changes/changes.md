@@ -37920,3 +37920,55 @@ BEGRÜNDUNG:
 STATUS: ✅ Entfernt aus Git-Index
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 16:01:00 - Weitere veraltete Dokumentationsdateien entfernt
+
+PROBLEM:
+Veraltete und duplizierte Dokumentationsdateien im docs-Verzeichnis, die bereits durch 
+konsolidierte Versionen ersetzt wurden.
+
+LÖSUNG:
+Entfernung weiterer überflüssiger Dokumentationsdateien aus dem Repository.
+
+ENTFERNTE DATEIEN:
+- docs/BACKEND_PROXY_IMPLEMENTATION-eng.md (Duplikat, bereits konsolidiert)
+- docs/BACKEND_PROXY_IMPLEMENTATION-ger.md (Duplikat, bereits konsolidiert)
+- docs/ONE-LINE-INSTALL.md (Veraltete Version)
+- docs/PROXY_IMPLEMENTATION_SUMMARY-eng.md (Duplikat, bereits konsolidiert)
+- docs/PROXY_IMPLEMENTATION_SUMMARY-ger.md (Duplikat, bereits konsolidiert)
+- docs/REMOTE_DESKTOP_PASSWORD_RESTORE-eng.md (Duplikat, bereits konsolidiert)
+- docs/REMOTE_DESKTOP_PASSWORD_RESTORE-ger.md (Duplikat, bereits konsolidiert)
+- docs/guides/macos-guacamole-alternatives.md (Verschoben nach MacOS-Guides)
+- docs/guides/macos-remote-desktop-setup.md (Verschoben nach MacOS-Guides)
+- docs/guides/macos15-guacamole-vnc-issues.md (Verschoben nach MacOS-Guides)
+- docs/updates/proxy-auth-debugging.md (Veraltete Debug-Dokumentation)
+- docs/updates/proxy-external-services-update.md (Veraltete Update-Dokumentation)
+- docs/updates/proxy-implementation-status.md (Veraltete Status-Dokumentation)
+
+AUSFÜHRUNG:
+```bash
+git rm docs/BACKEND_PROXY_IMPLEMENTATION-eng.md \
+       docs/BACKEND_PROXY_IMPLEMENTATION-ger.md \
+       docs/ONE-LINE-INSTALL.md \
+       docs/PROXY_IMPLEMENTATION_SUMMARY-eng.md \
+       docs/PROXY_IMPLEMENTATION_SUMMARY-ger.md \
+       docs/REMOTE_DESKTOP_PASSWORD_RESTORE-eng.md \
+       docs/REMOTE_DESKTOP_PASSWORD_RESTORE-ger.md \
+       docs/guides/macos-guacamole-alternatives.md \
+       docs/guides/macos-remote-desktop-setup.md \
+       docs/guides/macos15-guacamole-vnc-issues.md \
+       docs/updates/proxy-auth-debugging.md \
+       docs/updates/proxy-external-services-update.md \
+       docs/updates/proxy-implementation-status.md
+```
+
+BEGRÜNDUNG:
+- Reduzierung von Duplikaten in der Dokumentation
+- Klarere Struktur durch Entfernung veralteter Dateien
+- MacOS-spezifische Guides wurden in separaten MacOS-Guides Ordner verschoben
+- Veraltete Update- und Debug-Dokumentationen sind nicht mehr relevant
+
+STATUS: ✅ Aus Git-Index entfernt
+
+════════════════════════════════════════════════════════════════════════════════
