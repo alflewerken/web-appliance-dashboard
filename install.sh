@@ -91,17 +91,17 @@ echo ""
 if [ -d "$INSTALL_DIR" ]; then
     echo "⚠️  Directory already exists: $INSTALL_DIR"
     
-    # Read confirmation from /dev/tty for piped input
-    if [ -t 0 ]; then
-        read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r
-    elif [ -e /dev/tty ]; then
-        read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r </dev/tty
+    # Check if we can interact
+    if [ -t 0 ] || [ -t 1 ]; then
+        # We have a terminal
+        read -p "Do you want to continue and potentially overwrite existing files? (y/N): " -n 1 -r REPLY
+        echo ""
     else
-        echo "Cannot prompt for confirmation in non-interactive mode. Exiting."
-        exit 1
+        # Non-interactive mode
+        echo "Non-interactive mode: Continuing with existing directory."
+        REPLY="y"
     fi
     
-    echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Installation cancelled."
         exit 1
@@ -219,16 +219,14 @@ echo "  - LAN access by IP: 192.168.1.100"
 echo "  - Multiple access points: app.company.com,192.168.1.100"
 echo ""
 
-# When piped through bash, stdin is already used, so we need to read from /dev/tty
-if [ -t 0 ]; then
-    # Interactive mode (script run directly)
-    read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES
-elif [ -c /dev/tty ] && exec < /dev/tty 2>/dev/null; then
-    # Piped mode (curl | bash) - read from terminal if available
+# When piped through bash, stdin is already used, so we check for TTY availability
+USER_HOSTNAMES=""
+if [ -t 0 ] || [ -t 1 ]; then
+    # Interactive mode - we have a terminal
     read -p "Enter domain/hostname [press Enter for localhost]: " USER_HOSTNAMES
 else
     # Non-interactive mode - use defaults
-    echo "⚠️  Non-interactive mode detected. Using default: localhost and detected hostnames"
+    echo "⚠️  Non-interactive mode detected. Using defaults: localhost and detected hostnames"
     USER_HOSTNAMES=""
 fi
 
