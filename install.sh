@@ -50,7 +50,12 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # Check for Docker Compose
-if ! docker compose version &> /dev/null 2>&1 && ! command -v docker-compose &> /dev/null; then
+DOCKER_COMPOSE_CMD=""
+if docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
     echo "❌ Docker Compose is not installed!"
     exit 1
 fi
@@ -159,6 +164,13 @@ if command -v hostname &> /dev/null; then
     DETECTED_HOSTNAME=$(hostname 2>/dev/null)
     if [ -n "$DETECTED_HOSTNAME" ]; then
         SYSTEM_HOSTNAME="$DETECTED_HOSTNAME"
+        # On macOS, also get the .local hostname
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            LOCAL_HOSTNAME=$(hostname -s 2>/dev/null)
+            if [ -n "$LOCAL_HOSTNAME" ]; then
+                SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME},${LOCAL_HOSTNAME}.local"
+            fi
+        fi
     fi
 fi
 
@@ -211,8 +223,15 @@ fi
 
 # Process user input
 if [ -z "$USER_HOSTNAMES" ]; then
-    # User pressed Enter - use only localhost
+    # User pressed Enter - use localhost and detect system hostname
     HOSTNAMES=("localhost")
+    # On macOS, also add .local hostname for Bonjour/mDNS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        LOCAL_HOSTNAME=$(hostname -s 2>/dev/null)
+        if [ -n "$LOCAL_HOSTNAME" ]; then
+            HOSTNAMES+=("${LOCAL_HOSTNAME}.local")
+        fi
+    fi
 else
     # Parse user input
     IFS=',' read -ra HOSTNAMES <<< "$USER_HOSTNAMES"
@@ -307,7 +326,7 @@ RUSTDESK_API_PORT=21219
 RUSTDESK_RELAY_PORT=21217
 RUSTDESK_WEBSOCKET_PORT=21220
 
-# Container Names - Mit appliance_ Prefix wie in der Entwicklungsumgebung
+# Container Names - Mit appliance_ Prefix für Konsistenz
 DB_CONTAINER_NAME=appliance_db
 BACKEND_CONTAINER_NAME=appliance_backend
 WEBSERVER_CONTAINER_NAME=appliance_webserver
@@ -321,6 +340,12 @@ RUSTDESK_RELAY_CONTAINER=rustdesk-relay
 
 # Network
 NETWORK_NAME=appliance_network
+
+# Export für docker-compose
+export DB_CONTAINER_NAME BACKEND_CONTAINER_NAME WEBSERVER_CONTAINER_NAME
+export TTYD_CONTAINER_NAME GUACAMOLE_CONTAINER_NAME GUACAMOLE_DB_CONTAINER_NAME
+export GUACD_CONTAINER_NAME RUSTDESK_SERVER_CONTAINER RUSTDESK_RELAY_CONTAINER
+export NETWORK_NAME
 EOF
 
 # Generate SSL certificates
@@ -341,6 +366,61 @@ curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/
     exit 1
 }
 echo "✅ Docker compose configuration downloaded"
+
+# Fix common docker-compose.yml issues
+echo "🔧 Validating docker-compose configuration..."
+
+# Check if backend service has image defined
+if ! grep -q "backend:" docker-compose.yml || ! grep -A 5 "backend:" docker-compose.yml | grep -q "image:"; then
+    echo "   ⚠️  Fixing missing backend image..."
+    # Add image to backend service
+    sed -i.bak '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || \
+    sed -i '' '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null
+fi
+
+# Check for empty volumes sections and fix them
+if grep -q "volumes:\s*$" docker-compose.yml; then
+    echo "   ⚠️  Fixing empty volumes sections..."
+    # Fix empty volumes by removing them or adding dummy volume
+    awk '
+    /^    volumes:/ {
+        print
+        getline
+        if ($0 ~ /^    [a-z]/ || $0 ~ /^  [a-z]/) {
+            print "      - /dev/null:/tmp/dummy:ro"
+        }
+        print
+        next
+    }
+    { print }
+    ' docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
+fi
+
+# Ensure all services are in the correct network
+echo "   ✅ Configuration validated"
+
+# Validate docker-compose configuration before starting
+echo "🔍 Testing configuration..."
+if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
+    echo "❌ Docker Compose configuration is invalid!"
+    echo "📋 Error details:"
+    $DOCKER_COMPOSE_CMD config 2>&1 | head -20
+    echo ""
+    echo "🔧 Attempting automatic fix..."
+    
+    # Try to fix common issues
+    # Remove empty volumes sections completely
+    sed -i.bak '/^\s*volumes:\s*$/d' docker-compose.yml 2>/dev/null || \
+    sed -i '' '/^[[:space:]]*volumes:[[:space:]]*$/d' docker-compose.yml 2>/dev/null
+    
+    # Re-validate
+    if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
+        echo "❌ Could not automatically fix the configuration"
+        echo "Please check docker-compose.yml manually"
+        exit 1
+    fi
+    echo "✅ Configuration fixed automatically"
+fi
 
 # Pull images with progress indication
 echo "🐳 Downloading Docker images (this may take a few minutes)..."
@@ -380,12 +460,17 @@ echo ""
 
 # Start services
 echo "🚀 Starting services..."
-docker compose up -d
+$DOCKER_COMPOSE_CMD up -d || {
+    echo "❌ Failed to start services"
+    echo "📋 Checking configuration..."
+    $DOCKER_COMPOSE_CMD config 2>&1 | head -20
+    exit 1
+}
 
 # Wait for database
 echo "⏳ Waiting for database to be ready..."
 for i in {1..30}; do
-    if docker exec database mysqladmin ping -h localhost -u root -p${ROOT_PASS} &>/dev/null; then
+    if docker exec ${DB_CONTAINER_NAME:-appliance_db} mysqladmin ping -h localhost -u root -p${ROOT_PASS} &>/dev/null; then
         echo "✅ Database is ready"
         break
     fi
@@ -397,7 +482,7 @@ echo ""
 # Initialize database schema if needed
 echo "📝 Initializing database schema..."
 if [ -f "init-db/01-init.sql" ]; then
-    docker exec -i database mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
+    docker exec -i ${DB_CONTAINER_NAME:-appliance_db} mariadb -u root -p${ROOT_PASS} appliance_dashboard < init-db/01-init.sql 2>/dev/null || {
         echo "⚠️  Some tables might already exist (this is normal)"
     }
     echo "✅ Database schema initialized"
@@ -408,7 +493,7 @@ echo "🔧 Checking Guacamole database..."
 sleep 5
 
 # Check if Guacamole tables exist
-TABLES_EXIST=$(docker exec guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
+TABLES_EXIST=$(docker exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -tAc \
     "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
 
 if [ "$TABLES_EXIST" = "f" ]; then
@@ -416,11 +501,11 @@ if [ "$TABLES_EXIST" = "f" ]; then
     
     # Try to load local schema files first
     if [ -f "guacamole/001-create-schema.sql" ]; then
-        docker exec -i guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+        docker exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
             < guacamole/001-create-schema.sql >/dev/null 2>&1
         
         if [ -f "guacamole/002-create-admin-user.sql" ]; then
-            docker exec -i guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
+            docker exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
                 < guacamole/002-create-admin-user.sql >/dev/null 2>&1
         fi
         
@@ -430,13 +515,13 @@ if [ "$TABLES_EXIST" = "f" ]; then
     fi
     
     # Restart Guacamole
-    docker compose restart guacamole >/dev/null 2>&1
+    $DOCKER_COMPOSE_CMD restart guacamole >/dev/null 2>&1
 fi
 
 # Final status check
 echo ""
 echo "📊 Service Status:"
-docker compose ps
+$DOCKER_COMPOSE_CMD ps
 
 echo ""
 echo "✅ Installation complete!"
@@ -459,9 +544,9 @@ echo "   Dashboard: admin / admin123"
 echo "   Guacamole: guacadmin / guacadmin"
 echo ""
 echo "📁 Installation: $INSTALL_DIR"
-echo "🛠️  Maintenance: cd $INSTALL_DIR && docker compose"
+echo "🛠️  Maintenance: cd $INSTALL_DIR && $DOCKER_COMPOSE_CMD"
 echo ""
-echo "🛑 Stop: cd $INSTALL_DIR && docker compose down"
-echo "🔄 Update: cd $INSTALL_DIR && docker compose pull && docker compose up -d"
+echo "🛑 Stop: cd $INSTALL_DIR && $DOCKER_COMPOSE_CMD down"
+echo "🔄 Update: cd $INSTALL_DIR && $DOCKER_COMPOSE_CMD pull && $DOCKER_COMPOSE_CMD up -d"
 echo ""
 echo "🎉 Enjoy your Web Appliance Dashboard!"

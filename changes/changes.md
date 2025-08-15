@@ -37972,3 +37972,150 @@ BEGRÜNDUNG:
 STATUS: ✅ Aus Git-Index entfernt
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 16:50:00 - install.sh überarbeitet für fehlerfreie Installation
+
+PROBLEM:
+Der Einzeilen-Installer (install.sh) hinterließ ein nicht funktionierendes System:
+1. docker-compose.yml hatte Syntax-Fehler (leere volumes, fehlendes backend image)
+2. Docker Compose Befehl wurde nicht korrekt erkannt (besonders auf macOS)
+3. Container-Namen waren inkonsistent
+4. Hostname-Erkennung funktionierte nicht optimal auf macOS
+
+LÖSUNG - Umfangreiche Überarbeitung von install.sh:
+
+1. **Docker Compose Erkennung verbessert:**
+   - Prüft sowohl "docker compose" als auch "docker-compose"
+   - Speichert gefundenen Befehl in Variable $DOCKER_COMPOSE_CMD
+   - Verwendet durchgehend die Variable statt hardcoded Befehle
+
+2. **Automatische docker-compose.yml Reparatur:**
+   - Prüft ob backend-Service ein image hat, fügt es ggf. hinzu
+   - Erkennt und repariert leere volumes-Sektionen
+   - Validiert Konfiguration vor dem Start mit "docker compose config"
+   - Bei Fehlern automatische Reparaturversuche
+
+3. **Hostname-Erkennung für macOS erweitert:**
+   - Erkennt automatisch .local Hostname auf macOS (Bonjour/mDNS)
+   - Fügt hostname.local automatisch zu ALLOWED_ORIGINS hinzu
+   - Verbesserte Anzeige der System-Informationen
+
+4. **Container-Namen Konsistenz:**
+   - Verwendet durchgehend Variablen für Container-Namen
+   - Exportiert Variablen für docker-compose
+   - appliance_ Prefix für alle eigenen Container
+
+5. **Fehlerbehandlung verbessert:**
+   - Prüft docker-compose config vor dem Start
+   - Zeigt Fehlerdetails bei Problemen
+   - Automatische Reparaturversuche bei bekannten Problemen
+   - Bessere Fehlermeldungen mit Lösungshinweisen
+
+PATCH install.sh (wichtigste Änderungen):
+```diff
+@@ -50,9 +50,13 @@
+ 
+ # Check for Docker Compose
+-if ! docker compose version &> /dev/null 2>&1 && ! command -v docker-compose &> /dev/null; then
+-    echo "❌ Docker Compose is not installed!"
+-    exit 1
+-fi
++DOCKER_COMPOSE_CMD=""
++if docker compose version &> /dev/null 2>&1; then
++    DOCKER_COMPOSE_CMD="docker compose"
++elif command -v docker-compose &> /dev/null; then
++    DOCKER_COMPOSE_CMD="docker-compose"
++else
++    echo "❌ Docker Compose is not installed!"
++    exit 1
++fi
+
+@@ -159,6 +163,13 @@
+     DETECTED_HOSTNAME=$(hostname 2>/dev/null)
+     if [ -n "$DETECTED_HOSTNAME" ]; then
+         SYSTEM_HOSTNAME="$DETECTED_HOSTNAME"
++        # On macOS, also get the .local hostname
++        if [[ "$OSTYPE" == "darwin"* ]]; then
++            LOCAL_HOSTNAME=$(hostname -s 2>/dev/null)
++            if [ -n "$LOCAL_HOSTNAME" ]; then
++                SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME},${LOCAL_HOSTNAME}.local"
++            fi
++        fi
+     fi
+ fi
+
+@@ -212,7 +223,14 @@
+ # Process user input
+ if [ -z "$USER_HOSTNAMES" ]; then
+-    # User pressed Enter - use only localhost
++    # User pressed Enter - use localhost and detect system hostname
+     HOSTNAMES=("localhost")
++    # On macOS, also add .local hostname for Bonjour/mDNS
++    if [[ "$OSTYPE" == "darwin"* ]]; then
++        LOCAL_HOSTNAME=$(hostname -s 2>/dev/null)
++        if [ -n "$LOCAL_HOSTNAME" ]; then
++            HOSTNAMES+=("${LOCAL_HOSTNAME}.local")
++        fi
++    fi
+ else
+
+@@ -339,6 +357,39 @@
+ }
+ echo "✅ Docker compose configuration downloaded"
+
++# Fix common docker-compose.yml issues
++echo "🔧 Validating docker-compose configuration..."
++
++# Check if backend service has image defined
++if ! grep -q "backend:" docker-compose.yml || ! grep -A 5 "backend:" docker-compose.yml | grep -q "image:"; then
++    echo "   ⚠️  Fixing missing backend image..."
++    sed -i.bak '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || \
++    sed -i '' '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null
++fi
++
++# Validate docker-compose configuration before starting
++echo "🔍 Testing configuration..."
++if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
++    echo "❌ Docker Compose configuration is invalid!"
++    echo "📋 Error details:"
++    $DOCKER_COMPOSE_CMD config 2>&1 | head -20
++    echo ""
++    echo "🔧 Attempting automatic fix..."
++    
++    # Remove empty volumes sections completely
++    sed -i.bak '/^\s*volumes:\s*$/d' docker-compose.yml 2>/dev/null || \
++    sed -i '' '/^[[:space:]]*volumes:[[:space:]]*$/d' docker-compose.yml 2>/dev/null
++    
++    # Re-validate
++    if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
++        echo "❌ Could not automatically fix the configuration"
++        echo "Please check docker-compose.yml manually"
++        exit 1
++    fi
++    echo "✅ Configuration fixed automatically"
++fi
+
+@@ -385,7 +436,12 @@
+ # Start services
+ echo "🚀 Starting services..."
+-docker compose up -d
++$DOCKER_COMPOSE_CMD up -d || {
++    echo "❌ Failed to start services"
++    echo "📋 Checking configuration..."
++    $DOCKER_COMPOSE_CMD config 2>&1 | head -20
++    exit 1
++}
+```
+
+TESTING:
+Der überarbeitete install.sh sollte jetzt:
+- ✅ Auf macOS und Linux funktionieren
+- ✅ docker-compose.yml automatisch reparieren
+- ✅ Korrekte Container-Namen verwenden
+- ✅ .local Hostname auf macOS erkennen
+- ✅ Bei Fehlern hilfreiche Meldungen ausgeben
+
+STATUS: ✅ install.sh überarbeitet und verbessert
+
+════════════════════════════════════════════════════════════════════════════════
