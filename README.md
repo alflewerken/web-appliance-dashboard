@@ -15,6 +15,21 @@ An elegant, self-hosted dashboard for centralized management of VMs, Docker cont
 
 ![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
 
+### 🎨 Light & Dark Mode
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><b>Light Mode</b></td>
+<td align="center"><b>Dark Mode</b></td>
+</tr>
+<tr>
+<td><img src="docs/user-guide-v2/images/light-mode.png" alt="Light Mode" width="400"/></td>
+<td><img src="docs/user-guide-v2/images/dark-mode.png" alt="Dark Mode" width="400"/></td>
+</tr>
+</table>
+</div>
+
 ## 🚀 Quick Start - One-Line Installation
 
 Install the complete dashboard with a single command:

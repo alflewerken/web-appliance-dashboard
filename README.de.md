@@ -15,6 +15,21 @@ Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs,
 
 ![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
 
+### 🎨 Light & Dark Modus
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><b>Light Modus</b></td>
+<td align="center"><b>Dark Modus</b></td>
+</tr>
+<tr>
+<td><img src="docs/user-guide-v2/images/light-mode.png" alt="Light Modus" width="400"/></td>
+<td><img src="docs/user-guide-v2/images/dark-mode.png" alt="Dark Modus" width="400"/></td>
+</tr>
+</table>
+</div>
+
 ## 🚀 Schnellstart - Ein-Zeilen-Installation
 
 Installieren Sie das komplette Dashboard mit einem einzigen Befehl:
