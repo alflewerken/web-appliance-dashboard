@@ -380,21 +380,112 @@ echo "✅ Docker compose configuration downloaded"
 echo "🔧 Checking configuration..."
 if grep -q "^  backend:" docker-compose.yml && ! grep -A 2 "^  backend:" docker-compose.yml | grep -q "image:"; then
     echo "   ⚠️  Adding missing backend image..."
-    sed -i.bak '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || \
-    sed -i '' '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null
+    
+    # Platform-specific approach for adding backend image
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS - use Python for reliable YAML manipulation
+        if command -v python3 &> /dev/null; then
+            python3 -c "
+import sys
+with open('docker-compose.yml', 'r') as f:
+    lines = f.readlines()
+
+found = False
+for i, line in enumerate(lines):
+    if line.strip() == 'backend:':
+        # Check if next line already has image
+        if i+1 < len(lines) and 'image:' not in lines[i+1]:
+            lines.insert(i+1, '    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest\n')
+            found = True
+            break
+
+if found:
+    with open('docker-compose.yml', 'w') as f:
+        f.writelines(lines)
+    print('✅ Backend image added successfully')
+" || {
+            echo "⚠️  Python fix failed, trying sed..."
+            # Fallback to sed with macOS syntax
+            sed -i '' '/^  backend:/a\
+\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || {
+                echo "❌ Could not add backend image automatically"
+                echo "Please add manually after 'backend:' line:"
+                echo "    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"
+            }
+        }
+        else
+            # No Python, use sed with macOS syntax
+            sed -i '' '/^  backend:/a\
+\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || {
+                echo "❌ Could not add backend image automatically"
+                echo "Please add manually after 'backend:' line:"
+                echo "    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"
+            }
+        fi
+    else
+        # Linux - use standard sed
+        sed -i '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || {
+            # Try with backup for older sed versions
+            sed -i.bak '/^  backend:/a\    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest' docker-compose.yml 2>/dev/null || {
+                echo "❌ Could not add backend image automatically"
+                echo "Please add manually after 'backend:' line:"
+                echo "    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"
+            }
+        }
+    fi
 fi
 
 # Validate docker-compose configuration before starting
 echo "🔍 Testing configuration..."
 if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
-    echo "❌ Docker Compose configuration is invalid!"
-    echo "📋 Error details:"
-    $DOCKER_COMPOSE_CMD config 2>&1 | grep -E "yaml:|line" | head -5
-    echo ""
-    echo "🔧 Please check docker-compose.yml manually or re-run the installer"
-    echo "💡 Tip: You can download a fresh copy with:"
-    echo "   curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.production.yml -o docker-compose.yml"
-    exit 1
+    echo "⚠️  Configuration has issues, attempting to fix..."
+    
+    # Check for common issues and fix them
+    # 1. Remove empty volumes sections (common issue from production template)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS - use Python for reliable fix
+        if command -v python3 &> /dev/null; then
+            python3 -c "
+import re
+
+with open('docker-compose.yml', 'r') as f:
+    content = f.read()
+
+# Remove empty volumes sections (with proper indentation)
+# This regex matches volumes: followed by nothing or just whitespace until next service/key
+content = re.sub(r'^(\s+)volumes:\s*\n(?=\s*[a-z])', '', content, flags=re.MULTILINE)
+
+with open('docker-compose.yml', 'w') as f:
+    f.write(content)
+print('✅ Cleaned up empty volumes sections')
+" 2>/dev/null || echo "⚠️  Could not clean volumes sections with Python"
+        else
+            # macOS sed fallback
+            sed -i '' '/^[[:space:]]*volumes:[[:space:]]*$/d' docker-compose.yml 2>/dev/null || \
+            echo "⚠️  Could not clean volumes sections with sed"
+        fi
+    else
+        # Linux - use sed
+        sed -i '/^\s*volumes:\s*$/d' docker-compose.yml 2>/dev/null || \
+        sed -i.bak '/^[[:space:]]*volumes:[[:space:]]*$/d' docker-compose.yml 2>/dev/null || \
+        echo "⚠️  Could not clean volumes sections"
+    fi
+    
+    # Re-validate after fixes
+    if ! $DOCKER_COMPOSE_CMD config > /dev/null 2>&1; then
+        echo "❌ Docker Compose configuration is still invalid!"
+        echo "📋 Error details:"
+        $DOCKER_COMPOSE_CMD config 2>&1 | grep -E "yaml:|line" | head -5
+        echo ""
+        echo "🔧 Please check docker-compose.yml manually or re-run the installer"
+        echo "💡 Tip: You can download a fresh copy with:"
+        echo "   curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/docker-compose.production.yml -o docker-compose.yml"
+        exit 1
+    else
+        echo "✅ Configuration fixed and validated"
+    fi
+else
+    echo "✅ Configuration is valid"
 fi
 
 # Pull images with progress indication
