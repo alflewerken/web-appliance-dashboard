@@ -30,6 +30,89 @@ An elegant, self-hosted dashboard for centralized management of VMs, Docker cont
 </table>
 </div>
 
+## 🌟 Features
+
+### Core Features
+- **📊 Central Dashboard** - Clear management of all services and hosts
+- **🔐 Authentication** - JWT-based user management with roles (Admin/User)
+- **🖥️ Web Terminal** - Integrated terminal via ttyd with SSH key support
+- **🔑 SSH Integration** - Complete SSH key management with automatic authentication
+- **🖥️ Remote Desktop** - VNC & RDP support via Apache Guacamole
+- **📦 Service Control** - Start/Stop/Status of services via SSH
+- **🎨 Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
+- **📱 Mobile First** - PWA-capable, optimized for iPhone and tablets
+
+### Enterprise Features
+- **💾 Backup & Restore** - Complete system backup with encryption
+- **📝 Audit Logging** - Compliance-ready with undo function
+- **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
+- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP
+- **🌐 Multi-User** - User management with granular permission system (in development)
+- **🔍 Full-text Search** - Quick search across all services
+- **💡 Smart Categories** - Automatic grouping with service counter
+
+## 📸 Screenshots
+
+<details>
+<summary><b>Show all screenshots</b></summary>
+
+### Dashboard Overview
+![Dashboard Overview](docs/user-guide-v2/images/dashboard-overview.png)
+*Desktop dashboard with Clean UI*
+
+### Host Management
+![Host Overview](docs/user-guide-v2/images/host-overview.png)
+*Host overview with all configured machines*
+
+![Host Card](docs/user-guide-v2/images/host-card.png)
+*Host card with hover-to-reveal buttons*
+
+![Host Settings](docs/user-guide-v2/images/host-settings.png)
+*Detailed host configuration*
+
+### Mobile Experience
+![Mobile Overview](docs/user-guide-v2/images/mobile-overview.jpeg)
+*iPhone dashboard view*
+
+![Mobile Terminal](docs/user-guide-v2/images/mobile-terminal.jpeg)
+*SSH terminal on iPhone*
+
+![Mobile Audit](docs/user-guide-v2/images/mobile-audit.jpeg)
+*Mobile audit log - compliance-ready*
+
+![Mobile Sidebar](docs/user-guide-v2/images/mobile-sidebar.jpeg)
+*Categories with service counter*
+
+</details>
+
+## 🤔 Why Another Dashboard?
+
+Let me be honest - there are many dashboard solutions out there. **So why did I build another one?**
+
+### The Problem I Faced
+
+After trying Portainer, Heimdall, Homer, and countless others, I always ended up with the same frustrations:
+
+- **🔌 Too many browser tabs** - Each service had its own UI, leading to tab chaos
+- **🔑 Password fatigue** - Different credentials for every single service
+- **📱 Poor mobile experience** - Most dashboards are desktop-only afterthoughts
+- **☁️ Cloud dependencies** - Many require external services or phone-home features
+- **🎨 Ugly or outdated UIs** - Let's face it, most look like they're from 2010
+- **🔧 Over-engineered** - Simple tasks require complex configurations
+
+### My Solution
+
+I built Web Appliance Dashboard to solve **MY** problems, and maybe they're yours too:
+
+✅ **One Dashboard to Rule Them All** - Terminal, remote desktop, Docker, services - all in one place  
+✅ **Mobile-First Design** - Built for iPhone first, scales up to desktop beautifully  
+✅ **Zero Cloud Dependencies** - Your data stays on YOUR hardware  
+✅ **Modern, Clean UI** - Hover-to-reveal philosophy keeps things tidy  
+✅ **One-Line Installation** - Because life's too short for complex setups  
+✅ **Actually Useful** - Every feature exists because I needed it, not because it was cool to build
+
+**This isn't just another dashboard - it's the dashboard I wish existed.**
+
 ## 🚀 Quick Start - One-Line Installation
 
 Install the complete dashboard with a single command:
@@ -98,28 +181,27 @@ That's it! The dashboard will automatically update to the latest version.
 - Your data and configuration are preserved
 - Check [CHANGELOG.md](https://github.com/alflewerken/web-appliance-dashboard/blob/main/CHANGELOG.md) for version changes
 
-## 🌟 Features
-
-### Core Features
-- **📊 Central Dashboard** - Clear management of all services and hosts
-- **🔐 Authentication** - JWT-based user management with roles (Admin/User)
-- **🖥️ Web Terminal** - Integrated terminal via ttyd with SSH key support
-- **🔑 SSH Integration** - Complete SSH key management with automatic authentication
-- **🖥️ Remote Desktop** - VNC & RDP support via Apache Guacamole
-- **📦 Service Control** - Start/Stop/Status of services via SSH
-- **🎨 Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
-- **📱 Mobile First** - PWA-capable, optimized for iPhone and tablets
-
-### Enterprise Features
-- **💾 Backup & Restore** - Complete system backup with encryption
-- **📝 Audit Logging** - Compliance-ready with undo function
-- **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
-- **🛡️ Security** - Rate limiting, CORS, Helmet.js, CSP
-- **🌐 Multi-User** - User management with granular permission system (in development)
-- **🔍 Full-text Search** - Quick search across all services
-- **💡 Smart Categories** - Automatic grouping with service counter
-
 ## 🆕 Latest Updates
+
+### 🚀 Version 1.1.4 (August 15, 2025)
+
+#### Installer Improvements
+- ✅ **Platform-Specific Fixes** - Resolved sed/awk compatibility between macOS and Linux
+- ✅ **Python-Based YAML Handling** - Reliable docker-compose.yml modifications
+- ✅ **Automatic Configuration Repair** - Fixes common issues during installation
+- ✅ **Better Error Handling** - Clear error messages with solutions
+
+#### Documentation Enhancements
+- ✅ **README Restructured** - Features moved to top for better first impression
+- ✅ **"Why Another Dashboard?"** - Added personal story and motivation
+- ✅ **Comparison Table** - Clear differentiation from competitors
+- ✅ **Light/Dark Mode Screenshots** - Visual demonstration of UI themes
+
+#### Technical Improvements
+- ✅ **Non-Interactive Mode** - No TTY errors during SSH installations
+- ✅ **Docker Detection Enhanced** - Finds Docker in /usr/local/bin (Docker Desktop)
+- ✅ **Hostname Detection** - Automatic .local hostname support for macOS (Bonjour/mDNS)
+- ✅ **Container Naming Consistency** - All containers use appliance_ prefix
 
 ### 🚀 Version 1.1.3 (August 2025)
 - ✅ **React 19 Compatibility** - Full support for React 19.1.1
@@ -158,40 +240,6 @@ That's it! The dashboard will automatically update to the latest version.
 - ✅ SSH file upload hanging at 10% fixed
 - ✅ Hostname duplicate check on update corrected
 - ✅ Remote desktop after logout works again
-
-## 📸 Screenshots
-
-<details>
-<summary><b>Show all screenshots</b></summary>
-
-### Dashboard Overview
-![Dashboard Overview](docs/user-guide-v2/images/dashboard-overview.png)
-*Desktop dashboard with Clean UI*
-
-### Host Management
-![Host Overview](docs/user-guide-v2/images/host-overview.png)
-*Host overview with all configured machines*
-
-![Host Card](docs/user-guide-v2/images/host-card.png)
-*Host card with hover-to-reveal buttons*
-
-![Host Settings](docs/user-guide-v2/images/host-settings.png)
-*Detailed host configuration*
-
-### Mobile Experience
-![Mobile Overview](docs/user-guide-v2/images/mobile-overview.jpeg)
-*iPhone dashboard view*
-
-![Mobile Terminal](docs/user-guide-v2/images/mobile-terminal.jpeg)
-*SSH terminal on iPhone*
-
-![Mobile Audit](docs/user-guide-v2/images/mobile-audit.jpeg)
-*Mobile audit log - compliance-ready*
-
-![Mobile Sidebar](docs/user-guide-v2/images/mobile-sidebar.jpeg)
-*Categories with service counter*
-
-</details>
 
 ## 📋 Prerequisites
 
@@ -456,6 +504,21 @@ npm run dev
 ## 📄 License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+
+## 🏆 Compare With Others
+
+| Feature | Web Appliance Dashboard | Portainer | Heimdall | Homer |
+|---------|------------------------|-----------|----------|--------|
+| One-Line Install | ✅ | ❌ | ❌ | ❌ |
+| Web Terminal | ✅ Built-in | ❌ | ❌ | ❌ |
+| Remote Desktop | ✅ Integrated | ❌ | ❌ | ❌ |
+| Mobile Optimized | ✅ Mobile-First | ⚠️ | ❌ | ❌ |
+| Dark Mode | ✅ | ✅ | ✅ | ✅ |
+| SSH Management | ✅ Full | ❌ | ❌ | ❌ |
+| Service Control | ✅ | ⚠️ | ❌ | ❌ |
+| Cloud-Free | ✅ | ✅ | ✅ | ✅ |
+| Modern UI | ✅ React 19 | ⚠️ | ❌ | ⚠️ |
+| Backup/Restore | ✅ Encrypted | ❌ | ❌ | ❌ |
 
 ## 🙏 Acknowledgments
 

@@ -30,6 +30,89 @@ Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs,
 </table>
 </div>
 
+## 🌟 Features
+
+### Core Features
+- **📊 Zentrales Dashboard** - Übersichtliche Verwaltung aller Services und Hosts
+- **🔐 Authentifizierung** - JWT-basierte Benutzerverwaltung mit Rollen (Admin/User)
+- **🖥️ Web Terminal** - Integriertes Terminal über ttyd mit SSH-Key Support
+- **🔑 SSH Integration** - Vollständiges SSH-Key Management mit automatischer Authentifizierung
+- **🖥️ Remote Desktop** - VNC & RDP Support über Apache Guacamole
+- **📦 Service Control** - Start/Stop/Status von Services über SSH
+- **🎨 Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
+- **📱 Mobile First** - PWA-fähig, optimiert für iPhone und Tablets
+
+### Enterprise Features
+- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung
+- **📝 Audit Logging** - Compliance-fähig mit Undo-Funktion
+- **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
+- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP
+- **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem (in Entwicklung)
+- **🔍 Volltextsuche** - Schnelle Suche über alle Services
+- **💡 Smart Categories** - Automatische Gruppierung mit Service-Counter
+
+## 📸 Screenshots
+
+<details>
+<summary><b>Alle Screenshots anzeigen</b></summary>
+
+### Dashboard Übersicht
+![Dashboard Overview](docs/user-guide-v2/images/dashboard-overview.png)
+*Desktop Dashboard mit Clean UI*
+
+### Host-Verwaltung
+![Host Overview](docs/user-guide-v2/images/host-overview.png)
+*Host-Übersicht mit allen angelegten Rechnern*
+
+![Host Card](docs/user-guide-v2/images/host-card.png)
+*Host-Karte mit Hover-to-Reveal Buttons*
+
+![Host Settings](docs/user-guide-v2/images/host-settings.png)
+*Detaillierte Host-Konfiguration*
+
+### Mobile Experience
+![Mobile Overview](docs/user-guide-v2/images/mobile-overview.jpeg)
+*iPhone Dashboard Ansicht*
+
+![Mobile Terminal](docs/user-guide-v2/images/mobile-terminal.jpeg)
+*SSH Terminal auf dem iPhone*
+
+![Mobile Audit](docs/user-guide-v2/images/mobile-audit.jpeg)
+*Audit Log mobil - Compliance-fähig*
+
+![Mobile Sidebar](docs/user-guide-v2/images/mobile-sidebar.jpeg)
+*Kategorien mit Service-Counter*
+
+</details>
+
+## 🤔 Warum noch ein Dashboard?
+
+Seien wir ehrlich - es gibt viele Dashboard-Lösungen da draußen. **Warum also habe ich noch eines gebaut?**
+
+### Das Problem, das ich hatte
+
+Nach dem Ausprobieren von Portainer, Heimdall, Homer und unzähligen anderen, endete ich immer mit denselben Frustrationen:
+
+- **🔌 Zu viele Browser-Tabs** - Jeder Service hatte seine eigene UI, was zu Tab-Chaos führte
+- **🔑 Passwort-Müdigkeit** - Unterschiedliche Anmeldedaten für jeden einzelnen Service
+- **📱 Schlechte Mobile-Erfahrung** - Die meisten Dashboards sind nur nachträgliche Desktop-Gedanken
+- **☁️ Cloud-Abhängigkeiten** - Viele benötigen externe Services oder Phone-Home-Features
+- **🎨 Hässliche oder veraltete UIs** - Seien wir ehrlich, die meisten sehen aus wie von 2010
+- **🔧 Überentwickelt** - Einfache Aufgaben erfordern komplexe Konfigurationen
+
+### Meine Lösung
+
+Ich habe das Web Appliance Dashboard gebaut, um **MEINE** Probleme zu lösen - und vielleicht sind es auch Ihre:
+
+✅ **Ein Dashboard für Alles** - Terminal, Remote Desktop, Docker, Services - alles an einem Ort  
+✅ **Mobile-First Design** - Zuerst für iPhone gebaut, skaliert wunderbar auf Desktop  
+✅ **Keine Cloud-Abhängigkeiten** - Ihre Daten bleiben auf IHRER Hardware  
+✅ **Moderne, saubere UI** - Hover-to-Reveal-Philosophie hält alles aufgeräumt  
+✅ **Ein-Zeilen-Installation** - Weil das Leben zu kurz für komplexe Setups ist  
+✅ **Tatsächlich nützlich** - Jedes Feature existiert, weil ich es brauchte, nicht weil es cool zu bauen war
+
+**Das ist nicht nur ein weiteres Dashboard - es ist das Dashboard, das ich mir gewünscht hätte.**
+
 ## 🚀 Schnellstart - Ein-Zeilen-Installation
 
 Installieren Sie das komplette Dashboard mit einem einzigen Befehl:
@@ -98,28 +181,27 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 - Ihre Daten und Konfigurationen bleiben erhalten
 - Versionsänderungen finden Sie im [CHANGELOG.md](https://github.com/alflewerken/web-appliance-dashboard/blob/main/CHANGELOG.md)
 
-## 🌟 Features
-
-### Core Features
-- **📊 Zentrales Dashboard** - Übersichtliche Verwaltung aller Services und Hosts
-- **🔐 Authentifizierung** - JWT-basierte Benutzerverwaltung mit Rollen (Admin/User)
-- **🖥️ Web Terminal** - Integriertes Terminal über ttyd mit SSH-Key Support
-- **🔑 SSH Integration** - Vollständiges SSH-Key Management mit automatischer Authentifizierung
-- **🖥️ Remote Desktop** - VNC & RDP Support über Apache Guacamole
-- **📦 Service Control** - Start/Stop/Status von Services über SSH
-- **🎨 Clean UI Philosophy** - "Hover-to-Reveal" (Desktop), "Touch-to-Show" (Mobile)
-- **📱 Mobile First** - PWA-fähig, optimiert für iPhone und Tablets
-
-### Enterprise Features
-- **💾 Backup & Restore** - Komplette Systemsicherung mit Verschlüsselung
-- **📝 Audit Logging** - Compliance-fähig mit Undo-Funktion
-- **⚡ Echtzeit-Updates** - Server-Sent Events (SSE) für Live-Status
-- **🛡️ Sicherheit** - Rate Limiting, CORS, Helmet.js, CSP
-- **🌐 Multi-User** - Benutzerverwaltung mit granularem Rechtesystem (in Entwicklung)
-- **🔍 Volltextsuche** - Schnelle Suche über alle Services
-- **💡 Smart Categories** - Automatische Gruppierung mit Service-Counter
-
 ## 🆕 Neueste Updates
+
+### 🚀 Version 1.1.4 (15. August 2025)
+
+#### Installer-Verbesserungen
+- ✅ **Platform-spezifische Fixes** - sed/awk Kompatibilität zwischen macOS und Linux gelöst
+- ✅ **Python-basierte YAML-Verarbeitung** - Zuverlässige docker-compose.yml Modifikationen
+- ✅ **Automatische Konfigurations-Reparatur** - Behebt häufige Probleme während der Installation
+- ✅ **Bessere Fehlerbehandlung** - Klare Fehlermeldungen mit Lösungsvorschlägen
+
+#### Dokumentations-Verbesserungen
+- ✅ **README umstrukturiert** - Features nach oben verschoben für besseren ersten Eindruck
+- ✅ **"Warum noch ein Dashboard?"** - Persönliche Geschichte und Motivation hinzugefügt
+- ✅ **Vergleichstabelle** - Klare Differenzierung von Konkurrenten
+- ✅ **Light/Dark Mode Screenshots** - Visuelle Darstellung der UI-Themes
+
+#### Technische Verbesserungen
+- ✅ **Non-Interactive Mode** - Keine TTY-Fehler bei SSH-Installationen
+- ✅ **Docker-Erkennung erweitert** - Findet Docker in /usr/local/bin (Docker Desktop)
+- ✅ **Hostname-Erkennung** - Automatische .local Hostname-Unterstützung für macOS (Bonjour/mDNS)
+- ✅ **Container-Namen Konsistenz** - Alle Container verwenden appliance_ Prefix
 
 ### 🚀 Version 1.1.3 (August 2025)
 - ✅ **React 19 Kompatibilität** - Volle Unterstützung für React 19.1.1
@@ -158,40 +240,6 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 - ✅ SSH File Upload bei 10% hängen behoben
 - ✅ Hostname-Duplikat Check beim Update korrigiert
 - ✅ Remote Desktop nach Logout funktioniert wieder
-
-## 📸 Screenshots
-
-<details>
-<summary><b>Alle Screenshots anzeigen</b></summary>
-
-### Dashboard Übersicht
-![Dashboard Overview](docs/user-guide-v2/images/dashboard-overview.png)
-*Desktop Dashboard mit Clean UI*
-
-### Host-Verwaltung
-![Host Overview](docs/user-guide-v2/images/host-overview.png)
-*Host-Übersicht mit allen angelegten Rechnern*
-
-![Host Card](docs/user-guide-v2/images/host-card.png)
-*Host-Karte mit Hover-to-Reveal Buttons*
-
-![Host Settings](docs/user-guide-v2/images/host-settings.png)
-*Detaillierte Host-Konfiguration*
-
-### Mobile Experience
-![Mobile Overview](docs/user-guide-v2/images/mobile-overview.jpeg)
-*iPhone Dashboard Ansicht*
-
-![Mobile Terminal](docs/user-guide-v2/images/mobile-terminal.jpeg)
-*SSH Terminal auf dem iPhone*
-
-![Mobile Audit](docs/user-guide-v2/images/mobile-audit.jpeg)
-*Audit Log mobil - Compliance-fähig*
-
-![Mobile Sidebar](docs/user-guide-v2/images/mobile-sidebar.jpeg)
-*Kategorien mit Service-Counter*
-
-</details>
 
 ## 📋 Voraussetzungen
 
@@ -456,6 +504,21 @@ npm run dev
 ## 📄 Lizenz
 
 Dieses Projekt ist unter der MIT License lizenziert - siehe [LICENSE](LICENSE) für Details.
+
+## 🏆 Vergleich mit Anderen
+
+| Funktion | Web Appliance Dashboard | Portainer | Heimdall | Homer |
+|---------|------------------------|-----------|----------|--------|
+| Ein-Zeilen-Installation | ✅ | ❌ | ❌ | ❌ |
+| Web Terminal | ✅ Integriert | ❌ | ❌ | ❌ |
+| Remote Desktop | ✅ Integriert | ❌ | ❌ | ❌ |
+| Mobile Optimiert | ✅ Mobile-First | ⚠️ | ❌ | ❌ |
+| Dark Mode | ✅ | ✅ | ✅ | ✅ |
+| SSH Verwaltung | ✅ Vollständig | ❌ | ❌ | ❌ |
+| Service-Steuerung | ✅ | ⚠️ | ❌ | ❌ |
+| Cloud-Frei | ✅ | ✅ | ✅ | ✅ |
+| Moderne UI | ✅ React 19 | ⚠️ | ❌ | ⚠️ |
+| Backup/Restore | ✅ Verschlüsselt | ❌ | ❌ | ❌ |
 
 ## 🙏 Danksagungen
 
