@@ -9,6 +9,18 @@
 [![Version](https://img.shields.io/badge/Version-1.1.3-brightgreen.svg)](package.json)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
+## ⭐ Unterstützen Sie das Projekt
+
+Wenn Sie dieses Projekt nützlich finden, geben Sie ihm bitte einen Stern! Das hilft anderen, das Projekt zu entdecken und motiviert die weitere Entwicklung.
+
+<div align="center">
+
+[![GitHub stars](https://img.shields.io/github/stars/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/network)
+[![GitHub watchers](https://img.shields.io/github/watchers/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/watchers)
+
+</div>
+
 > **"Von einem Homelab-Enthusiasten für Homelab-Enthusiasten"**
 
 Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs, Docker-Containern und Services. Keine Cloud-Abhängigkeiten, keine Abos - nur ein solides Tool für Ihr Homelab.

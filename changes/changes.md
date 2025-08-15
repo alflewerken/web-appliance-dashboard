@@ -39559,3 +39559,83 @@ main
 STATUS: ✅ Demo-GIF Creation Scripts erfolgreich erstellt
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 21:23:00 - GitHub Star-Sektion zu README-Dateien hinzugefügt
+
+PROBLEM: Das Projekt hatte keine prominente Aufforderung zum Sternen auf GitHub, was die Sichtbarkeit und Community-Unterstützung einschränkte.
+
+LÖSUNG: Star-Sektion mit Call-to-Action und Social Badges hinzugefügt
+
+ÄNDERUNGEN:
+1. README.md - Englische Version
+2. README.de.md - Deutsche Version
+
+DETAILS:
+- Neue Sektion "⭐ Support the Project" / "⭐ Unterstützen Sie das Projekt" nach den bestehenden Badges eingefügt
+- Drei Social Badges hinzugefügt: Stars, Forks, Watchers (alle im social style)
+- Zentrierte Darstellung der Badges für bessere visuelle Wirkung
+- Motivierender Text, der die Bedeutung von Stars für das Projekt erklärt
+
+PATCH für README.md:
+```diff
+@@ -5,8 +5,20 @@
+ [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+ [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+ [![React](https://img.shields.io/badge/React-19.1-61dafb.svg)](https://reactjs.org/)
+ [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+ [![Version](https://img.shields.io/badge/Version-1.1.3-brightgreen.svg)](package.json)
+ [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
+
++## ⭐ Support the Project
++
++If you find this project useful, please consider giving it a star! It helps others discover the project and motivates continued development.
++
++<div align="center">
++
++[![GitHub stars](https://img.shields.io/github/stars/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/stargazers)
++[![GitHub forks](https://img.shields.io/github/forks/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/network)
++[![GitHub watchers](https://img.shields.io/github/watchers/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/watchers)
++
++</div>
++
+ > **"From a homelab enthusiast for homelab enthusiasts"**
+```
+
+PATCH für README.de.md:
+```diff
+@@ -5,8 +5,20 @@
+ [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+ [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+ [![React](https://img.shields.io/badge/React-19.1-61dafb.svg)](https://reactjs.org/)
+ [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+ [![Version](https://img.shields.io/badge/Version-1.1.3-brightgreen.svg)](package.json)
+ [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
+
++## ⭐ Unterstützen Sie das Projekt
++
++Wenn Sie dieses Projekt nützlich finden, geben Sie ihm bitte einen Stern! Das hilft anderen, das Projekt zu entdecken und motiviert die weitere Entwicklung.
++
++<div align="center">
++
++[![GitHub stars](https://img.shields.io/github/stars/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/stargazers)
++[![GitHub forks](https://img.shields.io/github/forks/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/network)
++[![GitHub watchers](https://img.shields.io/github/watchers/alflewerken/web-appliance-dashboard?style=social)](https://github.com/alflewerken/web-appliance-dashboard/watchers)
++
++</div>
++
+ > **"Von einem Homelab-Enthusiasten für Homelab-Enthusiasten"**
+```
+
+GIT COMMIT: "feat: Add GitHub star section to README files"
+
+STATUS: ✅ Erfolgreich implementiert
+
+VORTEILE:
+1. Erhöhte Sichtbarkeit des Projekts auf GitHub
+2. Motivation für potenzielle Nutzer, das Projekt zu unterstützen
+3. Social Proof durch sichtbare Stars/Forks/Watchers Zahlen
+4. Professionelleres Erscheinungsbild der README
+5. Zweisprachige Implementierung (DE/EN)
+
+════════════════════════════════════════════════════════════════════════════════
