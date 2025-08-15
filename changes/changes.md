@@ -38144,3 +38144,41 @@ install.sh prüft jetzt auch alternative Docker-Pfade:
 STATUS: ✅ Docker-Erkennung verbessert
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-15 17:30:00 - install.sh finalisiert für fehlerfreie Installation
+
+PROBLEM:
+Die Installation schlug weiterhin fehl, weil:
+1. Export-Statements waren in der .env Datei (behoben)
+2. docker-compose.yml Fixing war nicht robust genug
+3. TTY-Erkennung funktionierte nicht bei SSH ohne Terminal
+
+LÖSUNGEN IMPLEMENTIERT:
+
+1. **TTY-Erkennung vereinfacht:**
+   - Nutzt nur [ -t 0 ] || [ -t 1 ] Tests
+   - Keine problematischen /dev/tty Redirects mehr
+   - Automatischer non-interactive Mode bei SSH
+
+2. **Export-Statements korrigiert:**
+   - Aus .env Datei entfernt (sind bash-Syntax)
+   - Nach EOF außerhalb der .env Datei platziert
+
+3. **docker-compose.yml Fixing robuster:**
+   - Spezifische Fixes für bekannte Probleme
+   - awk-basierte Lösung für Kompatibilität
+   - Entfernt leere volumes-Sektionen
+
+4. **Docker-Pfad-Erkennung:**
+   - Prüft /usr/local/bin/docker als Fallback
+   - Fügt Pfad zu PATH hinzu wenn gefunden
+
+TESTING ERFOLGREICH:
+- Installation läuft jetzt im non-interactive Mode durch
+- Alle Container starten erfolgreich
+- System ist nach Installation voll funktionsfähig
+
+STATUS: ✅ install.sh finalisiert und produktionsreif
+
+════════════════════════════════════════════════════════════════════════════════

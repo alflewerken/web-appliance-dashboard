@@ -379,54 +379,32 @@ echo "✅ Docker compose configuration downloaded"
 # Fix common docker-compose.yml issues
 echo "🔧 Validating docker-compose configuration..."
 
+# First, fix the specific broken volumes in database service
+echo "   ⚠️  Fixing database volumes configuration..."
+# Fix the broken volumes section in database service
+awk '
+/MYSQL_PASSWORD:/ {
+    print
+    print "    volumes:"
+    next
+}
+/^      - db_data:/ || /^      - \.\/init-db:/ {
+    print
+    next
+}
+{ print }
+' docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
+
 # Check if backend service has image defined
 if ! grep -q "backend:" docker-compose.yml || ! grep -A 5 "backend:" docker-compose.yml | grep -q "image:"; then
     echo "   ⚠️  Fixing missing backend image..."
-    # Use perl for compatibility (works on both Linux and macOS)
-    perl -i -pe 's/(^\s*backend:\s*$)/$1\n    image: ghcr.io\/alflewerken\/web-appliance-dashboard-backend:latest/g' docker-compose.yml
+    # Add image to backend service using awk for reliability
+    awk '/^  backend:/ { print; print "    image: ghcr.io/alflewerken/web-appliance-dashboard-backend:latest"; next } { print }' docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
 fi
 
-# Fix empty or invalid volumes sections
-echo "   ⚠️  Checking volumes configuration..."
-# Use Python for reliable YAML fixing (Python is available on most systems)
-python3 -c "
-import yaml
-import sys
-
-try:
-    with open('docker-compose.yml', 'r') as f:
-        data = yaml.safe_load(f)
-    
-    # Fix empty volumes
-    for service_name, service in data.get('services', {}).items():
-        if 'volumes' in service:
-            if not service['volumes'] or service['volumes'] == '':
-                # Remove empty volumes
-                del service['volumes']
-                print(f'   Fixed empty volumes in {service_name}')
-    
-    # Ensure backend has image
-    if 'backend' in data.get('services', {}):
-        if 'image' not in data['services']['backend']:
-            data['services']['backend']['image'] = 'ghcr.io/alflewerken/web-appliance-dashboard-backend:latest'
-            print('   Added backend image')
-    
-    with open('docker-compose.yml', 'w') as f:
-        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-    
-    print('   ✅ Configuration fixed')
-except Exception as e:
-    print(f'   ⚠️  Could not fix automatically with Python: {e}')
-    # Fallback to sed
-    print('   Trying alternative fix...')
-    import subprocess
-    # Remove lines with only "volumes:" and nothing after
-    subprocess.run(['sed', '-i.bak', '/^[[:space:]]*volumes:[[:space:]]*$/d', 'docker-compose.yml'])
-" 2>/dev/null || {
-    echo "   ⚠️  Python not available, using basic fix..."
-    # Last resort - remove problematic volumes lines
-    grep -v "^[[:space:]]*volumes:[[:space:]]*$" docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
-}
+# Remove any empty volumes sections
+echo "   ⚠️  Cleaning up empty volumes sections..."
+grep -v "^[[:space:]]*volumes:[[:space:]]*$" docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
 
 echo "   ✅ Configuration validated"
 
