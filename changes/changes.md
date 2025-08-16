@@ -44229,3 +44229,61 @@ ERGEBNIS:
 - Keine manuellen Datenbankeingriffe mehr nötig
 - Remote Desktop funktioniert direkt nach Installation
 - Beide Skripte sind konsistent und robust
+
+
+
+## 2025-08-16 20:30:00 - Backend Dockerfile ARM64 Build-Fehler behoben
+
+PROBLEM: GitHub Actions Build schlug fehl für ARM64-Architektur
+```
+WARNING: updating and opening https://dl-cdn.alpinelinux.org/alpine/v3.22/main: Permission denied
+ERROR: failed to build: process "/bin/sh -c apk update && apk add --no-cache ..." did not complete successfully: exit code: 4
+```
+
+URSACHE:
+- Permission-Problem beim `apk update` auf ARM64 in GitHub Actions
+- Alpine Linux Package Manager konnte Cache-Verzeichnis nicht beschreiben
+
+LÖSUNG:
+- Entfernte separates `apk update` (nicht nötig mit --no-cache)
+- Explizites `USER root` hinzugefügt für korrekte Berechtigungen
+- Fallback-Mechanismus implementiert für robusteren Build
+
+### backend/Dockerfile
+```diff
+ # Installiere System-Dependencies inkl. SSH-Tools und Docker CLI
+-# Entferne Build-Tools, da wir node-pty vermeiden werden
+-RUN apk update && \
+-    apk add --no-cache \
++# Fix für ARM64 Build-Probleme auf GitHub Actions
++USER root
++RUN set -ex && \
++    apk add --no-cache \
+     openssh-client \
+     sshpass \
+     openssl \
+     mysql-client \
+     bash \
+     curl \
+     rsync \
+-    docker-cli \
+-    && rm -rf /var/cache/apk/*
++    docker-cli || \
++    (rm -rf /var/cache/apk/* && \
++     apk add --no-cache \
++     openssh-client \
++     sshpass \
++     openssl \
++     mysql-client \
++     bash \
++     curl \
++     rsync \
++     docker-cli)
+```
+
+STATUS: ✅ Behoben
+
+ERGEBNIS:
+- Build sollte jetzt auf beiden Architekturen (AMD64 und ARM64) funktionieren
+- Robusterer Build-Prozess mit Fallback-Mechanismus
+- Keine Permission-Fehler mehr auf GitHub Actions

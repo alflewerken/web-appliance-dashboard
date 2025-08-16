@@ -7,8 +7,9 @@ FROM node:24-alpine
 WORKDIR /app
 
 # Installiere System-Dependencies inkl. SSH-Tools und Docker CLI
-# Entferne Build-Tools, da wir node-pty vermeiden werden
-RUN apk update && \
+# Fix für ARM64 Build-Probleme auf GitHub Actions
+USER root
+RUN set -ex && \
     apk add --no-cache \
     openssh-client \
     sshpass \
@@ -17,8 +18,17 @@ RUN apk update && \
     bash \
     curl \
     rsync \
-    docker-cli \
-    && rm -rf /var/cache/apk/*
+    docker-cli || \
+    (rm -rf /var/cache/apk/* && \
+     apk add --no-cache \
+     openssh-client \
+     sshpass \
+     openssl \
+     mysql-client \
+     bash \
+     curl \
+     rsync \
+     docker-cli)
 
 # Erstelle SSH-Verzeichnis mit korrekten Berechtigungen
 RUN mkdir -p /root/.ssh && \
