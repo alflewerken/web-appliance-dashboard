@@ -21,12 +21,41 @@ export const openGuacamoleConnection = async (appliance, token, performanceMode 
     );
     
     if (response.data.url) {
-      // Open the Guacamole connection in a new window
-      const guacWindow = window.open(response.data.url, '_blank');
+      // Calculate window size - 90% of screen size
+      const width = Math.floor(window.screen.width * 0.9);
+      const height = Math.floor(window.screen.height * 0.9);
+      
+      // Calculate centered position
+      const left = Math.floor((window.screen.width - width) / 2);
+      const top = Math.floor((window.screen.height - height) / 2);
+      
+      // Window features for a proper separate window
+      const windowFeatures = [
+        `width=${width}`,
+        `height=${height}`,
+        `left=${left}`,
+        `top=${top}`,
+        'toolbar=no',
+        'menubar=no',
+        'location=no',
+        'status=yes',
+        'scrollbars=yes',
+        'resizable=yes'
+      ].join(',');
+      
+      // Open the Guacamole connection in a separate window with specific features
+      const guacWindow = window.open(
+        response.data.url, 
+        `guacamole_${appliance.id}_${Date.now()}`, // Unique window name
+        windowFeatures
+      );
       
       if (!guacWindow) {
         throw new Error('Popup-Blocker verhindert das Öffnen des Remote Desktop. Bitte erlauben Sie Popups für diese Seite.');
       }
+      
+      // Focus the new window
+      guacWindow.focus();
       
       return guacWindow;
     } else {
