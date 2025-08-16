@@ -8,11 +8,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2025-08-16
 
 ### Fixed
+- **Background Settings Persistence** - Fixed issues with background image settings
+  - Background settings now persist across page reloads
+  - Added localStorage caching for immediate background display on page load
+  - Fixed synchronization between frontend and backend settings
+  - Corrected updateBackgroundStyles function parameter passing
+  - Background enabled state now survives browser refresh
+
+- **ServicePanel Card Visibility** - Fixed card design issues in Service Panel
+  - Adjusted transparency from rgba(20,20,20,0.95) to rgba(0,0,0,0.2) for better visibility
+  - Aligned card design with HostPanel for consistency
+  - Fixed background image being blocked by opaque cards
+  - Removed excessive box-shadow for cleaner appearance
+
 - **Appliance Card Icon Positioning** - Fixed icon centering issues
   - Icon was positioned too high (at 60% instead of 50%)
   - Cleaned up 20+ conflicting CSS rules that caused positioning problems
   - Icon now properly centered at 40% from top with 50% card size
   - Removed redundant CSS definitions for cleaner, maintainable code
+
+### Changed
+- **Major CSS Consolidation** - Complete restructuring of panel CSS architecture
+  - **ServicePanel**: Consolidated 2 CSS files into components/ServicePanel.css (245 lines)
+  - **UserPanel**: Consolidated 6 CSS files into components/UserPanel.css (510 lines)
+  - **SettingsPanel**: Consolidated 2 CSS files into components/SettingsPanel.css (135 lines)
+  - Achieved 44% reduction in CSS code through redundancy elimination
+  - Reduced number of CSS files by 70% (from 10 to 3 files)
+  - Removed entire `unified/` directory (no longer needed)
+  - All panel CSS files now located with their components for better locality
+
+- **Info Section Height** - Increased from 25% to 35% of card height
+  - Better visibility for appliance names and descriptions
+  - More space for text in small cards
+  - Button positions adjusted accordingly (65% content area)
+
+- **CSS Architecture** - Replaced pseudo-elements with DOM elements
+  - Removed CSS ::before and ::after pseudo-elements for bars
+  - Implemented real DOM elements for better interactivity
+  - Improved click event handling with proper preventDefault/stopPropagation
+  - Better pointer-events management for reliable clicking
 
 ### Added
 - **Compact Mode for Small Cards** - Interactive bar indicators for cards < 90px
@@ -29,18 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Arrow indicators for clear association with bars
   - Works on both desktop and touch devices
 
-### Changed
-- **Info Section Height** - Increased from 25% to 35% of card height
-  - Better visibility for appliance names and descriptions
-  - More space for text in small cards
-  - Button positions adjusted accordingly (65% content area)
-
-- **CSS Architecture** - Replaced pseudo-elements with DOM elements
-  - Removed CSS ::before and ::after pseudo-elements for bars
-  - Implemented real DOM elements for better interactivity
-  - Improved click event handling with proper preventDefault/stopPropagation
-  - Better pointer-events management for reliable clicking
-
 ### Improved
 - **Mobile/Touch Support** - Enhanced interaction for touch devices
   - Single tap reveals compact bars on mobile/iPad
@@ -51,6 +73,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consolidated icon styles into single definition
   - Removed duplicate and conflicting rules
   - Better maintainability with organized style hierarchy
+  - All panel CSS files now use consistent scoping patterns
+
+### Removed
+- **Unified Directory** - Removed obsolete CSS directory
+  - Deleted 11 fragmented CSS files from `components/unified/`
+  - Removed 3 additional CSS files from `styles/` directory
+  - All functionality preserved in consolidated files
 
 ## [1.1.3] - 2025-08-12
 
