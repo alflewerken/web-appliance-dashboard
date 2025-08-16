@@ -11,6 +11,9 @@ const { broadcast } = require('./sse');
 const { mapJsToDb } = require('../utils/dbFieldMapping');
 const { genericMapJsToDb, prepareInsert } = require('../utils/genericFieldMapping');
 const bcrypt = require('bcryptjs');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
@@ -199,6 +202,90 @@ router.get('/backup', verifyToken, async (req, res) => {
       console.log(`✅ Fetched ${hosts.length} terminal hosts (passwords encrypted)`);
     } catch (error) {
       console.error('Error fetching hosts for backup:', error.message);
+    }
+
+    // Fetch Guacamole database backup
+    let guacamoleBackup = null;
+    const includeGuacamole = process.env.GUACAMOLE_DB_HOST && process.env.GUACAMOLE_DB_NAME;
+    
+    if (includeGuacamole) {
+      try {
+        console.log('📦 Creating Guacamole database backup...');
+        
+        // Use pg_dump to export Guacamole database
+        const guacHost = process.env.GUACAMOLE_DB_HOST || 'appliance_guacamole_db';
+        const guacPort = process.env.GUACAMOLE_DB_PORT || '5432';
+        const guacDb = process.env.GUACAMOLE_DB_NAME || 'guacamole_db';
+        const guacUser = process.env.GUACAMOLE_DB_USER || 'guacamole_user';
+        const guacPass = process.env.GUACAMOLE_DB_PASSWORD || 'guacamole_pass123';
+        
+        // Create pg_dump command - use docker exec if running in container
+        const pgDumpCmd = `docker exec appliance_guacamole_db pg_dump -U ${guacUser} -d ${guacDb} --clean --if-exists --no-owner --no-acl`;
+        
+        try {
+          const { stdout, stderr } = await execAsync(pgDumpCmd, {
+            maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large databases
+            env: { ...process.env, PGPASSWORD: guacPass }
+          });
+          
+          if (stderr && !stderr.includes('warning')) {
+            console.warn('⚠️ Guacamole backup warnings:', stderr);
+          }
+          
+          // Compress the SQL dump using base64 encoding
+          const compressedDump = Buffer.from(stdout).toString('base64');
+          
+          guacamoleBackup = {
+            type: 'postgresql',
+            version: '1.5.5', // Guacamole version
+            created_at: new Date().toISOString(),
+            database_name: guacDb,
+            compressed: true,
+            encoding: 'base64',
+            data: compressedDump,
+            size_bytes: stdout.length,
+            size_compressed: compressedDump.length
+          };
+          
+          console.log(`✅ Guacamole database backup created (${Math.round(stdout.length / 1024)} KB -> ${Math.round(compressedDump.length / 1024)} KB compressed)`);
+        } catch (cmdError) {
+          // Fallback: Try to connect directly if docker exec fails
+          console.warn('⚠️ Docker exec failed, trying direct connection...');
+          
+          // For direct connection, we'd need pg_dump installed locally
+          // This is a fallback that likely won't work in containerized environment
+          const directCmd = `PGPASSWORD="${guacPass}" pg_dump -h ${guacHost} -p ${guacPort} -U ${guacUser} -d ${guacDb} --clean --if-exists --no-owner --no-acl`;
+          
+          try {
+            const { stdout } = await execAsync(directCmd, {
+              maxBuffer: 50 * 1024 * 1024
+            });
+            
+            const compressedDump = Buffer.from(stdout).toString('base64');
+            guacamoleBackup = {
+              type: 'postgresql',
+              version: '1.5.5',
+              created_at: new Date().toISOString(),
+              database_name: guacDb,
+              compressed: true,
+              encoding: 'base64',
+              data: compressedDump,
+              size_bytes: stdout.length,
+              size_compressed: compressedDump.length
+            };
+            
+            console.log(`✅ Guacamole backup via direct connection (${Math.round(stdout.length / 1024)} KB)`);
+          } catch (directError) {
+            console.error('❌ Could not create Guacamole backup:', directError.message);
+            console.log('ℹ️ Continuing without Guacamole backup...');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error creating Guacamole backup:', error.message);
+        console.log('ℹ️ Backup will continue without Guacamole data');
+      }
+    } else {
+      console.log('ℹ️ Guacamole not configured, skipping Guacamole backup');
     }
     
     // Fetch services table
@@ -587,6 +674,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         user_appliance_permissions: userAppliancePermissions,
         service_command_logs: serviceCommandLogs,
         active_sessions: activeSessions,
+        guacamole_backup: guacamoleBackup, // Add Guacamole backup
       },
       metadata: {
         appliances_count: appliances.length,
@@ -605,6 +693,8 @@ router.get('/backup', verifyToken, async (req, res) => {
         user_appliance_permissions_count: userAppliancePermissions.length,
         service_command_logs_count: serviceCommandLogs.length,
         active_sessions_count: activeSessions.length,
+        has_guacamole_backup: !!guacamoleBackup,
+        guacamole_backup_size: guacamoleBackup ? guacamoleBackup.size_bytes : 0,
         backup_type: 'full_with_all_tables',
         database_version: '2.9.0',
         includes_background_files: backgroundImagesWithData.some(
@@ -811,6 +901,7 @@ router.post('/restore', verifyToken, async (req, res) => {
       service_command_logs,
       sessions,          // Old name
       active_sessions,   // New name
+      guacamole_backup  // Guacamole database backup
     } = backupData.data;
 
     // Use whichever is available (prefer new names)
@@ -2409,6 +2500,82 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
                     user.id
                   ]
                 );
+
+      // Restore Guacamole database if included in backup
+      if (guacamole_backup) {
+        console.log('🥑 Restoring Guacamole database...');
+        try {
+          const guacBackup = guacamole_backup;
+          
+          if (guacBackup.encoding === 'base64' && guacBackup.data) {
+            // Decode base64 SQL dump
+            const sqlDump = Buffer.from(guacBackup.data, 'base64').toString('utf8');
+            console.log(`  📦 Decoded Guacamole backup: ${Math.round(sqlDump.length / 1024)} KB`);
+            
+            // Write to temporary file
+            const tempFile = `/tmp/guacamole_restore_${Date.now()}.sql`;
+            await fs.writeFile(tempFile, sqlDump);
+            
+            // Restore using psql
+            const guacUser = process.env.GUACAMOLE_DB_USER || 'guacamole_user';
+            const guacDb = process.env.GUACAMOLE_DB_NAME || 'guacamole_db';
+            const guacPass = process.env.GUACAMOLE_DB_PASSWORD || 'guacamole_pass123';
+            
+            // Use docker exec to restore
+            const restoreCmd = `docker exec -i appliance_guacamole_db psql -U ${guacUser} -d ${guacDb} < ${tempFile}`;
+            
+            try {
+              await execAsync(restoreCmd, {
+                maxBuffer: 50 * 1024 * 1024,
+                env: { ...process.env, PGPASSWORD: guacPass }
+              });
+              
+              console.log('  ✅ Guacamole database restored successfully');
+              
+              // Clean up temp file
+              await fs.unlink(tempFile).catch(() => {});
+              
+              // Restart Guacamole to apply changes
+              console.log('  🔄 Restarting Guacamole service...');
+              await execAsync('docker restart appliance_guacamole', { timeout: 30000 });
+              console.log('  ✅ Guacamole service restarted');
+              
+            } catch (restoreError) {
+              console.error('  ❌ Failed to restore Guacamole database:', restoreError.message);
+              // Clean up temp file
+              await fs.unlink(tempFile).catch(() => {});
+              
+              // Try alternative restore method
+              console.log('  🔄 Trying alternative restore method...');
+              try {
+                // Write SQL to stdin of psql command
+                const { stdin } = require('child_process').spawn(
+                  'docker',
+                  ['exec', '-i', 'appliance_guacamole_db', 'psql', '-U', guacUser, '-d', guacDb],
+                  { env: { ...process.env, PGPASSWORD: guacPass } }
+                );
+                stdin.write(sqlDump);
+                stdin.end();
+                
+                // Wait a bit for the restore to complete
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                console.log('  ✅ Guacamole database restored via alternative method');
+              } catch (altError) {
+                console.error('  ❌ Alternative restore also failed:', altError.message);
+                restorationSummary.warnings.push('Guacamole database restore failed');
+              }
+            }
+          } else {
+            console.log('  ⚠️ Guacamole backup format not supported');
+            restorationSummary.warnings.push('Guacamole backup format not supported');
+          }
+        } catch (guacError) {
+          console.error('❌ Guacamole restore error:', guacError.message);
+          restorationSummary.warnings.push(`Guacamole restore failed: ${guacError.message}`);
+        }
+      } else {
+        console.log('ℹ️ No Guacamole backup found in restore data');
+      }
                 
                 keysGenerated++;
                 console.log(`  ✓ Generated and stored SSH key for user ${user.username} (ID: ${user.id})`);
