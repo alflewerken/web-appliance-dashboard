@@ -42467,3 +42467,34 @@ ERGEBNIS:
 - Edit-Dialog öffnet sich
 - Terminal öffnet sich
 - Keine Weiterleitung zur URL mehr beim Klick auf Balken
+
+
+## 2025-08-16 15:06:00 - CHANGELOG.md aktualisiert
+
+AKTION: CHANGELOG.md mit den heutigen Änderungen aktualisiert
+
+INHALT:
+- Neuer [Unreleased] Abschnitt für 2025-08-16 hinzugefügt
+- Version aus VERSION-Datei: 1.1.3
+
+DOKUMENTIERTE ÄNDERUNGEN:
+### Fixed
+- Appliance Card Icon Positioning (Zentrierung korrigiert)
+- CSS-Chaos aufgeräumt (20+ konflikte Regeln entfernt)
+
+### Added  
+- Compact Mode für kleine Karten (<90px)
+- Interaktive Balken mit Tooltips
+- Material-UI Tooltips für alle Balken
+
+### Changed
+- Info-Bereich von 25% auf 35% vergrößert
+- CSS-Architektur (Pseudo-Elemente durch DOM-Elemente ersetzt)
+
+### Improved
+- Mobile/Touch Support verbessert
+- Code-Organisation und CSS-Struktur aufgeräumt
+
+STATUS: ✅ Dokumentiert
+
+HINWEIS: Bei nächstem Release sollte Version auf 1.1.4 oder 1.2.0 erhöht werden, je nach Umfang der Änderungen.

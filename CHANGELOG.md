@@ -5,6 +5,53 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2025-08-16
+
+### Fixed
+- **Appliance Card Icon Positioning** - Fixed icon centering issues
+  - Icon was positioned too high (at 60% instead of 50%)
+  - Cleaned up 20+ conflicting CSS rules that caused positioning problems
+  - Icon now properly centered at 40% from top with 50% card size
+  - Removed redundant CSS definitions for cleaner, maintainable code
+
+### Added
+- **Compact Mode for Small Cards** - Interactive bar indicators for cards < 90px
+  - Colored bars replace buttons on small cards for space efficiency
+  - Bars positioned identically to normal buttons for consistency
+  - Left side: Edit (white), Start (green), Stop (red) service controls
+  - Right side: Favorite (gold), Terminal (gray), Remote Desktop (blue), File Transfer (purple)
+  - Bars appear on hover (desktop) or after tap (mobile/touch devices)
+  - Bars expand from 4px to 8px on hover for better visibility
+  
+- **Tooltips for Compact Mode** - Material-UI tooltips on all compact bars
+  - Shows function description when hovering over bars
+  - Immediate display (enterDelay=0) for better responsiveness
+  - Arrow indicators for clear association with bars
+  - Works on both desktop and touch devices
+
+### Changed
+- **Info Section Height** - Increased from 25% to 35% of card height
+  - Better visibility for appliance names and descriptions
+  - More space for text in small cards
+  - Button positions adjusted accordingly (65% content area)
+
+- **CSS Architecture** - Replaced pseudo-elements with DOM elements
+  - Removed CSS ::before and ::after pseudo-elements for bars
+  - Implemented real DOM elements for better interactivity
+  - Improved click event handling with proper preventDefault/stopPropagation
+  - Better pointer-events management for reliable clicking
+
+### Improved
+- **Mobile/Touch Support** - Enhanced interaction for touch devices
+  - Single tap reveals compact bars on mobile/iPad
+  - Consistent behavior between desktop hover and mobile touch
+  - hasBeenTouched state properly manages visibility
+  
+- **Code Organization** - Cleaner CSS structure
+  - Consolidated icon styles into single definition
+  - Removed duplicate and conflicting rules
+  - Better maintainability with organized style hierarchy
+
 ## [1.1.3] - 2025-08-12
 
 ### Fixed
