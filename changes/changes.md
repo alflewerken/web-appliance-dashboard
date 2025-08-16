@@ -44417,3 +44417,79 @@ ERGEBNIS:
 - Alle Logging-Funktionen sind definiert und haben korrekte Argumente
 - Farbige Ausgabe für bessere Lesbarkeit
 - Installation sollte nun erfolgreich durchlaufen
+
+
+
+## 2025-08-16 20:47:00 - Clean-Script korrigiert: package-lock.json wird nicht mehr gelöscht
+
+PROBLEM: scripts/clean.sh --all löschte package-lock.json Dateien
+- package-lock.json ist wichtig für reproduzierbare Builds
+- Sollte im Repository bleiben und nicht gelöscht werden
+- Wurde fälschlicherweise als "Build-Artefakt" behandelt
+
+LÖSUNG: clean.sh angepasst, um package-lock.json zu behalten
+
+### scripts/clean.sh - package-lock.json Löschungen auskommentiert
+```diff
+ # 2. Backend cleanup
+ print_status "info" "Cleaning backend..."
+ rm -rf backend/node_modules
+-rm -f backend/package-lock.json
++# package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
++# rm -f backend/package-lock.json
+ rm -rf backend/uploads/*
+
+ # 3. Frontend cleanup
+ print_status "info" "Cleaning frontend..."
+ rm -rf frontend/node_modules
+-rm -f frontend/package-lock.json
++# package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
++# rm -f frontend/package-lock.json
+ rm -rf frontend/build
+
+ # 4. macOS App cleanup
+ if [ -d "Mac-Standalone" ]; then
+     print_status "info" "Cleaning macOS app..."
+     rm -rf Mac-Standalone/node_modules
+-    rm -f Mac-Standalone/package-lock.json
++    # package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
++    # rm -f Mac-Standalone/package-lock.json
+     rm -rf Mac-Standalone/dist
+
+ # 5. Terminal app cleanup
+ if [ -d "terminal-app" ]; then
+     print_status "info" "Cleaning terminal app..."
+     rm -rf terminal-app/node_modules
+-    rm -f terminal-app/package-lock.json
++    # package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
++    # rm -f terminal-app/package-lock.json
+     rm -rf terminal-app/dist
+```
+
+### Ausgabe-Text angepasst
+```diff
+ print_status "info" "Removed:"
+ echo "   • All node_modules directories"
+ echo "   • All build/dist directories"
+-echo "   • All package-lock.json files"
+ echo "   • All log files"
+```
+
+### frontend/package-lock.json wiederhergestellt
+```bash
+# Datei aus Git-History wiederhergestellt
+git checkout HEAD~1 -- frontend/package-lock.json
+```
+
+ERKENNTNISSE:
+- package-lock.json ist KEIN Build-Artefakt sondern essentieller Teil des Codes
+- Ermöglicht reproduzierbare Builds mit exakt gleichen Dependency-Versionen
+- Sollte immer im Repository eingecheckt sein
+- node_modules können gelöscht werden, package-lock.json nicht
+
+STATUS: ✅ Behoben
+
+ERGEBNIS:
+- clean.sh löscht keine package-lock.json Dateien mehr
+- frontend/package-lock.json wurde wiederhergestellt
+- Reproduzierbare Builds sind wieder gewährleistet

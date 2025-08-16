@@ -232,7 +232,8 @@ fi
 # 2. Backend cleanup
 print_status "info" "Cleaning backend..."
 rm -rf backend/node_modules
-rm -f backend/package-lock.json
+# package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
+# rm -f backend/package-lock.json
 rm -rf backend/uploads/*
 rm -rf backend/dist
 rm -rf backend/build
@@ -243,7 +244,8 @@ print_status "success" "Backend cleaned"
 # 3. Frontend cleanup
 print_status "info" "Cleaning frontend..."
 rm -rf frontend/node_modules
-rm -f frontend/package-lock.json
+# package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
+# rm -f frontend/package-lock.json
 rm -rf frontend/build
 rm -rf frontend/dist
 rm -rf frontend/.cache
@@ -256,7 +258,8 @@ print_status "success" "Frontend cleaned"
 if [ -d "Mac-Standalone" ]; then
     print_status "info" "Cleaning macOS app..."
     rm -rf Mac-Standalone/node_modules
-    rm -f Mac-Standalone/package-lock.json
+    # package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
+    # rm -f Mac-Standalone/package-lock.json
     rm -rf Mac-Standalone/dist
     rm -rf Mac-Standalone/build
     rm -rf Mac-Standalone/docker-images
@@ -269,7 +272,8 @@ fi
 if [ -d "terminal-app" ]; then
     print_status "info" "Cleaning terminal app..."
     rm -rf terminal-app/node_modules
-    rm -f terminal-app/package-lock.json
+    # package-lock.json NICHT löschen - wichtig für reproduzierbare Builds!
+    # rm -f terminal-app/package-lock.json
     rm -rf terminal-app/dist
     rm -rf terminal-app/build
     rm -f terminal-app/*.log
@@ -449,7 +453,6 @@ echo ""
 print_status "info" "Removed:"
 echo "   • All node_modules directories"
 echo "   • All build/dist directories"
-echo "   • All package-lock.json files"
 echo "   • All log files"
 echo "   • All cache directories"
 echo "   • All temporary files"
