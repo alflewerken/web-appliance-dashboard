@@ -579,19 +579,52 @@ TABLES_EXIST=$($DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamo
 if [ "$TABLES_EXIST" = "f" ]; then
     echo "📝 Initializing Guacamole database..."
     
-    # Try to load local schema files first
-    if [ -f "guacamole/001-create-schema.sql" ]; then
-        $DOCKER_CMD exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
-            < guacamole/001-create-schema.sql >/dev/null 2>&1
+    # First, ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
+    echo "🔐 Setting Guacamole database password..."
+    $DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
+        "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+    
+    # Generate schema from official Guacamole image if not exists
+    if [ ! -f "guacamole/guacamole-schema.sql" ]; then
+        echo "📥 Extracting Guacamole schema from official image..."
+        $DOCKER_CMD run --rm guacamole/guacamole:1.5.5 /opt/guacamole/bin/initdb.sh --postgresql > guacamole/guacamole-schema.sql 2>/dev/null
+    fi
+    
+    # Load schema
+    if [ -f "guacamole/guacamole-schema.sql" ]; then
+        echo "📋 Loading Guacamole schema..."
+        $DOCKER_CMD exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db < guacamole/guacamole-schema.sql >/dev/null 2>&1
         
-        if [ -f "guacamole/002-create-admin-user.sql" ]; then
-            $DOCKER_CMD exec -i ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" \
-                < guacamole/002-create-admin-user.sql >/dev/null 2>&1
-        fi
+        # Create admin user
+        echo "👤 Creating Guacamole admin user..."
+        $DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c "
+            -- Create default admin user for Guacamole
+            INSERT INTO guacamole_entity (name, type) VALUES ('guacadmin', 'USER')
+            ON CONFLICT (name, type) DO NOTHING;
+            
+            INSERT INTO guacamole_user (entity_id, password_hash, password_salt, password_date)
+            SELECT entity_id, 
+                E'\\\\xCA458A7D494E3BE824F5E1E175A1556C0F8EEF2C2D7DF3633BEC4A29C4411960',
+                E'\\\\xFE24ADC5E11E2B25288D1704ABE67A79E342ECC26064CE69C5B3177795A82264',
+                CURRENT_TIMESTAMP
+            FROM guacamole_entity
+            WHERE name = 'guacadmin' AND type = 'USER'
+            ON CONFLICT (entity_id) DO NOTHING;
+            
+            -- Give admin system permissions
+            INSERT INTO guacamole_system_permission (entity_id, permission)
+            SELECT entity_id, permission::guacamole_system_permission_type
+            FROM guacamole_entity,
+                (VALUES ('CREATE_CONNECTION'), ('CREATE_CONNECTION_GROUP'), 
+                        ('CREATE_SHARING_PROFILE'), ('CREATE_USER'),
+                        ('CREATE_USER_GROUP'), ('ADMINISTER')) AS perms(permission)
+            WHERE name = 'guacadmin' AND type = 'USER'
+            ON CONFLICT DO NOTHING;
+        " >/dev/null 2>&1
         
         echo "✅ Guacamole database initialized"
     else
-        echo "⚠️  Guacamole schema files not found - Remote Desktop may not work initially"
+        echo "⚠️  Could not create schema file - Remote Desktop may not work initially"
     fi
     
     # Restart Guacamole

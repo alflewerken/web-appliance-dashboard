@@ -362,6 +362,18 @@ EXTERNAL_URL=${EXTERNAL_URL}
 CORS_ORIGIN=${ALLOWED_ORIGINS}
 ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
 
+# Guacamole Database Configuration
+GUACAMOLE_DB_HOST=appliance_guacamole_db
+GUACAMOLE_DB_PORT=5432
+GUACAMOLE_DB_NAME=guacamole_db
+GUACAMOLE_DB_USER=guacamole_user
+GUACAMOLE_DB_PASSWORD=guacamole_pass123
+
+# Guacamole API Configuration
+GUACAMOLE_API_URL=http://appliance_guacamole:8080/guacamole
+GUACAMOLE_ADMIN_USER=guacadmin
+GUACAMOLE_ADMIN_PASSWORD=guacadmin
+
 # Logging
 LOG_LEVEL=info
 
@@ -390,29 +402,48 @@ init_guacamole_db() {
     if [ "$TABLES_EXIST" = "f" ]; then
         print_status "warning" "Guacamole tables missing - initializing database..."
         
-        # Check for schema files
-        if [ ! -f "guacamole/001-create-schema.sql" ] || [ ! -f "guacamole/002-create-admin-user.sql" ]; then
-            print_status "warning" "Schema files not found locally, trying to extract from container..."
-            
-            # Extract from Guacamole container if available
-            if docker ps | grep -q appliance_guacamole; then
-                docker exec appliance_guacamole sh -c "cat /opt/guacamole/postgresql/schema/001-create-schema.sql" > guacamole/001-create-schema.sql 2>/dev/null
-                docker exec appliance_guacamole sh -c "cat /opt/guacamole/postgresql/schema/002-create-admin-user.sql" > guacamole/002-create-admin-user.sql 2>/dev/null
-            fi
+        # First, ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
+        print_status "info" "Setting Guacamole database password..."
+        docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
+            "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+        
+        # Generate schema from official Guacamole image if not exists
+        if [ ! -f "guacamole/guacamole-schema.sql" ]; then
+            print_status "info" "Extracting Guacamole schema from official image..."
+            docker run --rm guacamole/guacamole:1.5.5 /opt/guacamole/bin/initdb.sh --postgresql > guacamole/guacamole-schema.sql 2>/dev/null
         fi
         
-        # Load schema files
-        if [ -f "guacamole/001-create-schema.sql" ]; then
+        # Load schema
+        if [ -f "guacamole/guacamole-schema.sql" ]; then
             print_status "info" "Loading Guacamole schema..."
-            docker exec -i appliance_guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" < guacamole/001-create-schema.sql >/dev/null 2>&1
+            docker exec -i appliance_guacamole_db psql -U guacamole_user -d guacamole_db < guacamole/guacamole-schema.sql >/dev/null 2>&1
             
-            if [ -f "guacamole/002-create-admin-user.sql" ]; then
-                docker exec -i appliance_guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" < guacamole/002-create-admin-user.sql >/dev/null 2>&1
-            fi
-            
-            if [ -f "guacamole/custom-sftp.sql" ]; then
-                docker exec -i appliance_guacamole_db sh -c "PGPASSWORD=guacamole_pass123 psql -U guacamole_user -d guacamole_db" < guacamole/custom-sftp.sql >/dev/null 2>&1
-            fi
+            # Create admin user
+            print_status "info" "Creating Guacamole admin user..."
+            docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c "
+                -- Create default admin user for Guacamole
+                INSERT INTO guacamole_entity (name, type) VALUES ('guacadmin', 'USER')
+                ON CONFLICT (name, type) DO NOTHING;
+                
+                INSERT INTO guacamole_user (entity_id, password_hash, password_salt, password_date)
+                SELECT entity_id, 
+                    E'\\\\xCA458A7D494E3BE824F5E1E175A1556C0F8EEF2C2D7DF3633BEC4A29C4411960',
+                    E'\\\\xFE24ADC5E11E2B25288D1704ABE67A79E342ECC26064CE69C5B3177795A82264',
+                    CURRENT_TIMESTAMP
+                FROM guacamole_entity
+                WHERE name = 'guacadmin' AND type = 'USER'
+                ON CONFLICT (entity_id) DO NOTHING;
+                
+                -- Give admin system permissions
+                INSERT INTO guacamole_system_permission (entity_id, permission)
+                SELECT entity_id, permission::guacamole_system_permission_type
+                FROM guacamole_entity,
+                    (VALUES ('CREATE_CONNECTION'), ('CREATE_CONNECTION_GROUP'), 
+                            ('CREATE_SHARING_PROFILE'), ('CREATE_USER'),
+                            ('CREATE_USER_GROUP'), ('ADMINISTER')) AS perms(permission)
+                WHERE name = 'guacadmin' AND type = 'USER'
+                ON CONFLICT DO NOTHING;
+            " >/dev/null 2>&1
             
             print_status "success" "Guacamole database initialized"
             
@@ -420,7 +451,7 @@ init_guacamole_db() {
             docker compose restart guacamole >/dev/null 2>&1
             sleep 5
         else
-            print_status "error" "Could not find or create schema files!"
+            print_status "error" "Could not create schema file!"
             print_status "warning" "Guacamole may not work properly"
         fi
     else

@@ -93,12 +93,12 @@ router.post('/token/:applianceId', async (req, res) => {
     
     const appliance = appliances[0];
     
-    if (!appliance.remote_desktop_enabled) {
+    if (!appliance.remoteDesktopEnabled) {
       return res.status(400).json({ error: 'Remote Desktop ist für diese Appliance nicht aktiviert' });
     }
     
     // Check if RustDesk is configured instead of Guacamole
-    if (appliance.remote_desktop_type === 'rustdesk') {
+    if (appliance.remoteDesktopType === 'rustdesk') {
       return res.status(400).json({ 
         error: 'Diese Appliance verwendet RustDesk. Bitte nutzen Sie den RustDesk Button.',
         type: 'rustdesk'
@@ -108,9 +108,9 @@ router.post('/token/:applianceId', async (req, res) => {
     try {
       // Entschlüssele Passwort
       let decryptedPassword = null;
-      if (appliance.remote_password_encrypted) {
+      if (appliance.remotePasswordEncrypted) {
         try {
-          decryptedPassword = decrypt(appliance.remote_password_encrypted);
+          decryptedPassword = decrypt(appliance.remotePasswordEncrypted);
         } catch (error) {
           console.error('Fehler beim Entschlüsseln des Passworts:', error);
         }
@@ -121,15 +121,15 @@ router.post('/token/:applianceId', async (req, res) => {
       
       // Hole optimierte Connection Parameter
       const optimizedParams = getOptimizedConnectionParams(
-        appliance.remote_protocol, 
+        appliance.remoteProtocol, 
         performanceMode
       );
       
       const connectionInfo = await dbManager.createOrUpdateConnection(applianceId, {
-        protocol: appliance.remote_protocol,
-        hostname: appliance.remote_host,
-        port: appliance.remote_port || (appliance.remote_protocol === 'vnc' ? 5900 : 3389),
-        username: appliance.remote_username || '',
+        protocol: appliance.remoteProtocol,
+        hostname: appliance.remoteHost,
+        port: appliance.remotePort || (appliance.remoteProtocol === 'vnc' ? 5900 : 3389),
+        username: appliance.remoteUsername || '',
         password: decryptedPassword || '',
         ...optimizedParams // Füge Performance-Optimierungen hinzu
       });
@@ -178,8 +178,8 @@ router.post('/token/:applianceId', async (req, res) => {
         applianceId,
         { 
           appliance_name: appliance.name,
-          protocol: appliance.remote_protocol,
-          host: appliance.remote_host,
+          protocol: appliance.remoteProtocol,
+          host: appliance.remoteHost,
           connectionName: connectionInfo.connectionName,
           connectionId: connectionId
         },
