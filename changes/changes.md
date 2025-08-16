@@ -44600,3 +44600,85 @@ ERGEBNIS:
 - Backup enthält jetzt die komplette Guacamole-PostgreSQL-Datenbank
 - Restore stellt alle Remote Desktop Verbindungen wieder her
 - System ist nach Restore vollständig funktionsfähig
+
+
+
+## 2025-08-16 21:30:00 - Guacamole PostgreSQL SCRAM-SHA-256 Authentifizierungsproblem dauerhaft behoben
+
+PROBLEM: Guacamole konnte sich nicht mit PostgreSQL verbinden
+- Fehler: "password authentication failed for user guacamole_user"
+- PostgreSQL nutzt SCRAM-SHA-256 Authentifizierung für externe Verbindungen
+- Passwort wurde nur gesetzt wenn Tabellen fehlten, nicht bei jedem Start
+- Nach Container-Neustart war das Passwort-Problem wieder da
+
+URSACHE:
+- PostgreSQL pg_hba.conf hat: `host all all all scram-sha-256`
+- Das Passwort muss mit SCRAM-SHA-256 kompatibel gesetzt werden
+- Dies muss JEDES MAL nach Container-Start erfolgen, nicht nur bei Initialisierung
+
+LÖSUNG: Passwort-Setzung wird IMMER ausgeführt, nicht nur bei fehlenden Tabellen
+
+### scripts/build.sh - init_guacamole_db() Funktion
+```diff
+ init_guacamole_db() {
+     print_status "info" "Checking Guacamole database..."
+     
+     # Wait for postgres to be ready
+     sleep 5
+     
++    # ALWAYS ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
++    # This must be done every time because PostgreSQL resets it on container recreation
++    print_status "info" "Setting Guacamole database password..."
++    docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
++        "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
++    
+     # Check if tables exist
+     TABLES_EXIST=$(docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
+         "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
+     
+     if [ "$TABLES_EXIST" = "f" ]; then
+         print_status "warning" "Guacamole tables missing - initializing database..."
+-        
+-        # First, ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
+-        print_status "info" "Setting Guacamole database password..."
+-        docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
+-            "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+```
+
+### install.sh - Gleiche Änderung
+```diff
+ # Initialize Guacamole database if needed
+ echo "🔧 Checking Guacamole database..."
+ sleep 5
+ 
++# ALWAYS ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
++# This must be done every time because PostgreSQL resets it on container recreation
++echo "🔐 Setting Guacamole database password..."
++$DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
++    "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
++
+ # Check if Guacamole tables exist
+ TABLES_EXIST=$($DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -tAc \
+     "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
+ 
+ if [ "$TABLES_EXIST" = "f" ]; then
+     echo "📝 Initializing Guacamole database..."
+-    
+-    # First, ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
+-    echo "🔐 Setting Guacamole database password..."
+-    $DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
+-        "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+```
+
+ERKENNTNISSE:
+- PostgreSQL mit SCRAM-SHA-256 erfordert explizite Passwort-Setzung nach Container-Start
+- Die Passwort-Setzung muss VOR dem Tabellen-Check erfolgen
+- Dies ist kein einmaliges Setup sondern muss bei JEDEM Build durchgeführt werden
+- Docker-Volumes behalten Daten, aber Authentifizierung muss neu konfiguriert werden
+
+STATUS: ✅ Behoben
+
+ERGEBNIS:
+- Guacamole-Passwort wird bei jedem Build/Start korrekt gesetzt
+- Remote Desktop Verbindungen funktionieren nach Container-Neustart
+- Keine manuellen Eingriffe mehr nötig

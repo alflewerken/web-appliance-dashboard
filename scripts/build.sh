@@ -395,17 +395,18 @@ init_guacamole_db() {
     # Wait for postgres to be ready
     sleep 5
     
+    # ALWAYS ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
+    # This must be done every time because PostgreSQL resets it on container recreation
+    print_status "info" "Setting Guacamole database password..."
+    docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
+        "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+    
     # Check if tables exist
     TABLES_EXIST=$(docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
         "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
     
     if [ "$TABLES_EXIST" = "f" ]; then
         print_status "warning" "Guacamole tables missing - initializing database..."
-        
-        # First, ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
-        print_status "info" "Setting Guacamole database password..."
-        docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
-            "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
         
         # Generate schema from official Guacamole image if not exists
         if [ ! -f "guacamole/guacamole-schema.sql" ]; then

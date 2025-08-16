@@ -596,17 +596,18 @@ fi
 echo "🔧 Checking Guacamole database..."
 sleep 5
 
+# ALWAYS ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
+# This must be done every time because PostgreSQL resets it on container recreation
+echo "🔐 Setting Guacamole database password..."
+$DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
+    "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+
 # Check if Guacamole tables exist
 TABLES_EXIST=$($DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -tAc \
     "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
 
 if [ "$TABLES_EXIST" = "f" ]; then
     echo "📝 Initializing Guacamole database..."
-    
-    # First, ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
-    echo "🔐 Setting Guacamole database password..."
-    $DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
-        "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
     
     # Generate schema from official Guacamole image if not exists
     if [ ! -f "guacamole/guacamole-schema.sql" ]; then
