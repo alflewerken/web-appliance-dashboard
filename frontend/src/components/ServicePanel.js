@@ -2745,7 +2745,6 @@ const ServicePanel = ({
                     },
                   }}
                 />
-              </>
             )}
           </Box>
         )}
