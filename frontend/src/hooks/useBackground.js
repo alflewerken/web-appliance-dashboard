@@ -4,14 +4,27 @@ import { useSSE } from './useSSE';
 import { backgroundSyncManager } from '../utils/backgroundSyncManager';
 
 export const useBackground = () => {
+  // Initialize from localStorage for immediate display
+  const getInitialSettings = () => {
+    try {
+      const stored = localStorage.getItem('backgroundSettings');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      // Silently handle error
+    }
+    return {
+      enabled: false,
+      opacity: 0.3,
+      blur: 5,
+      position: 'center',
+    };
+  };
+
   const [currentBackground, setCurrentBackground] = useState(null);
   const [backgroundImages, setBackgroundImages] = useState([]);
-  const [backgroundSettings, setBackgroundSettings] = useState({
-    enabled: false,
-    opacity: 0.3,
-    blur: 5,
-    position: 'center',
-  });
+  const [backgroundSettings, setBackgroundSettings] = useState(getInitialSettings());
   const [settingsVersion, setSettingsVersion] = useState(0); // Force re-render trigger
   const backgroundRef = useRef(null);
   const settingsRef = useRef(backgroundSettings);
@@ -240,6 +253,11 @@ export const useBackground = () => {
 
   useEffect(() => {
     const initializeBackground = async () => {
+      // Apply initial settings from localStorage immediately
+      const initialSettings = getInitialSettings();
+      updateBackgroundStyles(initialSettings);
+      
+      // Then load fresh data from backend
       await Promise.all([
         loadCurrentBackground(),
         loadAllBackgroundImages(),

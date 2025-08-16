@@ -17,11 +17,18 @@ router.get('/', async (req, res) => {
 
     // Convert to key-value object for easier frontend usage  
     const settings = {};
+    const processedKeys = new Set(); // Track processed keys to avoid duplicates
+    
     rows.forEach(row => {
       // Map snake_case to camelCase
       const key = row.setting_key || row.settingKey;
       const value = row.setting_value || row.settingValue;
-      settings[key] = value;
+      
+      // Only add if we haven't seen this key before (use first occurrence)
+      if (!processedKeys.has(key)) {
+        settings[key] = value;
+        processedKeys.add(key);
+      }
     });
 
     res.json(settings);

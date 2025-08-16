@@ -266,10 +266,25 @@ const BackgroundSettingsMUI = ({
                     }
 
                     try {
+                      // Update the setting in backend
                       await SettingsService.updateSetting(
                         'background_enabled',
                         newValue.toString()
                       );
+                      
+                      // Also update localStorage immediately for persistence
+                      localStorage.setItem('backgroundSettings', JSON.stringify(newSettings));
+                      
+                      // Force update background styles
+                      if (newValue) {
+                        document.body.classList.add('has-background-image');
+                        document.body.setAttribute('data-opacity', newSettings.opacity);
+                        document.body.setAttribute('data-blur', newSettings.blur);
+                      } else {
+                        document.body.classList.remove('has-background-image');
+                        document.body.removeAttribute('data-opacity');
+                        document.body.removeAttribute('data-blur');
+                      }
                     } catch (error) {
                       console.error(
                         'Error updating background enabled:',

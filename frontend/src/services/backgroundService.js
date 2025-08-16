@@ -54,14 +54,25 @@ export class BackgroundService {
     try {
       const response = await axios.get('/api/settings');
       const { data } = response;
+      
+      // Parse the enabled value correctly - handle various formats
+      let enabled = false;
+      if (data.background_enabled !== undefined) {
+        const value = data.background_enabled;
+        enabled = value === 'true' || value === true || value === '1' || value === 1;
+      }
+      
       const settings = {
-        enabled: data.background_enabled === 'true' || data.background_enabled === true,
+        enabled: enabled,
         opacity: parseFloat(data.background_opacity || '0.3'),
         blur: parseInt(data.background_blur || '5'),
         position: data.background_position || 'center',
       };
+      
+      console.log('Loaded background settings from backend:', settings);
       return settings;
     } catch (error) {
+      console.error('Error loading background settings:', error);
       return {
         enabled: false,
         opacity: 0.3,
