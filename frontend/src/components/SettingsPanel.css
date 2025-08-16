@@ -1,0 +1,134 @@
+/* ========================================
+   SETTINGS PANEL CONSOLIDATED STYLES
+   Vereint alle SettingsPanel-spezifischen Styles
+   ======================================== */
+
+/* ========================================
+   Category Icons
+   ======================================== */
+.category-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.category-icon-box:hover {
+  transform: scale(1.05);
+}
+
+.category-icon-box svg {
+  width: 20px;
+  height: 20px;
+  color: rgba(255, 255, 255, 0.9);
+  stroke-width: 2;
+}
+
+/* ========================================
+   Mobile Responsive - Swipeable Views
+   ======================================== */@media (max-width: 768px) {
+  /* Remove double scrolling in SwipeableViews */
+  .settings-panel-container .MuiBox-root[role="tabpanel"] {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Ensure SwipeableViews container handles scrolling properly */
+  .settings-panel-container .swipeable-tabs-container {
+    height: 100% !important;
+  }
+  
+  /* Each slide should be scrollable */
+  .settings-panel-container .swipeable-tabs-container > div {
+    height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Prevent nested scrolling in SSH tab */
+  .settings-panel-container .react-swipeable-view-container .mobile-ssh-manager.embedded {
+    height: auto !important;
+  }
+  
+  .settings-panel-container .react-swipeable-view-container .mobile-ssh-manager.embedded .mobile-ssh-content {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Settings Panel container adjustments for mobile */
+  .settings-panel-container .MuiBox-root[style*="width"][style*="height"] {
+    height: 100vh !important;
+  }
+  
+  /* ========================================
+     Touch Drag & Drop for Categories
+     ======================================== */
+  .settings-panel-container .MuiListItem-root.touch-dragging {
+    opacity: 0.5 !important;
+    transform: scale(0.95) !important;
+    transition: none !important;
+    z-index: 999 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  .settings-panel-container .MuiListItem-root.touch-drop-target {
+    border-color: var(--primary-color) !important;
+    background-color: rgba(0, 122, 255, 0.15) !important;
+    transform: scale(0.98) !important;
+  }
+  
+  /* Prevent text selection during drag */
+  body.touch-dragging * {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+  }
+  
+  /* Drag handle specific styles */
+  .settings-panel-container .drag-handle {
+    padding: 8px;
+    margin: -8px;
+    touch-action: none;
+  }
+}
+
+/* ========================================
+   Desktop Mode
+   ======================================== */
+@media (min-width: 769px) {
+  .settings-panel-container .MuiBox-root[role="tabpanel"] {
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+/* ========================================
+   Panel Container Base Styles
+   ======================================== */
+.settings-panel-container {
+  background: rgba(118, 118, 128, 0.12);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 210;
+}
+
+/* ========================================
+   Light Mode Support
+   ======================================== */
+body.theme-light .category-icon-box {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+body.theme-light .category-icon-box:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .category-icon-box svg {
+  color: rgba(0, 0, 0, 0.7);
+}

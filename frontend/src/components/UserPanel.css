@@ -1,0 +1,502 @@
+/* ========================================
+   USER PANEL CONSOLIDATED STYLES
+   Vereint alle UserPanel-spezifischen Styles
+   ======================================== */
+
+/* ========================================
+   Panel Container & Glassmorphism Effect
+   ======================================== */
+.user-panel-container,
+.MuiBox-root[style*='backgroundColor: rgba(0, 0, 0, 0.95)'][style*='backdropFilter'] {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ========================================
+   Header Section
+   ======================================== */
+.user-panel-container .MuiBox-root[style*='display: flex'][style*='alignItems: center'][style*='justifyContent: space-between'][style*='padding: 2rem'] {
+  padding: 20px 24px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: transparent !important;
+}
+
+.user-panel-container .MuiTypography-h6 {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: white !important;
+}
+/* ========================================
+   Tabs Navigation
+   ======================================== */
+.user-panel-container .MuiTabs-root {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+.user-panel-container .MuiTab-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 500 !important;
+}
+
+.user-panel-container .MuiTab-root.Mui-selected {
+  color: #007aff !important;
+}
+
+.user-panel-container .MuiTabs-indicator {
+  background-color: #007aff !important;
+}
+
+/* ========================================
+   Tables & Data Display
+   ======================================== */
+.user-panel-container .MuiTableContainer-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+}
+.user-panel-container .MuiTable-root {
+  background: transparent !important;
+}
+
+.user-panel-container .MuiTableHead-root {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+.user-panel-container .MuiTableCell-head {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.user-panel-container .MuiTableCell-body {
+  color: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.user-panel-container .MuiTableRow-root:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ========================================
+   User Cards
+   ======================================== */
+.user-panel-container .MuiPaper-root {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+/* ========================================
+   Chips & Status Indicators
+   ======================================== */
+.user-panel-container .MuiChip-root {
+  font-weight: 500 !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+/* Status Chips - Success */
+.user-panel-container .MuiChip-root[style*='backgroundColor: rgba(52, 199, 89'] {
+  background-color: rgba(52, 199, 89, 0.2) !important;
+  color: #34c759 !important;
+  border-color: #34c759 !important;
+}
+
+/* Status Chips - Error */
+.user-panel-container .MuiChip-root[style*='backgroundColor: rgba(255, 59, 48'] {
+  background-color: rgba(255, 59, 48, 0.2) !important;
+  color: #ff3b30 !important;
+  border-color: #ff3b30 !important;
+}
+
+/* Avatar */
+.user-panel-container .MuiAvatar-root {
+  background-color: #007aff !important;
+}
+
+/* Online Status Indicator */
+.user-panel-container .MuiBox-root[style*='backgroundColor: rgb(52, 199, 89)'] {
+  background-color: #34c759 !important;
+  border: 2px solid rgba(0, 0, 0, 0.95) !important;
+}
+/* ========================================
+   Buttons & Actions
+   ======================================== */
+.user-panel-container .MuiIconButton-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+  transition: all 0.2s !important;
+}
+
+.user-panel-container .MuiIconButton-root:hover {
+  color: white !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Add User Button */
+.user-panel-container .MuiButton-root[style*='backgroundColor: rgb(0, 122, 255)'] {
+  background-color: #007aff !important;
+  font-weight: 500 !important;
+}
+
+.user-panel-container .MuiButton-root[style*='backgroundColor: rgb(0, 122, 255)']:hover {
+  background-color: #0051d5 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3) !important;
+}
+
+/* ========================================
+   Glow Buttons (Edit/Lock/Delete)
+   ======================================== */
+.user-panel-glow-button {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: visible;
+}
+/* Edit Button - Green */
+.user-panel-glow-button.edit {
+  color: #34C759;
+  background-color: rgba(52, 199, 89, 0.1);
+  border: 1px solid rgba(52, 199, 89, 0.2);
+}
+
+.user-panel-glow-button.edit:hover {
+  background-color: rgba(52, 199, 89, 0.2);
+  border-color: rgba(52, 199, 89, 0.4);
+  box-shadow: 0 0 20px rgba(52, 199, 89, 0.5), 
+              inset 0 0 20px rgba(52, 199, 89, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Lock/Unlock Button - Yellow */
+.user-panel-glow-button.lock {
+  color: #FF9500;
+  background-color: rgba(255, 149, 0, 0.1);
+  border: 1px solid rgba(255, 149, 0, 0.2);
+}
+
+.user-panel-glow-button.lock:hover {
+  background-color: rgba(255, 149, 0, 0.2);
+  border-color: rgba(255, 149, 0, 0.4);
+  box-shadow: 0 0 20px rgba(255, 149, 0, 0.5), 
+              inset 0 0 20px rgba(255, 149, 0, 0.1);
+  transform: translateY(-2px);
+}
+/* Delete Button - Red */
+.user-panel-glow-button.delete {
+  color: #FF3B30;
+  background-color: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.2);
+}
+
+.user-panel-glow-button.delete:hover {
+  background-color: rgba(255, 59, 48, 0.2);
+  border-color: rgba(255, 59, 48, 0.4);
+  box-shadow: 0 0 20px rgba(255, 59, 48, 0.5), 
+              inset 0 0 20px rgba(255, 59, 48, 0.1);
+  transform: translateY(-2px);
+}
+
+.user-panel-glow-button:active {
+  transform: translateY(0);
+}
+
+.user-panel-glow-button:disabled {
+  opacity: 0.5;
+  color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+/* ========================================
+   Dialog & Form Elements
+   ======================================== */
+.user-panel-container .MuiDialog-paper {
+  background: rgba(28, 28, 30, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: white !important;
+}
+
+.user-panel-container .MuiDialogTitle-root {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.user-panel-container .MuiTextField-root .MuiInputBase-root {
+  color: white !important;
+  background: rgba(118, 118, 128, 0.12) !important;
+}
+
+.user-panel-container .MuiTextField-root .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.user-panel-container .MuiTextField-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+.user-panel-container .MuiTextField-root .Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #007aff !important;
+}
+/* ========================================
+   Scrollbar
+   ======================================== */
+.user-panel-container .MuiBox-root[style*='overflow: auto']::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+.user-panel-container .MuiBox-root[style*='overflow: auto']::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 4px !important;
+}
+
+.user-panel-container .MuiBox-root[style*='overflow: auto']::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
+}
+
+.user-panel-container .MuiBox-root[style*='overflow: auto']::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ========================================
+   Resize Handle
+   ======================================== */
+.user-panel-container .MuiBox-root[onmousedown] {
+  z-index: 1000 !important;
+  pointer-events: all !important;
+  transition: background-color 0.2s !important;
+}
+
+.user-panel-container .MuiBox-root[onmousedown]:hover {
+  background-color: rgba(0, 122, 255, 0.5) !important;
+}
+/* ========================================
+   Snackbar & Alerts
+   ======================================== */
+.user-panel-container .MuiSnackbar-root .MuiAlert-root {
+  backdrop-filter: blur(10px) !important;
+}
+
+.user-panel-container .MuiAlert-standardSuccess {
+  background-color: rgba(52, 199, 89, 0.2) !important;
+  color: #34c759 !important;
+  border: 1px solid rgba(52, 199, 89, 0.4) !important;
+}
+
+.user-panel-container .MuiAlert-standardError {
+  background-color: rgba(255, 59, 48, 0.2) !important;
+  color: #ff3b30 !important;
+  border: 1px solid rgba(255, 59, 48, 0.4) !important;
+}
+
+/* ========================================
+   Light Mode Support
+   ======================================== */
+body.theme-light .user-panel-glow-button.edit {
+  background-color: rgba(52, 199, 89, 0.15);
+  border: 1px solid rgba(52, 199, 89, 0.3);
+}
+
+body.theme-light .user-panel-glow-button.edit:hover {
+  background-color: rgba(52, 199, 89, 0.25);
+  border-color: rgba(52, 199, 89, 0.5);
+  box-shadow: 0 0 25px rgba(52, 199, 89, 0.6), 
+              inset 0 0 25px rgba(52, 199, 89, 0.15);
+}
+body.theme-light .user-panel-glow-button.lock {
+  background-color: rgba(255, 149, 0, 0.15);
+  border: 1px solid rgba(255, 149, 0, 0.3);
+}
+
+body.theme-light .user-panel-glow-button.lock:hover {
+  background-color: rgba(255, 149, 0, 0.25);
+  border-color: rgba(255, 149, 0, 0.5);
+  box-shadow: 0 0 25px rgba(255, 149, 0, 0.6), 
+              inset 0 0 25px rgba(255, 149, 0, 0.15);
+}
+
+body.theme-light .user-panel-glow-button.delete {
+  background-color: rgba(255, 59, 48, 0.15);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+}
+
+body.theme-light .user-panel-glow-button.delete:hover {
+  background-color: rgba(255, 59, 48, 0.25);
+  border-color: rgba(255, 59, 48, 0.5);
+  box-shadow: 0 0 25px rgba(255, 59, 48, 0.6), 
+              inset 0 0 25px rgba(255, 59, 48, 0.15);
+}
+
+body.theme-light .user-panel-glow-button:disabled {
+  color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+/* ========================================
+   Mobile Responsive
+   ======================================== */
+@media (max-width: 768px) {
+  /* Panel Container - Full Screen */
+  .user-panel-container,
+  .user-panel-container .MuiBox-root[style*='width'][style*='height: 100%'] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-left: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 1300 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Hide resize handle on mobile */
+  .user-panel-container .MuiBox-root[onmousedown] {
+    display: none !important;
+  }
+  /* Header with safe areas */
+  .user-panel-container .MuiBox-root[style*='display: flex'][style*='alignItems: center'][style*='justifyContent: space-between'] {
+    padding: 16px !important;
+    padding-top: calc(16px + env(safe-area-inset-top, 0)) !important;
+    padding-left: calc(16px + env(safe-area-inset-left, 0)) !important;
+    padding-right: calc(16px + env(safe-area-inset-right, 0)) !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Typography adjustments */
+  .user-panel-container .MuiTypography-h6 {
+    font-size: 18px !important;
+  }
+
+  /* Tab adjustments */
+  .user-panel-container .MuiTab-root {
+    min-width: 0 !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .user-panel-container .MuiTabs-root {
+    padding-left: env(safe-area-inset-left, 0) !important;
+    padding-right: env(safe-area-inset-right, 0) !important;
+    flex-shrink: 0 !important;
+  }
+  /* Scrollable Content Area */
+  .user-panel-container .MuiBox-root[style*='flex: 1'][style*='overflow: auto'] {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 0 !important;
+    padding: 16px !important;
+    padding-left: calc(16px + env(safe-area-inset-left, 0)) !important;
+    padding-right: calc(16px + env(safe-area-inset-right, 0)) !important;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0)) !important;
+    box-sizing: border-box !important;
+    touch-action: pan-y !important;
+  }
+
+  /* Tab Panels */
+  .user-panel-container div[role="tabpanel"] {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Hidden tab panels */
+  .user-panel-container div[role="tabpanel"][hidden] {
+    display: none !important;
+  }
+  /* Tab Panel Content */
+  .user-panel-container div[role="tabpanel"] > .MuiBox-root {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 0 !important;
+    padding: 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* User Cards */
+  .user-panel-container .MuiPaper-root {
+    width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+  }
+
+  /* Table Container */
+  .user-panel-container .MuiTableContainer-root {
+    margin-left: env(safe-area-inset-left, 0) !important;
+    margin-right: env(safe-area-inset-right, 0) !important;
+  }
+
+  /* Prevent body scroll when panel is open */
+  body.has-user-panel {
+    position: fixed !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+}
+/* ========================================
+   iOS Specific Fixes
+   ======================================== */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    /* Fix iOS rendering issues */
+    .user-panel-container div[role="tabpanel"],
+    .user-panel-container .MuiBox-root {
+      -webkit-transform: translate3d(0, 0, 0) !important;
+      transform: translate3d(0, 0, 0) !important;
+    }
+
+    /* Ensure proper height calculation */
+    .user-panel-container .MuiBox-root[style*='height: 100%'] {
+      height: 100% !important;
+      min-height: 100% !important;
+    }
+
+    /* iOS scroll optimization */
+    .user-panel-container .MuiBox-root[style*='overflow: auto'] {
+      position: relative !important;
+      overscroll-behavior-y: auto !important;
+      overscroll-behavior-x: none !important;
+    }
+  }
+}
+
+/* ========================================
+   Performance Optimizations
+   ======================================== */
+@media (max-width: 768px) {
+  .user-panel-container .MuiBox-root,
+  .user-panel-container .MuiPaper-root,
+  .user-panel-container div[role="tabpanel"] {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+}

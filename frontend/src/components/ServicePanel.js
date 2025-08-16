@@ -50,8 +50,7 @@ import { getAvailableIcons } from '../utils/iconMap';
 import AnsiToHtml from 'ansi-to-html';
 import TTYDTerminal from './TTYDTerminal';
 import axios from '../utils/axiosConfig';
-import './unified/ServicePanelPatch.css';
-import '../styles/ServicePanelSwipeable.css';
+import './ServicePanel.css';
 
 // ANSI to HTML converter for colored output
 const ansiConverter = new AnsiToHtml({
@@ -133,15 +132,15 @@ const ServicePanel = ({
 
   // UI state
   const [activeTabIndex, setActiveTabIndex] = useState(() => {
-    // Map tab names to indices
-    const tabMap = { 'commands': 0, 'visual': 1, 'service': 2 };
+    // Map tab names to indices - nur noch 2 Tabs!
+    const tabMap = { 'commands': 0, 'service': 1 };
     
-    // Use initialTab if provided, otherwise default to 'commands' for existing services
+    // Use initialTab if provided, otherwise default to 'commands' 
     if (initialTab && tabMap.hasOwnProperty(initialTab)) {
       return tabMap[initialTab];
     }
-    // For new services, start with 'service' tab (index 2)
-    return appliance?.isNew ? 2 : 0;
+    // Always start with 'commands' tab (index 0) as default
+    return 0;
   });
   
   const [loading, setLoading] = useState(false);
@@ -193,7 +192,7 @@ const ServicePanel = ({
 
   // Get current tab name from index
   const getTabFromIndex = (index) => {
-    const tabs = ['commands', 'visual', 'service'];
+    const tabs = ['commands', 'service'];
     return tabs[index] || 'commands';
   };
 
@@ -294,6 +293,8 @@ const ServicePanel = ({
         rustdeskId: appliance.rustdeskId || appliance.rustdesk_id || '',
         rustdeskPassword: '', // RustDesk Passwort wird nicht vom Server zurückgegeben
         rustdeskInstalled: appliance.rustdeskInstalled || appliance.rustdesk_installed || false,
+        transparency: appliance.transparency || 0.85,
+        blur: appliance.blur || 8,
       };
       
       console.log('[ServicePanel] Initial form data set:', initialData);
@@ -334,7 +335,7 @@ const ServicePanel = ({
         ['service', 'visual', 'commands'].includes(initialTab) &&
         !appliance.isNew
       ) {
-        const tabMap = { 'commands': 0, 'visual': 1, 'service': 2 };
+        const tabMap = { 'commands': 0, 'service': 1 };
         setActiveTabIndex(tabMap[initialTab]);
       }
     }
@@ -437,7 +438,9 @@ const ServicePanel = ({
     setVisualSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  // Debounced update function for live updates
+  // Debounced update function - DEAKTIVIERT um SSE-Flooding zu vermeiden
+  // Die Updates erfolgen jetzt nur noch beim Loslassen des Sliders
+  /*
   const debouncedUpdate = useCallback(
     settings => {
       // Clear any existing timeout
@@ -454,6 +457,7 @@ const ServicePanel = ({
     },
     [appliance?.id, onUpdateSettings]
   );
+  */
 
   // Save service data
   const handleSaveService = async () => {
@@ -979,11 +983,10 @@ const ServicePanel = ({
     {}
   );
 
-  // Tab components
-  const tabs = ['commands', 'visual', 'service'];
+  // Tab components - Visual Tab entfernt
+  const tabs = ['commands', 'service'];
   const tabLabels = {
     commands: { icon: Command, label: 'Kommandos' },
-    visual: { icon: Settings, label: 'Grafische Einstellungen' },
     service: { icon: Edit, label: 'Service-Einstellungen' },
   };
 
@@ -1075,7 +1078,7 @@ const ServicePanel = ({
         {tabs.map((tab, index) => {
           const TabIcon = tabLabels[tab].icon;
           const isActive = activeTabIndex === index;
-          const isDisabled = appliance?.isNew && tab !== 'service';
+          const isDisabled = appliance?.isNew && tab === 'commands';
           
           return (
             <Button
@@ -1280,6 +1283,8 @@ const ServicePanel = ({
                                     mb: 1,
                                     fontWeight: 600,
                                     color: 'var(--text-primary)',
+                                    whiteSpace: 'pre-line',
+                                    lineHeight: 1.6,
                                   }}
                                 >
                                   {command.description}
@@ -1394,7 +1399,9 @@ const ServicePanel = ({
                           description: e.target.value,
                         })
                       }
-                      placeholder="Kurze Beschreibung des Befehls"
+                      placeholder="Beschreibung des Befehls (z.B. was macht dieser Befehl, wann wird er verwendet)"
+                      multiline
+                      rows={3}
                       sx={{
                         '& .MuiInputLabel-root': {
                           color: 'var(--text-secondary)',
@@ -1696,6 +1703,8 @@ const ServicePanel = ({
                                       )
                                     )
                                   }
+                                  multiline
+                                  rows={3}
                                   sx={{
                                     '& .MuiInputBase-root': {
                                       color: 'var(--text-primary)',
@@ -1825,8 +1834,10 @@ const ServicePanel = ({
                                     color: 'var(--text-primary)',
                                     fontWeight: 500,
                                     wordBreak: 'break-word',
+                                    whiteSpace: 'pre-line',
                                     minWidth: 0,
                                     mb: 2,
+                                    lineHeight: 1.6,
                                   }}
                                 >
                                   {command.description}
@@ -1846,15 +1857,15 @@ const ServicePanel = ({
                                     disabled={executingCommandId === command.id}
                                     sx={{
                                       color: '#34C759',
-                                      backgroundColor: 'rgba(52, 199, 89, 0.15)',
+                                      backgroundColor: 'rgba(52, 199, 89, 0.3)',
                                       '&:hover': {
-                                        backgroundColor: 'rgba(52, 199, 89, 0.25)',
+                                        backgroundColor: 'rgba(52, 199, 89, 0.4)',
                                         transform: 'scale(1.05)',
                                       },
                                       '&:disabled': {
                                         color: 'rgba(52, 199, 89, 0.5)',
                                         backgroundColor:
-                                          'rgba(52, 199, 89, 0.08)',
+                                          'rgba(52, 199, 89, 0.15)',
                                       },
                                       transition: 'all 0.2s ease',
                                     }}
@@ -1870,10 +1881,10 @@ const ServicePanel = ({
                                     onClick={() => handleOpenTerminal(command)}
                                     sx={{
                                       color: '#AF52DE',
-                                      backgroundColor: 'rgba(175, 82, 222, 0.15)',
+                                      backgroundColor: 'rgba(175, 82, 222, 0.3)',
                                       '&:hover': {
                                         backgroundColor:
-                                          'rgba(175, 82, 222, 0.25)',
+                                          'rgba(175, 82, 222, 0.4)',
                                         transform: 'scale(1.05)',
                                       },
                                       transition: 'all 0.2s ease',
@@ -1888,10 +1899,10 @@ const ServicePanel = ({
                                     }
                                     sx={{
                                       color: '#FFD60A',
-                                      backgroundColor: 'rgba(255, 214, 10, 0.15)',
+                                      backgroundColor: 'rgba(255, 214, 10, 0.3)',
                                       '&:hover': {
                                         backgroundColor:
-                                          'rgba(255, 214, 10, 0.25)',
+                                          'rgba(255, 214, 10, 0.4)',
                                         transform: 'scale(1.05)',
                                       },
                                       transition: 'all 0.2s ease',
@@ -1906,10 +1917,10 @@ const ServicePanel = ({
                                     }
                                     sx={{
                                       color: '#FF3B30',
-                                      backgroundColor: 'rgba(255, 59, 48, 0.15)',
+                                      backgroundColor: 'rgba(255, 59, 48, 0.3)',
                                       '&:hover': {
                                         backgroundColor:
-                                          'rgba(255, 59, 48, 0.25)',
+                                          'rgba(255, 59, 48, 0.4)',
                                         transform: 'scale(1.05)',
                                       },
                                       transition: 'all 0.2s ease',
@@ -2039,306 +2050,181 @@ const ServicePanel = ({
             )}
           </Box>
 
-          {/* Visual Tab - Index 1 */}
-          <Box key="visual-tab" sx={{ 
+          {/* Service Tab - Index 1 (war vorher Index 2) */}
+          <Box key="service-tab" sx={{ 
             width: '100%', 
             height: '100%', 
             overflow: 'auto', 
             p: 3,
             display: activeTabIndex === 1 ? 'block' : 'none'
           }}>
-            <Typography
-              variant="h6"
-              sx={{ mb: 3, color: 'var(--text-primary)' }}
-            >
-              Grafische Einstellungen
-            </Typography>
-
-            {/* Live Preview */}
+            {/* Grundinformationen Card */}
             <Box
+              className="settings-card"
               sx={{
-                mb: 4,
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
                 p: 3,
-                backgroundColor: 'var(--container-bg)',
-                borderRadius: 2,
-                border: '1px solid var(--container-border)',
+                mb: 3,
               }}
             >
               <Typography
-                variant="body2"
-                sx={{ mb: 2, color: 'var(--text-secondary)' }}
-              >
-                Vorschau
-              </Typography>
-
-              <Box
-                sx={{
-                  width: '100%',
-                  height: 150,
-                  backgroundColor: formData.color,
-                  opacity: visualSettings.transparency / 100,
-                  backdropFilter: `blur(${visualSettings.blur}px)`,
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.1s ease',
-                }}
-              >
-                <SimpleIcon name={formData.icon} size={60} color="#FFFFFF" />
-              </Box>
-            </Box>
-
-            {/* Transparency Slider */}
-            <Box sx={{ mb: 4 }}>
-              <Typography
-                variant="body1"
+                variant="h6"
                 sx={{ mb: 2, color: 'var(--text-primary)' }}
               >
-                Transparenz: {visualSettings.transparency}%
+                Grundinformationen
               </Typography>
-              <Slider
-                value={visualSettings.transparency}
-                onChange={(e, value) => {
-                  handleVisualChange('transparency', value);
-                  // Update live on the actual card with debounce
-                  debouncedUpdate({
-                    transparency: value / 100,
-                    blur: visualSettings.blur,
-                  });
-                }}
-                onChangeCommitted={async (e, value) => {
-                  // Save when slider is released
-                  try {
-                    // Clear any pending debounced updates
-                    if (updateTimeoutRef.current) {
-                      clearTimeout(updateTimeoutRef.current);
-                    }
 
-                    await onUpdateSettings(appliance.id, {
-                      transparency: value / 100,
-                      blur: visualSettings.blur,
-                    });
-                  } catch (err) {
-                    console.error('Error saving transparency:', err);
-                  }
-                }}
-                min={0}
-                max={100}
-                valueLabelDisplay="auto"
+              <TextField
+                fullWidth
+                label="Name"
+                value={(() => {
+                  console.log('[ServicePanel TextField] formData.name value:', formData.name);
+                  return formData.name;
+                })()}
+                onChange={e => handleFieldChange('name', e.target.value)}
+                margin="normal"
+                required
                 sx={{
-                  color: 'var(--primary-color)',
-                  '& .MuiSlider-thumb': {
-                    backgroundColor: 'var(--primary-color)',
+                  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                  '& .MuiInputBase-root': {
+                    color: 'var(--text-primary)',
+                    backgroundColor: 'var(--container-bg)',
+                  },
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&:hover fieldset': {
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'var(--accent-color)',
+                    },
                   },
                 }}
               />
-            </Box>
 
-            {/* Blur Slider */}
-            <Box sx={{ mb: 4 }}>
-              <Typography
-                variant="body1"
-                sx={{ mb: 2, color: 'var(--text-primary)' }}
-              >
-                Unschärfe: {visualSettings.blur}px
-              </Typography>
-              <Slider
-                value={visualSettings.blur}
-                onChange={(e, value) => {
-                  handleVisualChange('blur', value);
-                  // Update live on the actual card with debounce
-                  debouncedUpdate({
-                    transparency: visualSettings.transparency / 100,
-                    blur: value,
-                  });
-                }}
-                onChangeCommitted={async (e, value) => {
-                  // Save when slider is released
-                  try {
-                    // Clear any pending debounced updates
-                    if (updateTimeoutRef.current) {
-                      clearTimeout(updateTimeoutRef.current);
-                    }
-
-                    await onUpdateSettings(appliance.id, {
-                      transparency: visualSettings.transparency / 100,
-                      blur: value,
-                    });
-                  } catch (err) {
-                    console.error('Error saving blur:', err);
-                  }
-                }}
-                min={0}
-                max={20}
-                valueLabelDisplay="auto"
+              <TextField
+                fullWidth
+                label="URL"
+                value={formData.url}
+                onChange={e => handleFieldChange('url', e.target.value)}
+                margin="normal"
+                required
+                placeholder="https://example.com"
                 sx={{
-                  color: 'var(--primary-color)',
-                  '& .MuiSlider-thumb': {
-                    backgroundColor: 'var(--primary-color)',
+                  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                  '& .MuiInputBase-root': {
+                    color: 'var(--text-primary)',
+                    backgroundColor: 'var(--container-bg)',
+                  },
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&:hover fieldset': {
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'var(--accent-color)',
+                    },
                   },
                 }}
               />
-            </Box>
 
-            <Alert severity="info" sx={{ mb: 3 }}>
-              Die Einstellungen werden automatisch gespeichert, wenn Sie den
-              Slider loslassen
-            </Alert>
-          </Box>
-
-          {/* Service Tab - Index 2 */}
-          <Box key="service-tab" sx={{ 
-            width: '100%', 
-            height: '100%', 
-            overflow: 'auto', 
-            p: 3,
-            display: activeTabIndex === 2 ? 'block' : 'none'
-          }}>
-            {/* Basic Information */}
-            <Typography
-              variant="h6"
-              sx={{ mb: 2, color: 'var(--text-primary)' }}
-            >
-              Grundinformationen
-            </Typography>
-
-            <TextField
-              fullWidth
-              label="Name"
-              value={(() => {
-                console.log('[ServicePanel TextField] formData.name value:', formData.name);
-                return formData.name;
-              })()}
-              onChange={e => handleFieldChange('name', e.target.value)}
-              margin="normal"
-              required
-              sx={{
-                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                '& .MuiInputBase-root': {
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                },
-              }}
-            />
-
-            <TextField
-              fullWidth
-              label="URL"
-              value={formData.url}
-              onChange={e => handleFieldChange('url', e.target.value)}
-              margin="normal"
-              required
-              placeholder="https://example.com"
-              sx={{
-                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                '& .MuiInputBase-root': {
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                },
-              }}
-            />
-
-            <TextField
-              fullWidth
-              label="Beschreibung"
-              value={formData.description}
-              onChange={e => handleFieldChange('description', e.target.value)}
-              margin="normal"
-              multiline
-              rows={3}
-              sx={{
-                '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                '& .MuiInputBase-root': {
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                },
-              }}
-            />
-
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Kategorie
-              </InputLabel>
-              <Select
-                value={formData.category}
-                onChange={e => handleFieldChange('category', e.target.value)}
-                label="Kategorie"
+              <TextField
+                fullWidth
+                label="Beschreibung"
+                value={formData.description}
+                onChange={e => handleFieldChange('description', e.target.value)}
+                margin="normal"
+                multiline
+                rows={3}
                 sx={{
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'var(--container-bg)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                  '& .MuiInputBase-root': {
+                    color: 'var(--text-primary)',
+                    backgroundColor: 'var(--container-bg)',
                   },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'var(--accent-color)',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: 'var(--text-secondary)',
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&:hover fieldset': {
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'var(--accent-color)',
+                    },
                   },
                 }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      bgcolor: 'var(--bg-primary)',
-                      border: '1px solid var(--container-border)',
-                      '& .MuiMenuItem-root': {
-                        color: 'var(--text-primary)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.1)',
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: 'rgba(255, 255, 255, 0.15)',
+              />
+
+              <FormControl fullWidth margin="normal">
+                <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                  Kategorie
+                </InputLabel>
+                <Select
+                  value={formData.category}
+                  onChange={e => handleFieldChange('category', e.target.value)}
+                  label="Kategorie"
+                  sx={{
+                    color: 'var(--text-primary)',
+                    backgroundColor: 'var(--container-bg)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(255, 255, 255, 0.2)',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'var(--accent-color)',
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: 'var(--text-secondary)',
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        bgcolor: 'var(--bg-primary)',
+                        border: '1px solid var(--container-border)',
+                        '& .MuiMenuItem-root': {
+                          color: 'var(--text-primary)',
                           '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.2)',
+                            bgcolor: 'rgba(255, 255, 255, 0.1)',
+                          },
+                          '&.Mui-selected': {
+                            bgcolor: 'rgba(255, 255, 255, 0.15)',
+                            '&:hover': {
+                              bgcolor: 'rgba(255, 255, 255, 0.2)',
+                            },
                           },
                         },
                       },
                     },
-                  },
-                }}
-              >
-                <MenuItem value="">Keine Kategorie</MenuItem>
-                {categories?.map(category => (
-                  <MenuItem key={category.name} value={category.name}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                  }}
+                >
+                  <MenuItem value="">Keine Kategorie</MenuItem>
+                  {categories?.map(category => (
+                    <MenuItem key={category.name} value={category.name}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-            {/* Icon and Color */}
-            <Box sx={{ mt: 3, mb: 2 }}>
+            {/* Symbol und Farbe Card */}
+            <Box
+              sx={{
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                p: 3,
+                mb: 3,
+              }}
+            >
               <Typography
                 variant="h6"
                 sx={{ mb: 2, color: 'var(--text-primary)' }}
@@ -2400,17 +2286,118 @@ const ServicePanel = ({
                   </Box>
                 </Box>
               </Box>
+
+              {/* Live Preview mit Transparenz und Unschärfe */}
+              <Box
+                sx={{
+                  mt: 3,
+                  p: 2,
+                  backgroundColor: 'var(--container-bg)',
+                  borderRadius: 2,
+                  border: '1px solid var(--container-border)',
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ mb: 2, color: 'var(--text-secondary)' }}
+                >
+                  Vorschau mit Effekten
+                </Typography>
+
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: 120,
+                    backgroundColor: formData.color,
+                    opacity: visualSettings.transparency / 100,
+                    backdropFilter: `blur(${visualSettings.blur}px)`,
+                    WebkitBackdropFilter: `blur(${visualSettings.blur}px)`,
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.1s ease',
+                  }}
+                >
+                  <SimpleIcon name={formData.icon} size={50} color="#FFFFFF" />
+                </Box>
+              </Box>
+
+              {/* Transparency Slider */}
+              <Box sx={{ mt: 3 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ mb: 1, color: 'var(--text-secondary)' }}
+                >
+                  Transparenz: {visualSettings.transparency}%
+                </Typography>
+                <Slider
+                  value={visualSettings.transparency}
+                  onChange={(e, value) => {
+                    // Nur lokale State-Änderung, wird erst beim Speichern übernommen
+                    handleVisualChange('transparency', value);
+                    // Auch in formData speichern für den Save-Button
+                    handleFieldChange('transparency', value / 100);
+                  }}
+                  min={0}
+                  max={100}
+                  valueLabelDisplay="auto"
+                  sx={{
+                    color: 'var(--primary-color)',
+                    '& .MuiSlider-thumb': {
+                      backgroundColor: 'var(--primary-color)',
+                    },
+                  }}
+                />
+              </Box>
+
+              {/* Blur Slider */}
+              <Box sx={{ mt: 2, mb: 2 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ mb: 1, color: 'var(--text-secondary)' }}
+                >
+                  Unschärfe: {visualSettings.blur}px
+                </Typography>
+                <Slider
+                  value={visualSettings.blur}
+                  onChange={(e, value) => {
+                    // Nur lokale State-Änderung, wird erst beim Speichern übernommen
+                    handleVisualChange('blur', value);
+                    // Auch in formData speichern für den Save-Button
+                    handleFieldChange('blur', value);
+                  }}
+                  min={0}
+                  max={20}
+                  valueLabelDisplay="auto"
+                  sx={{
+                    color: 'var(--primary-color)',
+                    '& .MuiSlider-thumb': {
+                      backgroundColor: 'var(--primary-color)',
+                    },
+                  }}
+                />
+              </Box>
             </Box>
 
-            {/* Open Mode Settings */}
-            <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-
-            <Typography
-              variant="h6"
-              sx={{ mb: 2, color: 'var(--text-primary)' }}
+            {/* Öffnungsmodus Card */}
+            <Box
+              sx={{
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                p: 3,
+                mb: 3,
+              }}
             >
-              Öffnungsmodus
-            </Typography>
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: 'var(--text-primary)' }}
+              >
+                Öffnungsmodus
+              </Typography>
 
             <FormControl fullWidth margin="normal">
               <InputLabel sx={{ color: 'var(--text-secondary)' }}>
@@ -2576,20 +2563,27 @@ const ServicePanel = ({
                 <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
               </Select>
             </FormControl>
+          </Box>
 
-            {/* SSH Settings */}
-            {adminMode && (
-              <>
-                <Divider
-                  sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }}
-                />
-
-                <Typography
-                  variant="h6"
-                  sx={{ mb: 2, color: 'var(--text-primary)' }}
-                >
-                  SSH-Einstellungen
-                </Typography>
+          {/* SSH-Einstellungen Card */}
+          {adminMode && (
+            <Box
+              sx={{
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: 'var(--text-primary)' }}
+              >
+                SSH-Einstellungen
+              </Typography>
 
                 <FormControl fullWidth margin="normal">
                   <InputLabel sx={{ color: 'var(--text-secondary)' }}>
@@ -2753,15 +2747,27 @@ const ServicePanel = ({
                 />
               </>
             )}
+          </Box>
+        )}
 
-            {/* Remote Desktop Section */}
-            <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-            <Typography
-              variant="subtitle1"
-              sx={{ mb: 2, color: 'var(--text-primary)', fontWeight: 500 }}
-            >
-              Remote Desktop
-            </Typography>
+        {/* Remote Desktop Card */}
+        <Box
+          sx={{
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            p: 3,
+            mb: 3,
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ mb: 2, color: 'var(--text-primary)' }}
+          >
+            Remote Desktop
+          </Typography>
             
             <FormControlLabel
               control={
@@ -2995,9 +3001,10 @@ const ServicePanel = ({
                 )}
               </>
             )}
+          </Box>
 
-            {/* Save Button */}
-            <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
+          {/* Save Button */}
+          <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
               <Button
                 variant="contained"
                 fullWidth

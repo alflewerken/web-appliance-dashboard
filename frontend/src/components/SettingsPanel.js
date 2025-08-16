@@ -67,7 +67,7 @@ import CategoryModal from './CategoryModal';
 import BackgroundSettingsMUI from './BackgroundSettingsMUI';
 import BackupTab from './BackupTab';
 import './SettingsModal.css';
-import './unified/SettingsPanelPatch.css';
+import './SettingsPanel.css';
 
 const SettingsPanel = ({
   onClose,

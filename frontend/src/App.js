@@ -66,13 +66,11 @@ import './styles/mobile-consolidated.css'; // CONSOLIDATED mobile styles (replac
 import './styles/transparent-panels-mode.css'; // Transparent Panels Toggle
 import './styles/header-unification.css'; // Header height unification
 import './styles/macos-input-fix.css'; // macOS input alignment fix (keep for now)
-import './styles/service-panel-header.css'; // Service panel header unification
 import './styles/safari-theme-fix.css'; // Safari-specific fixes (keep for now)
 import './styles/mini-dashboard.css';
 import './styles/Auth.css';
 import './styles/text-colors-fix.css'; // Text und Label Farben für Dark/Light Mode
 import './styles/modal-theme-support.css'; // Modal Theme Support für Dark/Light Mode
-import './styles/settings-panel-clean.css'; // SAUBERER Fix für Settings Panel
 import './styles/host-panel.css'; // Host Panel Styles
 import './components/terminal-light-mode.css'; // Terminal Light Mode Styles
 import './styles/fixes/header-light-mode-fix.css'; // Fix für transparenten Header im Light Mode
@@ -807,7 +805,7 @@ function Dashboard() {
     setSelectedHostForPanel(null);
   };
 
-  const startEdit = (appliance, initialTab = 'service') => {
+  const startEdit = (appliance, initialTab = 'commands') => {
     console.log('[App.js] startEdit called with appliance:', appliance);
     console.log('[App.js] appliance fields:', {
       id: appliance?.id,

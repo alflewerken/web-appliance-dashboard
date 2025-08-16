@@ -45,11 +45,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSSE } from '../hooks/useSSE';
-import './unified/UserPanelPatch.css';
-import './unified/UserPanelMobileFix.css';
-import './unified/UserPanelEmergencyFix.css';
-import './unified/UserPanelScrollFix.css';
-import './unified/UserPanelGlowButtons.css';
+import './UserPanel.css';
 
 const UserPanel = ({ onClose, onWidthChange }) => {
   const theme = useTheme();

@@ -1,0 +1,239 @@
+/* ========================================
+   SERVICE PANEL CONSOLIDATED STYLES
+   Vereint alle ServicePanel-spezifischen Styles
+   ======================================== */
+
+/* ========================================
+   Panel Container
+   ======================================== */
+.service-panel-container {
+  background: rgba(118, 118, 128, 0.12);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ========================================
+   Tab Navigation
+   ======================================== */
+.service-panel-tabs {
+  height: 48px;
+  min-height: 48px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.service-panel-tabs .MuiButton-root,
+.service-panel-tabs button {
+  height: 100%;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  padding: 0 16px;
+  min-height: 48px;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.service-panel-tabs .MuiButton-root:hover,
+.service-panel-tabs button:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.service-panel-tabs .active-tab,
+.service-panel-tabs button.active-tab {
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.service-panel-tabs button:disabled {
+  color: rgba(255, 255, 255, 0.3);
+  cursor: not-allowed;
+}
+
+/* ========================================
+   Setting Cards (Glassmorphism)
+   ======================================== */
+.settings-card {
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+/* ========================================
+   Form Elements
+   ======================================== */.service-panel-container .MuiTextField-root .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.service-panel-container .MuiTextField-root .MuiInputBase-root {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.service-panel-container .MuiTextField-root .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.service-panel-container .MuiTextField-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.service-panel-container .MuiTextField-root .Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary-color);
+}
+
+/* Select Controls */
+.service-panel-container .MuiFormControl-root .MuiSelect-root {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ========================================
+   Sliders
+   ======================================== */
+.service-panel-container .MuiSlider-root {
+  color: var(--primary-color);
+}
+.service-panel-container .MuiSlider-thumb {
+  background-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
+}
+
+.service-panel-container .MuiSlider-thumb:hover {
+  box-shadow: 0 2px 12px rgba(0, 122, 255, 0.6);
+}
+
+/* ========================================
+   Command Cards
+   ======================================== */
+.command-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.command-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   Buttons
+   ======================================== */.service-panel-container .MuiButton-containedPrimary {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 500;
+}
+
+.service-panel-container .MuiButton-containedPrimary:hover {
+  background-color: var(--primary-color-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+/* ========================================
+   Scrollbar
+   ======================================== */
+.service-panel-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.service-panel-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.service-panel-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.service-panel-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+/* ========================================
+   Light Mode Support
+   ======================================== */
+body.theme-light .service-panel-tabs {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .service-panel-tabs button:not(.active-tab) {
+  color: rgba(0, 0, 0, 0.54);
+}
+
+body.theme-light .service-panel-tabs button:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+body.theme-light .service-panel-tabs button:disabled {
+  color: rgba(0, 0, 0, 0.26);
+}
+
+body.theme-light .service-panel-container .MuiTextField-root .MuiInputLabel-root {
+  color: rgba(0, 0, 0, 0.54);
+}
+
+body.theme-light .service-panel-container .MuiTextField-root .MuiInputBase-root {
+  color: rgba(0, 0, 0, 0.87);
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+body.theme-light .service-panel-container .MuiTextField-root .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(0, 0, 0, 0.23);
+}
+/* ========================================
+   Mobile Responsive
+   ======================================== */
+@media (max-width: 768px) {
+  .service-panel-container {
+    width: 100vw;
+    max-width: 100vw;
+    border-left: none;
+  }
+
+  .settings-card {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .service-panel-tabs .MuiButton-root,
+  .service-panel-tabs button {
+    min-width: 0;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Mobile full-screen panel behavior */
+  .music-app.has-service-panel .service-panel-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: 100vw;
+    height: 100vh;
+  }
+}
+
+/* ========================================
+   Z-Index Hierarchie
+   ======================================== */
+.service-panel-container {
+  z-index: 210; /* Über content aber unter modals */
+  position: relative;
+}
