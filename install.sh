@@ -599,8 +599,22 @@ sleep 5
 # ALWAYS ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
 # This must be done every time because PostgreSQL resets it on container recreation
 echo "🔐 Setting Guacamole database password..."
-$DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
-    "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+if $DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
+    "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" 2>&1; then
+    log_success "Guacamole database password set successfully"
+    
+    # Restart Guacamole to ensure it uses the new password
+    log_info "Restarting Guacamole to apply password change..."
+    $DOCKER_CMD restart ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole} >/dev/null 2>&1
+    sleep 5
+    log_success "Guacamole restarted"
+else
+    log_error "Failed to set Guacamole database password"
+    log_info "Trying alternative method..."
+    $DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -c \
+        "ALTER USER guacamole_user WITH PASSWORD 'guacamole_pass123';" 2>&1 || \
+        log_error "Alternative method also failed"
+fi
 
 # Check if Guacamole tables exist
 TABLES_EXIST=$($DOCKER_CMD exec ${GUACAMOLE_DB_CONTAINER_NAME:-appliance_guacamole_db} psql -U guacamole_user -d guacamole_db -tAc \

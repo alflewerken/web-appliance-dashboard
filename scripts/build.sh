@@ -398,8 +398,22 @@ init_guacamole_db() {
     # ALWAYS ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
     # This must be done every time because PostgreSQL resets it on container recreation
     print_status "info" "Setting Guacamole database password..."
-    docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
-        "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" >/dev/null 2>&1
+    if docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
+        "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" 2>&1; then
+        print_status "success" "Guacamole database password set successfully"
+        
+        # Restart Guacamole to ensure it uses the new password
+        print_status "info" "Restarting Guacamole to apply password change..."
+        docker restart appliance_guacamole >/dev/null 2>&1
+        sleep 5
+        print_status "success" "Guacamole restarted"
+    else
+        print_status "error" "Failed to set Guacamole database password"
+        print_status "info" "Trying alternative method..."
+        docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
+            "ALTER USER guacamole_user WITH PASSWORD 'guacamole_pass123';" 2>&1 || \
+            print_status "error" "Alternative method also failed"
+    fi
     
     # Check if tables exist
     TABLES_EXIST=$(docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
