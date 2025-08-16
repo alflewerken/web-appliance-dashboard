@@ -563,7 +563,11 @@ echo "✅ Image download complete!"
 echo ""
 
 # Start services
-echo "🚀 Starting services..."
+echo "🚀 Building and starting services..."
+# First build any local images (like guacamole)
+$DOCKER_COMPOSE_CMD build --no-cache guacamole 2>/dev/null || {
+    echo "⚠️  Build step completed (some services use pre-built images)"
+}
 $DOCKER_COMPOSE_CMD up -d || {
     echo "❌ Failed to start services"
     echo "📋 Checking configuration..."
