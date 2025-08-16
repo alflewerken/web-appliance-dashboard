@@ -241,12 +241,26 @@ if [ -z "$USER_HOSTNAMES" ]; then
             HOSTNAMES+=("${LOCAL_HOSTNAME}.local")
         fi
     fi
+    log_info "Using default: localhost"
 else
-    # Parse user input
-    IFS=',' read -ra HOSTNAMES <<< "$USER_HOSTNAMES"
+    # Parse user input - properly handle comma-separated values
+    IFS=',' read -ra USER_HOST_ARRAY <<< "$USER_HOSTNAMES"
+    HOSTNAMES=()
+    
+    # Process each hostname
+    for host in "${USER_HOST_ARRAY[@]}"; do
+        # Trim whitespace
+        trimmed_host=$(echo "$host" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [ -n "$trimmed_host" ]; then
+            HOSTNAMES+=("$trimmed_host")
+            log_info "Added hostname: $trimmed_host"
+        fi
+    done
+    
     # Always include localhost for local access
     if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
         HOSTNAMES+=("localhost")
+        log_info "Added localhost for local access"
     fi
 fi
 
@@ -593,7 +607,8 @@ echo ""
 echo "✅ Installation complete!"
 echo ""
 echo "📱 Access your dashboard at:"
-# Show all detected access URLs
+echo ""
+# Show all configured access URLs including user-provided domains
 for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
     echo "   🌐 http://${HOST}:${HTTP_PORT}"
 done

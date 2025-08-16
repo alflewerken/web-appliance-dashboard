@@ -517,12 +517,43 @@ quick_refresh() {
 
 # Function to show access information
 show_access_info() {
+    # Read configured domains from .env file
+    if [ -f .env ]; then
+        CONFIGURED_DOMAIN=$(grep "^CONFIGURED_DOMAIN=" .env | cut -d'=' -f2)
+    fi
+    
+    # If no configured domain found, use localhost
+    if [ -z "$CONFIGURED_DOMAIN" ]; then
+        CONFIGURED_DOMAIN="localhost"
+    fi
+    
+    # Parse domains into array
+    IFS=',' read -ra DOMAINS <<< "$CONFIGURED_DOMAIN"
+    
+    # Always include localhost if not present
+    if [[ ! " ${DOMAINS[@]} " =~ " localhost " ]]; then
+        DOMAINS+=("localhost")
+    fi
+    
+    # Remove duplicates and sort
+    UNIQUE_DOMAINS=($(printf "%s\n" "${DOMAINS[@]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort -u))
+    
     echo ""
     print_status "success" "All services are running!"
     echo ""
     print_status "info" "Access points:"
-    echo "   🌐 Dashboard: http://localhost:9080"
-    echo "   🔒 HTTPS: https://localhost:9443"
+    
+    # Show access points for all configured domains
+    for DOMAIN in "${UNIQUE_DOMAINS[@]}"; do
+        echo "   🌐 Dashboard: http://${DOMAIN}:9080"
+    done
+    
+    echo ""
+    echo "   With HTTPS (self-signed certificate):"
+    for DOMAIN in "${UNIQUE_DOMAINS[@]}"; do
+        echo "   🔒 HTTPS: https://${DOMAIN}:9443"
+    done
+    
     echo "   🖥️  Backend API: http://localhost:3001"
     
     if docker ps | grep -q guacamole; then
