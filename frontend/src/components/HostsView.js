@@ -142,7 +142,7 @@ const HostsView = ({
       
       {/* Hosts Grid */}
       <div className="appliances-grid" style={{ 
-        '--card-size': cardSize ? `${Math.max(cardSize, 150)}px` : '180px' 
+        '--card-size': cardSize ? `${Math.max(cardSize, 50)}px` : '180px' 
       }}>
         {/* Host Cards */}
         {hosts.map(host => (
@@ -155,7 +155,7 @@ const HostsView = ({
             onFileTransfer={onFileTransfer}
             onShowAuditLog={handleShowAuditLog}
             isAdmin={isAdmin}
-            cardSize={Math.max(cardSize || 180, 150)}
+            cardSize={Math.max(cardSize || 180, 50)}
           />
         ))}
         

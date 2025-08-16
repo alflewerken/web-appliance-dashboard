@@ -66,6 +66,9 @@ const ApplianceCard = ({
   // Tooltip state
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  
+  // Compact mode bar tooltips
+  const [compactTooltip, setCompactTooltip] = useState({ show: false, text: '', position: '' });
 
   // Live preview values
   const [liveName, setLiveName] = useState(appliance.name || '');
@@ -482,7 +485,15 @@ const ApplianceCard = ({
         <div className="appliance-card">
           {/* Front Side */}
           <div
-            className={`card-side card-front ${hasBeenTouched ? 'mobile-tap-hint' : ''}`}
+            className={`card-side card-front ${hasBeenTouched ? 'mobile-tap-hint' : ''} ${
+              appliance.isFavorite ? 'is-favorite' : ''
+            } ${
+              appliance.serviceStatus && appliance.serviceStatus === 'stopped' ? 'service-stopped' : ''
+            } ${
+              appliance.remoteDesktopEnabled ? 'has-remote' : ''
+            } ${
+              appliance.sshEnabled && appliance.targetPath ? 'has-file-transfer' : ''
+            }`}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleCardTouch}
@@ -507,6 +518,270 @@ const ApplianceCard = ({
               <div className="card-icon">
                 <SimpleIcon name={iconName} size="100%" />
               </div>
+              
+              {/* Kompakt-Modus: Minimierte Button-Balken (nur bei kleinen Karten < 90px) */}
+              {/* Zeige Balken nur bei Hover (Desktop) oder nach Touch (Mobile) */}
+              {cardSize < 90 && (isTouchDevice ? hasBeenTouched : true) && (
+                <>
+                  {/* Linke Seite - Service Controls als vertikale Balken */}
+                  {adminMode && (
+                    <div 
+                      className="compact-bars-left"
+                      style={{ 
+                        position: 'absolute', 
+                        left: '8px', 
+                        top: '50%', 
+                        transform: 'translateY(-50%)', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '4px', 
+                        zIndex: 20, // Höher als andere Elemente
+                        opacity: 0,
+                        transition: 'opacity 0.3s ease',
+                        pointerEvents: 'auto', // Explizit klickbar machen
+                      }}
+                    >
+                      {/* Edit Button als Balken */}
+                      <Tooltip title="Service bearbeiten" placement="right" arrow enterDelay={0} disableInteractive={false}>
+                        <div 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEditClick(e);
+                          }}
+                          style={{
+                            width: '4px',
+                            height: '20px',
+                            background: 'rgba(255, 255, 255, 0.5)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            borderRadius: '2px',
+                            pointerEvents: 'auto',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.width = '8px';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.width = '4px';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
+                          }}
+                        />
+                      </Tooltip>
+                      
+                      {/* Start Button als grüner Balken (wenn SSH vorhanden) */}
+                      {appliance.sshConnection && appliance.startCommand && (
+                        <Tooltip title="Service starten" placement="right" arrow enterDelay={0} disableInteractive={false}>
+                          <div 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!isProcessing) {
+                                handleServiceAction('start');
+                              }
+                            }}
+                            style={{
+                              width: '4px',
+                              height: '20px',
+                              background: 'rgba(76, 175, 80, 0.7)',
+                              cursor: isProcessing ? 'not-allowed' : 'pointer',
+                              opacity: isProcessing ? 0.5 : 1,
+                              transition: 'all 0.2s ease',
+                              borderRadius: '2px',
+                              pointerEvents: 'auto',
+                            }}
+                            onMouseEnter={e => {
+                              if (!isProcessing) {
+                                e.currentTarget.style.width = '8px';
+                                e.currentTarget.style.background = 'rgba(76, 175, 80, 1)';
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.width = '4px';
+                              e.currentTarget.style.background = 'rgba(76, 175, 80, 0.7)';
+                            }}
+                          />
+                        </Tooltip>
+                      )}
+                      
+                      {/* Stop Button als roter Balken (wenn SSH vorhanden) */}
+                      {appliance.sshConnection && appliance.stopCommand && (
+                        <Tooltip title="Service stoppen" placement="right" arrow enterDelay={0} disableInteractive={false}>
+                          <div 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!isProcessing) {
+                                handleServiceAction('stop');
+                              }
+                            }}
+                            style={{
+                              width: '4px',
+                              height: '20px',
+                              background: 'rgba(244, 67, 54, 0.7)',
+                              cursor: isProcessing ? 'not-allowed' : 'pointer',
+                              opacity: isProcessing ? 0.5 : 1,
+                              transition: 'all 0.2s ease',
+                              borderRadius: '2px',
+                              pointerEvents: 'auto',
+                            }}
+                            onMouseEnter={e => {
+                              if (!isProcessing) {
+                                e.currentTarget.style.width = '8px';
+                                e.currentTarget.style.background = 'rgba(244, 67, 54, 1)';
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.width = '4px';
+                              e.currentTarget.style.background = 'rgba(244, 67, 54, 0.7)';
+                            }}
+                          />
+                        </Tooltip>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Rechte Seite - Andere Funktionen als vertikale Balken */}
+                  <div 
+                    className="compact-bars-right"
+                    style={{ 
+                      position: 'absolute', 
+                      right: '8px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '4px', 
+                      zIndex: 20, // Höher als andere Elemente
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease',
+                      pointerEvents: 'auto', // Explizit klickbar machen
+                    }}
+                  >
+                    {/* Favorit Button als goldener Balken */}
+                    <Tooltip title={appliance.isFavorite ? 'Von Favoriten entfernen' : 'Zu Favoriten hinzufügen'} placement="left" arrow enterDelay={0} disableInteractive={false}>
+                      <div 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFavoriteClick(e);
+                        }}
+                        style={{
+                          width: '4px',
+                          height: '20px',
+                          background: appliance.isFavorite ? 'rgba(255, 215, 0, 0.9)' : 'rgba(255, 255, 255, 0.3)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          borderRadius: '2px',
+                          pointerEvents: 'auto',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.width = '8px';
+                          e.currentTarget.style.background = appliance.isFavorite ? 'rgba(255, 215, 0, 1)' : 'rgba(255, 255, 255, 0.6)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.width = '4px';
+                          e.currentTarget.style.background = appliance.isFavorite ? 'rgba(255, 215, 0, 0.9)' : 'rgba(255, 255, 255, 0.3)';
+                        }}
+                      />
+                    </Tooltip>
+                    
+                    {/* Terminal Button als grauer Balken (wenn SSH vorhanden) */}
+                    {adminMode && appliance.sshConnection && (
+                      <Tooltip title="Terminal öffnen" placement="left" arrow enterDelay={0} disableInteractive={false}>
+                        <div 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (onOpenTerminal) {
+                              onOpenTerminal(appliance);
+                            }
+                          }}
+                          style={{
+                            width: '4px',
+                            height: '20px',
+                            background: 'rgba(156, 163, 175, 0.7)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            borderRadius: '2px',
+                            pointerEvents: 'auto',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.width = '8px';
+                            e.currentTarget.style.background = 'rgba(156, 163, 175, 1)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.width = '4px';
+                            e.currentTarget.style.background = 'rgba(156, 163, 175, 0.7)';
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                    
+                    {/* Remote Desktop Button als blauer Balken */}
+                    {appliance.remoteDesktopEnabled && (
+                      <Tooltip title="Remote Desktop öffnen" placement="left" arrow enterDelay={0} disableInteractive={false}>
+                        <div 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Remote Desktop Logik hier
+                            console.log('Remote Desktop für', appliance.name);
+                          }}
+                          style={{
+                            width: '4px',
+                            height: '20px',
+                            background: 'rgba(33, 150, 243, 0.7)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            borderRadius: '2px',
+                            pointerEvents: 'auto',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.width = '8px';
+                            e.currentTarget.style.background = 'rgba(33, 150, 243, 1)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.width = '4px';
+                            e.currentTarget.style.background = 'rgba(33, 150, 243, 0.7)';
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                    
+                    {/* File Transfer Button als lila Balken */}
+                    {appliance.sshEnabled && appliance.targetPath && (
+                      <Tooltip title="File Transfer öffnen" placement="left" arrow enterDelay={0} disableInteractive={false}>
+                        <div 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // File Transfer Logik hier
+                            console.log('File Transfer für', appliance.name);
+                          }}
+                          style={{
+                            width: '4px',
+                            height: '20px',
+                            background: 'rgba(147, 51, 234, 0.7)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            borderRadius: '2px',
+                            pointerEvents: 'auto',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.width = '8px';
+                            e.currentTarget.style.background = 'rgba(147, 51, 234, 1)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.width = '4px';
+                            e.currentTarget.style.background = 'rgba(147, 51, 234, 0.7)';
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Left Button Column - Service Controls */}
               {(isTouchDevice ? hasBeenTouched : true) && adminMode && (

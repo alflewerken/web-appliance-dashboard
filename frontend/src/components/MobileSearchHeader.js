@@ -127,7 +127,7 @@ const MobileSearchHeader = ({
             </div>
             <input
               type="range"
-              min="60"
+              min="50"
               max="300"
               value={cardSize}
               onChange={e => setCardSize(Number(e.target.value))}

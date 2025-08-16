@@ -116,7 +116,7 @@ function Dashboard() {
       const savedCardSize = localStorage.getItem('dashboard-card-size');
       if (savedCardSize) {
         const parsedSize = parseInt(savedCardSize, 10);
-        if (!isNaN(parsedSize) && parsedSize >= 60 && parsedSize <= 300) {
+        if (!isNaN(parsedSize) && parsedSize >= 50 && parsedSize <= 300) {
           return parsedSize;
         }
       }
@@ -607,7 +607,7 @@ function Dashboard() {
 
   // Wrapper-Funktion für setCardSize mit Validierung
   const handleCardSizeChange = newSize => {
-    const validatedSize = Math.max(60, Math.min(300, parseInt(newSize, 10)));
+    const validatedSize = Math.max(50, Math.min(300, parseInt(newSize, 10)));
     setCardSize(validatedSize);
   };
 

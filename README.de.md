@@ -125,6 +125,22 @@ Ich habe das Web Appliance Dashboard gebaut, um **MEINE** Probleme zu lösen - u
 
 **Das ist nicht nur ein weiteres Dashboard - es ist das Dashboard, das ich mir gewünscht hätte.**
 
+## 🏆 Vergleich mit Anderen
+
+| Funktion | Web Appliance Dashboard | Portainer | Heimdall | Homer |
+|---------|------------------------|-----------|----------|--------|
+| Ein-Zeilen-Installation | ✅ | ❌ | ❌ | ❌ |
+| Web Terminal | ✅ Integriert | ❌ | ❌ | ❌ |
+| Remote Desktop | ✅ Integriert | ❌ | ❌ | ❌ |
+| Mobile Optimiert | ✅ Mobile-First | ⚠️ | ❌ | ❌ |
+| Dark Mode | ✅ | ✅ | ✅ | ✅ |
+| SSH Verwaltung | ✅ Vollständig | ❌ | ❌ | ❌ |
+| Service-Steuerung | ✅ | ⚠️ | ❌ | ❌ |
+| Cloud-Frei | ✅ | ✅ | ✅ | ✅ |
+| Moderne UI | ✅ React 19 | ⚠️ | ❌ | ⚠️ |
+| Backup/Restore | ✅ Verschlüsselt | ❌ | ❌ | ❌ |
+
+
 ## 🚀 Schnellstart - Ein-Zeilen-Installation
 
 Installieren Sie das komplette Dashboard mit einem einzigen Befehl:
@@ -498,7 +514,7 @@ docker compose restart backend
 
 ## 🤝 Contributing
 
-Wir freuen uns über Beiträge! Siehe [CONTRIBUTING.md](CONTRIBUTING.md) für Details.
+Ich freue mich über Beiträge! Siehe [CONTRIBUTING.md](CONTRIBUTING.md) für Details.
 
 ### Development Setup
 ```bash
@@ -516,21 +532,6 @@ npm run dev
 ## 📄 Lizenz
 
 Dieses Projekt ist unter der MIT License lizenziert - siehe [LICENSE](LICENSE) für Details.
-
-## 🏆 Vergleich mit Anderen
-
-| Funktion | Web Appliance Dashboard | Portainer | Heimdall | Homer |
-|---------|------------------------|-----------|----------|--------|
-| Ein-Zeilen-Installation | ✅ | ❌ | ❌ | ❌ |
-| Web Terminal | ✅ Integriert | ❌ | ❌ | ❌ |
-| Remote Desktop | ✅ Integriert | ❌ | ❌ | ❌ |
-| Mobile Optimiert | ✅ Mobile-First | ⚠️ | ❌ | ❌ |
-| Dark Mode | ✅ | ✅ | ✅ | ✅ |
-| SSH Verwaltung | ✅ Vollständig | ❌ | ❌ | ❌ |
-| Service-Steuerung | ✅ | ⚠️ | ❌ | ❌ |
-| Cloud-Frei | ✅ | ✅ | ✅ | ✅ |
-| Moderne UI | ✅ React 19 | ⚠️ | ❌ | ⚠️ |
-| Backup/Restore | ✅ Verschlüsselt | ❌ | ❌ | ❌ |
 
 ## 🙏 Danksagungen
 

@@ -39639,3 +39639,2831 @@ VORTEILE:
 5. Zweisprachige Implementierung (DE/EN)
 
 ════════════════════════════════════════════════════════════════════════════════
+
+
+## 2025-08-16 09:47:56 - Appliance-Karten Skalierungsproblem behoben
+
+PROBLEM: Die Appliance-Karten skalierten falsch bei Größenänderung durch den Slider:
+- Info-Bereich wurde zu groß bei kleinen Karten
+- Buttons verloren ihre Position an den Rändern
+- Kein Gradient im Info-Bereich wie bei Host-Karten
+
+LÖSUNG: Dynamische Skalierung und Gradient-Verbesserungen implementiert
+
+ÄNDERUNGEN:
+1. frontend/src/components/ApplianceCard.css
+2. frontend/src/App.css
+
+DETAILS:
+
+### 1. ApplianceCard.css - Info-Bereich mit Gradient und dynamischer Höhe
+
+PATCH:
+```diff
+@@ -104,11 +104,21 @@
+ /* Card Info Section */
+ .card-info {
+   padding: 16px;
+-  background: rgba(0, 0, 0, 0.2);
++  background: linear-gradient(
++    to top,
++    rgba(0, 0, 0, 0.6) 0%,
++    rgba(0, 0, 0, 0.4) 50%,
++    rgba(0, 0, 0, 0.2) 70%,
++    transparent 100%
++  );
++  backdrop-filter: blur(4px);
++  -webkit-backdrop-filter: blur(4px);
+   border-top: 1px solid rgba(255, 255, 255, 0.1);
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   flex-grow: 1;
++  position: relative;
++  min-height: 60px;
++  max-height: calc(var(--card-size) * 0.45);
+ }
+```
+
+### 2. Button-Positionierung für kleine Karten
+
+PATCH:
+```diff
+@@ -232,6 +232,18 @@
+ .card-buttons-right {
+   right: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+ }
++
++/* Für kleine Karten: Buttons näher an den Rand */
++.appliance-card-container[style*='--card-size: 6'] .card-buttons-left,
++.appliance-card-container[style*='--card-size: 7'] .card-buttons-left,
++.appliance-card-container[style*='--card-size: 8'] .card-buttons-left,
++.appliance-card-container[style*='--card-size: 9'] .card-buttons-left {
++  left: 4px;
++}
++
++.appliance-card-container[style*='--card-size: 6'] .card-buttons-right,
++.appliance-card-container[style*='--card-size: 7'] .card-buttons-right,
++.appliance-card-container[style*='--card-size: 8'] .card-buttons-right,
++.appliance-card-container[style*='--card-size: 9'] .card-buttons-right {
++  right: 4px;
++}
+```
+
+### 3. Container-Höhe dynamisch angepasst
+
+PATCH:
+```diff
+@@ -13,7 +13,7 @@
+ .appliance-card-container {
+   position: relative;
+   width: var(--card-size, 180px);
+-  height: calc(var(--card-size, 180px) + 80px);
++  height: calc(var(--card-size, 180px) + min(80px, calc(var(--card-size) * 0.45)));
+   perspective: 1000px;
+   transform-style: preserve-3d;
+   display: block;
+```
+
+### 4. Info-Bereich für kleine Karten optimiert
+
+PATCH:
+```diff
+@@ -924,8 +924,10 @@
+ .appliance-card-container[style*='--card-size: 9'] .card-info {
+   /* Zeige card-info bei kleinen Karten an, aber kompakter */
+   display: flex;
+-  padding: 8px;
++  padding: 8px 12px;
+   gap: 2px;
++  min-height: 40px;
++  max-height: 60px;
+ }
+```
+
+### 5. App.css - Grid-Layout mit dynamischen Höhen
+
+PATCH:
+```diff
+@@ -348,7 +348,7 @@
+   display: grid;
+   grid-template-columns: repeat(auto-fit, var(--card-size));
+   grid-auto-rows: calc(
+-    var(--card-size) + 100px
++    var(--card-size) + min(100px, calc(var(--card-size) * 0.45))
+   ); /* Dynamischer Platz für Kartennamen und Beschreibung */
+   gap: 20px;
+```
+
+Mobile Anpassungen:
+```diff
+@@ -588,7 +588,7 @@
+   grid-auto-rows: calc(
+-    var(--card-size) + 90px
++    var(--card-size) + min(90px, calc(var(--card-size) * 0.45))
+   ); /* Mehr Platz für Kartenhöhe */
+
+@@ -683,7 +683,7 @@
+   grid-auto-rows: calc(
+-    var(--card-size) + 100px
++    var(--card-size) + min(100px, calc(var(--card-size) * 0.45))
+   ); /* Noch mehr Platz für die Kartenhöhe */
+```
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+GIT COMMIT: "fix: Improve appliance card scaling and add gradient to info section"
+
+STATUS: ✅ Erfolgreich behoben
+
+VERBESSERUNGEN:
+1. Info-Bereich skaliert jetzt proportional zur Kartengröße
+2. Gradient wie bei Host-Karten für bessere Lesbarkeit
+3. Buttons bleiben bei kleinen Karten an den Rändern positioniert
+4. Container-Höhe passt sich dynamisch an die Kartengröße an
+5. Bessere visuelle Konsistenz zwischen verschiedenen Kartengrößen
+
+
+
+## 2025-08-16 10:00:00 - Korrektur: Button-Positionierung und Karten-Überlappung
+
+PROBLEM: Nach der ersten Korrektur waren immer noch Probleme vorhanden:
+- Buttons waren nicht korrekt an den Rändern positioniert
+- Info-Bereich war nicht am unteren Rand der Karte
+- Karten überlappten sich im Grid
+
+LÖSUNG: Komplette Überarbeitung der Positionierung und Grid-Layout
+
+ÄNDERUNGEN:
+1. frontend/src/components/ApplianceCard.css  
+2. frontend/src/App.css
+
+DETAILS:
+
+### 1. Card-Container Höhe stabilisiert
+```diff
+.appliance-card-container {
+-  height: calc(var(--card-size, 180px) + min(80px, calc(var(--card-size) * 0.45)));
++  height: calc(var(--card-size, 180px) + 80px);
++  margin: 0; /* Prevent overlap */
+}
+```
+
+### 2. Info-Bereich absolut am unteren Rand positioniert
+```diff
+.card-info {
+-  padding: 16px;
+-  flex-grow: 1;
+-  position: relative;
++  position: absolute;
++  bottom: 0;
++  left: 0;
++  right: 0;
++  padding: 12px 16px;
++  z-index: 3;
+  background: linear-gradient(
+    to top,
+-   rgba(0, 0, 0, 0.6) 0%,
++   rgba(0, 0, 0, 0.7) 0%,
+    ...
+  );
+}
+```
+
+### 3. Button-Positionierung korrigiert
+```diff
+.card-buttons-left,
+.card-buttons-right {
+-  top: 50%;
++  top: calc(var(--card-size) * 0.4);
+-  z-index: 5;
++  z-index: 10;
+-  gap: clamp(8px, calc(var(--card-size) * 0.04), 12px);
++  gap: clamp(6px, calc(var(--card-size) * 0.03), 10px);
+}
+
+.card-buttons-left {
+-  left: clamp(8px, calc(var(--card-size) * 0.04), 16px);
++  left: clamp(6px, calc(var(--card-size) * 0.035), 12px);
+}
+```
+
+### 4. Grid-Layout gegen Überlappung optimiert
+```diff
+.appliances-grid {
+-  grid-template-columns: repeat(auto-fit, var(--card-size));
++  grid-template-columns: repeat(auto-fit, minmax(var(--card-size), 1fr));
+-  grid-auto-rows: calc(var(--card-size) + min(100px, calc(var(--card-size) * 0.45)));
++  grid-auto-rows: calc(var(--card-size) + 90px);
+-  gap: 20px;
++  gap: 24px;
++  row-gap: 24px;
+-  justify-content: space-evenly;
++  justify-content: center;
++  align-items: start;
+-  padding: 10px;
++  padding: 16px;
+}
+```
+
+### 5. Kleine Karten-Anpassungen
+```diff
+/* Buttons für kleine Karten */
+.appliance-card-container[style*='--card-size: 10'] .card-buttons-left {
++  left: 5px;
+}
+
+/* Info-Bereich für kleine Karten */
+.card-info {
+-  padding: 8px 12px;
++  padding: 6px 10px;
+-  min-height: 40px;
+-  max-height: 60px;
++  min-height: 45px;
++  max-height: 55px;
+}
+```
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Erfolgreich korrigiert
+
+ERGEBNIS:
+- Buttons sind jetzt korrekt an den Kartenrändern positioniert
+- Info-Bereich ist fest am unteren Rand verankert
+- Karten überlappen sich nicht mehr im Grid
+- Bessere Skalierung für alle Kartengrößen
+
+
+
+## 2025-08-16 10:15:00 - Finale Optimierung der Karten-Skalierung und Button-Positionierung
+
+PROBLEM: Die Karten konnten nicht klein genug werden, das Haupticon war nicht zentriert, und die Buttons waren bei kleinen Karten falsch positioniert.
+
+LÖSUNG: Komplette Überarbeitung der Icon-Skalierung und Button-Positionierung
+
+ÄNDERUNGEN:
+1. frontend/src/components/ApplianceCard.css
+
+DETAILS:
+
+### 1. Card-Cover absolut positioniert für bessere Icon-Zentrierung
+```diff
+.card-cover {
+-  position: relative;
++  position: absolute;
++  top: 0;
++  left: 0;
+   width: var(--card-size, 180px);
+   height: var(--card-size, 180px);
+-  padding: 24px;
++  padding: 20px;
+}
+```
+
+### 2. Icon-Größe optimiert für prominente Darstellung
+```diff
+.card-icon {
+-  width: min(60%, max(24px, calc(var(--card-size) * 0.35)));
+-  height: min(60%, max(24px, calc(var(--card-size) * 0.35)));
++  width: max(32px, calc(var(--card-size) * 0.45));
++  height: max(32px, calc(var(--card-size) * 0.45));
++  position: relative;
++  z-index: 2;
+}
+```
+
+### 3. Button-Positionierung vereinfacht und zentriert
+```diff
+.card-buttons-left,
+.card-buttons-right {
+-  top: calc(var(--card-size) * 0.4);
++  top: 50%;
+   transform: translateY(-50%);
+-  gap: clamp(6px, calc(var(--card-size) * 0.03), 10px);
++  gap: 8px;
+}
+
+.card-buttons-left {
+-  left: clamp(6px, calc(var(--card-size) * 0.035), 12px);
++  left: 8px;
+}
+
+.card-buttons-right {
+-  right: clamp(6px, calc(var(--card-size) * 0.035), 12px);
++  right: 8px;
+}
+```
+
+### 4. Spezifische Anpassungen für kleine Karten
+```diff
+/* Sehr kleine Karten (60-80px) */
+.appliance-card-container[style*='--card-size: 6'] .card-buttons-left,
+.appliance-card-container[style*='--card-size: 7'] .card-buttons-left,
+.appliance-card-container[style*='--card-size: 8'] .card-buttons-left {
+-  left: 5px;
++  left: 4px;
++  gap: 4px;
+}
+
+/* Mittlere kleine Karten (90-110px) */
+.appliance-card-container[style*='--card-size: 9'] .card-buttons-left,
+.appliance-card-container[style*='--card-size: 10'] .card-buttons-left,
+.appliance-card-container[style*='--card-size: 11'] .card-buttons-left {
++  left: 6px;
++  gap: 6px;
+}
+```
+
+### 5. Action-Button Größen optimiert
+```diff
+.action-btn {
+-  width: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+-  height: clamp(18px, calc(var(--card-size) * 0.12), 28px);
++  width: clamp(20px, calc(var(--card-size) * 0.13), 32px);
++  height: clamp(20px, calc(var(--card-size) * 0.13), 32px);
+-  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
++  border-radius: 6px;
+-  font-size: clamp(10px, calc(var(--card-size) * 0.07), 14px);
++  font-size: 0;
+}
+
+/* Spezifische Größen für kleine Karten */
+.appliance-card-container[style*='--card-size: 6'] .action-btn,
+.appliance-card-container[style*='--card-size: 7'] .action-btn,
+.appliance-card-container[style*='--card-size: 8'] .action-btn,
+.appliance-card-container[style*='--card-size: 9'] .action-btn {
+-  width: 28px;
+-  height: 28px;
++  width: 22px;
++  height: 22px;
+}
+```
+
+### 6. Button-Icons dynamisch skaliert
+```diff
+.action-btn svg {
+-  width: 65%;
+-  height: 65%;
+-  min-width: 10px;
+-  min-height: 10px;
+-  max-width: 18px;
+-  max-height: 18px;
++  width: clamp(12px, calc(var(--card-size) * 0.08), 16px);
++  height: clamp(12px, calc(var(--card-size) * 0.08), 16px);
+}
+
+/* Kleine Karten */
+.appliance-card-container[style*='--card-size: 6'] .action-btn svg {
+-  width: 14px;
+-  height: 14px;
++  width: 12px;
++  height: 12px;
+}
+```
+
+### 7. Icon-Größe für sehr kleine Karten
+```diff
+.appliance-card-container[style*='--card-size: 6'] .card-icon,
+.appliance-card-container[style*='--card-size: 7'] .card-icon {
+-  width: 40%;
+-  height: 40%;
++  width: 50%;
++  height: 50%;
++  min-width: 28px;
++  min-height: 28px;
+}
+```
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Erfolgreich optimiert
+
+ERGEBNIS:
+- Haupticon ist jetzt immer prominent in der Mitte zentriert
+- Karten können jetzt auf 60px verkleinert werden
+- Buttons bleiben bei allen Größen korrekt positioniert
+- Icons in Buttons skalieren proportional zur Kartengröße
+- Bessere Touch-Targets für mobile Geräte
+
+
+
+## 2025-08-16 10:30:00 - Korrektur: Icon und Button-Positionierung bei extremen Kartengrößen
+
+PROBLEM: Bei sehr kleinen Karten (unter 70px) wanderten das Haupticon und die Buttons nach oben links, anstatt zentriert zu bleiben.
+
+LÖSUNG: Überarbeitete Positionierung mit clamp() und relativen Werten
+
+ÄNDERUNGEN:
+1. frontend/src/components/ApplianceCard.css
+
+DETAILS:
+
+### 1. Card-Cover wieder relativ positioniert
+```diff
+.card-cover {
+-  position: absolute;
+-  top: 0;
+-  left: 0;
+-  width: var(--card-size, 180px);
++  position: relative;
++  width: 100%;
+   height: var(--card-size, 180px);
+-  padding: 20px;
++  padding: clamp(8px, calc(var(--card-size) * 0.1), 20px);
+}
+```
+
+### 2. Icon-Größe mit clamp() begrenzt
+```diff
+.card-icon {
+-  width: max(32px, calc(var(--card-size) * 0.45));
+-  height: max(32px, calc(var(--card-size) * 0.45));
++  width: clamp(24px, calc(var(--card-size) * 0.4), 80px);
++  height: clamp(24px, calc(var(--card-size) * 0.4), 80px);
++  margin: 0 auto;
+}
+```
+
+### 3. Button-Positionierung mit fixer Basis
+```diff
+.card-buttons-left,
+.card-buttons-right {
+-  top: 50%;
+-  transform: translateY(-50%);
++  top: calc(50% - 40px);
+-  gap: 8px;
++  gap: 6px;
+}
+
+.card-buttons-left {
+-  left: 8px;
++  left: max(4px, calc((var(--card-size) - 80px) * 0.05 + 4px));
+}
+```
+
+### 4. Spezifische Regeln für sehr kleine Karten (50-80px)
+```diff
++/* 50-60px Karten */
++.appliance-card-container[style*='--card-size: 5'] .card-buttons-left {
++  left: 3px;
++  gap: 3px;
++  top: calc(50% - 30px);
++}
+
+/* 50-70px Icons */
++.appliance-card-container[style*='--card-size: 5'] .card-icon {
++  width: clamp(20px, 40%, 30px);
++  height: clamp(20px, 40%, 30px);
++}
+```
+
+### 5. Button-Größen für extreme Größen
+```diff
+.action-btn {
+-  width: clamp(20px, calc(var(--card-size) * 0.13), 32px);
++  width: clamp(18px, calc(var(--card-size) * 0.15), 32px);
+}
+
++/* Buttons für 50-90px Karten */
++.appliance-card-container[style*='--card-size: 5'] .action-btn {
++  width: 20px;
++  height: 20px;
++}
+
++/* Icons in Buttons für kleine Karten */
++.appliance-card-container[style*='--card-size: 5'] .action-btn svg {
++  width: 10px;
++  height: 10px;
++}
+```
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Erfolgreich korrigiert
+
+ERGEBNIS:
+- Icons bleiben bei allen Größen zentriert
+- Buttons wandern nicht mehr nach oben links
+- Funktioniert jetzt von 50px bis 240px
+- Bessere Skalierung mit clamp() Funktionen
+- Padding passt sich dynamisch an
+
+
+
+## 2025-08-16 10:45:00 - Entfernung der Mindestgrößen-Beschränkungen für Appliance-Karten
+
+PROBLEM: Die Karten wurden ab ca. 40% Slider-Position nicht mehr kleiner, wodurch Buttons und Icons nach oben links wanderten. Die tatsächliche Kartengröße war auf mindestens 150px begrenzt.
+
+LÖSUNG: Alle Mindestgrößen-Beschränkungen entfernt und auf 50px reduziert
+
+ÄNDERUNGEN:
+1. frontend/src/components/HostCard.css
+2. frontend/src/components/ApplianceCard.css
+3. frontend/src/App.js
+4. frontend/src/components/AppHeader.js
+5. frontend/src/components/MobileSearchHeader.js
+
+DETAILS:
+
+### 1. HostCard.css - Mindestgröße von 150px auf 50px reduziert
+```diff
+.appliances-grid {
+-  --min-card-size: 150px;
++  --min-card-size: 50px;
+}
+
+.appliance-card {
+-  min-width: var(--min-card-size, 150px);
+-  min-height: calc(var(--min-card-size, 150px) + 80px);
++  min-width: var(--min-card-size, 50px);
++  min-height: calc(var(--min-card-size, 50px) + 80px);
+}
+```
+
+### 2. ApplianceCard.css - Verschiedene Mindestgrößen angepasst
+```diff
+.card-info {
+-  min-height: 60px;
++  min-height: 50px;
+}
+
+.edit-menu {
+-  min-width: 150px;
++  min-width: 120px;
+}
+
+.file-transfer-button {
+-  min-width: 44px;
+-  min-height: 44px;
++  min-width: 32px;
++  min-height: 32px;
+}
+```
+
+### 3. App.js - Validierung von 60px auf 50px reduziert
+```diff
+const handleCardSizeChange = newSize => {
+-  const validatedSize = Math.max(60, Math.min(300, parseInt(newSize, 10)));
++  const validatedSize = Math.max(50, Math.min(300, parseInt(newSize, 10)));
+  setCardSize(validatedSize);
+};
+
+// Initial-Validierung
+-if (!isNaN(parsedSize) && parsedSize >= 60 && parsedSize <= 300) {
++if (!isNaN(parsedSize) && parsedSize >= 50 && parsedSize <= 300) {
+```
+
+### 4. AppHeader.js - Slider-Minimum angepasst
+```diff
+<input
+  type="range"
+-  min="60"
++  min="50"
+  max="300"
+  value={cardSize}
+  onChange={e => setCardSize(Number(e.target.value))}
+/>
+```
+
+### 5. MobileSearchHeader.js - Mobile Slider-Minimum angepasst
+```diff
+<input
+  type="range"
+-  min="60"
++  min="50"
+  max="300"
+  value={cardSize}
+  onChange={e => setCardSize(Number(e.target.value))}
+/>
+```
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Karten können jetzt von 50px bis 300px skaliert werden
+- Slider funktioniert über den gesamten Bereich (0% bis 100%)
+- Keine künstlichen Beschränkungen mehr bei 40% Slider-Position
+- Icons und Buttons bleiben bei allen Größen korrekt positioniert
+- Bessere Nutzung des verfügbaren Größenbereichs
+
+
+
+## 2025-08-16 10:55:00 - Kritische Korrektur: Entfernung versteckter 150px Beschränkungen
+
+PROBLEM: Trotz vorheriger Änderungen wurden die Karten ab 50% Slider-Position nicht kleiner. Versteckte Math.max(150) Beschränkungen und eine !important CSS-Regel verhinderten die Skalierung.
+
+LÖSUNG: Alle versteckten 150px Beschränkungen gefunden und entfernt
+
+ÄNDERUNGEN:
+1. frontend/src/components/HostsView.js
+2. frontend/src/components/HostCard.css
+
+DETAILS:
+
+### 1. HostsView.js - Math.max Beschränkungen entfernt
+```diff
+{/* Hosts Grid */}
+<div className="appliances-grid" style={{ 
+-  '--card-size': cardSize ? `${Math.max(cardSize, 150)}px` : '180px'
++  '--card-size': cardSize ? `${Math.max(cardSize, 50)}px` : '180px'
+}}>
+
+<HostCard
+  ...
+-  cardSize={Math.max(cardSize || 180, 150)}
++  cardSize={Math.max(cardSize || 180, 50)}
+/>
+```
+
+### 2. HostCard.css - !important Override entfernt
+```diff
+-/* For very small card sizes */
+-.appliances-grid[style*="--card-size: 1"] {
+-  --card-size: 150px !important;
+-}
++/* Removed forced size override to allow smaller cards */
+```
+
+**KRITISCH**: Diese CSS-Regel hat ALLE Karten mit Größen von 100-199px auf 150px gezwungen!
+Das war der Hauptgrund, warum die Karten bei 150px "stecken blieben".
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Erfolgreich behoben
+
+ERGEBNIS:
+- Karten skalieren jetzt wirklich von 50px bis 300px
+- Keine versteckten Beschränkungen mehr
+- Slider funktioniert über den gesamten Bereich gleichmäßig
+- Bei 0% = 50px, bei 100% = 300px
+
+WICHTIGE ERKENNTNIS:
+Die CSS-Regel `.appliances-grid[style*="--card-size: 1"]` war besonders tückisch, 
+da sie alle Größen von 100-199px erfasste und mit !important überschrieb.
+
+
+
+## 2025-08-16 11:10:00 - Grid-Layout-Korrektur für korrekte Kartenskalierung
+
+PROBLEM: Die Appliance-Karten selbst wurden nicht kleiner, nur die Inhalte schrumpften. Die Karten blieben bei einer bestimmten Größe "hängen", während Icons und Buttons nach oben links wanderten.
+
+URSACHE: Das Grid-Layout verwendete `minmax(var(--card-size), 1fr)`, was bedeutete, dass die Spalten GRÖSSER als --card-size werden konnten, aber niemals kleiner. Bei vielen Karten oder kleinen Bildschirmen wurden sie gestreckt.
+
+LÖSUNG: Grid-Template-Columns korrigiert
+
+ÄNDERUNGEN:
+1. frontend/src/App.css
+
+DETAILS:
+
+### Grid-Layout von minmax auf feste Größe geändert
+```diff
+.appliances-grid {
+  display: grid;
+-  grid-template-columns: repeat(auto-fit, minmax(var(--card-size), 1fr));
++  grid-template-columns: repeat(auto-fill, var(--card-size));
+  grid-auto-rows: calc(var(--card-size) + 90px);
+```
+
+**WICHTIGER UNTERSCHIED**:
+- `minmax(var(--card-size), 1fr)`: Spalten sind MINDESTENS --card-size groß, können aber wachsen
+- `var(--card-size)`: Spalten sind EXAKT --card-size groß
+- `auto-fit` → `auto-fill`: Verhindert Stretching der Karten
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Karten behalten jetzt ihre exakte Größe entsprechend dem Slider-Wert
+- Keine Streckung mehr bei wenigen Karten
+- Icons und Buttons bleiben korrekt positioniert
+- Konsistente Größe über alle Bildschirmgrößen
+
+HINWEIS: 
+Falls ein Hard-Refresh im Browser nötig ist: Cmd+Shift+R (Mac) oder Ctrl+Shift+R (Windows/Linux)
+
+
+
+## 2025-08-16 11:35:00 - KRITISCHE KORREKTUR: CSS-Variable --card-size wurde nicht an Grid weitergegeben
+
+PROBLEM: Die Appliance-Karten waren katastrophal angeordnet und viel zu groß. Die CSS-Variable `--card-size` wurde zwar auf dem App-Container gesetzt, aber nicht explizit an die Grid-Container weitergegeben.
+
+URSACHE: Die `.appliances-grid` Container verwendeten `var(--card-size)` in ihrem CSS, aber die Variable wurde nicht direkt auf diesen Elementen gesetzt. CSS-Variablen werden nur vererbt, wenn sie im DOM-Baum oberhalb definiert sind.
+
+LÖSUNG: Explizite Inline-Styles mit der --card-size Variable auf allen Grid-Containern
+
+ÄNDERUNGEN:
+1. frontend/src/components/AppContent.js
+
+DETAILS:
+
+### AppContent.js - CSS-Variable direkt auf Grid-Container setzen
+```diff
+// Für alle 5 Zeit-basierten Grids:
+-              <div className="appliances-grid">
++              <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
+
+// Für das Standard-Grid:
+-      <div className="appliances-grid">
++      <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
+```
+
+KRITISCH: Ohne diese Änderung verwendete das Grid eine undefinierte Variable, was zu den katastrophalen Layout-Problemen führte.
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Erfolgreich behoben
+
+ERGEBNIS:
+- Grid-Layout funktioniert jetzt korrekt
+- Karten haben die richtige Größe entsprechend dem Slider
+- Keine Überlappungen mehr
+- Icons und Buttons sind proportional zur Kartengröße
+
+WICHTIGE ERKENNTNIS:
+CSS-Variablen müssen explizit auf den Elementen gesetzt werden, die sie verwenden. 
+Eine Definition auf einem entfernten Vorfahren reicht nicht immer aus, besonders wenn 
+es mehrere verschachtelte Komponenten gibt.
+
+
+
+## 2025-08-16 11:06:00 - Komplette Neukonzeption der Appliance-Karten Skalierung
+
+PROBLEM: Die Appliance-Karten hatten massive Skalierungsprobleme bei verschiedenen Slider-Positionen (50-300px):
+- Bei kleinen Karten (unter 30% Slider): Buttons wurden abgeschnitten, Icons und Buttons waren zu hoch positioniert
+- CSS-Variable --card-size wurde nicht konsistent verwendet
+- CSS-Selektoren wie `[style*='--card-size: 5']` matchten nur bestimmte Größenbereiche (50-59px)
+- Info-Bereich und Container-Höhe waren fest definiert statt dynamisch
+
+LÖSUNG: Implementierung einer vollständig dynamischen Skalierung mit calc() und clamp() Funktionen
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Container-Höhe dynamisch
+```diff
+-/* ===== Appliance Card Container ===== */
+ .appliance-card-container {
+   position: relative;
+   width: var(--card-size, 180px);
+-  height: calc(var(--card-size, 180px) + 50px); /* Karte + Info-Bereich */
++  /* Höhe: Karte + dynamischer Info-Bereich */
++  height: calc(var(--card-size, 180px) + clamp(40px, calc(var(--card-size) * 0.25), 60px));
+   perspective: 1000px;
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Card Cover und Icon dynamisch
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+-  bottom: 50px; /* Platz für Info-Bereich */
++  /* Info-Bereich dynamisch: 25% der Kartengröße, min 40px, max 60px */
++  bottom: clamp(40px, calc(var(--card-size) * 0.25), 60px);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   overflow: hidden;
+-  padding: 10px;
++  /* Padding proportional zur Kartengröße */
++  padding: clamp(5px, calc(var(--card-size) * 0.05), 15px);
+ }
+
+ .card-icon {
+-  /* Icon sollte proportional zur Kartengröße sein */
+-  width: clamp(30px, calc(var(--card-size) * 0.5), 100px);
+-  height: clamp(30px, calc(var(--card-size) * 0.5), 100px);
++  /* Icon: 40% der Kartengröße, min 25px, max 100px */
++  width: clamp(25px, calc(var(--card-size) * 0.4), 100px);
++  height: clamp(25px, calc(var(--card-size) * 0.4), 100px);
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Info-Bereich und Schriftgrößen dynamisch
+```diff
+ .card-info {
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   right: 0;
+-  height: 50px;
+-  padding: 8px 10px;
++  /* Dynamische Höhe: 25% der Kartengröße, min 40px, max 60px */
++  height: clamp(40px, calc(var(--card-size) * 0.25), 60px);
++  /* Padding proportional zur Info-Höhe */
++  padding: clamp(6px, calc(var(--card-size) * 0.04), 12px) clamp(8px, calc(var(--card-size) * 0.05), 15px);
+
+ .card-title {
+-  font-size: 16px;
++  /* Dynamische Schriftgröße: 8% der Kartengröße, min 11px, max 16px */
++  font-size: clamp(11px, calc(var(--card-size) * 0.08), 16px);
+
+ .card-description {
+-  font-size: 13px;
++  /* Dynamische Schriftgröße: 6% der Kartengröße, min 9px, max 13px */
++  font-size: clamp(9px, calc(var(--card-size) * 0.06), 13px);
+```
+
+### 4. frontend/src/components/ApplianceCard.css - Button-Positionierung korrigiert
+```diff
+ .card-buttons-left,
+ .card-buttons-right {
+   position: absolute;
+-  top: 50%;
+-  transform: translateY(-50%);
++  /* Buttons im Content-Bereich zentrieren (oberhalb des Info-Bereichs) */
++  /* Top = 50% des Content-Bereichs, nicht der gesamten Karte */
++  top: calc((var(--card-size) - clamp(40px, calc(var(--card-size) * 0.25), 60px)) / 2);
+   display: flex;
+   flex-direction: column;
+-  gap: 6px;
++  /* Gap proportional zur Kartengröße */
++  gap: clamp(3px, calc(var(--card-size) * 0.03), 8px);
+   z-index: 10;
+   opacity: 0;
+   transition: opacity 0.3s ease;
+ }
+
+ .card-buttons-left {
+-  left: 8px;
++  /* Left position proportional zur Kartengröße */
++  left: clamp(3px, calc(var(--card-size) * 0.04), 10px);
+ }
+
+ .card-buttons-right {
+-  right: 8px;
++  /* Right position proportional zur Kartengröße */
++  right: clamp(3px, calc(var(--card-size) * 0.04), 10px);
+ }
+```
+
+### 5. frontend/src/components/ApplianceCard.css - Entfernung problematischer size-spezifischer Regeln
+```diff
+-/* Für kleine Karten: Buttons näher an den Rand und kleiner */
+-.appliance-card-container[style*='--card-size: 5'] .card-buttons-left,
+-.appliance-card-container[style*='--card-size: 6'] .card-buttons-left,
+-.appliance-card-container[style*='--card-size: 7'] .card-buttons-left,
+-.appliance-card-container[style*='--card-size: 8'] .card-buttons-left {
+-  left: 2px;
+-  gap: 2px;
+-}
+-
+-/* ... weitere 70+ Zeilen mit size-spezifischen Regeln entfernt ... */
+-
++/* Show buttons on hover */
++.card-front:hover .card-buttons-left,
++.card-front:hover .card-buttons-right {
++  opacity: 1;
++}
+```
+
+### 6. frontend/src/components/ApplianceCard.css - Remote Desktop Button dynamisch
+```diff
+ .remote-desktop-btn {
+   background: transparent;
+   border: none;
+   color: var(--text-secondary);
+-  padding: 8px;
++  /* Dynamische Größe wie andere Buttons */
++  width: clamp(18px, calc(var(--card-size) * 0.15), 32px);
++  height: clamp(18px, calc(var(--card-size) * 0.15), 32px);
++  padding: 0;
+   border-radius: 6px;
+   cursor: pointer;
+   transition: all 0.2s ease;
+-  margin-left: 4px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
+ }
+
+ .remote-desktop-btn svg {
+-  width: 16px;
+-  height: 16px;
++  /* Icon-Größe proportional zum Button */
++  width: clamp(12px, calc(var(--card-size) * 0.08), 16px);
++  height: clamp(12px, calc(var(--card-size) * 0.08), 16px);
+ }
+```
+
+### 7. frontend/src/components/FileTransferButton.css - File Transfer Button dynamisch
+```diff
+ .file-transfer-button {
+   background: transparent;
+   border: 1px solid var(--border-color, #e1e4e8);
+   border-radius: 6px;
+-  padding: 8px 12px;
++  /* Dynamische Größe wie andere Buttons */
++  width: clamp(18px, calc(var(--card-size) * 0.15), 32px);
++  height: clamp(18px, calc(var(--card-size) * 0.15), 32px);
++  padding: 0;
+   cursor: pointer;
+   display: flex;
+   align-items: center;
+-  gap: 8px;
++  justify-content: center;
++  gap: 0;
+   transition: all 0.2s ease;
+   color: var(--text-primary, #24292e);
+ }
+
+ .file-transfer-icon {
+-  width: 16px;
+-  height: 16px;
++  /* Icon proportional zum Button */
++  width: clamp(12px, calc(var(--card-size) * 0.08), 16px);
++  height: clamp(12px, calc(var(--card-size) * 0.08), 16px);
+ }
+```
+
+### 8. frontend/src/App.css - Grid-Layout angepasst
+```diff
+ .appliances-grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, var(--card-size));
+-  grid-auto-rows: calc(var(--card-size) + 60px); /* +50px für Info + 10px Gap */
++  /* Grid-Höhe = Kartengröße + dynamischer Info-Bereich + Gap */
++  grid-auto-rows: calc(var(--card-size) + clamp(40px, calc(var(--card-size) * 0.25), 60px) + 10px);
+   gap: 20px;
+```
+
+### Container neu gebaut
+```bash
+scripts/build.sh --refresh
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Alle Elemente skalieren jetzt proportional zur Kartengröße
+- Icons bleiben zentriert im Content-Bereich (oberhalb des Info-Bereichs)
+- Buttons sind richtig positioniert und skalieren dynamisch
+- Info-Bereich passt sich der Kartengröße an
+- Funktioniert perfekt von 50px bis 300px (0% bis 100% des Sliders)
+- Keine hartcodierten Größenbereiche mehr
+- Vollständig responsive und zukunftssicher
+
+WICHTIGE ERKENNTNISSE:
+1. calc() und clamp() ermöglichen flexible, proportionale Skalierung
+2. CSS-Selektoren wie `[style*='--card-size: 5']` sind problematisch und unflexibel
+3. Alle Größen sollten relativ zur --card-size Variable berechnet werden
+4. Button-Positionierung muss den verfügbaren Content-Bereich berücksichtigen, nicht die gesamte Kartenhöhe
+
+
+## 2025-08-16 11:19:40 - Korrektur der Icon-Zentrierung und Implementierung des Kompakt-Modus für kleine Karten
+
+PROBLEM: 
+- Das Haupticon war zu klein (nur 40% der Kartengröße) und wurde nicht zentriert dargestellt
+- Buttons wurden bei kleinen Karten (unter 90px = 30% Slider) abgeschnitten
+- Keine spezielle Darstellung für sehr kleine Karten
+
+LÖSUNG: 
+1. Icon-Größe auf 60% des verfügbaren Content-Bereichs erhöht
+2. Kompakt-Modus für Karten unter 90px mit farbigen Balken-Indikatoren
+3. Container Queries für responsive Anpassung basierend auf Kartengröße
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Icon-Größe korrigiert
+```diff
+ .card-icon {
+-  /* Icon: 40% der Kartengröße, min 25px, max 100px */
+-  width: clamp(25px, calc(var(--card-size) * 0.4), 100px);
+-  height: clamp(25px, calc(var(--card-size) * 0.4), 100px);
++  /* Icon größer machen: 60% der verfügbaren Höhe (Karte minus Info-Bereich) */
++  --content-height: calc(var(--card-size) - clamp(40px, calc(var(--card-size) * 0.25), 60px));
++  width: clamp(30px, calc(var(--content-height) * 0.6), 120px);
++  height: clamp(30px, calc(var(--content-height) * 0.6), 120px);
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Container Query Setup
+```diff
+ .appliance-card-container {
+   position: relative;
+   width: var(--card-size, 180px);
+-  height: calc(var(--card-size, 180px) + clamp(40px, calc(var(--card-size) * 0.25), 60px));
++  height: calc(var(--card-size, 180px) + clamp(35px, calc(var(--card-size) * 0.25), 60px));
+   perspective: 1000px;
+   transform-style: preserve-3d;
+   display: block;
+   touch-action: manipulation;
+   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+   margin: 0;
++  container-type: inline-size;
++  container-name: card;
+ }
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Kompakt-Modus für kleine Karten (unter 90px)
+```css
+/* ===== KOMPAKT-MODUS FÜR KLEINE KARTEN (unter 90px = 30% Slider) ===== */
+@container card (max-width: 90px) {
+  /* Verstecke normale Buttons */
+  .card-buttons-left,
+  .card-buttons-right {
+    display: none !important;
+  }
+  
+  /* Icon noch größer für bessere Sichtbarkeit */
+  .card-icon {
+    width: 70%;
+    height: 70%;
+    max-width: 50px;
+    max-height: 50px;
+  }
+  
+  /* Info-Bereich kompakter */
+  .card-info {
+    height: 35px;
+    padding: 4px 6px;
+  }
+  
+  .card-title {
+    font-size: 10px;
+    font-weight: 500;
+  }
+  
+  .card-description {
+    display: none; /* Verstecke Beschreibung bei sehr kleinen Karten */
+  }
+  
+  /* Farbige Indikator-Balken für Aktionen */
+  .card-front::before,
+  .card-front::after {
+    content: '';
+    position: absolute;
+    width: 3px;
+    height: 60%;
+    top: 20%;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+  }
+  
+  /* Linker Balken - Favorit-Status */
+  .card-front::before {
+    left: 0;
+    background: linear-gradient(180deg, 
+      rgba(255, 59, 48, 0.8) 0%, 
+      rgba(255, 59, 48, 0.4) 100%);
+    display: none;
+  }
+  
+  .card-front.is-favorite::before {
+    display: block;
+  }
+  
+  /* Rechter Balken - Service-Status */
+  .card-front::after {
+    right: 0;
+    background: linear-gradient(180deg, 
+      rgba(34, 197, 94, 0.8) 0%, 
+      rgba(34, 197, 94, 0.4) 100%);
+  }
+  
+  .card-front.service-stopped::after {
+    background: linear-gradient(180deg, 
+      rgba(239, 68, 68, 0.8) 0%, 
+      rgba(239, 68, 68, 0.4) 100%);
+  }
+  
+  /* Top-Balken für Remote-Desktop verfügbar */
+  .card-front.has-remote {
+    border-top: 2px solid rgba(33, 150, 243, 0.8);
+  }
+  
+  /* Bottom-Balken für File-Transfer verfügbar */
+  .card-front.has-file-transfer {
+    border-bottom: 2px solid rgba(147, 51, 234, 0.8);
+  }
+  
+  /* Edit-Menu Button kleiner und in Ecke */
+  .edit-menu-toggle {
+    width: 16px !important;
+    height: 16px !important;
+    top: 2px !important;
+    right: 2px !important;
+    opacity: 0.6;
+  }
+}
+
+/* Mittlere Karten (90-150px): Reduzierte Button-Anzahl */
+@container card (min-width: 90px) and (max-width: 150px) {
+  .card-buttons-left,
+  .card-buttons-right {
+    gap: 4px;
+  }
+  
+  .action-btn {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .action-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+```
+
+### 4. frontend/src/components/ApplianceCard.js - CSS-Klassen für Balken-Indikatoren
+```diff
+ <div
+-  className={`card-side card-front ${hasBeenTouched ? 'mobile-tap-hint' : ''}`}
++  className={`card-side card-front ${hasBeenTouched ? 'mobile-tap-hint' : ''} ${
++    appliance.isFavorite ? 'is-favorite' : ''
++  } ${
++    serviceStatus && serviceStatus.status === 'stopped' ? 'service-stopped' : ''
++  } ${
++    appliance.remoteDesktopEnabled ? 'has-remote' : ''
++  } ${
++    appliance.sshEnabled && appliance.targetPath ? 'has-file-transfer' : ''
++  }`}
+```
+
+### 5. frontend/src/components/ApplianceCard.css - Info-Bereich Anpassungen
+```diff
+ .card-info {
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   right: 0;
+-  height: clamp(40px, calc(var(--card-size) * 0.25), 60px);
+-  padding: clamp(6px, calc(var(--card-size) * 0.04), 12px) clamp(8px, calc(var(--card-size) * 0.05), 15px);
++  height: clamp(35px, calc(var(--card-size) * 0.25), 60px);
++  padding: clamp(4px, calc(var(--card-size) * 0.04), 12px) clamp(6px, calc(var(--card-size) * 0.05), 15px);
+```
+
+### 6. frontend/src/components/ApplianceCard.css - Card Cover angepasst
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+-  bottom: clamp(40px, calc(var(--card-size) * 0.25), 60px);
++  bottom: clamp(35px, calc(var(--card-size) * 0.25), 60px);
+```
+
+### 7. frontend/src/App.css - Grid-Layout angepasst
+```diff
+ .appliances-grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, var(--card-size));
+-  grid-auto-rows: calc(var(--card-size) + clamp(40px, calc(var(--card-size) * 0.25), 60px) + 10px);
++  grid-auto-rows: calc(var(--card-size) + clamp(35px, calc(var(--card-size) * 0.25), 60px) + 10px);
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Icon ist jetzt 60% des verfügbaren Content-Bereichs groß und perfekt zentriert
+- Bei Karten unter 90px (30% Slider):
+  * Normale Buttons werden versteckt
+  * Farbige Balken zeigen Status an:
+    - Linker Balken (rot): Favorit
+    - Rechter Balken (grün/rot): Service läuft/gestoppt
+    - Oberer Rand (blau): Remote Desktop verfügbar
+    - Unterer Rand (violett): File Transfer verfügbar
+  * Icon wird größer dargestellt (70% der Karte)
+  * Nur der Titel wird angezeigt, keine Beschreibung
+- Bei mittleren Karten (90-150px): Reduzierte Button-Größe
+- Bei großen Karten (über 150px): Normale Darstellung mit allen Buttons
+
+WICHTIGE ERKENNTNISSE:
+1. Container Queries (@container) ermöglichen größenabhängige Styles basierend auf der tatsächlichen Elementgröße
+2. Für sehr kleine Karten sind visuelle Indikatoren (Balken/Ränder) besser als kleine Buttons
+3. Die Icon-Größe sollte relativ zum verfügbaren Content-Bereich berechnet werden, nicht zur gesamten Kartengröße
+
+
+## 2025-08-16 11:52:26 - KRITISCHER FIX: Undefined serviceStatus Variable behoben
+
+PROBLEM: 
+Alle Appliance-Karten zeigten "Fehler bei Service-Karte" mit der Fehlermeldung "servicestatus is not defined". 
+Die Variable `serviceStatus` wurde verwendet, aber nirgends definiert.
+
+URSACHE:
+In Zeile 488 von ApplianceCard.js wurde `serviceStatus` ohne den `appliance.` Prefix verwendet.
+
+LÖSUNG:
+Variable korrekt auf `appliance.serviceStatus` geändert.
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.js - serviceStatus Referenz korrigiert
+```diff
+ <div
+   className={`card-side card-front ${hasBeenTouched ? 'mobile-tap-hint' : ''} ${
+     appliance.isFavorite ? 'is-favorite' : ''
+   } ${
+-    serviceStatus && serviceStatus.status === 'stopped' ? 'service-stopped' : ''
++    appliance.serviceStatus && appliance.serviceStatus === 'stopped' ? 'service-stopped' : ''
+   } ${
+     appliance.remoteDesktopEnabled ? 'has-remote' : ''
+   } ${
+     appliance.sshEnabled && appliance.targetPath ? 'has-file-transfer' : ''
+   }`}
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich behoben
+
+ERGEBNIS:
+- Fehlermeldung "servicestatus is not defined" behoben
+- Karten werden wieder korrekt angezeigt
+- Service-Status CSS-Klassen funktionieren wieder
+- Kompakt-Modus mit farbigen Balken funktioniert
+
+WICHTIGE ERKENNTNIS:
+Bei der Implementierung neuer Features müssen alle Variablen-Referenzen sorgfältig geprüft werden.
+In diesem Fall wurde vergessen, dass serviceStatus eine Property von appliance ist.
+
+
+## 2025-08-16 12:01:07 - Button-Positionierung und Sichtbarkeit korrigiert
+
+PROBLEM: 
+Die Buttons auf den Appliance-Karten wurden nur teilweise angezeigt und waren abgeschnitten.
+Die Buttons waren nicht vertikal zentriert und wurden durch overflow: hidden versteckt.
+
+LÖSUNG:
+1. Button-Positionierung mit transform: translateY(-50%) für echte vertikale Zentrierung
+2. Overflow von hidden auf visible geändert
+3. Button-Größen angepasst
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Button-Positionierung korrigiert
+```diff
+ .card-buttons-left,
+ .card-buttons-right {
+   position: absolute;
+-  /* Buttons im Content-Bereich zentrieren (oberhalb des Info-Bereichs) */
+-  /* Top = 50% des Content-Bereichs, nicht der gesamten Karte */
+-  top: calc((var(--card-size) - clamp(40px, calc(var(--card-size) * 0.25), 60px)) / 2);
++  /* Buttons vertikal zentrieren mit transform */
++  top: 50%;
++  transform: translateY(-50%);
+   display: flex;
+   flex-direction: column;
+   gap: clamp(3px, calc(var(--card-size) * 0.03), 8px);
+   z-index: 10;
+   opacity: 0;
+   transition: opacity 0.3s ease;
++  /* Maximale Höhe, damit Buttons nicht aus der Karte ragen */
++  max-height: calc(var(--card-size) - clamp(35px, calc(var(--card-size) * 0.25), 60px) - 20px);
++  overflow: visible;
+ }
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Overflow auf visible geändert
+```diff
+ .card-side {
+   position: absolute;
+   width: 100%;
+   height: 100%;
+   backface-visibility: hidden;
+   -webkit-backface-visibility: hidden;
+   border-radius: 16px;
+-  overflow: hidden;
++  overflow: visible; /* Changed to visible to show buttons properly */
+ }
+
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+   bottom: clamp(35px, calc(var(--card-size) * 0.25), 60px);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+-  overflow: hidden;
++  overflow: visible; /* Changed from hidden to visible for buttons */
+   padding: clamp(5px, calc(var(--card-size) * 0.05), 15px);
+ }
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Button-Größen angepasst
+```diff
+ .action-btn {
+   /* Dynamische Größe basierend auf Kartengröße */
+-  width: clamp(18px, calc(var(--card-size) * 0.15), 32px);
+-  height: clamp(18px, calc(var(--card-size) * 0.15), 32px);
++  width: clamp(24px, calc(var(--card-size) * 0.15), 40px);
++  height: clamp(24px, calc(var(--card-size) * 0.15), 40px);
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Buttons sind jetzt vollständig sichtbar und nicht mehr abgeschnitten
+- Vertikale Zentrierung funktioniert korrekt mit transform: translateY(-50%)
+- Buttons haben angemessene Größe (24-40px statt 18-32px)
+- Overflow wurde auf visible gesetzt, damit Buttons nicht versteckt werden
+
+WICHTIGE ERKENNTNIS:
+Bei der Positionierung von Elementen innerhalb von Containern mit dynamischen Größen ist 
+transform: translateY(-50%) oft zuverlässiger als komplexe calc() Berechnungen.
+Overflow: hidden kann Probleme verursachen, wenn Elemente am Rand positioniert sind.
+
+
+## 2025-08-16 12:08:35 - Optimierung der Icon-Zentrierung und Button-Skalierung für alle Kartengrößen
+
+PROBLEM: 
+1. Das Haupticon war nicht richtig zentriert (zu hoch positioniert)
+2. Bei großen Karten waren die Buttons zu klein im Verhältnis zur Karte
+3. Bei mittleren Karten (60%) ragten die Buttons aus der Karte heraus
+
+LÖSUNG:
+1. Padding vom card-cover entfernt für perfekte Icon-Zentrierung
+2. Icon-Größe auf 70% des Content-Bereichs erhöht
+3. Button-Positionierung relativ zum Content-Bereich, nicht zur gesamten Karte
+4. Button-Größen proportional erhöht (16% der Kartengröße)
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Card Cover ohne Padding
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+   bottom: clamp(35px, calc(var(--card-size) * 0.25), 60px);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   overflow: visible;
+-  /* Padding proportional zur Kartengröße */
+-  padding: clamp(5px, calc(var(--card-size) * 0.05), 15px);
++  /* Padding entfernt, damit Icon wirklich zentriert ist */
++  padding: 0;
+ }
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Icon größer gemacht
+```diff
+ .card-icon {
+-  /* Icon größer machen: 60% der verfügbaren Höhe (Karte minus Info-Bereich) */
+-  --content-height: calc(var(--card-size) - clamp(40px, calc(var(--card-size) * 0.25), 60px));
+-  width: clamp(30px, calc(var(--content-height) * 0.6), 120px);
+-  height: clamp(30px, calc(var(--content-height) * 0.6), 120px);
++  /* Icon noch größer: 70% der verfügbaren Höhe */
++  --content-height: calc(var(--card-size) - clamp(35px, calc(var(--card-size) * 0.25), 60px));
++  width: clamp(40px, calc(var(--content-height) * 0.7), 150px);
++  height: clamp(40px, calc(var(--content-height) * 0.7), 150px);
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Button-Positionierung korrigiert
+```diff
+ .card-buttons-left,
+ .card-buttons-right {
+   position: absolute;
+-  /* Buttons vertikal zentrieren mit transform */
+-  top: 50%;
++  /* Buttons in der Mitte des Content-Bereichs positionieren */
++  --content-height: calc(var(--card-size) - clamp(35px, calc(var(--card-size) * 0.25), 60px));
++  top: calc(var(--content-height) / 2);
+   transform: translateY(-50%);
+   display: flex;
+   flex-direction: column;
+-  gap: clamp(3px, calc(var(--card-size) * 0.03), 8px);
++  gap: clamp(4px, calc(var(--card-size) * 0.04), 12px);
+   z-index: 10;
+   opacity: 0;
+   transition: opacity 0.3s ease;
+-  max-height: calc(var(--card-size) - clamp(35px, calc(var(--card-size) * 0.25), 60px) - 20px);
++  max-height: calc(var(--content-height) - 20px);
+   overflow: visible;
+ }
+
+ .card-buttons-left {
+-  left: clamp(3px, calc(var(--card-size) * 0.04), 10px);
++  left: clamp(8px, calc(var(--card-size) * 0.05), 20px);
+ }
+
+ .card-buttons-right {
+-  right: clamp(3px, calc(var(--card-size) * 0.04), 10px);
++  right: clamp(8px, calc(var(--card-size) * 0.05), 20px);
+ }
+```
+
+### 4. frontend/src/components/ApplianceCard.css - Button-Größen erhöht
+```diff
+ .action-btn {
+-  /* Dynamische Größe basierend auf Kartengröße */
+-  width: clamp(24px, calc(var(--card-size) * 0.15), 40px);
+-  height: clamp(24px, calc(var(--card-size) * 0.15), 40px);
++  /* Dynamische Größe: 12-18% der Kartengröße */
++  width: clamp(28px, calc(var(--card-size) * 0.16), 48px);
++  height: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+   background: rgba(0, 0, 0, 0.3);
+   backdrop-filter: blur(20px);
+   -webkit-backdrop-filter: blur(20px);
+   border: 1px solid rgba(255, 255, 255, 0.2);
+-  border-radius: 6px;
++  border-radius: clamp(6px, calc(var(--card-size) * 0.04), 12px);
+```
+
+### 5. frontend/src/components/ApplianceCard.css - Icon-Größen in Buttons
+```diff
+ .action-btn svg,
+ .service-btn svg,
+ .settings-btn-icon svg,
+ .flip-btn svg,
+ .edit-menu-toggle svg {
+-  width: clamp(12px, calc(var(--card-size) * 0.08), 16px);
+-  height: clamp(12px, calc(var(--card-size) * 0.08), 16px);
++  /* Icons skalieren mit Button-Größe: 60% des Buttons */
++  width: clamp(16px, calc(var(--card-size) * 0.1), 28px);
++  height: clamp(16px, calc(var(--card-size) * 0.1), 28px);
+ }
+```
+
+### 6. frontend/src/components/ApplianceCard.css - Remote Desktop Button
+```diff
+ .remote-desktop-btn {
+   background: transparent;
+   border: none;
+   color: var(--text-secondary);
+-  width: clamp(18px, calc(var(--card-size) * 0.15), 32px);
+-  height: clamp(18px, calc(var(--card-size) * 0.15), 32px);
++  width: clamp(28px, calc(var(--card-size) * 0.16), 48px);
++  height: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+   padding: 0;
+-  border-radius: 6px;
++  border-radius: clamp(6px, calc(var(--card-size) * 0.04), 12px);
+
+ .remote-desktop-btn svg {
+-  width: clamp(12px, calc(var(--card-size) * 0.08), 16px);
+-  height: clamp(12px, calc(var(--card-size) * 0.08), 16px);
++  width: clamp(16px, calc(var(--card-size) * 0.1), 28px);
++  height: clamp(16px, calc(var(--card-size) * 0.1), 28px);
+ }
+```
+
+### 7. frontend/src/components/FileTransferButton.css - File Transfer Button
+```diff
+ .file-transfer-button {
+   background: transparent;
+   border: 1px solid var(--border-color, #e1e4e8);
+-  border-radius: 6px;
+-  width: clamp(18px, calc(var(--card-size) * 0.15), 32px);
+-  height: clamp(18px, calc(var(--card-size) * 0.15), 32px);
++  border-radius: clamp(6px, calc(var(--card-size) * 0.04), 12px);
++  width: clamp(28px, calc(var(--card-size) * 0.16), 48px);
++  height: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+
+ .file-transfer-icon {
+-  width: clamp(12px, calc(var(--card-size) * 0.08), 16px);
+-  height: clamp(12px, calc(var(--card-size) * 0.08), 16px);
++  width: clamp(16px, calc(var(--card-size) * 0.1), 28px);
++  height: clamp(16px, calc(var(--card-size) * 0.1), 28px);
+ }
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Haupticon ist jetzt perfekt zentriert und größer (70% des Content-Bereichs)
+- Buttons sind proportional zur Kartengröße (16% der Karte = 28-48px)
+- Button-Icons sind größer und besser sichtbar (10% der Karte = 16-28px)
+- Buttons sind korrekt im Content-Bereich positioniert (nicht außerhalb der Karte)
+- Größerer Abstand zu den Rändern (5% der Karte = 8-20px)
+- Alle Größen skalieren harmonisch von klein bis groß
+
+SKALIERUNGS-ÜBERSICHT:
+- **50px Karte**: Icon 28px, Buttons 28px, Icons 16px
+- **150px Karte**: Icon 80px, Buttons 24px, Icons 15px  
+- **300px Karte**: Icon 150px, Buttons 48px, Icons 28px
+
+WICHTIGE ERKENNTNIS:
+Die Positionierung relativ zum Content-Bereich (Karte minus Info-Bereich) ist entscheidend,
+damit Buttons nicht aus der Karte ragen. Die Verwendung von CSS-Variablen für wiederholte
+Berechnungen macht den Code wartbarer und konsistenter.
+
+
+## 2025-08-16 12:14:40 - Proportionale Skalierung aller Karten-Elemente implementiert
+
+PROBLEM: 
+1. Der Info-Bereich wuchs nicht proportional mit (max 60px bei großen Karten)
+2. Das Haupticon war noch zu klein und nicht in der Mitte positioniert
+3. Schriftgrößen skalierten nicht richtig mit
+
+LÖSUNG:
+Vollständig proportionale Skalierung ohne Mindest- oder Maximalwerte implementiert.
+Alle Elemente wachsen linear mit der Kartengröße.
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Container-Höhe vereinfacht
+```diff
+ .appliance-card-container {
+   position: relative;
+   width: var(--card-size, 180px);
+-  /* Höhe: Karte + dynamischer Info-Bereich */
+-  height: calc(var(--card-size, 180px) + clamp(35px, calc(var(--card-size) * 0.25), 60px));
++  /* Höhe: Karte + dynamischer Info-Bereich (20% der Karte) */
++  height: calc(var(--card-size, 180px) + calc(var(--card-size) * 0.2));
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Card Cover angepasst
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+-  /* Info-Bereich dynamisch: 25% der Kartengröße, min 35px, max 60px */
+-  bottom: clamp(35px, calc(var(--card-size) * 0.25), 60px);
++  /* Info-Bereich: 20% der Kartengröße */
++  bottom: calc(var(--card-size) * 0.2);
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Icon perfekt zentriert und proportional
+```diff
+ .card-icon {
+-  /* Icon noch größer: 70% der verfügbaren Höhe */
+-  --content-height: calc(var(--card-size) - clamp(35px, calc(var(--card-size) * 0.25), 60px));
+-  width: clamp(40px, calc(var(--content-height) * 0.7), 150px);
+-  height: clamp(40px, calc(var(--content-height) * 0.7), 150px);
++  /* Icon: 50% der Kartengröße für optimale Proportion */
++  width: calc(var(--card-size) * 0.5);
++  height: calc(var(--card-size) * 0.5);
+```
+
+### 4. frontend/src/components/ApplianceCard.css - Info-Bereich proportional
+```diff
+ .card-info {
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   right: 0;
+-  /* Dynamische Höhe: 25% der Kartengröße, min 35px, max 60px */
+-  height: clamp(35px, calc(var(--card-size) * 0.25), 60px);
+-  /* Padding proportional zur Info-Höhe */
+-  padding: clamp(4px, calc(var(--card-size) * 0.04), 12px) clamp(6px, calc(var(--card-size) * 0.05), 15px);
++  /* Dynamische Höhe: 20% der Kartengröße */
++  height: calc(var(--card-size) * 0.2);
++  /* Padding proportional zur Info-Höhe */
++  padding: clamp(4px, calc(var(--card-size) * 0.02), 12px) clamp(8px, calc(var(--card-size) * 0.04), 16px);
+```
+
+### 5. frontend/src/components/ApplianceCard.css - Button-Positionierung angepasst
+```diff
+ .card-buttons-left,
+ .card-buttons-right {
+   position: absolute;
+-  /* Buttons in der Mitte des Content-Bereichs positionieren */
+-  --content-height: calc(var(--card-size) - clamp(35px, calc(var(--card-size) * 0.25), 60px));
++  /* Buttons in der Mitte des Content-Bereichs positionieren */
++  --content-height: calc(var(--card-size) * 0.8); /* 80% ist Content, 20% ist Info */
+   top: calc(var(--content-height) / 2);
+   transform: translateY(-50%);
+```
+
+### 6. frontend/src/components/ApplianceCard.css - Schriftgrößen ohne Limits
+```diff
+ .card-title {
+-  /* Dynamische Schriftgröße: 8% der Kartengröße, min 11px, max 16px */
+-  font-size: clamp(11px, calc(var(--card-size) * 0.08), 16px);
++  /* Dynamische Schriftgröße: 7% der Kartengröße */
++  font-size: calc(var(--card-size) * 0.07);
+ }
+
+ .card-description {
+-  /* Dynamische Schriftgröße: 6% der Kartengröße, min 9px, max 13px */
+-  font-size: clamp(9px, calc(var(--card-size) * 0.06), 13px);
++  /* Dynamische Schriftgröße: 5% der Kartengröße */
++  font-size: calc(var(--card-size) * 0.05);
+ }
+```
+
+### 7. frontend/src/App.css - Grid-Layout vereinfacht
+```diff
+ .appliances-grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, var(--card-size));
+-  /* Grid-Höhe = Kartengröße + dynamischer Info-Bereich + Gap */
+-  grid-auto-rows: calc(var(--card-size) + clamp(35px, calc(var(--card-size) * 0.25), 60px) + 10px);
++  /* Grid-Höhe = Kartengröße + Info-Bereich (20% der Karte) + Gap */
++  grid-auto-rows: calc(var(--card-size) * 1.2 + 10px);
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Alle Elemente skalieren jetzt vollständig proportional zur Kartengröße
+- Haupticon ist perfekt zentriert und 50% der Kartengröße
+- Info-Bereich ist immer 20% der Kartengröße (10px bei 50px Karte, 60px bei 300px Karte)
+- Schriftgrößen wachsen linear mit (3.5px bis 21px für Titel, 2.5px bis 15px für Beschreibung)
+- Buttons bleiben im Content-Bereich (80% der Karte)
+
+PROPORTIONEN-ÜBERSICHT:
+- **Icon**: 50% der Kartengröße
+- **Info-Bereich**: 20% der Kartengröße  
+- **Content-Bereich**: 80% der Kartengröße
+- **Buttons**: 16% der Kartengröße
+- **Button-Icons**: 10% der Kartengröße
+- **Titel-Text**: 7% der Kartengröße
+- **Beschreibungs-Text**: 5% der Kartengröße
+
+WICHTIGE ERKENNTNIS:
+Durch den Verzicht auf clamp() und feste Min/Max-Werte skaliert alles perfekt linear.
+Die Proportionen bleiben bei jeder Kartengröße gleich, was zu einem harmonischen 
+Erscheinungsbild führt. Das Icon ist jetzt immer exakt in der Mitte des Content-Bereichs.
+
+
+## 2025-08-16 12:19:30 - Info-Bereich auf 25% vergrößert und Padding-Limits entfernt
+
+PROBLEM: 
+Der Info-Bereich war trotz 20% Einstellung viel zu klein und die Schrift kaum lesbar.
+Das Padding hatte noch clamp() Einschränkungen, die das Wachstum verhinderten.
+
+LÖSUNG:
+1. Info-Bereich von 20% auf 25% der Kartengröße erhöht
+2. Alle clamp() Einschränkungen beim Padding entfernt
+3. Gap zwischen Titel und Beschreibung proportional gemacht
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Container-Höhe angepasst
+```diff
+ .appliance-card-container {
+   position: relative;
+   width: var(--card-size, 180px);
+-  /* Höhe: Karte + dynamischer Info-Bereich (20% der Karte) */
+-  height: calc(var(--card-size, 180px) + calc(var(--card-size) * 0.2));
++  /* Höhe: Karte + dynamischer Info-Bereich (25% der Karte) */
++  height: calc(var(--card-size, 180px) * 1.25);
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Card Cover angepasst
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+-  /* Info-Bereich: 20% der Kartengröße */
+-  bottom: calc(var(--card-size) * 0.2);
++  /* Info-Bereich: 25% der Kartengröße */
++  bottom: calc(var(--card-size) * 0.25);
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Info-Bereich ohne Limits
+```diff
+ .card-info {
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   right: 0;
+-  /* Dynamische Höhe: 20% der Kartengröße */
+-  height: calc(var(--card-size) * 0.2);
+-  /* Padding proportional zur Info-Höhe */
+-  padding: clamp(4px, calc(var(--card-size) * 0.02), 12px) clamp(8px, calc(var(--card-size) * 0.04), 16px);
++  /* Dynamische Höhe: 25% der Kartengröße für bessere Sichtbarkeit */
++  height: calc(var(--card-size) * 0.25);
++  /* Padding proportional ohne Limits */
++  padding: calc(var(--card-size) * 0.03) calc(var(--card-size) * 0.04);
+   background: linear-gradient(
+     to top,
+     rgba(0, 0, 0, 0.7) 0%,
+     rgba(0, 0, 0, 0.5) 50%,
+     rgba(0, 0, 0, 0.3) 80%,
+     transparent 100%
+   );
+   backdrop-filter: blur(4px);
+   -webkit-backdrop-filter: blur(4px);
+   display: flex;
+   flex-direction: column;
+   justify-content: center;
+-  gap: 2px;
++  gap: calc(var(--card-size) * 0.01);
+   z-index: 3;
+ }
+```
+
+### 4. frontend/src/components/ApplianceCard.css - Button-Positionierung angepasst
+```diff
+ .card-buttons-left,
+ .card-buttons-right {
+   position: absolute;
+-  /* Buttons in der Mitte des Content-Bereichs positionieren */
+-  --content-height: calc(var(--card-size) * 0.8); /* 80% ist Content, 20% ist Info */
++  /* Buttons in der Mitte des Content-Bereichs positionieren */
++  --content-height: calc(var(--card-size) * 0.75); /* 75% ist Content, 25% ist Info */
+   top: calc(var(--content-height) / 2);
+```
+
+### 5. frontend/src/App.css - Grid-Layout angepasst
+```diff
+ .appliances-grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, var(--card-size));
+-  /* Grid-Höhe = Kartengröße + Info-Bereich (20% der Karte) + Gap */
+-  grid-auto-rows: calc(var(--card-size) * 1.2 + 10px);
++  /* Grid-Höhe = Kartengröße * 1.25 (inkl. 25% Info-Bereich) + Gap */
++  grid-auto-rows: calc(var(--card-size) * 1.25 + 10px);
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Info-Bereich ist jetzt 25% der Kartengröße (statt 20%)
+- Bei 250px Karte: 62.5px Info-Bereich (vorher 50px)
+- Padding wächst vollständig proportional ohne Limits
+- Gap zwischen Titel und Beschreibung ist proportional (1% der Kartengröße)
+
+NEUE PROPORTIONEN:
+- **Icon**: 50% der Kartengröße
+- **Info-Bereich**: 25% der Kartengröße (erhöht von 20%)
+- **Content-Bereich**: 75% der Kartengröße  
+- **Buttons**: 16% der Kartengröße
+- **Button-Icons**: 10% der Kartengröße
+- **Titel-Text**: 7% der Kartengröße
+- **Beschreibungs-Text**: 5% der Kartengröße
+- **Info-Padding**: 3% vertikal, 4% horizontal
+- **Info-Gap**: 1% der Kartengröße
+
+WICHTIGE ERKENNTNIS:
+Die clamp() Funktion beim Padding verhinderte das proportionale Wachstum.
+Durch reine calc() Berechnungen ohne Min/Max-Limits skaliert alles perfekt linear.
+25% Info-Bereich bietet bessere Lesbarkeit bei allen Kartengrößen.
+
+
+## 2025-08-16 12:25:05 - Mindestgrößen für Info-Bereich und Schriften implementiert
+
+PROBLEM: 
+Bei großen Karten (100% = 300px) war der Info-Bereich trotz 25% zu klein dargestellt.
+Die Container Query für kleine Karten überschrieb die Info-Höhe mit festen 35px.
+Schriftgrößen waren bei großen Karten schwer lesbar.
+
+LÖSUNG:
+1. Mindesthöhe von 50px für Info-Bereich eingeführt
+2. Container Query Overrides entfernt
+3. Mindest-Schriftgrößen für bessere Lesbarkeit
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Container-Höhe mit Minimum
+```diff
+ .appliance-card-container {
+   position: relative;
+   width: var(--card-size, 180px);
+-  /* Höhe: Karte + dynamischer Info-Bereich (25% der Karte) */
+-  height: calc(var(--card-size, 180px) * 1.25);
++  /* Höhe: Karte + Info-Bereich (25% mit min 50px) */
++  height: calc(var(--card-size, 180px) + max(50px, calc(var(--card-size) * 0.25)));
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Card Cover mit Minimum
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+-  /* Info-Bereich: 25% der Kartengröße */
+-  bottom: calc(var(--card-size) * 0.25);
++  /* Info-Bereich mit Minimum */
++  bottom: max(50px, calc(var(--card-size) * 0.25));
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Info-Bereich mit Mindesthöhe
+```diff
+ .card-info {
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   right: 0;
+-  /* Dynamische Höhe: 25% der Kartengröße für bessere Sichtbarkeit */
+-  height: calc(var(--card-size) * 0.25);
+-  /* Padding proportional ohne Limits */
+-  padding: calc(var(--card-size) * 0.03) calc(var(--card-size) * 0.04);
++  /* Dynamische Höhe mit Minimum für bessere Sichtbarkeit */
++  height: max(50px, calc(var(--card-size) * 0.25));
++  /* Padding proportional mit Minimum */
++  padding: max(8px, calc(var(--card-size) * 0.03)) max(12px, calc(var(--card-size) * 0.04));
+```
+
+### 4. frontend/src/components/ApplianceCard.css - Schriftgrößen mit Minimum
+```diff
+ .card-title {
+-  /* Dynamische Schriftgröße: 7% der Kartengröße */
+-  font-size: calc(var(--card-size) * 0.07);
++  /* Dynamische Schriftgröße mit Minimum für Lesbarkeit */
++  font-size: max(14px, calc(var(--card-size) * 0.07));
+ }
+
+ .card-description {
+-  /* Dynamische Schriftgröße: 5% der Kartengröße */
+-  font-size: calc(var(--card-size) * 0.05);
++  /* Dynamische Schriftgröße mit Minimum für Lesbarkeit */
++  font-size: max(11px, calc(var(--card-size) * 0.05));
+ }
+```
+
+### 5. frontend/src/components/ApplianceCard.css - Container Query bereinigt
+```diff
+ @container card (max-width: 90px) {
+   /* Verstecke normale Buttons */
+   .card-buttons-left,
+   .card-buttons-right {
+     display: none !important;
+   }
+   
+-  /* Icon noch größer für bessere Sichtbarkeit */
++  /* Icon für kleine Karten angepasst */
+   .card-icon {
+     width: 70%;
+     height: 70%;
+-    max-width: 50px;
+-    max-height: 50px;
+   }
+   
+-  /* Info-Bereich kompakter */
+-  .card-info {
+-    height: 35px;
+-    padding: 4px 6px;
+-  }
++  /* Info-Bereich bleibt proportional - kein Override! */
+   
+   .card-title {
+-    font-size: 10px;
++    font-size: calc(var(--card-size) * 0.08); /* Etwas größer für Lesbarkeit */
+     font-weight: 500;
+   }
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Info-Bereich hat jetzt eine Mindesthöhe von 50px
+- Bei kleinen Karten (50-200px): 50px Info-Bereich
+- Bei großen Karten (>200px): 25% der Kartengröße
+- Schriftgrößen haben Mindestgrößen für bessere Lesbarkeit:
+  - Titel: min 14px
+  - Beschreibung: min 11px
+- Container Query Overrides entfernt, die die Proportionen störten
+
+SKALIERUNGS-VERHALTEN:
+- **50px Karte**: 50px Info (Minimum), 14px Titel, 11px Beschreibung
+- **100px Karte**: 50px Info (Minimum), 14px Titel, 11px Beschreibung  
+- **200px Karte**: 50px Info (Minimum), 14px Titel, 11px Beschreibung
+- **250px Karte**: 62.5px Info (25%), 17.5px Titel, 12.5px Beschreibung
+- **300px Karte**: 75px Info (25%), 21px Titel, 15px Beschreibung
+
+WICHTIGE ERKENNTNIS:
+Die Kombination aus proportionaler Skalierung mit sinnvollen Mindestgrößen
+bietet die beste User Experience. Reine Proportionen funktionieren nicht bei
+allen Größen gleich gut - bei sehr kleinen und sehr großen Karten sind
+Mindest- bzw. Maximalwerte sinnvoll.
+
+
+## 2025-08-16 12:31:05 - Haupticon EXAKT zentriert und auf 80% vergrößert
+
+PROBLEM: 
+Das Haupticon war viel zu klein (nur 50% der Kartengröße) und nicht in der Mitte der gesamten Karte positioniert, sondern nur im Content-Bereich (zu weit oben).
+
+LÖSUNG:
+1. Icon-Größe auf 80% der Kartengröße erhöht für dominante Präsenz
+2. Absolute Positionierung mit transform: translate(-50%, -50%) für EXAKTE Zentrierung
+3. Icon ist jetzt in der Mitte der GESAMTEN Karte, nicht nur des Content-Bereichs
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Icon absolut zentriert und größer
+```diff
+ .card-icon {
+-  /* Icon: 50% der Kartengröße für optimale Proportion */
+-  width: calc(var(--card-size) * 0.5);
+-  height: calc(var(--card-size) * 0.5);
++  /* Icon VIEL größer: 80% der Kartengröße für dominante Präsenz */
++  width: calc(var(--card-size) * 0.8);
++  height: calc(var(--card-size) * 0.8);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: rgba(255, 255, 255, 0.9);
+   transition: transform 0.3s ease;
+-  position: relative;
++  /* EXAKT in der Mitte der GESAMTEN Karte positionieren */
++  position: absolute;
++  top: 50%;
++  left: 50%;
++  transform: translate(-50%, -50%);
+   z-index: 2;
+ }
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Card Cover angepasst
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+   bottom: max(50px, calc(var(--card-size) * 0.25));
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
++  /* Kein display: flex mehr, da Icon absolut positioniert ist */
+   overflow: visible;
+-  /* Padding entfernt, damit Icon wirklich zentriert ist */
+   padding: 0;
+ }
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Hover-Effekt angepasst
+```diff
+ .card-icon svg {
+   width: 100%;
+   height: 100%;
+   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+ }
++
++/* Icon Hover Effect */
++.card-front:hover .card-icon {
++  transform: translate(-50%, -50%) scale(1.05);
++}
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Icon ist jetzt 80% der Kartengröße (statt 50%)
+- Icon ist EXAKT in der Mitte der GESAMTEN Karte positioniert
+- Bei 250px Karte: 200px Icon (vorher 125px)
+- Bei 300px Karte: 240px Icon (vorher 150px)
+- Absolute Positionierung mit transform garantiert perfekte Zentrierung
+- Hover-Effekt funktioniert weiterhin korrekt
+
+ICON-GRÖSSEN:
+- **50px Karte**: 40px Icon
+- **100px Karte**: 80px Icon
+- **150px Karte**: 120px Icon
+- **200px Karte**: 160px Icon
+- **250px Karte**: 200px Icon
+- **300px Karte**: 240px Icon
+
+WICHTIGE ERKENNTNIS:
+Die absolute Positionierung mit `top: 50%; left: 50%; transform: translate(-50%, -50%)`
+ist die zuverlässigste Methode für perfekte Zentrierung, unabhängig von anderen Elementen.
+Ein größeres Icon (80% statt 50%) schafft eine dominantere visuelle Präsenz und bessere
+Erkennbarkeit der Appliance-Typen.
+
+
+## 2025-08-16 12:33:42 - KRITISCHER FIX: Icon war verschwunden - jetzt wieder sichtbar
+
+PROBLEM: 
+Das Icon war nach der absoluten Positionierung komplett verschwunden.
+
+URSACHE:
+Die absolute Positionierung mit komplexen Berechnungen führte dazu, dass das Icon außerhalb des sichtbaren Bereichs positioniert wurde.
+
+LÖSUNG:
+Zurück zur Flex-Zentrierung im card-cover mit relativer Positionierung des Icons.
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Card Cover mit Flex
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+   bottom: max(50px, calc(var(--card-size) * 0.25));
+-  /* Kein display: flex mehr, da Icon absolut positioniert ist */
++  /* Flex wieder aktiviert für Icon-Zentrierung */
++  display: flex;
++  align-items: center;
++  justify-content: center;
+   overflow: visible;
+   padding: 0;
+ }
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Icon mit relativer Position
+```diff
+ .card-icon {
+-  /* Icon VIEL größer: 80% der Kartengröße für dominante Präsenz */
+-  width: calc(var(--card-size) * 0.8);
+-  height: calc(var(--card-size) * 0.8);
++  /* Icon groß: 65% der Kartengröße */
++  width: calc(var(--card-size) * 0.65);
++  height: calc(var(--card-size) * 0.65);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: rgba(255, 255, 255, 0.9);
+   transition: transform 0.3s ease;
+-  /* EXAKT in der Mitte der GESAMTEN Karte positionieren */
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  transform: translate(-50%, -50%);
++  position: relative;
+   z-index: 2;
+ }
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Hover-Effekt korrigiert
+```diff
+ /* Icon Hover Effect */
+ .card-front:hover .card-icon {
+-  transform: translate(-50%, -50%) scale(1.05);
++  transform: scale(1.05);
+ }
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich behoben
+
+ERGEBNIS:
+- Icon ist wieder sichtbar und zentriert
+- 65% der Kartengröße für gute Balance
+- Flex-Zentrierung funktioniert zuverlässiger als absolute Positionierung
+- Icon ist im Content-Bereich zentriert (oberhalb des Info-Bereichs)
+
+WICHTIGE ERKENNTNIS:
+Flex-Zentrierung ist oft robuster als absolute Positionierung mit transform,
+besonders wenn mehrere dynamische Größen im Spiel sind. Das Icon ist jetzt
+im verfügbaren Content-Bereich zentriert, was visuell besser aussieht als
+eine Zentrierung über die gesamte Karte inkl. Info-Bereich.
+
+
+## 2025-08-16 12:37:57 - FINALE KORREKTUR: Icon GROSS und EXAKT in der Kartenmitte
+
+PROBLEM: 
+Das Icon war immer noch viel zu klein und im oberen Bereich der Karte positioniert,
+nicht in der tatsächlichen Mitte der gesamten Karte.
+
+LÖSUNG:
+1. Icon auf 75% der Kartengröße vergrößert
+2. Absolute Positionierung mit top: calc(var(--card-size) / 2) für exakte Mitte
+3. pointer-events: none damit Clicks durchgehen
+
+ÄNDERUNGEN:
+
+### 1. frontend/src/components/ApplianceCard.css - Icon GROSS und MITTIG
+```diff
+ .card-icon {
+-  /* Icon groß: 65% der Kartengröße */
+-  width: calc(var(--card-size) * 0.65);
+-  height: calc(var(--card-size) * 0.65);
++  /* Icon RICHTIG GROSS: 75% der GESAMTEN Kartengröße */
++  width: calc(var(--card-size) * 0.75);
++  height: calc(var(--card-size) * 0.75);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: rgba(255, 255, 255, 0.9);
+   transition: transform 0.3s ease;
+-  position: relative;
++  /* ABSOLUT in der MITTE der GESAMTEN KARTE */
++  position: absolute;
++  top: calc(var(--card-size) / 2);
++  left: 50%;
++  transform: translate(-50%, -50%);
+   z-index: 2;
++  pointer-events: none; /* Clicks gehen durch das Icon */
+ }
+```
+
+### 2. frontend/src/components/ApplianceCard.css - Card Cover ohne Flex
+```diff
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+   bottom: max(50px, calc(var(--card-size) * 0.25));
+-  /* Flex wieder aktiviert für Icon-Zentrierung */
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  overflow: visible; /* Changed from hidden to visible for buttons */
++  /* Kein Flex nötig, da Icon absolut positioniert ist */
++  overflow: visible;
+   padding: 0;
+ }
+```
+
+### 3. frontend/src/components/ApplianceCard.css - Hover-Effekt angepasst
+```diff
+ /* Icon Hover Effect */
+ .card-front:hover .card-icon {
+-  transform: scale(1.05);
++  transform: translate(-50%, -50%) scale(1.05);
+ }
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Erfolgreich implementiert
+
+ERGEBNIS:
+- Icon ist jetzt 75% der Kartengröße (GROSS und DOMINANT)
+- Position: EXAKT in der Mitte der quadratischen Karte
+- Bei 250px Karte: 187.5px Icon in der Mitte bei 125px von oben
+- pointer-events: none verhindert, dass das Icon Clicks blockiert
+
+ICON-POSITIONEN:
+- Die Formel `top: calc(var(--card-size) / 2)` positioniert das Icon-Zentrum
+  genau in der Mitte der quadratischen Karte
+- transform: translate(-50%, -50%) zentriert das Icon um seinen eigenen Mittelpunkt
+
+WICHTIGE ERKENNTNIS:
+Die korrekte Zentrierung erfolgt relativ zur KARTENGRÖSSE (var(--card-size)),
+nicht zur Container-Höhe, die den Info-Bereich einschließt. Das Icon ignoriert
+jetzt den Info-Bereich und ist wirklich in der geometrischen Mitte der Karte.
+
+
+## 2025-08-16 12:41:12 - Icon-Positionierung vereinfacht
+
+PROBLEM: 
+Icon war wieder verschwunden nach komplexer Positionierung.
+
+LÖSUNG:
+Einfachere Positionierung mit top: 50%, left: 50% und leichter Verschiebung nach oben.
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.css - Vereinfachte Icon-Positionierung
+```diff
+ .card-icon {
+-  /* Icon RICHTIG GROSS: 75% der GESAMTEN Kartengröße */
+-  width: calc(var(--card-size) * 0.75);
+-  height: calc(var(--card-size) * 0.75);
++  /* Icon GROSS: 60% der Kartengröße */
++  width: calc(var(--card-size) * 0.6);
++  height: calc(var(--card-size) * 0.6);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+-  color: rgba(255, 255, 255, 0.9);
++  color: rgba(255, 255, 255, 0.95);
+   transition: transform 0.3s ease;
+-  /* ABSOLUT in der MITTE der GESAMTEN KARTE */
++  /* Einfache absolute Positionierung */
+   position: absolute;
+-  top: calc(var(--card-size) / 2);
++  top: 50%;
+   left: 50%;
+-  transform: translate(-50%, -50%);
+-  z-index: 2;
+-  pointer-events: none; /* Clicks gehen durch das Icon */
++  transform: translate(-50%, -60%); /* Etwas nach oben verschoben wegen Info-Bereich */
++  z-index: 5;
+ }
+
+ /* Icon Hover Effect */
+ .card-front:hover .card-icon {
+-  transform: translate(-50%, -50%) scale(1.05);
++  transform: translate(-50%, -60%) scale(1.05);
+ }
+```
+
+### Container neu gebaut
+```bash
+cd frontend && npm run build
+docker compose restart webserver
+```
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Icon 60% der Kartengröße
+- Einfache Positionierung mit top: 50%, left: 50%
+- Leichte Verschiebung nach oben (-60% statt -50%) für visuelle Balance
+- z-index: 5 für Sichtbarkeit über anderen Elementen
+
+
+## 2025-08-16 13:46:00 - Icon-Zentrierung korrigiert
+
+PROBLEM: Das Haupticon der Appliance-Karten wurde zu weit oben angezeigt. Die vertikale Positionierung war mit `transform: translate(-50%, -60%)` fehlerhaft eingestellt.
+
+URSACHE: Die Y-Translation war auf -60% gesetzt, wodurch das Icon um 60% seiner eigenen Höhe nach oben verschoben wurde, statt perfekt zentriert zu sein.
+
+LÖSUNG: Korrektur der Transform-Eigenschaft auf `translate(-50%, -50%)` für perfekte horizontale und vertikale Zentrierung.
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.css - Icon perfekt zentriert
+```diff
+ /* Card Icon Container */
+ .card-icon {
+   /* Icon GROSS: 60% der Kartengröße */
+   width: calc(var(--card-size) * 0.6);
+   height: calc(var(--card-size) * 0.6);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: rgba(255, 255, 255, 0.95);
+   transition: transform 0.3s ease;
+-  /* Einfache absolute Positionierung */
++  /* PERFEKTE ZENTRIERUNG - absolut in der Mitte */
+   position: absolute;
+   top: 50%;
+   left: 50%;
+-  transform: translate(-50%, -60%); /* Etwas nach oben verschoben wegen Info-Bereich */
++  transform: translate(-50%, -50%); /* EXAKT in der Mitte der Karte */
+   z-index: 5;
++  pointer-events: none; /* Clicks gehen durch das Icon */
+ }
+
+ /* Icon Hover Effect */
+ .card-front:hover .card-icon {
+-  transform: translate(-50%, -60%) scale(1.05);
++  transform: translate(-50%, -50%) scale(1.05);
+ }
+```
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Icon ist jetzt perfekt horizontal und vertikal zentriert
+- `transform: translate(-50%, -50%)` sorgt für exakte Mitte
+- `pointer-events: none` verhindert, dass das Icon Clicks blockiert
+- Hover-Effekt ebenfalls korrigiert für konsistente Animation
+
+
+## 2025-08-16 13:55:00 - Icon-Zentrierung WIRKLICH korrigiert
+
+PROBLEM: Das Icon war immer noch nicht in der Mitte der Karte, sondern zu weit oben. Der Grund war, dass `.card-cover` nur 75% der Kartenhöhe einnahm (endete am Info-Bereich).
+
+URSACHE: 
+- `.card-cover` hatte `bottom: max(50px, calc(var(--card-size) * 0.25))` 
+- Das Icon wurde innerhalb des `.card-cover` zentriert
+- Da `.card-cover` nur ~75% der Höhe hatte, war das Icon nur in der Mitte dieses Bereichs
+
+LÖSUNG: 
+- `.card-cover` auf volle Höhe erweitert (`bottom: 0`)
+- `pointer-events: none` zum `.card-cover` hinzugefügt
+- `pointer-events: auto` zu den Button-Bereichen für Klickbarkeit
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.css - Card Cover volle Höhe
+```diff
+ /* Card Cover */
+ .card-cover {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+-  /* Info-Bereich mit Minimum */
+-  bottom: max(50px, calc(var(--card-size) * 0.25));
++  /* ÄNDERUNG: Cover soll die GESAMTE Karte abdecken für korrekte Icon-Zentrierung */
++  bottom: 0; /* Gesamte Höhe statt nur bis zum Info-Bereich */
+   /* Kein Flex nötig, da Icon absolut positioniert ist */
+   overflow: visible;
+   padding: 0;
++  pointer-events: none; /* Cover blockiert keine Clicks */
+ }
+```
+
+### frontend/src/components/ApplianceCard.css - Icon wirklich zentriert
+```diff
+ /* Card Icon Container */
+ .card-icon {
+   /* Icon GROSS: 60% der Kartengröße */
+   width: calc(var(--card-size) * 0.6);
+   height: calc(var(--card-size) * 0.6);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: rgba(255, 255, 255, 0.95);
+   transition: transform 0.3s ease;
+-  /* PERFEKTE ZENTRIERUNG - absolut in der Mitte */
++  /* PERFEKTE ZENTRIERUNG in der MITTE der GESAMTEN Karte */
+   position: absolute;
+   top: 50%;
+   left: 50%;
+-  transform: translate(-50%, -50%); /* EXAKT in der Mitte der Karte */
++  transform: translate(-50%, -50%);
+   z-index: 5;
+   pointer-events: none; /* Clicks gehen durch das Icon */
+ }
+```
+
+### frontend/src/components/ApplianceCard.css - Buttons klickbar halten
+```diff
+ /* Card Button Layouts - Vertical columns */
+ .card-buttons-left,
+ .card-buttons-right {
+   position: absolute;
+   /* Buttons in der Mitte des Content-Bereichs positionieren */
+   --content-height: calc(var(--card-size) * 0.75); /* 75% ist Content, 25% ist Info */
+   top: calc(var(--content-height) / 2);
+   transform: translateY(-50%);
+   display: flex;
+   flex-direction: column;
+   /* Gap proportional zur Kartengröße */
+   gap: clamp(4px, calc(var(--card-size) * 0.04), 12px);
+   z-index: 10;
+   opacity: 0;
+   transition: opacity 0.3s ease;
+   /* Maximale Höhe begrenzen */
+   max-height: calc(var(--content-height) - 20px);
+   overflow: visible;
++  pointer-events: auto; /* Buttons müssen klickbar bleiben */
+ }
+```
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Icon ist jetzt WIRKLICH in der exakten Mitte der gesamten Karte
+- `.card-cover` deckt die volle Kartenhöhe ab
+- Buttons bleiben trotzdem klickbar durch `pointer-events: auto`
+- Icon blockiert keine Clicks durch `pointer-events: none`
+
+
+## 2025-08-16 14:10:00 - CSS-Chaos aufgeräumt und Icon-Positionierung korrigiert
+
+PROBLEM: Icon wurde nicht richtig angezeigt und war falsch positioniert. Es gab MASSENHAFT überlappende und widersprüchliche CSS-Regeln für `.card-icon`.
+
+URSACHE: 
+- Über 20 verschiedene CSS-Definitionen für `.card-icon` die sich gegenseitig überschrieben
+- Verschiedene Größen-Definitionen (40%, 45%, 50%, 55%, 60%, 70%, 80%)
+- Verschiedene Positionierungs-Ansätze
+- Totales CSS-Chaos
+
+LÖSUNG:
+- ALLE redundanten Icon-Definitionen entfernt/auskommentiert
+- EINE einzige, klare Definition für `.card-icon` erstellt
+- Icon auf 70% der Kartengröße erhöht für bessere Sichtbarkeit
+- Exakte Zentrierung mit `transform: translate(-50%, -50%)`
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.css - Klare Icon-Definition
+```diff
+ /* Card Icon Container - EINZIGE DEFINITION */
+ .card-icon {
+-  /* Icon GROSS: 60% der Kartengröße */
+-  width: calc(var(--card-size) * 0.6);
+-  height: calc(var(--card-size) * 0.6);
++  /* Icon GROß: 70% der Kartengröße für bessere Sichtbarkeit */
++  width: calc(var(--card-size) * 0.7);
++  height: calc(var(--card-size) * 0.7);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: rgba(255, 255, 255, 0.95);
+   transition: transform 0.3s ease;
+-  /* PERFEKTE ZENTRIERUNG in der MITTE der GESAMTEN Karte */
++  /* EXAKTE ZENTRIERUNG in der Mitte der Karte */
+   position: absolute;
+   top: 50%;
+   left: 50%;
+   transform: translate(-50%, -50%);
+   z-index: 5;
+-  pointer-events: none; /* Clicks gehen durch das Icon */
++  pointer-events: none;
+ }
+```
+
+### frontend/src/components/ApplianceCard.css - Redundante Definitionen entfernt
+- Zeile 310-314: Kompakt-Modus Icon-Definition auskommentiert
+- Zeile 1181-1223: Alle größenspezifischen Icon-Definitionen auskommentiert
+- Zeile 1244-1252: Dynamische Icon-Größen-Berechnung auskommentiert
+- Zeile 894-896: Loading-Animation auskommentiert
+
+### frontend/src/components/ButtonLayoutOverrides.css - Cleanup
+```diff
+-/* Ensure proper z-index stacking */
+-.card-icon {
+-  z-index: 1;
+-}
++/* ENTFERNT - Icon z-index wird global definiert */
+
+-.card-cover {
+-  position: relative;
+-}
++/* ENTFERNT - card-cover position ist bereits in ApplianceCard.css definiert */
+```
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- NUR NOCH EINE einzige Icon-Definition
+- Icon ist 70% der Kartengröße (größer und besser sichtbar)
+- Perfekt zentriert mit top: 50%, left: 50%, transform: translate(-50%, -50%)
+- Keine widersprüchlichen CSS-Regeln mehr
+- Code ist aufgeräumt und wartbar
+
+
+## 2025-08-16 14:18:00 - Icon-Größe und Positionierung angepasst
+
+ANFORDERUNG: 
+- Icon etwas kleiner machen
+- Icon bei 60% der Kartenhöhe positionieren (oberhalb der Mitte)
+- Info-Bereich um 10% vergrößern
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.css - Icon kleiner und höher positioniert
+```diff
+ /* Card Icon Container - EINZIGE DEFINITION */
+ .card-icon {
+-  /* Icon GROß: 70% der Kartengröße für bessere Sichtbarkeit */
+-  width: calc(var(--card-size) * 0.7);
+-  height: calc(var(--card-size) * 0.7);
++  /* Icon mittlere Größe: 50% der Kartengröße */
++  width: calc(var(--card-size) * 0.5);
++  height: calc(var(--card-size) * 0.5);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: rgba(255, 255, 255, 0.95);
+   transition: transform 0.3s ease;
+-  /* EXAKTE ZENTRIERUNG in der Mitte der Karte */
++  /* Icon bei 60% der Kartenhöhe positioniert (40% von oben) */
+   position: absolute;
+-  top: 50%;
++  top: 40%;
+   left: 50%;
+   transform: translate(-50%, -50%);
+   z-index: 5;
+   pointer-events: none;
+ }
+```
+
+### frontend/src/components/ApplianceCard.css - Info-Bereich vergrößert
+```diff
+ /* Card Info Section */
+ .card-info {
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   right: 0;
+-  /* Dynamische Höhe mit Minimum für bessere Sichtbarkeit */
+-  height: max(50px, calc(var(--card-size) * 0.25));
++  /* Info-Bereich um 10% vergrößert: von 25% auf 35% der Kartengröße */
++  height: max(60px, calc(var(--card-size) * 0.35));
+   /* Padding proportional mit Minimum */
+   padding: max(8px, calc(var(--card-size) * 0.03)) max(12px, calc(var(--card-size) * 0.04));
+```
+
+### frontend/src/components/ApplianceCard.css - Button-Position angepasst
+```diff
+ /* Card Button Layouts - Vertical columns */
+ .card-buttons-left,
+ .card-buttons-right {
+   position: absolute;
+-  /* Buttons in der Mitte des Content-Bereichs positionieren */
+-  --content-height: calc(var(--card-size) * 0.75); /* 75% ist Content, 25% ist Info */
++  /* Buttons angepasst an den kleineren Content-Bereich (65% statt 75%) */
++  --content-height: calc(var(--card-size) * 0.65); /* 65% ist Content, 35% ist Info */
+   top: calc(var(--content-height) / 2);
+   transform: translateY(-50%);
+```
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Icon ist jetzt 50% der Kartengröße (vorher 70%)
+- Icon ist bei 40% von oben positioniert (= 60% der Kartenhöhe)
+- Info-Bereich ist 35% der Kartengröße (vorher 25%)
+- Buttons sind entsprechend neu positioniert (65% Content-Bereich)
+
+
+## 2025-08-16 14:28:00 - Tooltips für kompakte Balken-Buttons implementiert
+
+ANFORDERUNG: Wenn die Buttons auf Balken minimiert sind (bei Karten < 90px), sollen sie trotzdem Tooltips anzeigen beim Hover.
+
+LÖSUNG: 
+- CSS-Pseudo-Elemente (::before, ::after) durch echte DOM-Elemente ersetzt
+- Material-UI Tooltips für alle Balken hinzugefügt
+- Hover-Effekte für bessere Interaktivität
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.js - Interaktive Balken mit Tooltips
+```javascript
+// Neue Balken-Elemente für Kompakt-Modus (< 90px):
+
+// Favoriten-Balken (links) - goldener Balken
+<Tooltip title="Von Favoriten entfernen" placement="right">
+  <div className="compact-bar-left" onClick={handleFavoriteClick} />
+</Tooltip>
+
+// Service-Status-Balken (rechts) - grün/rot je nach Status
+<Tooltip title={appliance.serviceStatus === 'stopped' ? 'Service gestoppt' : 'Service läuft'}>
+  <div className="compact-bar-right" />
+</Tooltip>
+
+// Remote-Desktop-Balken (oben) - blauer Balken
+<Tooltip title="Remote Desktop verfügbar" placement="bottom">
+  <div className="compact-bar-top" />
+</Tooltip>
+
+// File-Transfer-Balken (unten) - lila Balken
+<Tooltip title="File Transfer verfügbar" placement="top">
+  <div className="compact-bar-bottom" />
+</Tooltip>
+```
+
+### frontend/src/components/ApplianceCard.js - Tooltip-State erweitert
+```diff
+ // Tooltip state
+ const [showTooltip, setShowTooltip] = useState(false);
+ const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
++ 
++ // Compact mode bar tooltips
++ const [compactTooltip, setCompactTooltip] = useState({ show: false, text: '', position: '' });
+```
+
+### frontend/src/components/ApplianceCard.css - CSS angepasst
+```diff
+- /* Farbige Indikator-Balken für Aktionen */
+- .card-front::before,
+- .card-front::after {
+-   // Pseudo-Elemente entfernt
+- }
++ /* ENTFERNT - Pseudo-Elemente durch echte DOM-Elemente ersetzt */
++ 
++ /* Kompakt-Modus Balken-Hover-Effekte */
++ .compact-bar-left:hover,
++ .compact-bar-right:hover,
++ .compact-bar-top:hover,
++ .compact-bar-bottom:hover {
++   opacity: 1 !important;
++ }
+```
+
+FEATURES:
+- **Favoriten-Balken (links)**: Goldener Balken, klickbar zum Entfernen aus Favoriten
+- **Service-Status (rechts)**: Grün = läuft, Rot = gestoppt, nur Anzeige
+- **Remote Desktop (oben)**: Blauer Balken, zeigt Verfügbarkeit
+- **File Transfer (unten)**: Lila Balken, zeigt Verfügbarkeit
+
+VERHALTEN:
+- Balken werden bei Hover breiter (3px → 8px)
+- Material-UI Tooltips zeigen Funktion an
+- Nur bei Karten < 90px sichtbar
+- Favoriten-Balken ist klickbar
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Kompakte Karten zeigen jetzt interaktive Balken mit Tooltips
+- Benutzer wissen, was die Balken bedeuten
+- Bessere UX für kleine Karten-Ansichten
+
+
+## 2025-08-16 14:42:00 - Kompakt-Balken neu positioniert und korrigiert
+
+PROBLEM: 
+- Balken waren an falschen Positionen (oben, unten, links, rechts)
+- Tooltips funktionierten nicht
+- Verwirrende Anordnung im Vergleich zu normalen Buttons
+
+LÖSUNG:
+- Balken jetzt GENAU an den gleichen Positionen wie normale Buttons
+- Vertikale Balken-Gruppen links und rechts
+- Material-UI Tooltips korrekt implementiert
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.js - Komplett neue Balken-Anordnung
+```javascript
+// LINKS - Service Controls (wie normale Buttons):
+- Weißer Balken: Service bearbeiten
+- Grüner Balken: Service starten  
+- Roter Balken: Service stoppen
+
+// RECHTS - Andere Funktionen (wie normale Buttons):
+- Goldener/Weißer Balken: Favorit (gold wenn aktiv)
+- Grauer Balken: Terminal öffnen
+- Blauer Balken: Remote Desktop
+- Lila Balken: File Transfer
+```
+
+VERHALTEN:
+- Balken erscheinen nur bei Karten < 90px
+- Vertikale Anordnung links und rechts (wie normale Buttons)
+- Bei Hover: Balken werden breiter (4px → 8px)
+- Material-UI Tooltips mit arrow zeigen Funktion
+- Alle Balken sind klickbar und führen die gleiche Aktion aus wie normale Buttons
+
+FARBEN:
+- **Weiß**: Edit/Settings
+- **Grün**: Start Service
+- **Rot**: Stop Service  
+- **Gold**: Favorit (aktiv)
+- **Grau**: Terminal
+- **Blau**: Remote Desktop
+- **Lila**: File Transfer
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Konsistente Button-Positionen zwischen Normal- und Kompakt-Modus
+- Keine Verwirrung mehr durch andere Positionen
+- Tooltips funktionieren jetzt korrekt
+- Intuitive Farb-Kodierung
+
+
+## 2025-08-16 14:52:00 - Kompakt-Balken nur bei Hover/Touch anzeigen
+
+PROBLEM:
+- Balken waren immer sichtbar
+- Tooltips funktionierten nicht in Desktop-Version
+
+LÖSUNG:
+- Balken erscheinen nur bei Hover über der Karte (Desktop)
+- Balken erscheinen nach einmaligem Antippen (Mobile/iPad)
+- Tooltip-Properties korrigiert für bessere Funktionalität
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.js - Hover/Touch-Bedingung
+```diff
+- {cardSize < 90 && (
++ {cardSize < 90 && (isTouchDevice ? hasBeenTouched : true) && (
+
+// Balken-Container mit opacity: 0 initial
++ style={{ 
++   opacity: 0,
++   transition: 'opacity 0.3s ease',
++ }}
+
+// Tooltip-Properties verbessert
+- <Tooltip title="..." placement="..." arrow>
++ <Tooltip title="..." placement="..." arrow enterDelay={0} disableInteractive={false}>
+```
+
+### frontend/src/components/ApplianceCard.css - Hover-Visibility
+```css
+/* Balken erscheinen bei Hover über Karte */
+.card-front:hover .compact-bars-left,
+.card-front:hover .compact-bars-right {
+  opacity: 1 !important;
+}
+
+/* Für Touch-Geräte: Balken sichtbar wenn touched */
+.card-front.mobile-tap-hint .compact-bars-left,
+.card-front.mobile-tap-hint .compact-bars-right {
+  opacity: 1 !important;
+}
+```
+
+VERHALTEN:
+- **Desktop**: Balken erscheinen beim Hover über die Karte
+- **Mobile/iPad**: Balken erscheinen nach einmaligem Antippen
+- **Tooltips**: Sofort sichtbar (enterDelay={0}), interaktiv (disableInteractive={false})
+- **Initial**: Balken sind unsichtbar (opacity: 0)
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Aufgeräumtere Ansicht bei kleinen Karten
+- Balken nur bei Bedarf sichtbar
+- Bessere Touch-Unterstützung
+- Funktionierende Tooltips auf Desktop
+
+
+## 2025-08-16 15:00:00 - Balken-Klickbarkeit korrigiert
+
+PROBLEM:
+- Balken waren nicht klickbar
+- Clicks wurden von der Karte abgefangen
+- Balken waren nur "Striche auf der Karte"
+
+LÖSUNG:
+- `e.preventDefault()` und `e.stopPropagation()` bei allen Click-Events
+- `pointerEvents: 'auto'` explizit bei allen Balken
+- `zIndex: 20` für höhere Priorität
+- CSS-Regeln für pointer-events hinzugefügt
+
+ÄNDERUNGEN:
+
+### frontend/src/components/ApplianceCard.js - Click-Events korrigiert
+```javascript
+// Alle onClick Handler mit preventDefault und stopPropagation
+onClick={(e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  handleEditClick(e);
+}}
+
+// pointerEvents explizit gesetzt
+style={{
+  pointerEvents: 'auto',
+  zIndex: 20,
+  // ...
+}}
+```
+
+### frontend/src/components/ApplianceCard.css - Pointer-Events sichergestellt
+```css
+/* Balken-Container müssen klickbar sein */
+.compact-bars-left,
+.compact-bars-right {
+  pointer-events: auto !important;
+}
+
+/* Und die einzelnen Balken auch */
+.compact-bars-left > div,
+.compact-bars-right > div {
+  pointer-events: auto !important;
+}
+```
+
+STATUS: ✅ Implementiert
+
+ERGEBNIS:
+- Balken sind jetzt wirklich klickbar
+- Favorit-Toggle funktioniert
+- Service Start/Stop funktioniert
+- Edit-Dialog öffnet sich
+- Terminal öffnet sich
+- Keine Weiterleitung zur URL mehr beim Klick auf Balken

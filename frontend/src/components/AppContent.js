@@ -152,7 +152,7 @@ const AppContent = ({
           {catSections.lastHour.length > 0 && (
             <section className="content-section recent-section">
               <h2>Letzte Stunde</h2>
-              <div className="appliances-grid">
+              <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastHour.map(renderApplianceCard)}
               </div>
             </section>
@@ -161,7 +161,7 @@ const AppContent = ({
           {catSections.lastTwoHours.length > 0 && (
             <section className="content-section recent-section">
               <h2>Letzte 2 Stunden</h2>
-              <div className="appliances-grid">
+              <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastTwoHours.map(renderApplianceCard)}
               </div>
             </section>
@@ -170,7 +170,7 @@ const AppContent = ({
           {catSections.lastFiveHours.length > 0 && (
             <section className="content-section recent-section">
               <h2>Letzte 5 Stunden</h2>
-              <div className="appliances-grid">
+              <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastFiveHours.map(renderApplianceCard)}
               </div>
             </section>
@@ -179,7 +179,7 @@ const AppContent = ({
           {catSections.lastTwentyFourHours.length > 0 && (
             <section className="content-section recent-section">
               <h2>Letzte 24 Stunden</h2>
-              <div className="appliances-grid">
+              <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastTwentyFourHours.map(renderApplianceCard)}
               </div>
             </section>
@@ -188,7 +188,7 @@ const AppContent = ({
           {catSections.lastWeek.length > 0 && (
             <section className="content-section recent-section">
               <h2>Letzte Woche</h2>
-              <div className="appliances-grid">
+              <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastWeek.map(renderApplianceCard)}
               </div>
             </section>
@@ -201,7 +201,7 @@ const AppContent = ({
     return (
       <section className="content-section">
         <h2>{category?.name || 'Alle Services'}</h2>
-        <div className="appliances-grid">
+        <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
           {catAppliances.map(renderApplianceCard)}
         </div>
       </section>

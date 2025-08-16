@@ -7,16 +7,20 @@
   --card-bg-transparency: var(--card-transparency, 0.85);
 }
 
-/* ===== Appliance Card Container ===== */
+/* Appliance Card Container */
 .appliance-card-container {
   position: relative;
   width: var(--card-size, 180px);
-  height: calc(var(--card-size, 180px) + 80px);
+  /* Höhe: Karte + Info-Bereich (25% mit min 50px) */
+  height: calc(var(--card-size, 180px) + max(50px, calc(var(--card-size) * 0.25)));
   perspective: 1000px;
   transform-style: preserve-3d;
   display: block;
   touch-action: manipulation;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 0;
+  container-type: inline-size;
+  container-name: card;
 }
 
 /* Hover effect - scale up */
@@ -42,7 +46,7 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible; /* Changed to visible to ensure icon is not clipped */
 }
 
 /* Front Side */
@@ -71,27 +75,45 @@
 
 /* Card Cover */
 .card-cover {
-  position: relative;
-  width: var(--card-size, 180px);
-  height: var(--card-size, 180px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  padding: 24px;
-  flex-shrink: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0; /* Volle Höhe für korrekte Icon-Zentrierung */
+  overflow: visible;
+  padding: 0;
+  pointer-events: none; /* Cover blockiert keine Clicks */
 }
 
-/* Card Icon Container */
+/* Aber die Balken-Container müssen klickbar sein */
+.compact-bars-left,
+.compact-bars-right {
+  pointer-events: auto !important;
+}
+
+/* Und die einzelnen Balken auch */
+.compact-bars-left > div,
+.compact-bars-right > div {
+  pointer-events: auto !important;
+}
+
+/* Card Icon Container - EINZIGE DEFINITION */
 .card-icon {
-  /* Dynamic sizing: 35% of card size, but min 24px and max 60% of card */
-  width: min(60%, max(24px, calc(var(--card-size) * 0.35)));
-  height: min(60%, max(24px, calc(var(--card-size) * 0.35)));
+  /* Icon mittlere Größe: 50% der Kartengröße */
+  width: calc(var(--card-size) * 0.5);
+  height: calc(var(--card-size) * 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   transition: transform 0.3s ease;
+  /* Icon bei 60% der Kartenhöhe positioniert (40% von oben) */
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events: none;
 }
 
 /* Card Icon SVG */
@@ -101,20 +123,41 @@
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
 }
 
+/* Icon Hover Effect */
+.card-front:hover .card-icon {
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
 /* Card Info Section */
 .card-info {
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* Info-Bereich um 10% vergrößert: von 25% auf 35% der Kartengröße */
+  height: max(60px, calc(var(--card-size) * 0.35));
+  /* Padding proportional mit Minimum */
+  padding: max(8px, calc(var(--card-size) * 0.03)) max(12px, calc(var(--card-size) * 0.04));
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.5) 50%,
+    rgba(0, 0, 0, 0.3) 80%,
+    transparent 100%
+  );
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex-grow: 1;
+  justify-content: center;
+  gap: calc(var(--card-size) * 0.01);
+  z-index: 3;
 }
 
 /* Card Title */
 .card-title {
-  font-size: 16px;
+  /* Dynamische Schriftgröße mit Minimum für Lesbarkeit */
+  font-size: max(14px, calc(var(--card-size) * 0.07));
   font-weight: 600;
   color: rgba(255, 255, 255, 0.95);
   margin: 0;
@@ -127,7 +170,8 @@
 
 /* Card Description */
 .card-description {
-  font-size: 13px;
+  /* Dynamische Schriftgröße mit Minimum für Lesbarkeit */
+  font-size: max(11px, calc(var(--card-size) * 0.05));
   color: rgba(255, 255, 255, 0.7);
   margin: 0;
   overflow: hidden;
@@ -175,7 +219,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   z-index: 20;
-  min-width: 150px;
+  min-width: 120px;
   transform-origin: top right;
   animation: dropdownOpen 0.2s ease-out;
 }
@@ -218,22 +262,31 @@
 .card-buttons-left,
 .card-buttons-right {
   position: absolute;
-  top: 50%;
+  /* Buttons angepasst an den kleineren Content-Bereich (65% statt 75%) */
+  --content-height: calc(var(--card-size) * 0.65); /* 65% ist Content, 35% ist Info */
+  top: calc(var(--content-height) / 2);
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, calc(var(--card-size) * 0.04), 12px);
-  z-index: 5;
+  /* Gap proportional zur Kartengröße */
+  gap: clamp(4px, calc(var(--card-size) * 0.04), 12px);
+  z-index: 10;
   opacity: 0;
   transition: opacity 0.3s ease;
+  /* Maximale Höhe begrenzen */
+  max-height: calc(var(--content-height) - 20px);
+  overflow: visible;
+  pointer-events: auto; /* Buttons müssen klickbar bleiben */
 }
 
 .card-buttons-left {
-  left: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+  /* Left position proportional zur Kartengröße */
+  left: clamp(8px, calc(var(--card-size) * 0.05), 20px);
 }
 
 .card-buttons-right {
-  right: clamp(8px, calc(var(--card-size) * 0.04), 16px);
+  /* Right position proportional zur Kartengröße */
+  right: clamp(8px, calc(var(--card-size) * 0.05), 20px);
 }
 
 /* Show buttons on hover */
@@ -246,6 +299,108 @@
 .card.touched .card-buttons-left,
 .card.touched .card-buttons-right {
   opacity: 1;
+}
+
+/* ===== KOMPAKT-MODUS FÜR KLEINE KARTEN (unter 90px = 30% Slider) ===== */
+/* Bedingung: Wenn Karte kleiner als 90px */
+.appliance-card-container {
+  container-type: inline-size;
+  container-name: card;
+}
+
+/* Kompakt-Modus: Buttons als farbige Balken am Rand */
+@container card (max-width: 90px) {
+  /* Verstecke normale Buttons */
+  .card-buttons-left,
+  .card-buttons-right {
+    display: none !important;
+  }
+  
+  /* ENTFERNT - Icon wird jetzt global oben definiert
+  .card-icon {
+    width: 70%;
+    height: 70%;
+  }
+  */
+  
+  /* Info-Bereich bleibt proportional - kein Override! */
+  /* Entfernt: height: 35px; */
+  
+  .card-title {
+    font-size: calc(var(--card-size) * 0.08); /* Etwas größer für Lesbarkeit */
+    font-weight: 500;
+  }
+  
+  .card-description {
+    display: none; /* Verstecke Beschreibung bei sehr kleinen Karten */
+  }
+  
+  /* ENTFERNT - Pseudo-Elemente durch echte DOM-Elemente ersetzt für Interaktivität
+  .card-front::before,
+  .card-front::after {
+    // Durch echte DOM-Elemente in ApplianceCard.js ersetzt
+  }
+  */
+  
+  /* Kompakt-Modus Balken-Visibility bei Hover */
+  .card-front:hover .compact-bars-left,
+  .card-front:hover .compact-bars-right {
+    opacity: 1 !important;
+  }
+  
+  /* Für Touch-Geräte: Balken sichtbar wenn touched */
+  .card-front.mobile-tap-hint .compact-bars-left,
+  .card-front.mobile-tap-hint .compact-bars-right,
+  .mobile-card.touched .compact-bars-left,
+  .mobile-card.touched .compact-bars-right {
+    opacity: 1 !important;
+  }
+  
+  /* Kompakt-Modus Balken-Hover-Effekte */
+  .compact-bar-left:hover,
+  .compact-bar-right:hover,
+  .compact-bar-top:hover,
+  .compact-bar-bottom:hover {
+    opacity: 1 !important;
+  }
+  
+  /* Edit-Menu Button kleiner und in Ecke */
+  .edit-menu-toggle {
+    width: 16px !important;
+    height: 16px !important;
+    top: 2px !important;
+    right: 2px !important;
+    opacity: 0.6;
+  }
+  
+  .edit-menu-toggle:hover {
+    opacity: 1;
+  }
+  
+  .edit-menu-toggle svg {
+    width: 10px !important;
+    height: 10px !important;
+  }
+}
+
+/* Mittlere Karten (90-150px): Reduzierte Button-Anzahl */
+@container card (min-width: 90px) and (max-width: 150px) {
+  /* Zeige nur die wichtigsten Buttons */
+  .card-buttons-left,
+  .card-buttons-right {
+    gap: 4px;
+  }
+  
+  /* Buttons etwas kleiner */
+  .action-btn {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .action-btn svg {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 /* Legacy button layouts - kept for backwards compatibility */
@@ -301,21 +456,21 @@
 
 /* Action Buttons */
 .action-btn {
-  /* Dynamische Größe basierend auf Kartengröße - mit besserer Skalierung */
-  width: clamp(18px, calc(var(--card-size) * 0.12), 28px);
-  height: clamp(18px, calc(var(--card-size) * 0.12), 28px);
+  /* Dynamische Größe: 12-18% der Kartengröße */
+  width: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+  height: clamp(28px, calc(var(--card-size) * 0.16), 48px);
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: clamp(4px, calc(var(--card-size) * 0.04), 8px);
+  border-radius: clamp(6px, calc(var(--card-size) * 0.04), 12px);
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  font-size: clamp(10px, calc(var(--card-size) * 0.07), 14px);
+  font-size: 0;
   flex-shrink: 0;
   padding: 0;
 }
@@ -442,12 +597,9 @@
 .settings-btn-icon svg,
 .flip-btn svg,
 .edit-menu-toggle svg {
-  width: 65%;
-  height: 65%;
-  min-width: 10px;
-  min-height: 10px;
-  max-width: 18px;
-  max-height: 18px;
+  /* Icons skalieren mit Button-Größe: 60% des Buttons */
+  width: clamp(16px, calc(var(--card-size) * 0.1), 28px);
+  height: clamp(16px, calc(var(--card-size) * 0.1), 28px);
 }
 
 /* Service Action Buttons */
@@ -723,9 +875,11 @@
   pointer-events: none;
 }
 
+/* ENTFERNT - Icon-Animation bei loading
 .appliance-card.loading .card-icon {
   animation: pulse 1.5s ease-in-out infinite;
 }
+*/
 
 @keyframes pulse {
   0%,
@@ -754,8 +908,8 @@
   .settings-btn-icon,
   .remote-desktop-btn,
   .file-transfer-button {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 32px;
+    min-height: 32px;
   }
 
   /* Better spacing for mobile */
@@ -898,9 +1052,10 @@
 .appliance-card-container[style*='--card-size: 8'] .card-info,
 .appliance-card-container[style*='--card-size: 9'] .card-info {
   /* Zeige card-info bei kleinen Karten an, aber kompakter */
-  display: flex;
-  padding: 8px;
+  padding: 6px 10px;
   gap: 2px;
+  min-height: 45px;
+  max-height: 55px;
 }
 
 .appliance-card-container[style*='--card-size: 6'] .card-title,
@@ -960,21 +1115,22 @@
   opacity: 1;
 }
 
+.appliance-card-container[style*='--card-size: 5'] .action-btn,
 .appliance-card-container[style*='--card-size: 6'] .action-btn,
 .appliance-card-container[style*='--card-size: 7'] .action-btn,
 .appliance-card-container[style*='--card-size: 8'] .action-btn,
 .appliance-card-container[style*='--card-size: 9'] .action-btn {
-  width: 28px;
-  height: 28px;
-  font-size: 12px;
+  width: 20px;
+  height: 20px;
 }
 
+.appliance-card-container[style*='--card-size: 5'] .action-btn svg,
 .appliance-card-container[style*='--card-size: 6'] .action-btn svg,
 .appliance-card-container[style*='--card-size: 7'] .action-btn svg,
 .appliance-card-container[style*='--card-size: 8'] .action-btn svg,
 .appliance-card-container[style*='--card-size: 9'] .action-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
 }
 
 /* Ultra-compact mode for cards under 80px */
@@ -1008,21 +1164,20 @@
 }
 /* Special rules for very small cards to scale icons properly */
 
-/* For cards 60-80px */
-.appliance-card-container[style*='--card-size: 6'] .card-icon,
+/* ENTFERNT - Redundante Icon-Definitionen auskommentiert
+.appliance-card-container[style*='--card-size: 5'] .card-icon,
+.appliance-card-container[style*='--card-size: 6'] .card-icon {
+  width: clamp(20px, 40%, 30px);
+  height: clamp(20px, 40%, 30px);
+}
+
 .appliance-card-container[style*='--card-size: 7'] .card-icon {
-  width: 40%;
-  height: 40%;
+  width: clamp(24px, 45%, 35px);
+  height: clamp(24px, 45%, 35px);
   max-width: 28px;
   max-height: 28px;
 }
 
-.appliance-card-container[style*='--card-size: 6'] .card-cover,
-.appliance-card-container[style*='--card-size: 7'] .card-cover {
-  padding: 8px;
-}
-
-/* For cards 80-100px */
 .appliance-card-container[style*='--card-size: 8'] .card-icon,
 .appliance-card-container[style*='--card-size: 9'] .card-icon {
   width: 45%;
@@ -1031,7 +1186,6 @@
   max-height: 40px;
 }
 
-/* For cards 100-120px */
 .appliance-card-container[style*='--card-size: 10'] .card-icon,
 .appliance-card-container[style*='--card-size: 11'] .card-icon {
   width: 50%;
@@ -1040,7 +1194,6 @@
   max-height: 50px;
 }
 
-/* For cards 120-140px */
 .appliance-card-container[style*='--card-size: 12'] .card-icon,
 .appliance-card-container[style*='--card-size: 13'] .card-icon {
   width: 55%;
@@ -1049,24 +1202,7 @@
   max-height: 60px;
 }
 
-/* Adjust card cover padding for smaller sizes */
-.appliance-card-container[style*='--card-size: 6'] .card-cover,
-.appliance-card-container[style*='--card-size: 7'] .card-cover,
-.appliance-card-container[style*='--card-size: 8'] .card-cover,
-.appliance-card-container[style*='--card-size: 9'] .card-cover {
-  padding: 12px;
-}
-
-.appliance-card-container[style*='--card-size: 10'] .card-cover,
-.appliance-card-container[style*='--card-size: 11'] .card-cover,
-.appliance-card-container[style*='--card-size: 12'] .card-cover,
-.appliance-card-container[style*='--card-size: 13'] .card-cover {
-  padding: 16px;
-}
-
-/* Dynamic icon sizing using CSS calc() */
 .card-icon {
-  /* Base calculation: icon should be 35-60% of card size, with limits */
   width: min(60%, max(24px, calc(var(--card-size) * 0.35)));
   height: min(60%, max(24px, calc(var(--card-size) * 0.35)));
   display: flex;
@@ -1075,6 +1211,7 @@
   color: rgba(255, 255, 255, 0.9);
   transition: transform 0.3s ease;
 }
+*/
 
 /* Ensure SVG fills the icon container properly */
 .card-icon svg {
@@ -1096,15 +1233,21 @@
 
 
 /* Remote Desktop Button Styles */
+/* Remote Desktop Button */
 .remote-desktop-btn {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  padding: 8px;
-  border-radius: 6px;
+  /* Dynamische Größe wie andere Buttons */
+  width: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+  height: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+  padding: 0;
+  border-radius: clamp(6px, calc(var(--card-size) * 0.04), 12px);
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .remote-desktop-btn:hover {
@@ -1113,8 +1256,9 @@
 }
 
 .remote-desktop-btn svg {
-  width: 16px;
-  height: 16px;
+  /* Icon-Größe proportional zum Button */
+  width: clamp(16px, calc(var(--card-size) * 0.1), 28px);
+  height: clamp(16px, calc(var(--card-size) * 0.1), 28px);
 }
 
 /* VNC Button */

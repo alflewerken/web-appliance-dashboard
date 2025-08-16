@@ -345,21 +345,15 @@ body {
 /* Appliances Grid */
 .appliances-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, var(--card-size));
-  grid-auto-rows: calc(
-    var(--card-size) + 100px
-  ); /* Mehr Platz für Kartennamen und Beschreibung */
+  grid-template-columns: repeat(auto-fill, var(--card-size));
+  /* Grid-Höhe = Kartengröße * 1.25 (inkl. 25% Info-Bereich) + Gap */
+  grid-auto-rows: calc(var(--card-size) * 1.25 + 10px);
   gap: 20px;
-  row-gap: max(
-    20px,
-    10px
-  ); /* Mindestens 10px vertikaler Abstand zwischen Karten */
-  justify-content: space-evenly;
+  justify-content: center;
+  align-items: start;
   width: 100%;
-  /* Erlaube Overflow für Hover-Effekt */
   overflow: visible;
-  /* Zusätzlicher Padding für Hover-Vergrößerung */
-  padding: 10px;
+  padding: 16px;
   position: relative;
 }
 
@@ -585,9 +579,7 @@ body {
     gap: 15px;
     row-gap: max(15px, 10px); /* Mehr vertikaler Abstand auf Mobile */
     justify-content: center; /* Center on mobile is better */
-    grid-auto-rows: calc(
-      var(--card-size) + 90px
-    ); /* Mehr Platz für Kartenhöhe */
+    grid-auto-rows: calc(var(--card-size) + 90px);
   }
 
   /* Swipeable Content */
@@ -680,9 +672,7 @@ body {
       15px,
       10px
     ); /* Mehr vertikaler Abstand auf sehr kleinen Bildschirmen */
-    grid-auto-rows: calc(
-      var(--card-size) + 100px
-    ); /* Noch mehr Platz für die Kartenhöhe */
+    grid-auto-rows: calc(var(--card-size) + 100px);
     padding: 10px;
   }
 

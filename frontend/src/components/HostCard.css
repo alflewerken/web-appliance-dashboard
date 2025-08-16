@@ -2,13 +2,13 @@
 
 /* Ensure minimum size for host cards */
 .appliances-grid {
-  --min-card-size: 150px;
+  --min-card-size: 50px;
 }
 
 /* Override card size if too small */
 .appliance-card {
-  min-width: var(--min-card-size, 150px);
-  min-height: calc(var(--min-card-size, 150px) + 80px);
+  min-width: var(--min-card-size, 50px);
+  min-height: calc(var(--min-card-size, 50px) + 80px);
 }
 
 /* Dark info overlay at bottom - similar to service cards */
@@ -54,7 +54,4 @@
   }
 }
 
-/* For very small card sizes */
-.appliances-grid[style*="--card-size: 1"] {
-  --card-size: 150px !important;
-}
+/* Removed forced size override to allow smaller cards */

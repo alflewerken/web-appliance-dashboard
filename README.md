@@ -125,6 +125,22 @@ I built Web Appliance Dashboard to solve **MY** problems, and maybe they're your
 
 **This isn't just another dashboard - it's the dashboard I wish existed.**
 
+## 🏆 Compare With Others
+
+| Feature | Web Appliance Dashboard | Portainer | Heimdall | Homer |
+|---------|------------------------|-----------|----------|--------|
+| One-Line Install | ✅ | ❌ | ❌ | ❌ |
+| Web Terminal | ✅ Built-in | ❌ | ❌ | ❌ |
+| Remote Desktop | ✅ Integrated | ❌ | ❌ | ❌ |
+| Mobile Optimized | ✅ Mobile-First | ⚠️ | ❌ | ❌ |
+| Dark Mode | ✅ | ✅ | ✅ | ✅ |
+| SSH Management | ✅ Full | ❌ | ❌ | ❌ |
+| Service Control | ✅ | ⚠️ | ❌ | ❌ |
+| Cloud-Free | ✅ | ✅ | ✅ | ✅ |
+| Modern UI | ✅ React 19 | ⚠️ | ❌ | ⚠️ |
+| Backup/Restore | ✅ Encrypted | ❌ | ❌ | ❌ |
+
+
 ## 🚀 Quick Start - One-Line Installation
 
 Install the complete dashboard with a single command:
@@ -498,7 +514,7 @@ docker compose restart backend
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+I welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ### Development Setup
 ```bash
@@ -517,20 +533,6 @@ npm run dev
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
-## 🏆 Compare With Others
-
-| Feature | Web Appliance Dashboard | Portainer | Heimdall | Homer |
-|---------|------------------------|-----------|----------|--------|
-| One-Line Install | ✅ | ❌ | ❌ | ❌ |
-| Web Terminal | ✅ Built-in | ❌ | ❌ | ❌ |
-| Remote Desktop | ✅ Integrated | ❌ | ❌ | ❌ |
-| Mobile Optimized | ✅ Mobile-First | ⚠️ | ❌ | ❌ |
-| Dark Mode | ✅ | ✅ | ✅ | ✅ |
-| SSH Management | ✅ Full | ❌ | ❌ | ❌ |
-| Service Control | ✅ | ⚠️ | ❌ | ❌ |
-| Cloud-Free | ✅ | ✅ | ✅ | ✅ |
-| Modern UI | ✅ React 19 | ⚠️ | ❌ | ⚠️ |
-| Backup/Restore | ✅ Encrypted | ❌ | ❌ | ❌ |
 
 ## 🙏 Acknowledgments
 
@@ -542,11 +544,12 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 ## 💬 About the Project
 
-> "After 30 years in IT and countless tools later, I just wanted a dashboard that works. No frills, no cloud dependency, no monthly fees. Just a solid, beautiful tool for my homelab. If it helps you manage your homelab better - mission accomplished!"
+> "After 30 years in IT and countless tools later, I just wanted a dashboard that works. No frills, no cloud dependency, no Telemetry, no monthly fees. Just a solid, beautiful tool for my homelab. If it helps you manage your homelab better - mission accomplished!"
 >
 > *- Alf, 56, IT enthusiast since the Sinclair ZX80*
 >
-> enyoy!
+> enjoy!
+
 
 ---
 

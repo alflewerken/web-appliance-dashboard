@@ -3,12 +3,16 @@
 .file-transfer-button {
   background: transparent;
   border: 1px solid var(--border-color, #e1e4e8);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: clamp(6px, calc(var(--card-size) * 0.04), 12px);
+  /* Dynamische Größe wie andere Buttons */
+  width: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+  height: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+  padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 0;
   transition: all 0.2s ease;
   color: var(--text-primary, #24292e);
 }
@@ -26,8 +30,9 @@
 }
 
 .file-transfer-icon {
-  width: 16px;
-  height: 16px;
+  /* Icon proportional zum Button */
+  width: clamp(16px, calc(var(--card-size) * 0.1), 28px);
+  height: clamp(16px, calc(var(--card-size) * 0.1), 28px);
 }
 
 /* Modal Overlay */

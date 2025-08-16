@@ -101,7 +101,7 @@ const AppHeader = ({
           <Grid size={18} className="size-icon" />
           <input
             type="range"
-            min="60"
+            min="50"
             max="300"
             value={cardSize}
             onChange={e => setCardSize(Number(e.target.value))}
