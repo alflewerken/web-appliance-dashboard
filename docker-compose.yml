@@ -217,11 +217,11 @@ services:
     depends_on:
       guacd:
         condition: service_healthy
-      guacamole-postgres:
+      guacamole_db:
         condition: service_healthy
     environment:
       GUACD_HOSTNAME: guacd
-      POSTGRES_HOSTNAME: guacamole-postgres
+      POSTGRES_HOSTNAME: guacamole_db
       POSTGRES_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
       POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
