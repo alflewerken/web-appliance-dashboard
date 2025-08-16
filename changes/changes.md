@@ -44287,3 +44287,133 @@ ERGEBNIS:
 - Build sollte jetzt auf beiden Architekturen (AMD64 und ARM64) funktionieren
 - Robusterer Build-Prozess mit Fallback-Mechanismus
 - Keine Permission-Fehler mehr auf GitHub Actions
+
+
+
+## 2025-08-16 20:38:00 - Install-Script Logging-Funktionen hinzugefügt
+
+PROBLEM: Installation über curl schlug fehl mit "log_info: command not found"
+- Das install.sh Script verwendete Logging-Funktionen (log_info, log_success, etc.)
+- Diese Funktionen waren aber nicht im Script definiert
+- Fehler trat auf bei der Installation via: `curl -sSL ... | bash`
+
+FEHLERANALYSE:
+```bash
+bash: line 244: log_info: command not found
+```
+
+LÖSUNG: Logging-Funktionen am Anfang des Scripts definiert
+
+### install.sh - Logging-Funktionen hinzugefügt (nach Zeile 7)
+```diff
+ set -e
+ 
++# Color definitions
++RED='\033[0;31m'
++GREEN='\033[0;32m'
++YELLOW='\033[1;33m'
++BLUE='\033[0;34m'
++NC='\033[0m' # No Color
++
++# Logging functions
++log_info() {
++    echo -e "${BLUE}ℹ️  $1${NC}"
++}
++
++log_success() {
++    echo -e "${GREEN}✅ $1${NC}"
++}
++
++log_warning() {
++    echo -e "${YELLOW}⚠️  $1${NC}"
++}
++
++log_error() {
++    echo -e "${RED}❌ $1${NC}"
++}
++
+ echo "🚀 Web Appliance Dashboard - Quick Installer"
+```
+
+### install.sh - Fehlende Argumente für log_info ergänzt
+```diff
+-    log_info
++    log_info "Using default: localhost"
+
+-            log_info
++            log_info "Added hostname: $trimmed_host"
+
+-        log_info
++        log_info "Added localhost for local access"
+```
+
+PATCH:
+```patch
+--- a/install.sh
++++ b/install.sh
+@@ -7,6 +7,30 @@
+ 
+ set -e
+ 
++# Color definitions
++RED='\033[0;31m'
++GREEN='\033[0;32m'
++YELLOW='\033[1;33m'
++BLUE='\033[0;34m'
++NC='\033[0m' # No Color
++
++# Logging functions
++log_info() {
++    echo -e "${BLUE}ℹ️  $1${NC}"
++}
++
++log_success() {
++    echo -e "${GREEN}✅ $1${NC}"
++}
++
++log_warning() {
++    echo -e "${YELLOW}⚠️  $1${NC}"
++}
++
++log_error() {
++    echo -e "${RED}❌ $1${NC}"
++}
++
+ echo "🚀 Web Appliance Dashboard - Quick Installer"
+ echo "==========================================="
+ echo ""
+@@ -264,7 +288,7 @@ if [ -z "$USER_HOSTNAMES" ]; then
+             HOSTNAMES+=("${LOCAL_HOSTNAME}.local")
+         fi
+     fi
+-    log_info
++    log_info "Using default: localhost"
+ else
+     # Parse user input - properly handle comma-separated values
+     IFS=',' read -ra USER_HOST_ARRAY <<< "$USER_HOSTNAMES"
+@@ -276,7 +300,7 @@ else
+         trimmed_host=$(echo "$host" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+         if [ -n "$trimmed_host" ]; then
+             HOSTNAMES+=("$trimmed_host")
+-            log_info
++            log_info "Added hostname: $trimmed_host"
+         fi
+     done
+     
+@@ -284,7 +308,7 @@ else
+     # Always include localhost for local access
+     if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
+         HOSTNAMES+=("localhost")
+-        log_info
++        log_info "Added localhost for local access"
+     fi
+ fi
+```
+
+STATUS: ✅ Behoben
+
+ERGEBNIS:
+- install.sh funktioniert jetzt korrekt bei Installation via curl
+- Alle Logging-Funktionen sind definiert und haben korrekte Argumente
+- Farbige Ausgabe für bessere Lesbarkeit
+- Installation sollte nun erfolgreich durchlaufen

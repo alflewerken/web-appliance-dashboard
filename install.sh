@@ -6,6 +6,30 @@
 
 set -e
 
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+log_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+log_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
 echo "🚀 Web Appliance Dashboard - Quick Installer"
 echo "==========================================="
 echo ""
@@ -241,7 +265,7 @@ if [ -z "$USER_HOSTNAMES" ]; then
             HOSTNAMES+=("${LOCAL_HOSTNAME}.local")
         fi
     fi
-    log_info "Using default: localhost"
+    log_info "Using default: localhost" "Using default: localhost"
 else
     # Parse user input - properly handle comma-separated values
     IFS=',' read -ra USER_HOST_ARRAY <<< "$USER_HOSTNAMES"
@@ -253,14 +277,14 @@ else
         trimmed_host=$(echo "$host" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [ -n "$trimmed_host" ]; then
             HOSTNAMES+=("$trimmed_host")
-            log_info "Added hostname: $trimmed_host"
+            log_info "Added hostname: $trimmed_host" "Added hostname: $trimmed_host"
         fi
     done
     
     # Always include localhost for local access
     if [[ ! " ${HOSTNAMES[@]} " =~ " localhost " ]]; then
         HOSTNAMES+=("localhost")
-        log_info "Added localhost for local access"
+        log_info "Added localhost for local access" "Added localhost for local access"
     fi
 fi
 
