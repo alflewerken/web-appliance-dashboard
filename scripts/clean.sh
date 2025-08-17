@@ -5,6 +5,10 @@ echo "======================================================================="
 echo "⚠️  This will remove ALL build artifacts and generated files!"
 echo "⚠️  Only source code will remain."
 echo "======================================================================="
+echo ""
+echo "📁 NOTE: The ./data/ directory with all persistent data is PRESERVED!"
+echo "         This includes: database, ssh_keys, uploads, guacamole data, etc."
+echo "======================================================================="
 
 # Color codes for output
 RED='\033[0;31m'
@@ -281,10 +285,18 @@ if [ -d "terminal-app" ]; then
 fi
 
 # 5.5 RustDesk cleanup
-print_status "info" "Cleaning RustDesk data..."
-rm -rf rustdesk/data/*
-rm -rf rustdesk/web-config/*
-print_status "success" "RustDesk cleaned"
+print_status "info" "Cleaning old RustDesk directories (if exist)..."
+# Clean old rustdesk directories (legacy locations)
+if [ -d "rustdesk/data" ]; then
+    rm -rf rustdesk/data/*
+    print_status "info" "Cleaned legacy rustdesk/data"
+fi
+if [ -d "rustdesk/web-config" ]; then
+    rm -rf rustdesk/web-config/*
+    print_status "info" "Cleaned legacy rustdesk/web-config"
+fi
+# NOTE: New rustdesk data is in ./data/rustdesk and is preserved!
+print_status "success" "RustDesk legacy directories cleaned"
 
 # 6. General project cleanup
 print_status "info" "Cleaning general project files..."

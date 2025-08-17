@@ -13,7 +13,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - db_data:/var/lib/mysql
+      - ./data/database:/var/lib/mysql
       - ./init-db:/docker-entrypoint-initdb.d
     networks:
       - ${NETWORK_NAME:-appliance_network}
@@ -44,6 +44,7 @@ services:
       # Security
       JWT_SECRET: ${JWT_SECRET}
       SSH_KEY_ENCRYPTION_SECRET: ${SSH_KEY_ENCRYPTION_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       NODE_ENV: ${NODE_ENV:-production}
       # CORS Settings
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
@@ -81,10 +82,10 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - ssh_keys:/root/.ssh
-      - uploads:/app/uploads
+      - ./data/ssh_keys:/root/.ssh
+      - ./data/uploads:/app/uploads
       # Shared temp directory für Terminal-Sessions
-      - terminal_sessions:/tmp/terminal-sessions
+      - ./data/terminal_sessions:/tmp/terminal-sessions
       # Docker socket for container management
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Optional: Mount lokales SSH-Keys Verzeichnis für Entwicklung
@@ -143,11 +144,11 @@ services:
       - ${NETWORK_NAME:-appliance_network}
     volumes:
       # SSH-Keys für Terminal-Zugriff
-      - ssh_keys:/root/.ssh
+      - ./data/ssh_keys:/root/.ssh
       # Optional: Shared scripts
       - ./scripts:/scripts:ro
       # Shared temp directory für Session-Dateien
-      - terminal_sessions:/tmp/terminal-sessions
+      - ./data/terminal_sessions:/tmp/terminal-sessions
     healthcheck:
       test: ["CMD", "sh", "-c", "pidof ttyd || exit 1"]
       interval: ${HEALTH_CHECK_INTERVAL:-30s}
@@ -164,8 +165,8 @@ services:
     container_name: ${GUACD_CONTAINER_NAME:-appliance_guacd}
     restart: always
     volumes:
-      - guacamole_drive:/drive:rw
-      - guacamole_record:/record:rw
+      - ./data/guacamole_drive:/drive:rw
+      - ./data/guacamole_record:/record:rw
     environment:
       GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-warning}
       # Performance Tuning
@@ -197,7 +198,7 @@ services:
       POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
     volumes:
-      - guacamole_db:/var/lib/postgresql/data
+      - ./data/guacamole_db:/var/lib/postgresql/data
       - ./guacamole/001-create-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./guacamole/002-create-admin-user.sql:/docker-entrypoint-initdb.d/02-admin.sql:ro
       - ./guacamole/custom-sftp.sql:/docker-entrypoint-initdb.d/03-custom-sftp.sql:ro
@@ -225,9 +226,9 @@ services:
       POSTGRES_DATABASE: ${GUACAMOLE_DB_NAME:-guacamole_db}
       POSTGRES_USER: ${GUACAMOLE_DB_USER:-guacamole_user}
       POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_pass123}
-      # Integration settings
-      HEADER_ENABLED: 'true'
-      HTTP_AUTH_HEADER: 'REMOTE_USER'
+      # Integration settings - DISABLED for token auth
+      # HEADER_ENABLED: 'true'
+      # HTTP_AUTH_HEADER: 'REMOTE_USER'
       # CORS für iFrame
       EXTENSION_PRIORITY: '*'
       # Optional: Custom settings
@@ -243,7 +244,7 @@ services:
       DEFAULT_SSH_USER: ${DEFAULT_SSH_USER:-alflewerken}
       DEFAULT_SSH_PASS: ${DEFAULT_SSH_PASS:-}
     volumes:
-      - guacamole_home:/etc/guacamole
+      - ./data/guacamole_home:/etc/guacamole
     # Port wird nicht nach außen geöffnet - nur über nginx erreichbar
     # ports:
     #   - "${GUACAMOLE_PORT:-9070}:8080"
@@ -277,7 +278,7 @@ services:
       - "${RUSTDESK_WEB_PORT:-21218}:21118"  # Web Client (21218 extern -> 21118 intern)
       - "${RUSTDESK_API_PORT:-21219}:21119"  # API (21219 extern -> 21119 intern)
     volumes:
-      - rustdesk_data:/root
+      - ./data/rustdesk:/root
     networks:
       - ${NETWORK_NAME:-appliance_network}
     # Removed healthcheck - RustDesk container has no shell or common tools
@@ -292,7 +293,7 @@ services:
       - "${RUSTDESK_RELAY_PORT:-21217}:21117"  # Relay Server (21217 extern -> 21117 intern)
       - "${RUSTDESK_WEBSOCKET_PORT:-21220}:21120"  # Websocket (21220 extern -> 21120 intern)
     volumes:
-      - rustdesk_data:/root
+      - ./data/rustdesk:/root
     networks:
       - ${NETWORK_NAME:-appliance_network}
     # Removed healthcheck - RustDesk container has no shell or common tools
@@ -354,20 +355,6 @@ volumes:
       - "purpose=guacamole-session-recording"
       - "project=web-appliance-dashboard"
       
-  guacamole_home:
-    driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=guacamole-configuration"
-      - "project=web-appliance-dashboard"
-
-  # RustDesk volumes
-  rustdesk_data:
-    driver: local
-    labels:
-      - "backup=${BACKUP_ENABLED:-true}"
-      - "purpose=rustdesk-data"
-      - "project=web-appliance-dashboard"
 
 # ====================================================================
 # NETWORKS

@@ -32,9 +32,245 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
+# Function to check if database already exists with data
+check_database_exists() {
+    local db_path="data/database"
+    
+    # Check if database directory exists and has data
+    if [ -d "$db_path" ] && [ "$(ls -A $db_path 2>/dev/null)" ]; then
+        print_status "info" "Existing database found at $db_path"
+        
+        # Check if .env exists
+        if [ ! -f ".env" ]; then
+            print_status "error" "Database exists but .env file is missing!"
+            print_status "warning" "The database was created with specific credentials"
+            
+            # Interactive mode - ask for credentials
+            if [ -t 0 ] || [ -t 1 ]; then
+                echo ""
+                echo "============================================================"
+                echo "To access the existing database, you need BOTH keys:"
+                echo ""
+                echo "1. DB_PASSWORD - to connect to the database"
+                echo "2. SSH_KEY_ENCRYPTION_SECRET - to decrypt stored passwords/SSH keys"
+                echo ""
+                echo "Without BOTH keys, encrypted data will be INACCESSIBLE!"
+                echo "============================================================"
+                echo ""
+                
+                # Get DB Password
+                read -p "Enter original DB_PASSWORD (required): " USER_DB_PASS
+                
+                if [ -z "$USER_DB_PASS" ]; then
+                    print_status "error" "DB_PASSWORD is required to access existing database"
+                    return 3
+                fi
+                
+                # Get Encryption Key
+                echo ""
+                print_status "warning" "The encryption key is CRITICAL for decrypting stored data!"
+                read -p "Enter original SSH_KEY_ENCRYPTION_SECRET or ENCRYPTION_KEY: " USER_SSH_KEY
+                
+                if [ -z "$USER_SSH_KEY" ]; then
+                    print_status "error" "Without encryption key, all encrypted data will be inaccessible!"
+                    echo "   - Host passwords cannot be decrypted"
+                    echo "   - SSH keys cannot be decrypted"
+                    echo "   - Service credentials cannot be decrypted"
+                    echo ""
+                    read -p "Continue anyway? You'll need to reset ALL credentials [y/N]: " -n 1 -r REPLY
+                    echo ""
+                    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                        return 3
+                    fi
+                    print_status "warning" "Generating new encryption key - existing encrypted data lost"
+                    USER_SSH_KEY=$(openssl rand -hex 32 2>/dev/null)
+                fi
+                
+                # Create .env with BOTH keys
+                print_status "info" "Creating .env with provided credentials..."
+                
+                # Generate new tokens but use provided passwords
+                JWT=$(openssl rand -hex 32 2>/dev/null)
+                SESSION=$(openssl rand -hex 32 2>/dev/null)
+                
+                cat > .env << EOF
+# Recovered configuration with original keys
+DB_HOST=database
+DB_PORT=3306
+DB_USER=dashboard_user
+DB_PASSWORD=${USER_DB_PASS}
+DB_NAME=appliance_dashboard
+MYSQL_ROOT_PASSWORD=$(openssl rand -base64 32 2>/dev/null)
+MYSQL_DATABASE=appliance_dashboard
+MYSQL_USER=dashboard_user
+MYSQL_PASSWORD=${USER_DB_PASS}
+
+# CRITICAL: Original encryption key for existing encrypted data
+JWT_SECRET=${JWT}
+SESSION_SECRET=${SESSION}
+SSH_KEY_ENCRYPTION_SECRET=${USER_SSH_KEY}
+ENCRYPTION_KEY=${USER_SSH_KEY}
+
+BACKEND_PORT=3001
+NGINX_HTTP_PORT=9080
+NGINX_HTTPS_PORT=9443
+NODE_ENV=production
+EOF
+                print_status "success" "Created .env with both required keys"
+                print_status "info" "DB_PASSWORD and encryption key set from user input"
+                return 0
+            else
+                return 3  # Non-interactive mode without .env
+            fi
+        fi
+        
+        # Try to connect to database if container is running
+        if docker ps --format '{{.Names}}' | grep -q "^appliance_db$"; then
+            # Extract password from .env
+            local db_pass=""
+            db_pass=$(grep "^DB_PASSWORD=" .env | cut -d= -f2- || echo "")
+            
+            if [ -z "$db_pass" ]; then
+                print_status "error" "DB_PASSWORD is empty in .env!"
+                return 1
+            fi
+            
+            if docker exec appliance_db mariadb -u dashboard_user -p"${db_pass}" -e "SELECT 1" >/dev/null 2>&1; then
+                print_status "success" "Database connection successful with current credentials"
+                return 0
+            else
+                print_status "warning" "Database exists but cannot connect with current credentials"
+                print_status "info" "The database was initialized with different credentials"
+                
+                # Offer to input correct password
+                if [ -t 0 ] || [ -t 1 ]; then
+                    echo ""
+                    echo "The current .env has wrong credentials for the existing database."
+                    echo ""
+                    read -p "Enter the correct DB_PASSWORD for existing database (or leave empty to skip): " CORRECT_PASS
+                    if [ -n "$CORRECT_PASS" ]; then
+                        # Also ask for encryption key
+                        echo ""
+                        print_status "warning" "Also need the encryption key for decrypting stored data"
+                        read -p "Enter the correct SSH_KEY_ENCRYPTION_SECRET/ENCRYPTION_KEY: " CORRECT_KEY
+                        
+                        if [ -z "$CORRECT_KEY" ]; then
+                            print_status "error" "Encryption key is required for existing encrypted data!"
+                            echo "Without it, all passwords and SSH keys will be inaccessible."
+                            read -p "Continue with wrong key? [y/N]: " -n 1 -r REPLY
+                            echo ""
+                            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                                return 1
+                            fi
+                        else
+                            # Update both passwords and encryption key
+                            sed -i.bak "s/^DB_PASSWORD=.*/DB_PASSWORD=${CORRECT_PASS}/" .env
+                            sed -i.bak "s/^MYSQL_PASSWORD=.*/MYSQL_PASSWORD=${CORRECT_PASS}/" .env
+                            sed -i.bak "s/^SSH_KEY_ENCRYPTION_SECRET=.*/SSH_KEY_ENCRYPTION_SECRET=${CORRECT_KEY}/" .env
+                            sed -i.bak "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=${CORRECT_KEY}/" .env
+                            print_status "success" "Updated .env with correct credentials"
+                            return 0
+                        fi
+                    fi
+                fi
+                return 1
+            fi
+        else
+            print_status "info" "Database data exists (container not running)"
+            # Even if container is not running, we've already handled missing .env above
+            # If we reach here, .env exists, so we can proceed
+            return 0
+        fi
+    else
+        print_status "info" "No existing database data found"
+        return 2
+    fi
+}
+
+# Function to backup existing data
+backup_existing_data() {
+    if [ -d "data" ] && [ "$(ls -A data 2>/dev/null)" ]; then
+        local backup_dir="backups/auto_$(date +%Y%m%d_%H%M%S)"
+        print_status "info" "Creating automatic backup of existing data..."
+        mkdir -p "$backup_dir"
+        
+        # Backup critical directories if they have content
+        for dir in database ssh_keys uploads guacamole_db; do
+            if [ -d "data/$dir" ] && [ "$(ls -A data/$dir 2>/dev/null)" ]; then
+                print_status "info" "Backing up data/$dir..."
+                cp -r "data/$dir" "$backup_dir/" 2>/dev/null || true
+            fi
+        done
+        
+        print_status "success" "Backup created at $backup_dir"
+        return 0
+    fi
+    return 1
+}
+
+# Function to check all host-mounted data directories
+check_existing_data() {
+    local has_data=false
+    
+    print_status "info" "Checking for existing data directories..."
+    
+    # Check main database
+    if [ -d "data/database" ] && [ "$(ls -A data/database 2>/dev/null)" ]; then
+        print_status "info" "Found existing main database"
+        has_data=true
+    fi
+    
+    # Check Guacamole database
+    if [ -d "data/guacamole_db" ] && [ "$(ls -A data/guacamole_db 2>/dev/null)" ]; then
+        print_status "info" "Found existing Guacamole database"
+        has_data=true
+    fi
+    
+    # Check SSH keys
+    if [ -d "data/ssh_keys" ] && [ "$(ls -A data/ssh_keys 2>/dev/null)" ]; then
+        print_status "info" "Found existing SSH keys"
+        has_data=true
+    fi
+    
+    # Check uploads
+    if [ -d "data/uploads" ] && [ "$(ls -A data/uploads 2>/dev/null)" ]; then
+        print_status "info" "Found existing uploads"
+        has_data=true
+    fi
+    
+    if [ "$has_data" = true ]; then
+        print_status "success" "Existing data will be preserved"
+        return 0
+    else
+        print_status "info" "No existing data found - fresh installation"
+        return 1
+    fi
+}
+
 # Function to fix environment variables
 fix_env_file() {
     print_status "info" "Checking and fixing environment configuration..."
+    
+    # FIRST: Check if database exists but .env is missing
+    if [ ! -f .env ] && [ -d "data/database" ] && [ "$(ls -A data/database 2>/dev/null)" ]; then
+        print_status "warning" "Database exists but .env is missing - need original credentials!"
+        
+        # Call check_database_exists to handle credential input
+        check_database_exists >&2
+        DB_CHECK_STATUS=$?
+        
+        if [ "$DB_CHECK_STATUS" -eq 3 ]; then
+            print_status "error" "Cannot proceed without database credentials"
+            print_status "info" "Options:"
+            print_status "info" "1. Re-run and provide the original DB_PASSWORD and SSH_KEY_ENCRYPTION_SECRET"
+            print_status "info" "2. Delete data/database/ for a fresh install (DATA LOSS!)"
+            print_status "info" "3. Restore your original .env file"
+            exit 1
+        fi
+        
+        # If we get here, .env was created with credentials - continue with normal flow
+        return 0
+    fi
     
     # Check if setup-env.sh exists and should be run
     SETUP_ENV_SCRIPT="$SCRIPT_DIR/setup-env.sh"
@@ -309,6 +545,57 @@ ensure_critical_variables() {
         env_fixed=true
     fi
     
+    # CRITICAL: Add ENCRYPTION_KEY for password encryption/decryption
+    # Use SSH_KEY_ENCRYPTION_SECRET as the ENCRYPTION_KEY to maintain consistency
+    if ! grep -q "^ENCRYPTION_KEY=" .env; then
+        print_status "warning" "ENCRYPTION_KEY not found, using SSH_KEY_ENCRYPTION_SECRET..."
+        # Use the SSH_KEY_ENCRYPTION_SECRET if it exists, otherwise generate new
+        SSH_SECRET=$(grep "^SSH_KEY_ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
+        if [ -n "$SSH_SECRET" ]; then
+            ENCRYPTION_KEY="$SSH_SECRET"
+            print_status "info" "Using SSH_KEY_ENCRYPTION_SECRET as ENCRYPTION_KEY for consistency"
+        else
+            # Generate a new key if neither exists
+            ENCRYPTION_KEY="$(openssl rand -base64 32 2>/dev/null | tr -d '/+=' | cut -c1-32 || echo 'default-encryption-key-change-this')"
+            print_status "warning" "Generated new encryption key"
+        fi
+        echo "" >> .env
+        echo "# Encryption Key for Passwords (should match SSH_KEY_ENCRYPTION_SECRET)" >> .env
+        echo "ENCRYPTION_KEY=$ENCRYPTION_KEY" >> .env
+        print_status "success" "Set ENCRYPTION_KEY: $ENCRYPTION_KEY"
+        env_fixed=true
+    elif grep -q "^ENCRYPTION_KEY=YOUR_" .env || grep -q "^ENCRYPTION_KEY=$" .env || grep -q "^ENCRYPTION_KEY= *$" .env; then
+        # Replace placeholder or empty ENCRYPTION_KEY
+        print_status "warning" "ENCRYPTION_KEY is empty or placeholder, using SSH_KEY_ENCRYPTION_SECRET..."
+        SSH_SECRET=$(grep "^SSH_KEY_ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
+        if [ -n "$SSH_SECRET" ]; then
+            ENCRYPTION_KEY="$SSH_SECRET"
+        else
+            ENCRYPTION_KEY="$(openssl rand -base64 32 2>/dev/null | tr -d '/+=' | cut -c1-32 || echo 'default-encryption-key-change-this')"
+        fi
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i'' -e "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$ENCRYPTION_KEY/" .env
+        else
+            sed -i "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$ENCRYPTION_KEY/g" .env
+        fi
+        print_status "success" "Set ENCRYPTION_KEY: $ENCRYPTION_KEY"
+        env_fixed=true
+    else
+        # Check if ENCRYPTION_KEY differs from SSH_KEY_ENCRYPTION_SECRET
+        CURRENT_ENCRYPTION_KEY=$(grep "^ENCRYPTION_KEY=" .env | cut -d= -f2- || echo "")
+        SSH_SECRET=$(grep "^SSH_KEY_ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
+        if [ -n "$SSH_SECRET" ] && [ "$CURRENT_ENCRYPTION_KEY" != "$SSH_SECRET" ]; then
+            print_status "warning" "ENCRYPTION_KEY differs from SSH_KEY_ENCRYPTION_SECRET, fixing..."
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i'' -e "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$SSH_SECRET/" .env
+            else
+                sed -i "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$SSH_SECRET/g" .env
+            fi
+            print_status "success" "Synchronized ENCRYPTION_KEY with SSH_KEY_ENCRYPTION_SECRET"
+            env_fixed=true
+        fi
+    fi
+    
     if [ "$env_fixed" = true ]; then
         print_status "success" "Critical environment variables ensured"
     fi
@@ -331,6 +618,7 @@ sync_backend_env() {
     DB_NAME=$(grep "^DB_NAME=" .env | cut -d= -f2- || echo "appliance_dashboard")
     JWT_SECRET=$(grep "^JWT_SECRET=" .env | cut -d= -f2- || echo "")
     SSH_SECRET=$(grep "^SSH_KEY_ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
+    ENCRYPTION_KEY=$(grep "^ENCRYPTION_KEY=" .env | cut -d= -f2- || echo "")
     EXTERNAL_URL=$(grep "^EXTERNAL_URL=" .env | cut -d= -f2- || echo "")
     ALLOWED_ORIGINS=$(grep "^ALLOWED_ORIGINS=" .env | cut -d= -f2- || echo "")
     
@@ -351,6 +639,9 @@ JWT_SECRET=${JWT_SECRET}
 
 # SSH Key Encryption
 SSH_KEY_ENCRYPTION_SECRET=${SSH_SECRET}
+
+# Encryption Key for Passwords
+ENCRYPTION_KEY=${ENCRYPTION_KEY}
 
 # Node Environment
 NODE_ENV=production
@@ -415,11 +706,34 @@ init_guacamole_db() {
             print_status "error" "Alternative method also failed"
     fi
     
-    # Check if tables exist
-    TABLES_EXIST=$(docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
-        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
+    # Check if Guacamole database data already exists
+    GUAC_DB_PATH="data/guacamole_db"
+    GUAC_DB_EXISTS=false
     
-    if [ "$TABLES_EXIST" = "f" ]; then
+    if [ -d "$GUAC_DB_PATH" ] && [ "$(ls -A $GUAC_DB_PATH 2>/dev/null)" ]; then
+        print_status "info" "Existing Guacamole database found at $GUAC_DB_PATH"
+        GUAC_DB_EXISTS=true
+    fi
+    
+    # Check if tables exist (only if container is running and we can connect)
+    TABLES_EXIST="unknown"
+    if docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c "SELECT 1" >/dev/null 2>&1; then
+        TABLES_EXIST=$(docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -tAc \
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'guacamole_connection');" 2>/dev/null || echo "f")
+        
+        if [ "$TABLES_EXIST" = "t" ]; then
+            print_status "success" "Guacamole tables exist and are accessible"
+        fi
+    else
+        if [ "$GUAC_DB_EXISTS" = true ]; then
+            print_status "warning" "Cannot connect to Guacamole DB - may need password reset"
+            # Don't try to reinitialize if data exists
+            TABLES_EXIST="skip"
+        fi
+    fi
+    
+    # Only initialize if no data exists OR if we can connect and tables are missing
+    if [ "$TABLES_EXIST" = "f" ] || ([ "$TABLES_EXIST" = "unknown" ] && [ "$GUAC_DB_EXISTS" = false ]); then
         print_status "warning" "Guacamole tables missing - initializing database..."
         
         # Generate schema from official Guacamole image if not exists
@@ -469,6 +783,9 @@ init_guacamole_db() {
             print_status "error" "Could not create schema file!"
             print_status "warning" "Guacamole may not work properly"
         fi
+    elif [ "$TABLES_EXIST" = "skip" ]; then
+        print_status "info" "Skipping Guacamole initialization - existing data present"
+        print_status "warning" "If Guacamole doesn't work, check database credentials"
     else
         print_status "success" "Guacamole database OK"
     fi
@@ -511,6 +828,16 @@ wait_for_healthy() {
 # Function to perform quick refresh
 quick_refresh() {
     print_status "info" "Performing quick refresh of frontend and backend..."
+    
+    # Check for existing database FIRST (before fixing env)
+    if [ -d "data/database" ] && [ "$(ls -A data/database 2>/dev/null)" ]; then
+        if [ ! -f ".env" ]; then
+            print_status "error" "Database exists but .env file is missing!"
+            print_status "info" "Cannot perform refresh without credentials"
+            print_status "info" "Please run './scripts/build.sh' (without --refresh) to provide credentials"
+            exit 1
+        fi
+    fi
     
     # Fix env first
     fix_env_file
@@ -691,8 +1018,34 @@ fi
 print_status "info" "Starting full build process..."
 echo ""
 
-# Step 1: Fix environment
-fix_env_file
+# Step 0: Check for existing database FIRST (before creating new .env)
+if [ -d "data/database" ] && [ "$(ls -A data/database 2>/dev/null)" ]; then
+    print_status "info" "Existing database detected - checking credentials..."
+    
+    # If database exists but no .env, we need to ask for credentials
+    if [ ! -f ".env" ]; then
+        check_database_exists >&2
+        DB_CHECK_STATUS=$?
+        
+        if [ "$DB_CHECK_STATUS" -eq 3 ]; then
+            print_status "error" "Cannot proceed without database credentials"
+            print_status "info" "Options:"
+            print_status "info" "1. Re-run and provide the original DB_PASSWORD and SSH_KEY_ENCRYPTION_SECRET"
+            print_status "info" "2. Delete data/database/ for a fresh install (DATA LOSS!)"
+            print_status "info" "3. Restore your original .env file"
+            exit 1
+        fi
+        # If we get here, .env was created with user-provided credentials
+    fi
+fi
+
+# Step 1: Fix environment (only if .env still doesn't exist)
+if [ ! -f ".env" ]; then
+    fix_env_file
+else
+    # .env exists, just ensure it's properly configured
+    fix_env_file
+fi
 
 # Step 2: Clear cache if requested
 if [ "$CLEAR_CACHE" = true ]; then
@@ -785,7 +1138,33 @@ else
     print_status "info" "This is normal for production Docker images"
 fi
 
-# Step 6: Start services in order
+# Step 6: Check existing data before starting services
+print_status "info" "Checking for existing data..."
+
+# Check database status - redirect output to stderr to keep return value clean
+check_database_exists >&2
+DB_STATUS=$?
+
+if [ "$DB_STATUS" -eq 0 ]; then
+    print_status "success" "Using existing database data"
+elif [ "$DB_STATUS" -eq 1 ]; then
+    print_status "warning" "Database exists but credentials don't match"
+    print_status "info" "Creating backup before proceeding..."
+    backup_existing_data || true
+    print_status "warning" "Container will start but database may not be accessible"
+    print_status "info" "You may need to:"
+    print_status "info" "  - Re-run the script and enter correct password"
+    print_status "info" "  - Restore from backup with correct credentials"
+    print_status "info" "  - Or remove data/database/ and restart for fresh install"
+elif [ "$DB_STATUS" -eq 2 ]; then
+    print_status "info" "Fresh installation - will initialize new database"
+elif [ "$DB_STATUS" -eq 3 ]; then
+    print_status "error" "Cannot proceed without database credentials"
+    print_status "info" "Re-run the script and provide the password, or restore your .env file"
+    exit 1
+fi
+
+# Step 7: Start services in order
 print_status "info" "Starting services..."
 
 # Start database first

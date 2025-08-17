@@ -139,8 +139,156 @@ cd "$INSTALL_DIR" || exit 1
 echo "✅ Working in: $(pwd)"
 echo ""
 
+# Check for existing installation
+EXISTING_INSTALL=false
+EXISTING_DB=false
+ENV_EXISTS=false
+CREDENTIALS_MISMATCH=false
+USER_PROVIDED_PASSWORD=""
+
+# Check for existing database
+if [ -d "data/database" ] && [ "$(ls -A data/database 2>/dev/null)" ]; then
+    echo "⚠️  Existing database data detected!"
+    EXISTING_DB=true
+    EXISTING_INSTALL=true
+fi
+
+# Check for existing .env
+if [ -f ".env" ]; then
+    ENV_EXISTS=true
+    if ! grep -q "YOUR_.*_HERE\|CHANGE_ME" .env 2>/dev/null; then
+        echo "✅ Valid configuration file found"
+        
+        # Extract existing passwords to reuse them
+        EXISTING_DB_PASS=$(grep "^DB_PASSWORD=" .env | cut -d= -f2- || echo "")
+        EXISTING_ROOT_PASS=$(grep "^MYSQL_ROOT_PASSWORD=" .env | cut -d= -f2- || echo "")
+        EXISTING_SSH_KEY=$(grep "^SSH_KEY_ENCRYPTION_SECRET=" .env | cut -d= -f2- || echo "")
+        
+        if [ -n "$EXISTING_DB_PASS" ]; then
+            echo "✅ Found existing database credentials"
+        fi
+    fi
+fi
+
+# Critical: Check for credential mismatch scenario
+if [ "$EXISTING_DB" = true ] && [ "$ENV_EXISTS" = false ]; then
+    echo ""
+    echo "🚨 CRITICAL: Database exists but configuration file is missing!"
+    echo "============================================================"
+    echo ""
+    echo "The database contains encrypted passwords and SSH keys that"
+    echo "REQUIRE the original encryption keys to decrypt."
+    echo ""
+    echo "You need BOTH keys from your old .env file:"
+    echo "  1. DB_PASSWORD - to connect to the database"
+    echo "  2. SSH_KEY_ENCRYPTION_SECRET (or ENCRYPTION_KEY) - to decrypt stored data"
+    echo ""
+    echo "WITHOUT BOTH KEYS, YOUR ENCRYPTED DATA WILL BE INACCESSIBLE!"
+    echo ""
+    echo "OPTIONS:"
+    echo ""
+    echo "1) If you have BOTH keys from your old .env file:"
+    echo "   → Enter them when prompted below"
+    echo ""
+    echo "2) If you have a backup of the .env file:"
+    echo "   → Press Ctrl+C now, restore the .env file, and re-run install.sh"
+    echo ""
+    echo "3) If you've lost the encryption key:"
+    echo "   → Your encrypted passwords and SSH keys CANNOT be recovered"
+    echo "   → Press Ctrl+C, delete data/, and re-run for fresh install"
+    echo "   ⚠️  WARNING: This will DELETE ALL DATA!"
+    echo ""
+    echo "============================================================"
+    echo ""
+    
+    if [ -t 0 ] || [ -t 1 ]; then
+        # Interactive mode - ask for BOTH passwords
+        echo "To recover your existing installation, enter BOTH keys:"
+        echo ""
+        
+        # DB Password
+        read -p "1. Original DB_PASSWORD: " USER_PROVIDED_PASSWORD
+        
+        if [ -z "$USER_PROVIDED_PASSWORD" ]; then
+            echo ""
+            echo "❌ No DB_PASSWORD provided - cannot access database"
+            echo "   Installation cancelled. Delete data/ for fresh install or restore .env"
+            exit 1
+        fi
+        
+        # Encryption Key
+        echo ""
+        echo "2. Original SSH_KEY_ENCRYPTION_SECRET or ENCRYPTION_KEY"
+        echo "   (This is required to decrypt passwords and SSH keys in the database)"
+        read -p "   Encryption key: " USER_SSH_KEY
+        
+        if [ -z "$USER_SSH_KEY" ]; then
+            echo ""
+            echo "❌ No encryption key provided - encrypted data will be INACCESSIBLE!"
+            echo ""
+            echo "Without this key:"
+            echo "  - All host passwords will be unreadable"
+            echo "  - All SSH private keys will be unreadable"
+            echo "  - All service credentials will be unreadable"
+            echo ""
+            read -p "Continue anyway? You'll need to reset ALL passwords [y/N]: " -n 1 -r REPLY
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "Installation cancelled. Restore your .env or delete data/ for fresh start."
+                exit 1
+            fi
+            echo "⚠️  Proceeding without encryption key - prepare to reset all credentials"
+            USER_SSH_KEY=$(openssl rand -hex 32 2>/dev/null)
+            CREDENTIALS_MISMATCH=true
+        else
+            echo "✅ Will use provided encryption key for existing encrypted data"
+        fi
+        
+        EXISTING_DB_PASS="$USER_PROVIDED_PASSWORD"
+        EXISTING_SSH_KEY="$USER_SSH_KEY"
+        
+    else
+        echo "Non-interactive mode: Cannot continue without .env file when database exists"
+        exit 1
+    fi
+elif [ "$EXISTING_DB" = true ] && [ -n "$EXISTING_DB_PASS" ]; then
+    # Database exists and we have credentials from .env
+    echo "✅ Will reuse existing credentials from .env"
+    
+    # But check if we have the encryption key
+    if [ -z "$EXISTING_SSH_KEY" ]; then
+        echo ""
+        echo "⚠️  WARNING: SSH_KEY_ENCRYPTION_SECRET not found in .env!"
+        echo "   Encrypted passwords and SSH keys may not be accessible."
+    fi
+fi
+
+if [ "$EXISTING_INSTALL" = true ] && [ "$CREDENTIALS_MISMATCH" = false ]; then
+    echo ""
+    echo "📌 Existing installation detected. The installer will:"
+    echo "   • Preserve your database data"
+    echo "   • Reuse existing credentials"
+    echo "   • Update scripts and configurations"
+    echo ""
+    
+    # Create backup
+    if [ -d "data" ] && [ "$(ls -A data 2>/dev/null)" ]; then
+        BACKUP_DIR="backups/before_install_$(date +%Y%m%d_%H%M%S)"
+        echo "📥 Creating safety backup at $BACKUP_DIR..."
+        mkdir -p "$BACKUP_DIR"
+        cp -r data "$BACKUP_DIR/" 2>/dev/null || true
+        [ -f ".env" ] && cp .env "$BACKUP_DIR/.env.backup" 2>/dev/null || true
+        echo "✅ Backup created"
+    fi
+fi
+
 # Create necessary directories
 mkdir -p init-db ssl guacamole scripts
+# Only create data directories if they don't exist (preserve existing data)
+for dir in database ssh_keys uploads terminal_sessions guacamole_db guacamole_drive guacamole_record guacamole_home rustdesk; do
+    mkdir -p "data/$dir"
+done
+log_info "Data directories ready (existing data preserved)"
 
 # Download database initialization script
 echo "📥 Downloading database schema..."
@@ -310,13 +458,35 @@ for HOST in "${UNIQUE_HOSTNAMES[@]}"; do
 done
 echo ""
 
-# Generate passwords
-DB_PASS=$(openssl rand -base64 24 2>/dev/null || echo "dashboard_pass123")
-ROOT_PASS=$(openssl rand -base64 32 2>/dev/null || echo "root_pass123")
+# Generate or reuse passwords - CRITICAL for data consistency
+if [ "$EXISTING_DB" = true ] && [ -n "$EXISTING_DB_PASS" ]; then
+    # Case 1: Database exists AND we have the password = perfect, reuse it
+    DB_PASS="$EXISTING_DB_PASS"
+    ROOT_PASS="${EXISTING_ROOT_PASS:-$(openssl rand -base64 32 2>/dev/null || echo "root_pass123")}"
+    SSH_KEY="${EXISTING_SSH_KEY:-$(openssl rand -hex 32 2>/dev/null || echo "default-ssh-secret-change-in-production")}"
+    echo "✅ Reusing existing database credentials (database will remain accessible)"
+elif [ "$EXISTING_DB" = true ] && [ -z "$EXISTING_DB_PASS" ]; then
+    # Case 2: Database exists BUT no password = problem!
+    echo "⚠️  WARNING: Creating new credentials. Existing database will be INACCESSIBLE!"
+    echo "   The database in data/database/ will remain but cannot be used."
+    echo "   Consider backing up data/database/ and removing it for a fresh start."
+    DB_PASS=$(openssl rand -base64 24 2>/dev/null || echo "dashboard_pass123")
+    ROOT_PASS=$(openssl rand -base64 32 2>/dev/null || echo "root_pass123")
+    SSH_KEY=$(openssl rand -hex 32 2>/dev/null || echo "default-ssh-secret-change-in-production")
+else
+    # Case 3: No database = fresh install, generate new passwords
+    DB_PASS=$(openssl rand -base64 24 2>/dev/null || echo "dashboard_pass123")
+    ROOT_PASS=$(openssl rand -base64 32 2>/dev/null || echo "root_pass123")
+    SSH_KEY=$(openssl rand -hex 32 2>/dev/null || echo "default-ssh-secret-change-in-production")
+    echo "✅ Generated new secure credentials for fresh installation"
+fi
+
+# Always generate new tokens for security
 JWT=$(openssl rand -hex 32 2>/dev/null || echo "default-jwt-secret-change-in-production")
 SESSION=$(openssl rand -hex 32 2>/dev/null || echo "default-session-secret-change-in-production")
-SSH_KEY=$(openssl rand -hex 32 2>/dev/null || echo "default-ssh-secret-change-in-production")
 TTYD_PASS=$(openssl rand -base64 16 2>/dev/null || echo "ttyd_pass123")
+# CRITICAL: Use SSH_KEY as ENCRYPTION_KEY for consistency
+ENCRYPTION_KEY="${SSH_KEY}"
 
 # Determine primary hostname for EXTERNAL_URL
 # Use the first user-provided hostname, or fallback to localhost
@@ -343,6 +513,8 @@ JWT_SECRET=${JWT}
 SESSION_SECRET=${SESSION}
 SSH_KEY_ENCRYPTION_SECRET=${SSH_KEY}
 ENCRYPTION_SECRET=${SSH_KEY}
+# Encryption Key for Passwords (should match SSH_KEY_ENCRYPTION_SECRET)
+ENCRYPTION_KEY=${SSH_KEY}
 
 # CORS Settings - Auto-detected hostnames and IPs
 ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
