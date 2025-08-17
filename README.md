@@ -211,7 +211,7 @@ That's it! The dashboard will automatically update to the latest version.
 
 ## 🆕 Latest Updates
 
-### 🔒 Version 1.1.5 (August 18, 2025) - Security & Infrastructure Overhaul
+### 🔒 Version 1.1.4 (August 18, 2025) - Security & Infrastructure Overhaul
 
 #### Major Infrastructure Improvements
 - ✅ **SSH Infrastructure Modernized** - Migration from filesystem to database-based key management
@@ -236,19 +236,11 @@ That's it! The dashboard will automatically update to the latest version.
 - ✅ Corrected integer comparison errors in build scripts
 - ✅ Fixed SSH connection from containers to host systems
 
-### 🚀 Version 1.1.4 (August 15, 2025)
-
 #### Installer Improvements
 - ✅ **Platform-Specific Fixes** - Resolved sed/awk compatibility between macOS and Linux
 - ✅ **Python-Based YAML Handling** - Reliable docker-compose.yml modifications
 - ✅ **Automatic Configuration Repair** - Fixes common issues during installation
 - ✅ **Better Error Handling** - Clear error messages with solutions
-
-#### Documentation Enhancements
-- ✅ **README Restructured** - Features moved to top for better first impression
-- ✅ **"Why Another Dashboard?"** - Added personal story and motivation
-- ✅ **Comparison Table** - Clear differentiation from competitors
-- ✅ **Light/Dark Mode Screenshots** - Visual demonstration of UI themes
 
 #### Technical Improvements
 - ✅ **Non-Interactive Mode** - No TTY errors during SSH installations
@@ -269,12 +261,6 @@ That's it! The dashboard will automatically update to the latest version.
 - ✅ Mobile-first documentation with iPhone screenshots
 - ✅ Practical workflows instead of feature lists
 - ✅ Clean UI Philosophy documented
-
-### Host-First Concept
-- ✅ Hosts as foundation for all services
-- ✅ Improved host management
-- ✅ Detailed host configuration
-- ✅ SSH key management per host
 
 ### UI/UX Improvements
 - ✅ Interactive tooltips for collapsed sidebar

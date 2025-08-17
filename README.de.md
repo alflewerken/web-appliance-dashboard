@@ -211,7 +211,7 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 
 ## 🆕 Neueste Updates
 
-### 🔒 Version 1.1.5 (18. August 2025) - Sicherheits- & Infrastruktur-Überarbeitung
+### 🔒 Version 1.1.4 (18. August 2025) - Sicherheits- & Infrastruktur-Überarbeitung
 
 #### Wichtige Infrastruktur-Verbesserungen
 - ✅ **SSH-Infrastruktur modernisiert** - Migration von Dateisystem zu Datenbank-basierter Key-Verwaltung
@@ -236,19 +236,11 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 - ✅ Integer-Vergleichsfehler in Build-Scripts korrigiert
 - ✅ SSH-Verbindung von Containern zu Host-Systemen repariert
 
-### 🚀 Version 1.1.4 (15. August 2025)
-
 #### Installer-Verbesserungen
 - ✅ **Platform-spezifische Fixes** - sed/awk Kompatibilität zwischen macOS und Linux gelöst
 - ✅ **Python-basierte YAML-Verarbeitung** - Zuverlässige docker-compose.yml Modifikationen
 - ✅ **Automatische Konfigurations-Reparatur** - Behebt häufige Probleme während der Installation
 - ✅ **Bessere Fehlerbehandlung** - Klare Fehlermeldungen mit Lösungsvorschlägen
-
-#### Dokumentations-Verbesserungen
-- ✅ **README umstrukturiert** - Features nach oben verschoben für besseren ersten Eindruck
-- ✅ **"Warum noch ein Dashboard?"** - Persönliche Geschichte und Motivation hinzugefügt
-- ✅ **Vergleichstabelle** - Klare Differenzierung von Konkurrenten
-- ✅ **Light/Dark Mode Screenshots** - Visuelle Darstellung der UI-Themes
 
 #### Technische Verbesserungen
 - ✅ **Non-Interactive Mode** - Keine TTY-Fehler bei SSH-Installationen
@@ -269,12 +261,6 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 - ✅ Mobile-First Dokumentation mit iPhone Screenshots
 - ✅ Praktische Workflows statt Feature-Listen
 - ✅ Clean UI Philosophy dokumentiert
-
-### Host-First Konzept
-- ✅ Hosts als Grundlage für alle Services
-- ✅ Verbesserte Host-Verwaltung
-- ✅ Detaillierte Host-Konfiguration
-- ✅ SSH-Key Management pro Host
 
 ### UI/UX Verbesserungen
 - ✅ Interaktive Tooltips für kollabierte Sidebar
