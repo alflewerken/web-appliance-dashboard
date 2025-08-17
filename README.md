@@ -211,6 +211,31 @@ That's it! The dashboard will automatically update to the latest version.
 
 ## 🆕 Latest Updates
 
+### 🔒 Version 1.1.5 (August 18, 2025) - Security & Infrastructure Overhaul
+
+#### Major Infrastructure Improvements
+- ✅ **SSH Infrastructure Modernized** - Migration from filesystem to database-based key management
+- ✅ **Unified Encryption Architecture** - Consistent AES-256-GCM everywhere (replaced mixed GCM/CBC)
+- ✅ **Backup/Restore Completely Overhauled** - Automatic re-encryption, survives all restore cycles
+- ✅ **Guacamole Integration Perfected** - Token authentication works reliably, no login dialogs
+- ✅ **Build Process Enhanced** - Intelligent credential recovery when .env is missing
+- ✅ **Critical Security Fixes** - Removed all hardcoded passwords, proper encryption for service passwords
+
+#### Technical Improvements
+- ✅ **Database-Based SSH Keys** - StatusChecker and Commands use DB keys directly
+- ✅ **Temporary Key Files** - Auto-cleanup after SSH operations
+- ✅ **Service Password Fix** - Changed from bcrypt (one-way) to reversible encryption
+- ✅ **Consistent Re-Encryption** - Backup export/import with proper key management
+- ✅ **AuthTag Validation** - Full 32-character authTag preservation
+- ✅ **Container Recovery** - Detect existing databases without losing data
+
+#### Bug Fixes
+- ✅ Fixed Tomcat underscore issue in service names
+- ✅ Resolved Header-Auth blocking Token-Auth
+- ✅ Fixed password corruption during backup (6-byte authTag bug)
+- ✅ Corrected integer comparison errors in build scripts
+- ✅ Fixed SSH connection from containers to host systems
+
 ### 🚀 Version 1.1.4 (August 15, 2025)
 
 #### Installer Improvements

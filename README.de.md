@@ -211,6 +211,31 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 
 ## 🆕 Neueste Updates
 
+### 🔒 Version 1.1.5 (18. August 2025) - Sicherheits- & Infrastruktur-Überarbeitung
+
+#### Wichtige Infrastruktur-Verbesserungen
+- ✅ **SSH-Infrastruktur modernisiert** - Migration von Dateisystem zu Datenbank-basierter Key-Verwaltung
+- ✅ **Einheitliche Verschlüsselungs-Architektur** - Konsistentes AES-256-GCM überall (ersetzt gemischtes GCM/CBC)
+- ✅ **Backup/Restore komplett überarbeitet** - Automatische Re-Verschlüsselung, überlebt alle Restore-Zyklen
+- ✅ **Guacamole-Integration perfektioniert** - Token-Authentifizierung funktioniert zuverlässig, keine Login-Dialoge
+- ✅ **Build-Prozess verbessert** - Intelligente Credential-Wiederherstellung bei fehlender .env
+- ✅ **Kritische Sicherheitsfixes** - Alle hartcodierten Passwörter entfernt, korrekte Verschlüsselung für Service-Passwörter
+
+#### Technische Verbesserungen
+- ✅ **Datenbank-basierte SSH-Keys** - StatusChecker und Commands nutzen DB-Keys direkt
+- ✅ **Temporäre Key-Dateien** - Auto-Cleanup nach SSH-Operationen
+- ✅ **Service-Passwort-Fix** - Von bcrypt (Einweg) zu reversibler Verschlüsselung gewechselt
+- ✅ **Konsistente Re-Verschlüsselung** - Backup-Export/Import mit korrektem Key-Management
+- ✅ **AuthTag-Validierung** - Vollständige 32-Zeichen authTag-Erhaltung
+- ✅ **Container-Wiederherstellung** - Erkennt existierende Datenbanken ohne Datenverlust
+
+#### Fehlerbehebungen
+- ✅ Tomcat-Underscore-Problem in Service-Namen behoben
+- ✅ Header-Auth blockiert nicht mehr Token-Auth
+- ✅ Passwort-Korruption beim Backup behoben (6-Byte authTag-Bug)
+- ✅ Integer-Vergleichsfehler in Build-Scripts korrigiert
+- ✅ SSH-Verbindung von Containern zu Host-Systemen repariert
+
 ### 🚀 Version 1.1.4 (15. August 2025)
 
 #### Installer-Verbesserungen
