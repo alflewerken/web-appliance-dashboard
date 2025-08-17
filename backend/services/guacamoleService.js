@@ -123,6 +123,7 @@ class GuacamoleService {
     }
     
     try {
+      // Use service name from docker-compose (not container name)
       const guacamoleUrl = 'http://guacamole:8080/guacamole';
       
       const response = await axios.post(

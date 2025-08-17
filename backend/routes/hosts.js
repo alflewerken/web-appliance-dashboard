@@ -7,6 +7,7 @@ const pool = require('../utils/database');
 const QueryBuilder = require('../utils/QueryBuilder');
 const { logger } = require('../utils/logger');
 const bcrypt = require('bcryptjs');
+const { encrypt, decrypt, isEncrypted } = require('../utils/encryption');
 const sseManager = require('../utils/sseManager');
 const { getClientIp } = require('../utils/getClientIp');
 const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
@@ -119,19 +120,19 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Encrypt passwords if provided
+    // Encrypt passwords if provided (use reversible encryption for SSH/Remote passwords)
     let encryptedPassword = null;
     let encryptedRemotePassword = null;
     let encryptedRustdeskPassword = null;
 
     if (password) {
-      encryptedPassword = await bcrypt.hash(password, 10);
+      encryptedPassword = encrypt(password);  // Reversible encryption for SSH
     }
     if (remotePassword) {
-      encryptedRemotePassword = await bcrypt.hash(remotePassword, 10);
+      encryptedRemotePassword = encrypt(remotePassword);  // Reversible encryption for Remote Desktop
     }
     if (rustdeskPassword) {
-      encryptedRustdeskPassword = await bcrypt.hash(rustdeskPassword, 10);
+      encryptedRustdeskPassword = encrypt(rustdeskPassword);  // Reversible encryption for RustDesk
     }
 
     // Insert new host
@@ -350,8 +351,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
         updateData.password = null;
         if (!changedFields.includes('password')) changedFields.push('password');
       } else {
-        // Hash and store new password
-        updateData.password = await bcrypt.hash(password, 10);
+        // Encrypt and store new password (reversible encryption)
+        updateData.password = encrypt(password);
         if (!changedFields.includes('password')) changedFields.push('password');
       }
     }
@@ -362,8 +363,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
         updateData.remotePassword = null;
         if (!changedFields.includes('remotePassword')) changedFields.push('remotePassword');
       } else {
-        // Hash and store new password
-        updateData.remotePassword = await bcrypt.hash(remotePassword, 10);
+        // Encrypt and store new password (reversible encryption)
+        updateData.remotePassword = encrypt(remotePassword);
         if (!changedFields.includes('remotePassword')) changedFields.push('remotePassword');
       }
     }
@@ -374,8 +375,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
         updateData.rustdeskPassword = null;
         if (!changedFields.includes('rustdeskPassword')) changedFields.push('rustdeskPassword');
       } else {
-        // Hash and store new password
-        updateData.rustdeskPassword = await bcrypt.hash(rustdeskPassword, 10);
+        // Encrypt and store new password (reversible encryption)
+        updateData.rustdeskPassword = encrypt(rustdeskPassword);
         if (!changedFields.includes('rustdeskPassword')) changedFields.push('rustdeskPassword');
       }
     }
@@ -546,13 +547,13 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     // Handle password updates - only update if a new password is actually provided
     if (password && password !== '') {
-      updateData.password = await bcrypt.hash(password, 10);
+      updateData.password = encrypt(password);  // Reversible encryption
     }
     if (remotePassword && remotePassword !== '') {
-      updateData.remotePassword = await bcrypt.hash(remotePassword, 10);
+      updateData.remotePassword = encrypt(remotePassword);  // Reversible encryption
     }
     if (rustdeskPassword && rustdeskPassword !== '') {
-      updateData.rustdeskPassword = await bcrypt.hash(rustdeskPassword, 10);
+      updateData.rustdeskPassword = encrypt(rustdeskPassword);  // Reversible encryption
     }
 
     // Update the host

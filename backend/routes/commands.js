@@ -7,9 +7,75 @@ const { exec, execSync } = require('child_process');
 const { verifyToken } = require('../utils/auth');
 const { createAuditLog } = require('../utils/auditLogger');
 const { getSSHConnection } = require('../utils/ssh');
+const fs = require('fs').promises;
+const path = require('path');
+const { decrypt } = require('../utils/encryption');
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
+
+/**
+ * Get SSH private key from database and create temporary file
+ * @param {string} keyName - Name of the SSH key
+ * @param {number} userId - User ID (for user-specific keys)
+ * @returns {Promise<{keyPath: string, cleanup: Function}|null>}
+ */
+async function getSSHKeyFromDatabase(keyName, userId = null) {
+  try {
+    // Get SSH key from ssh_keys table
+    const [sshKeys] = await pool.execute(
+      `SELECT id, key_name, private_key 
+       FROM ssh_keys 
+       WHERE key_name = ? 
+       ORDER BY (created_by = ?) DESC, id DESC
+       LIMIT 1`,
+      [keyName || 'dashboard', userId || 1]
+    );
+    
+    if (!sshKeys || sshKeys.length === 0) {
+      console.error(`SSH key '${keyName}' not found in database`);
+      return null;
+    }
+    
+    const sshKey = sshKeys[0];
+    console.log(`Found SSH key '${sshKey.key_name}' (ID: ${sshKey.id}) in database`);
+    
+    // Check if key is encrypted or plain text
+    let privateKey;
+    if (sshKey.private_key.startsWith('-----BEGIN')) {
+      // Key is already in plain text
+      privateKey = sshKey.private_key;
+    } else {
+      // Try to decrypt the key
+      privateKey = decrypt(sshKey.private_key);
+      if (!privateKey) {
+        console.error(`Failed to decrypt SSH key '${sshKey.key_name}'`);
+        return null;
+      }
+    }
+    
+    // Create temporary file for SSH key
+    const tempDir = '/tmp/ssh-keys';
+    await fs.mkdir(tempDir, { recursive: true, mode: 0o700 });
+    
+    const tempKeyPath = path.join(tempDir, `cmd_key_${keyName}_${Date.now()}`);
+    await fs.writeFile(tempKeyPath, privateKey, { mode: 0o600 });
+    
+    return {
+      keyPath: tempKeyPath,
+      cleanup: async () => {
+        try {
+          await fs.unlink(tempKeyPath);
+        } catch (error) {
+          console.warn(`Could not cleanup temp key file: ${error.message}`);
+        }
+      }
+    };
+  } catch (error) {
+    console.error('Error getting SSH key from database:', error);
+    return null;
+  }
+}
 
 // Get available hosts for SSH commands
 router.get('/ssh-hosts/available', async (req, res) => {
@@ -249,11 +315,12 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
 
     let output = '';
     const error = null;
+    let sshKeyInfo = null;
 
     try {
       // Determine which SSH connection to use
       let sshConnection = null;
-      const keyName = 'dashboard'; // default key
+      const keyName = sshKeyName || 'dashboard'; // Use provided key name or default
 
       if (ssh_host_id && ssh_host) {
         // Use the command-specific SSH host
@@ -261,7 +328,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
           host: ssh_host,
           username: ssh_username,
           port: ssh_port || 22,
-          keyName: sshKeyName || 'dashboard',
+          keyName: keyName,
         };
       } else if (appliance_ssh_connection) {
         // Fall back to appliance SSH connection
@@ -271,18 +338,28 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
           host,
           username,
           port,
-          keyName: 'dashboard',
+          keyName: keyName,
         };
       }
 
       if (sshConnection) {
+        // Get SSH key from database
+        sshKeyInfo = await getSSHKeyFromDatabase(sshConnection.keyName, req.user?.id);
+        
+        if (!sshKeyInfo) {
+          console.error(`SSH key '${sshConnection.keyName}' not found or could not be decrypted`);
+          return res.status(500).json({ 
+            error: 'SSH authentication failed',
+            details: 'SSH key not available'
+          });
+        }
+
         // Build SSH command with proper escaping
         const escapedCommand = command.replace(/"/g, '\\"');
-        const sshKeyPath = `~/.ssh/id_rsa_${sshConnection.keyName}`;
-        // Use -t flag for pseudo-TTY to preserve colors
-        const sshCommand = `ssh -t -i ${sshKeyPath} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${sshConnection.port} ${sshConnection.username}@${sshConnection.host} "${escapedCommand}"`;
+        // Use the temporary key file from database
+        const sshCommand = `ssh -t -i ${sshKeyInfo.keyPath} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${sshConnection.port} ${sshConnection.username}@${sshConnection.host} "${escapedCommand}"`;
 
-        console.log('Executing SSH command:', sshCommand);
+        console.log('Executing SSH command with key from database:', sshCommand);
 
         const { execSync: execSyncNode } = require('child_process');
         try {
@@ -428,6 +505,11 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
         output: execError.stdout || '',
         executedAt: new Date().toISOString(),
       });
+    } finally {
+      // Cleanup temporary SSH key file
+      if (sshKeyInfo && sshKeyInfo.cleanup) {
+        await sshKeyInfo.cleanup();
+      }
     }
   } catch (error) {
     console.error('Error executing command:', error);

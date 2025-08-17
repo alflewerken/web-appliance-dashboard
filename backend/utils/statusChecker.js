@@ -7,6 +7,10 @@ const { broadcast } = require('../routes/sse');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
+const fs = require('fs').promises;
+const path = require('path');
+const crypto = require('crypto');
+const { decrypt } = require('./encryption');
 
 class ServiceStatusChecker {
   constructor() {
@@ -64,7 +68,153 @@ class ServiceStatusChecker {
     console.log('🛑 Status checker stopped');
   }
 
-  async checkHostAvailability(hostname, host, username, port = 22, sshKeyName = null) {
+  /**
+   * Get SSH private key from database and decrypt it
+   * @param {number} hostId - Host ID
+   * @returns {Promise<{key: string, keyPath: string}|null>} Decrypted key and temp file path
+   */
+  async getSSHKeyFromDatabase(hostId) {
+    try {
+      // Get host info and SSH key name
+      const [hosts] = await pool.execute(
+        'SELECT id, name, hostname, username, private_key, ssh_key_name, created_by FROM hosts WHERE id = ?',
+        [hostId]
+      );
+
+      if (!hosts || hosts.length === 0) {
+        console.log(`❌ Host with ID ${hostId} not found`);
+        return null;
+      }
+
+      const host = hosts[0];
+      
+      // First check if private_key exists directly in hosts table (legacy)
+      if (host.private_key) {
+        console.log(`🔑 Using private key from hosts table for ${host.name}`);
+        
+        // Check if key is encrypted or plain text
+        let decryptedKey;
+        if (host.private_key.startsWith('-----BEGIN')) {
+          // Key is already in plain text
+          console.log(`📝 Private key is stored in plain text`);
+          decryptedKey = host.private_key;
+        } else {
+          // Try to decrypt the key
+          console.log(`🔐 Attempting to decrypt private key`);
+          decryptedKey = decrypt(host.private_key);
+          
+          if (!decryptedKey) {
+            console.error(`❌ Failed to decrypt private key for host ${host.name}`);
+            return null;
+          }
+        }
+
+        // Create temporary file for SSH key
+        const tempDir = '/tmp/ssh-keys';
+        await fs.mkdir(tempDir, { recursive: true, mode: 0o700 });
+        
+        const tempKeyPath = path.join(tempDir, `temp_key_${hostId}_${Date.now()}`);
+        await fs.writeFile(tempKeyPath, decryptedKey, { mode: 0o600 });
+
+        return {
+          key: decryptedKey,
+          keyPath: tempKeyPath,
+          cleanup: async () => {
+            try {
+              await fs.unlink(tempKeyPath);
+            } catch (error) {
+              console.warn(`Could not cleanup temp key file: ${error.message}`);
+            }
+          }
+        };
+      }
+      
+      // If no direct private_key, check ssh_keys table using ssh_key_name
+      if (host.ssh_key_name) {
+        console.log(`🔍 Looking for SSH key '${host.ssh_key_name}' in ssh_keys table for host ${host.name}`);
+        
+        // Get the SSH key from ssh_keys table
+        // Priority: 1. User-specific key, 2. Any key with that name
+        const [sshKeys] = await pool.execute(
+          `SELECT id, key_name, private_key 
+           FROM ssh_keys 
+           WHERE key_name = ? 
+           ORDER BY (created_by = ?) DESC, id DESC
+           LIMIT 1`,
+          [host.ssh_key_name, host.created_by || 1]
+        );
+        
+        if (sshKeys && sshKeys.length > 0) {
+          const sshKey = sshKeys[0];
+          console.log(`🔑 Found SSH key '${sshKey.key_name}' (ID: ${sshKey.id}) in ssh_keys table`);
+          
+          // Check if key is encrypted or plain text
+          let decryptedKey;
+          if (sshKey.private_key.startsWith('-----BEGIN')) {
+            // Key is already in plain text
+            console.log(`📝 SSH key is stored in plain text`);
+            decryptedKey = sshKey.private_key;
+          } else {
+            // Try to decrypt the key
+            console.log(`🔐 Attempting to decrypt SSH key`);
+            decryptedKey = decrypt(sshKey.private_key);
+            
+            if (!decryptedKey) {
+              console.error(`❌ Failed to decrypt SSH key '${sshKey.key_name}' from ssh_keys table`);
+              return null;
+            }
+          }
+          
+          // Create temporary file for SSH key
+          const tempDir = '/tmp/ssh-keys';
+          await fs.mkdir(tempDir, { recursive: true, mode: 0o700 });
+          
+          const tempKeyPath = path.join(tempDir, `temp_key_${hostId}_${Date.now()}`);
+          await fs.writeFile(tempKeyPath, decryptedKey, { mode: 0o600 });
+          
+          console.log(`✅ Successfully created temp SSH key for host ${host.name}`);
+          
+          return {
+            key: decryptedKey,
+            keyPath: tempKeyPath,
+            cleanup: async () => {
+              try {
+                await fs.unlink(tempKeyPath);
+              } catch (error) {
+                console.warn(`Could not cleanup temp key file: ${error.message}`);
+              }
+            }
+          };
+        } else {
+          console.log(`⚠️ No SSH key found in ssh_keys table with name '${host.ssh_key_name}'`);
+        }
+      }
+      
+      // Fallback: Check if key exists in filesystem (backward compatibility)
+      if (host.ssh_key_name) {
+        const fsKeyPath = `/root/.ssh/id_rsa_${host.ssh_key_name}`;
+        try {
+          await fs.access(fsKeyPath);
+          console.log(`📁 Using filesystem key for host ${host.name} (backward compatibility)`);
+          return {
+            key: null,
+            keyPath: fsKeyPath,
+            cleanup: async () => {} // No cleanup needed for filesystem keys
+          };
+        } catch (error) {
+          console.log(`❌ Filesystem key not found: ${fsKeyPath}`);
+        }
+      }
+
+      console.log(`❌ No SSH key available for host ${host.name}`);
+      return null;
+    } catch (error) {
+      console.error(`❌ Error getting SSH key from database: ${error.message}`);
+      return null;
+    }
+  }
+
+  async checkHostAvailability(hostname, host, username, port = 22, hostId = null) {
     const hostKey = `${username}@${host}:${port}`;
     const now = Date.now();
 
@@ -80,20 +230,39 @@ class ServiceStatusChecker {
     try {
       console.log(`🔍 Checking host availability: ${hostname} (${hostKey})`);
 
-      // Try a simple SSH connection test with very short timeout
-      const keyPath = sshKeyName ? `-i ~/.ssh/id_rsa_${sshKeyName}` : '-i ~/.ssh/id_rsa_dashboard';
-      const testCommand = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "echo OK" 2>&1`;
-
-      const result = await execAsync(testCommand, { timeout: 5000 });
-
-      if (result.stdout.includes('OK')) {
-        console.log(`✅ Host ${hostname} is available`);
-        this.hostAvailability.set(hostKey, true);
-        return true;
-      } else {
-        console.log(`❌ Host ${hostname} is not responding correctly`);
+      // Get SSH key from database
+      if (!hostId) {
+        console.log(`⚠️ No host ID provided for ${hostname} - cannot get SSH key`);
         this.hostAvailability.set(hostKey, false);
         return false;
+      }
+
+      const sshKeyInfo = await this.getSSHKeyFromDatabase(hostId);
+      if (!sshKeyInfo) {
+        console.log(`❌ No SSH key available for host ${hostname}`);
+        this.hostAvailability.set(hostKey, false);
+        return false;
+      }
+
+      try {
+        const testCommand = `ssh -i ${sshKeyInfo.keyPath} -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "echo OK" 2>&1`;
+
+        const result = await execAsync(testCommand, { timeout: 5000 });
+
+        if (result.stdout.includes('OK')) {
+          console.log(`✅ Host ${hostname} is available`);
+          this.hostAvailability.set(hostKey, true);
+          return true;
+        } else {
+          console.log(`❌ Host ${hostname} is not responding correctly`);
+          this.hostAvailability.set(hostKey, false);
+          return false;
+        }
+      } finally {
+        // Cleanup temporary SSH key file
+        if (sshKeyInfo.cleanup) {
+          await sshKeyInfo.cleanup();
+        }
       }
     } catch (error) {
       // Check if it's an authentication error
@@ -121,7 +290,7 @@ class ServiceStatusChecker {
       // Get services with their SSH connection info from hosts table
       const [services] = await pool.execute(
         `SELECT a.id, a.name, a.status_command, a.service_status, a.ssh_connection,
-                h.hostname, h.username, h.port, h.ssh_key_name
+                h.id as host_id, h.hostname, h.username, h.port, h.ssh_key_name, h.private_key
          FROM appliances a
          LEFT JOIN hosts h ON (
            a.ssh_connection = CONCAT(h.username, '@', h.hostname, ':', h.port) OR
@@ -147,6 +316,7 @@ class ServiceStatusChecker {
           if (service.hostname) {
             // We have host info from the JOIN
             hostInfo = {
+              hostId: service.host_id,
               hostname: service.hostname,
               host: service.hostname,
               username: service.username,
@@ -154,10 +324,11 @@ class ServiceStatusChecker {
               sshKeyName: service.ssh_key_name
             };
           } else {
-            // Parse SSH connection string
+            // Parse SSH connection string (fallback - no host_id available)
             const sshParts = service.ssh_connection.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
             if (sshParts) {
               hostInfo = {
+                hostId: null, // No host_id in fallback
                 hostname: sshParts[2],
                 host: sshParts[2],
                 username: sshParts[1] || 'root',
@@ -208,7 +379,7 @@ class ServiceStatusChecker {
             hostInfo.host,
             hostInfo.username,
             hostInfo.port,
-            hostInfo.sshKeyName
+            hostInfo.hostId  // Pass host_id instead of sshKeyName
           );
 
           if (isAvailable) {
@@ -274,13 +445,14 @@ class ServiceStatusChecker {
       let newStatus = 'unknown';
       let output = '';
       let errorOutput = '';
+      let sshKeyInfo = null;
 
       try {
         let commandToExecute = service.status_command;
         
         // If we have SSH connection info, build the proper SSH command
         if (service.hostInfo && service.ssh_connection) {
-          const { username, host, port, sshKeyName } = service.hostInfo;
+          const { username, host, port, hostId } = service.hostInfo;
           
           // Extract just the command part (remove any ssh prefix if present)
           let baseCommand = service.status_command;
@@ -290,42 +462,57 @@ class ServiceStatusChecker {
             baseCommand = match[1];
           }
           
-          // Build proper SSH command with the configured connection
-          const keyPath = sshKeyName ? `-i ~/.ssh/id_rsa_${sshKeyName}` : '-i ~/.ssh/id_rsa_dashboard';
-          commandToExecute = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
-          
-          console.log(`📡 Using SSH connection from settings: ${username}@${host}:${port}`);
+          // Get SSH key from database
+          if (!hostId) {
+            console.log(`❌ No host ID for service "${service.name}" - cannot get SSH key`);
+            newStatus = 'error';
+            errorOutput = 'No host ID configured';
+          } else {
+            sshKeyInfo = await this.getSSHKeyFromDatabase(hostId);
+            
+            if (!sshKeyInfo) {
+              console.log(`❌ No SSH key available for service "${service.name}"`);
+              newStatus = 'error';
+              errorOutput = 'No SSH key available for host';
+            } else {
+              commandToExecute = `ssh -i ${sshKeyInfo.keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
+              
+              console.log(`📡 Using SSH connection from database: ${username}@${host}:${port} (host_id: ${hostId})`);
+            }
+          }
         }
         
-        // Execute the status command
-        const result = await executeSSHCommand(commandToExecute, 15000);
-        output = result.stdout || '';
-        errorOutput = result.stderr || '';
+        // Execute the status command only if we have a valid command and no error
+        if (newStatus !== 'error' && commandToExecute) {
+          const result = await executeSSHCommand(commandToExecute, 15000);
+          output = result.stdout || '';
+          errorOutput = result.stderr || '';
 
-        console.log(
-          `📋 Command output for "${service.name}": ${output.substring(0, 100).trim()}`
-        );
+          console.log(
+            `📋 Command output for "${service.name}": ${output.substring(0, 100).trim()}`
+          );
 
-        // Parse the output to determine status
-        const outputLower = output.toLowerCase();
+          // Parse the output to determine status
+          const outputLower = output.toLowerCase();
 
-        if (
-          outputLower.includes('running') ||
-          outputLower.includes('active (running)') ||
-          outputLower.includes('up ') ||
-          outputLower.includes('status: running')
-        ) {
-          newStatus = 'running';
-        } else if (
-          outputLower.includes('stopped') ||
-          outputLower.includes('inactive') ||
-          outputLower.includes('dead') ||
-          outputLower.includes('status: stopped')
-        ) {
-          newStatus = 'stopped';
-        } else {
-          // If we can't determine from output, assume running if command succeeded
-          newStatus = 'running';
+          if (
+            outputLower.includes('running') ||
+            outputLower.includes('active (running)') ||
+            outputLower.includes('up ') ||
+            outputLower.includes('status: running')
+          ) {
+            newStatus = 'running';
+          } else if (
+            outputLower.includes('stopped') ||
+            outputLower.includes('inactive') ||
+            outputLower.includes('dead') ||
+            outputLower.includes('status: stopped')
+          ) {
+            newStatus = 'stopped';
+          } else {
+            // If we can't determine from output, assume running if command succeeded
+            newStatus = 'running';
+          }
         }
       } catch (execError) {
         console.error(
@@ -350,6 +537,11 @@ class ServiceStatusChecker {
         } else {
           newStatus = 'stopped';
           errorOutput = execError.message.split('\n')[0]; // First line of error
+        }
+      } finally {
+        // Cleanup temporary SSH key file
+        if (sshKeyInfo && sshKeyInfo.cleanup) {
+          await sshKeyInfo.cleanup();
         }
       }
 
