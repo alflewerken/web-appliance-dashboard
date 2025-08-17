@@ -8,6 +8,12 @@ echo "Starting enhanced Guacamole startup..."
 # Ensure extensions directory exists
 mkdir -p /home/guacamole/.guacamole/extensions
 
+# IMPORTANT: Remove header authentication extension if it exists
+# This extension breaks token authentication!
+echo "Removing header authentication extension if present..."
+rm -f /home/guacamole/.guacamole/extensions/guacamole-auth-header*.jar
+rm -f /opt/guacamole/header/guacamole-auth-header*.jar
+
 # Wait a bit for Guacamole to initialize
 sleep 5
 
