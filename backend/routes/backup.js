@@ -14,6 +14,9 @@ const bcrypt = require('bcryptjs');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
+const { encryptionManager } = require('../utils/encryption');
+// WICHTIG: Verwende die gleichen crypto-Funktionen wie appliances.js für konsistente Verschlüsselung!
+const { encrypt: cryptoEncrypt, decrypt: cryptoDecrypt } = require('../utils/crypto');
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
@@ -101,33 +104,63 @@ function formatBytes(bytes) {
 // Backup endpoint - Export all data INCLUDING settings and background images
 router.get('/backup', verifyToken, async (req, res) => {
   try {
-    // Get encryption key from environment
-    const encryptionKey = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET || 'default-insecure-key-change-this-in-production!!';
+    // Generate a random backup encryption key
+    const crypto = require('crypto');
+    const backupKey = crypto.randomBytes(32).toString('hex');
+    console.log('🔐 Generated random backup encryption key');
     
-    // Function to encrypt password for backup
-    const encryptPassword = (plainPassword) => {
-      if (!plainPassword) return null;
+    // Function to re-encrypt password for backup
+    // WICHTIG: Nutze crypto.js (GCM) für konsistente Verschlüsselung!
+    // Die Datenbank nutzt crypto.js, also müssen wir das auch für Backup/Restore verwenden
+    const reEncryptForBackup = (encryptedData) => {
+      if (!encryptedData) return null;
       
       try {
+        // First decrypt with system key using crypto.js (GCM mode)
+        const plaintext = cryptoDecrypt(encryptedData);
+        if (!plaintext) {
+          console.error('Failed to decrypt data with system key (GCM)');
+          return encryptedData; // Return original if decryption fails
+        }
+        
+        // Then encrypt with backup key using a custom GCM encryption
+        // We need to manually create the encryption with backup key since crypto.js uses system key
+        const algorithm = 'aes-256-gcm';
         const crypto = require('crypto');
-        const algorithm = 'aes-256-cbc';
+        const keyHash = crypto.createHash('sha256').update(backupKey).digest();
+        const iv = crypto.randomBytes(16);
         
-        // Create cipher using the encryption key
-        const key = crypto.createHash('sha256').update(String(encryptionKey)).digest();
-        const iv = Buffer.alloc(16, 0); // Fixed IV for simplicity (in production, use random IV)
-        
-        const cipher = crypto.createCipheriv(algorithm, key, iv);
-        let encrypted = cipher.update(plainPassword, 'utf8', 'hex');
+        const cipher = crypto.createCipheriv(algorithm, keyHash, iv);
+        let encrypted = cipher.update(plaintext, 'utf8', 'hex');
         encrypted += cipher.final('hex');
+        const authTag = cipher.getAuthTag();
         
-        return encrypted;
+        // Return in GCM format: iv:authTag:encrypted (authTag in the middle!)
+        const result = `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+        
+        // Debug logging to verify format
+        const parts = result.split(':');
+        if (parts[1].length !== 32) {
+          console.error(`⚠️ WARNING: authTag has wrong length: ${parts[1].length} chars (expected 32)`);
+        }
+        
+        return result;
       } catch (error) {
-        console.error('Failed to encrypt password:', error.message);
-        return plainPassword; // Return plain password if encryption fails
+        console.error('Failed to re-encrypt for backup:', error.message);
+        return encryptedData; // Return original if re-encryption fails
       }
     };
-    // Fetch all appliances
-    const appliances = await db.select('appliances', {}, { orderBy: 'createdAt' });
+    // Fetch all appliances and re-encrypt passwords for backup
+    const rawAppliances = await db.select('appliances', {}, { orderBy: 'createdAt' });
+    
+    // Re-encrypt appliance passwords (decrypt with system key, encrypt with backup key)
+    const appliances = rawAppliances.map(appliance => ({
+      ...appliance,
+      remotePasswordEncrypted: reEncryptForBackup(appliance.remotePasswordEncrypted),
+      rustdeskPasswordEncrypted: reEncryptForBackup(appliance.rustdeskPasswordEncrypted)
+    }));
+    
+    console.log(`✅ Fetched ${appliances.length} appliances (passwords re-encrypted for backup)`);
 
     // Fetch all categories
     let categories = [];
@@ -192,14 +225,14 @@ router.get('/backup', verifyToken, async (req, res) => {
     let hosts = [];
     try {
       const rawHosts = await db.select('hosts', {}, { orderBy: 'createdAt' });
-      // Encrypt passwords in hosts
+      // Re-encrypt passwords in hosts (decrypt with system key, encrypt with backup key)
       hosts = rawHosts.map(host => ({
         ...host,
-        password: encryptPassword(host.password),
-        remotePassword: encryptPassword(host.remotePassword),
-        rustdeskPassword: encryptPassword(host.rustdeskPassword)
+        password: reEncryptForBackup(host.password),
+        remotePassword: reEncryptForBackup(host.remotePassword),
+        rustdeskPassword: reEncryptForBackup(host.rustdeskPassword)
       }));
-      console.log(`✅ Fetched ${hosts.length} terminal hosts (passwords encrypted)`);
+      console.log(`✅ Fetched ${hosts.length} terminal hosts (passwords re-encrypted for backup)`);
     } catch (error) {
       console.error('Error fetching hosts for backup:', error.message);
     }
@@ -292,14 +325,14 @@ router.get('/backup', verifyToken, async (req, res) => {
     let services = [];
     try {
       const rawServices = await db.select('services', {}, { orderBy: 'createdAt' });
-      // Encrypt passwords in services
+      // Re-encrypt passwords in services (decrypt with system key, encrypt with backup key)
       services = rawServices.map(service => ({
         ...service,
-        sshPassword: encryptPassword(service.sshPassword),
-        vncPassword: encryptPassword(service.vncPassword),
-        rdpPassword: encryptPassword(service.rdpPassword)
+        sshPassword: reEncryptForBackup(service.sshPassword),
+        vncPassword: reEncryptForBackup(service.vncPassword),
+        rdpPassword: reEncryptForBackup(service.rdpPassword)
       }));
-      console.log(`✅ Fetched ${services.length} proxy services (passwords encrypted)`);
+      console.log(`✅ Fetched ${services.length} proxy services (passwords re-encrypted for backup)`);
     } catch (error) {
       console.error('Error fetching services for backup:', error.message);
     }
@@ -487,10 +520,29 @@ router.get('/backup', verifyToken, async (req, res) => {
               if (!filesystemError) filesystemError = readError.message;
             }
 
+            // SICHERHEITSKRITISCH: SSH Private Keys mit Backup-Schlüssel verschlüsseln!
+            // Private key ist bereits in DB oder von Filesystem
+            // Falls aus DB: erst mit System-Key entschlüsseln, dann mit Backup-Key verschlüsseln
+            let processedPrivateKey = privateKeyContent;
+            if (privateKeyContent) {
+              // Check if it's from DB and encrypted
+              if (hasDbPrivateKey && encryptionManager.isEncrypted(key.private_key || key.privateKey)) {
+                // Decrypt with system key first
+                const decrypted = encryptionManager.decrypt(key.private_key || key.privateKey);
+                if (decrypted) {
+                  processedPrivateKey = decrypted;
+                }
+              }
+              // Now encrypt with backup key
+              processedPrivateKey = encryptionManager.encrypt(processedPrivateKey, backupKey);
+            }
+            
             enhancedSshKeys.push({
               ...key,
-              private_key: privateKeyContent,
-              public_key: publicKeyContent,
+              private_key: processedPrivateKey,  // VERSCHLÜSSELT mit Backup-Key!
+              privateKey: processedPrivateKey,   // Both fields for compatibility
+              public_key: publicKeyContent,      // Public keys bleiben unverschlüsselt (nicht sensitiv)
+              publicKey: publicKeyContent,
               filesystem_synced: filesystemSynced,
               filesystem_error: filesystemError,
               backup_timestamp: new Date().toISOString(),
@@ -508,8 +560,26 @@ router.get('/backup', verifyToken, async (req, res) => {
               keyError.message
             );
             // Include the key anyway, even if filesystem read failed
+            // SICHERHEITSKRITISCH: Auch hier private Keys mit Backup-Schlüssel verschlüsseln!
+            let fallbackPrivateKey = key.private_key || key.privateKey || '';
+            if (fallbackPrivateKey) {
+              // First decrypt with system key if encrypted
+              if (encryptionManager.isEncrypted(fallbackPrivateKey)) {
+                const decrypted = encryptionManager.decrypt(fallbackPrivateKey);
+                if (decrypted) {
+                  fallbackPrivateKey = decrypted;
+                }
+              }
+              // Then encrypt with backup key
+              fallbackPrivateKey = encryptionManager.encrypt(fallbackPrivateKey, backupKey);
+            }
+            
             enhancedSshKeys.push({
               ...key,
+              private_key: fallbackPrivateKey,  // VERSCHLÜSSELT mit Backup-Key!
+              privateKey: fallbackPrivateKey,   // Both fields for compatibility
+              public_key: key.public_key || key.publicKey || '',
+              publicKey: key.public_key || key.publicKey || '',
               filesystem_synced: false,
               filesystem_error: keyError.message,
               backup_timestamp: new Date().toISOString(),
@@ -793,13 +863,16 @@ router.get('/backup', verifyToken, async (req, res) => {
       resource_id: null,
     });
     
-    // Add encryption key to response (but not to the backup file)
-    // We use a special format that includes timestamp
-    const backupEncryptionKey = `enc_backup_${new Date().toISOString().split('T')[0]}_${encryptionKey.substring(0, 32)}`;
-    
+    // Add encryption key to response
+    // The backup key is shown to the user so they can decrypt the backup later
     const responseData = {
       ...backupData,
-      encryption_key: backupEncryptionKey
+      encryption_key: backupKey,  // Der zufällige Backup-Schlüssel
+      encryption_info: {
+        algorithm: 'AES-256-CBC',
+        key_format: 'hex',
+        message: 'Bitte bewahren Sie diesen Schlüssel sicher auf. Er wird für die Wiederherstellung benötigt.'
+      }
     };
 
     // Log backup size information
@@ -829,13 +902,24 @@ router.get('/backup', verifyToken, async (req, res) => {
 router.post('/restore', verifyToken, async (req, res) => {
   try {
     const backupData = req.body;
-    const decryptionKey = backupData.decryption_key || null;
+    
+    // Extract the decryption key from the request
+    const backupDecryptionKey = backupData.encryption_key || backupData.decryption_key || null;
+    delete backupData.encryption_key; // Remove from backup data
     delete backupData.decryption_key; // Remove from backup data
+    
+    // Extract encryption info if present
+    const encryptionInfo = backupData.encryption_info;
+    delete backupData.encryption_info; // Remove from backup data
 
     console.log('Starting enhanced restore process...');
     console.log('Backup version:', backupData.version);
     console.log('Backup created:', backupData.created_at);
-    console.log('Decryption key provided:', !!decryptionKey);
+    console.log('Backup decryption key provided:', !!backupDecryptionKey);
+    
+    if (!backupDecryptionKey) {
+      console.warn('⚠️ No decryption key provided for backup restore');
+    }
 
     // Validate backup structure
     if (!backupData.data || !Array.isArray(backupData.data.appliances)) {
@@ -854,28 +938,65 @@ router.post('/restore', verifyToken, async (req, res) => {
       );
     }
 
-    // Function to decrypt password if key is provided
-    const decryptPassword = (encryptedPassword) => {
-      if (!decryptionKey || !encryptedPassword) {
+    // Function to decrypt data from backup and re-encrypt with system key
+    // WICHTIG: Nutze crypto.js (GCM) für konsistente Verschlüsselung!
+    const reEncryptFromBackup = (encryptedData) => {
+      if (!encryptedData) {
         return null;
       }
       
+      console.log('🔐 reEncryptFromBackup called with:', {
+        data: encryptedData ? encryptedData.substring(0, 50) + '...' : 'null',
+        hasBackupKey: !!backupDecryptionKey,
+        backupKeyLength: backupDecryptionKey ? backupDecryptionKey.length : 0,
+        format: encryptedData ? (encryptedData.split(':').length === 3 ? 'GCM' : 'Other') : 'none'
+      });
+      
       try {
-        const crypto = require('crypto');
-        const algorithm = 'aes-256-cbc';
+        // Check if data is in GCM format (iv:authTag:encrypted)
+        const parts = encryptedData.split(':');
+        if (parts.length !== 3) {
+          console.error('❌ Invalid GCM format - expected iv:authTag:encrypted');
+          return encryptedData;
+        }
         
-        // Create decipher using the provided key
-        const key = crypto.createHash('sha256').update(String(decryptionKey)).digest();
-        const iv = Buffer.alloc(16, 0); // Same IV as used in encryption
+        const [ivHex, authTagHex, encrypted] = parts;
         
-        const decipher = crypto.createDecipheriv(algorithm, key, iv);
-        let decrypted = decipher.update(encryptedPassword, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
+        // Validate authTag length
+        if (authTagHex.length !== 32) {
+          console.error(`❌ Invalid authTag length: ${authTagHex.length} chars (expected 32)`);
+          return encryptedData;
+        }
         
-        return decrypted;
+        // Decrypt with backup key using GCM
+        if (backupDecryptionKey) {
+          console.log('🔑 Attempting GCM decryption with backup key...');
+          
+          const algorithm = 'aes-256-gcm';
+          const crypto = require('crypto');
+          const keyHash = crypto.createHash('sha256').update(backupDecryptionKey).digest();
+          const iv = Buffer.from(ivHex, 'hex');
+          const authTag = Buffer.from(authTagHex, 'hex');
+          
+          const decipher = crypto.createDecipheriv(algorithm, keyHash, iv);
+          decipher.setAuthTag(authTag);
+          
+          let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+          decrypted += decipher.final('utf8');
+          
+          console.log('✅ Successfully decrypted with backup key, re-encrypting with system key...');
+          
+          // Re-encrypt with system key using crypto.js (GCM)
+          const reEncrypted = cryptoEncrypt(decrypted);
+          console.log('✅ Re-encrypted with system key (GCM format)');
+          return reEncrypted;
+        } else {
+          console.warn('⚠️ No backup key provided, returning original data');
+          return encryptedData;
+        }
       } catch (error) {
-        console.error('Failed to decrypt password:', error.message);
-        return null;
+        console.error('❌ Re-encryption failed:', error.message);
+        return encryptedData;
       }
     };
 
@@ -1127,12 +1248,36 @@ router.post('/restore', verifyToken, async (req, res) => {
           dbAppliance.remote_host = appliance.remoteHost || appliance.remote_host || null;
           dbAppliance.remote_port = appliance.remotePort || appliance.remote_port || null;
           dbAppliance.remote_username = appliance.remoteUsername || appliance.remote_username || null;
-          dbAppliance.remote_password_encrypted = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
+          
+          // Re-encrypt remote password using the same function as hosts
+          const remotePasswordEnc = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
+          console.log(`🔐 Appliance ${dbAppliance.name} - Remote password processing:`, {
+            hasPassword: !!remotePasswordEnc,
+            passwordFormat: remotePasswordEnc ? (remotePasswordEnc.split(':').length === 3 ? 'GCM' : 'CBC') : 'none',
+            passwordPreview: remotePasswordEnc ? remotePasswordEnc.substring(0, 50) + '...' : 'null',
+            hasBackupKey: !!backupDecryptionKey
+          });
+          dbAppliance.remote_password_encrypted = reEncryptFromBackup(remotePasswordEnc);
+          console.log(`🔐 Appliance ${dbAppliance.name} - After re-encryption:`, {
+            encrypted: !!dbAppliance.remote_password_encrypted,
+            newFormat: dbAppliance.remote_password_encrypted ? (dbAppliance.remote_password_encrypted.split(':').length === 3 ? 'GCM' : 'CBC') : 'none',
+            preview: dbAppliance.remote_password_encrypted ? dbAppliance.remote_password_encrypted.substring(0, 50) + '...' : 'null'
+          });
+          
           dbAppliance.remote_desktop_type = appliance.remoteDesktopType || appliance.remote_desktop_type || 'guacamole';
           
           // RustDesk settings
           dbAppliance.rustdesk_id = appliance.rustdeskId || appliance.rustdesk_id || null;
-          dbAppliance.rustdesk_password_encrypted = appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted || null;
+          
+          // Re-encrypt RustDesk password using the same function as hosts
+          const rustdeskPasswordEnc = appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted || null;
+          console.log(`🔐 Appliance ${dbAppliance.name} - RustDesk password processing:`, {
+            hasPassword: !!rustdeskPasswordEnc,
+            passwordFormat: rustdeskPasswordEnc ? (rustdeskPasswordEnc.split(':').length === 3 ? 'GCM' : 'CBC') : 'none',
+            passwordPreview: rustdeskPasswordEnc ? rustdeskPasswordEnc.substring(0, 50) + '...' : 'null',
+            hasBackupKey: !!backupDecryptionKey
+          });
+          dbAppliance.rustdesk_password_encrypted = reEncryptFromBackup(rustdeskPasswordEnc);
           dbAppliance.rustdesk_installed = appliance.rustdeskInstalled !== undefined ?
             appliance.rustdeskInstalled :
             (appliance.rustdesk_installed !== undefined ? appliance.rustdesk_installed : 0);
@@ -1463,7 +1608,7 @@ router.post('/restore', verifyToken, async (req, res) => {
               port: host.port || 22,
               username: host.username,
               icon: host.icon || 'Server',
-              password: decryptPassword(host.password) || host.password || null,
+              password: reEncryptFromBackup(host.password),
               privateKey: host.private_key || host.privateKey || null,
               color: host.color || '#007AFF',
               transparency: host.transparency !== undefined ? host.transparency : 0.10,
@@ -1478,10 +1623,10 @@ router.post('/restore', verifyToken, async (req, res) => {
               remoteProtocol: host.remote_protocol || host.remoteProtocol || null,
               remotePort: host.remote_port || host.remotePort || null,
               remoteUsername: host.remote_username || host.remoteUsername || null,
-              remotePassword: decryptPassword(host.remote_password || host.remotePassword) || host.remote_password || host.remotePassword || null,
+              remotePassword: reEncryptFromBackup(host.remote_password || host.remotePassword),
               guacamolePerformanceMode: host.guacamolePerformanceMode || 'balanced',
               rustdeskId: host.rustdesk_id || host.rustdeskId || null,
-              rustdeskPassword: decryptPassword(host.rustdeskPassword) || host.rustdeskPassword || null,
+              rustdeskPassword: reEncryptFromBackup(host.rustdeskPassword),
               isActive: host.is_active !== undefined ? host.is_active : (host.isActive !== false)
             };
 
@@ -1529,13 +1674,13 @@ router.post('/restore', verifyToken, async (req, res) => {
               sshHost: service.ssh_host || service.sshHost || null,
               sshPort: service.ssh_port || service.sshPort || 22,
               sshUsername: service.ssh_username || service.sshUsername || null,
-              sshPassword: decryptPassword(service.ssh_password || service.sshPassword) || service.ssh_password || service.sshPassword || null,
+              sshPassword: reEncryptFromBackup(service.ssh_password || service.sshPassword),
               sshPrivateKey: service.ssh_private_key || service.sshPrivateKey || null,
               vncPort: service.vnc_port || service.vncPort || 5900,
-              vncPassword: decryptPassword(service.vnc_password || service.vncPassword) || service.vnc_password || service.vncPassword || null,
+              vncPassword: reEncryptFromBackup(service.vnc_password || service.vncPassword),
               rdpPort: service.rdp_port || service.rdpPort || 3389,
               rdpUsername: service.rdp_username || service.rdpUsername || null,
-              rdpPassword: decryptPassword(service.rdp_password || service.rdpPassword) || service.rdp_password || service.rdpPassword || null,
+              rdpPassword: reEncryptFromBackup(service.rdp_password || service.rdpPassword),
               createdAt: service.created_at || service.createdAt || new Date(),
               updatedAt: service.updated_at || service.updatedAt || new Date()
             };
@@ -1628,10 +1773,44 @@ router.post('/restore', verifyToken, async (req, res) => {
 
             console.log(`Restoring SSH key: ${sshKey.key_name || sshKey.keyName} (created_by: ${createdById})`);
 
+            // SICHERHEITSKRITISCH: Private Key mit Backup-Schlüssel entschlüsseln und mit System-Key neu verschlüsseln
+            let restoredPrivateKey = sshKey.private_key || sshKey.privateKey || '';
+            
+            // Prüfen ob der Key verschlüsselt ist (Format: iv:encrypted)
+            if (restoredPrivateKey && encryptionManager.isEncrypted(restoredPrivateKey)) {
+              console.log(`🔓 Decrypting private key for ${sshKey.key_name || sshKey.keyName}`);
+              
+              // First try with backup key if provided
+              if (backupDecryptionKey) {
+                const decrypted = encryptionManager.decrypt(restoredPrivateKey, backupDecryptionKey);
+                if (decrypted) {
+                  restoredPrivateKey = decrypted;
+                  console.log(`✅ Successfully decrypted with backup key`);
+                } else {
+                  console.warn(`⚠️ Could not decrypt with backup key, trying system key`);
+                  // Fallback to system key
+                  const systemDecrypted = encryptionManager.decrypt(restoredPrivateKey);
+                  if (systemDecrypted) {
+                    restoredPrivateKey = systemDecrypted;
+                  } else {
+                    console.error(`❌ Failed to decrypt private key for ${sshKey.key_name || sshKey.keyName}`);
+                  }
+                }
+              } else {
+                // No backup key provided, try system key
+                const decrypted = encryptionManager.decrypt(restoredPrivateKey);
+                if (decrypted) {
+                  restoredPrivateKey = decrypted;
+                } else {
+                  console.error(`❌ Failed to decrypt private key with system key`);
+                }
+              }
+            }
+
             // Restore SSH key to database
             const sshKeyData = {
               keyName: sshKey.key_name || sshKey.keyName,
-              privateKey: sshKey.private_key || sshKey.privateKey || '',
+              privateKey: restoredPrivateKey,  // KLARTEXT - wird von DB automatisch mit System-Key verschlüsselt
               publicKey: sshKey.public_key || sshKey.publicKey || '',
               keyType: sshKey.key_type || sshKey.keyType || 'rsa',
               keySize: sshKey.key_size || sshKey.keySize || 2048,
@@ -1648,7 +1827,7 @@ router.post('/restore', verifyToken, async (req, res) => {
             await connection.execute(sql, values);
 
             // Restore SSH key files to filesystem
-            if (sshKey.private_key && sshKey.key_name) {
+            if (restoredPrivateKey && sshKey.key_name) {
               try {
                 // Always use user-specific naming for consistency
                 // This ensures SSH keys work after restore
@@ -1657,8 +1836,8 @@ router.post('/restore', verifyToken, async (req, res) => {
                 const privateKeyPath = path.join(sshDir, keyFileName);
                 const publicKeyPath = path.join(sshDir, `${keyFileName}.pub`);
 
-                // Write private key
-                await fs.writeFile(privateKeyPath, sshKey.private_key, {
+                // Write private key (KLARTEXT!)
+                await fs.writeFile(privateKeyPath, restoredPrivateKey, {
                   mode: 0o600,
                 });
                 console.log(`✅ Restored private key file: ${privateKeyPath}`);
@@ -2639,6 +2818,17 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
 
       // Run post-restore hook with timeout - DISABLED to prevent hanging
       console.log('🔧 Post-restore hook disabled to prevent hanging issues');
+      
+      // WICHTIG: Recreate Guacamole connections nach Restore
+      console.log('🔄 Recreating Guacamole connections after restore...');
+      try {
+        const { recreateGuacamoleConnections } = require('../utils/recreateGuacamoleConnections');
+        await recreateGuacamoleConnections();
+        console.log('✅ Guacamole connections recreated successfully');
+      } catch (guacError) {
+        console.error('⚠️ Failed to recreate Guacamole connections:', guacError.message);
+        // Don't fail the restore if this fails
+      }
       // The SSH regeneration is already done above, so the hook is redundant
       /*
       try {

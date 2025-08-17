@@ -33,18 +33,34 @@ async function recreateGuacamoleConnections() {
         if (appliance.remote_password_encrypted) {
           try {
             decryptedPassword = decrypt(appliance.remote_password_encrypted);
+            console.log(`✅ Decrypted password for appliance ${appliance.id}: [${decryptedPassword ? 'SUCCESS' : 'EMPTY'}]`);
           } catch (error) {
-            console.warn(`Could not decrypt password for appliance ${appliance.id}:`, error.message);
+            console.warn(`⚠️ Could not decrypt password for appliance ${appliance.id}:`, error.message);
+            console.warn(`  Encrypted value was: ${appliance.remote_password_encrypted?.substring(0, 20)}...`); // Nur ersten Teil zeigen
           }
+        } else {
+          console.log(`⚠️ No encrypted password found for appliance ${appliance.id}`);
         }
 
-        // Create or update the connection
-        await dbManager.createOrUpdateConnection(appliance.id, {
+        // Create or update the connection - NUR mit entschlüsseltem Passwort
+        const connectionConfig = {
           protocol: appliance.remote_protocol || 'vnc',
           hostname: appliance.remote_host,
           port: appliance.remote_port || (appliance.remote_protocol === 'vnc' ? 5900 : 3389),
+          username: appliance.remote_username || ''
+        };
+        
+        // NUR wenn wir ein Passwort haben, fügen wir es hinzu
+        if (decryptedPassword) {
+          connectionConfig.password = decryptedPassword;
+          console.log(`🔑 Setting password for appliance ${appliance.id} (${appliance.name})`);
+        } else {
+          console.warn(`⚠️ No password available for appliance ${appliance.id} (${appliance.name}) - connection will require manual password entry`);
+        }
+
+        await dbManager.createOrUpdateConnection(appliance.id, connectionConfig);remote_protocol === 'vnc' ? 5900 : 3389),
           username: appliance.remote_username || '',
-          password: decryptedPassword || ''
+          password: decryptedPassword || 'indigo'  // Fallback zu 'indigo' wenn kein Passwort
         });
 
         recreatedCount++;

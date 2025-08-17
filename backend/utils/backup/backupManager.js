@@ -35,6 +35,17 @@ class BackupManager {
       backupData.created_by = username;
       backupData.system_info = await this.getSystemInfo();
       
+      // Add encryption key to metadata for restore
+      backupData.metadata = {
+        encryption_key: process.env.ENCRYPTION_KEY || null,
+        database: {
+          host: process.env.DB_HOST || 'database',
+          port: process.env.DB_PORT || '3306',
+          user: process.env.DB_USER || 'dashboard_user',
+          name: process.env.DB_NAME || 'dashboard_db'
+        }
+      };
+      
       // Calculate checksum
       backupData.checksum = this.validator.calculateChecksum(backupData.data);
       

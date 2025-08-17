@@ -4,22 +4,53 @@ const path = require('path');
 const { execSync } = require('child_process');
 const BackupValidator = require('./backupValidator');
 const GuacamoleBackupManager = require('./guacamoleBackupManager');
+const EnvironmentRestorer = require('./environmentRestorer');
 
 class RestoreManager {
   constructor(pool) {
     this.pool = pool;
     this.validator = new BackupValidator();
     this.guacamoleBackup = new GuacamoleBackupManager();
+    this.environmentRestorer = new EnvironmentRestorer();
     this.restoreLog = [];
   }
 
   // Main restore function with transaction support
   async restoreFromBackup(backupData, options = {}) {
     const startTime = Date.now();
-    const connection = await this.pool.getConnection();
     
     this.restoreLog = [];
     this.log('info', '🔄 Starting comprehensive restore process...');
+    
+    // STEP 1: Configure environment BEFORE database operations (OPTIONAL - log errors but continue)
+    try {
+      this.log('info', '🔧 Checking environment configuration...');
+      
+      // Only configure if environmentRestorer is available
+      if (this.environmentRestorer) {
+        // Create recovery point
+        const recoveryDir = await this.environmentRestorer.createRecoveryPoint();
+        if (recoveryDir) {
+          this.log('info', `📸 Recovery point created at: ${recoveryDir}`);
+        }
+        
+        // Configure encryption key from backup
+        const encryptionConfigured = await this.environmentRestorer.configureEncryptionKey(backupData);
+        if (!encryptionConfigured) {
+          this.log('warn', '⚠️  Encryption key not configured - encrypted data may not work');
+        }
+        
+        // Skip container restart during restore to avoid connection issues
+        this.log('info', '⏭️  Skipping container restart during restore');
+      }
+      
+    } catch (envError) {
+      this.log('error', `❌ Environment configuration failed: ${envError.message}`);
+      // Continue anyway, but warn user
+    }
+    
+    // STEP 2: Proceed with database restore
+    const connection = await this.pool.getConnection();
     
     try {
       // Validate backup first
@@ -100,6 +131,30 @@ class RestoreManager {
       // Commit transaction
       await connection.commit();
       this.log('info', '✅ Transaction committed successfully');
+      
+      // STEP 3: Verify system functionality (only if environmentRestorer available)
+      if (this.environmentRestorer) {
+        try {
+          const systemChecks = await this.environmentRestorer.verifySystemFunctionality();
+          this.log('info', '🔍 System verification results:', systemChecks);
+        } catch (verifyError) {
+          this.log('warn', `⚠️  System verification failed: ${verifyError.message}`);
+        }
+      }
+      
+      // STEP 4: Trigger status check for all services
+      try {
+        this.log('info', '🔄 Triggering service status check...');
+        const statusChecker = require('../../utils/statusChecker');
+        statusChecker.clearHostCache();
+        // Don't await to avoid timeout
+        statusChecker.forceCheck().catch(err => {
+          this.log('warn', `⚠️  Status check error: ${err.message}`);
+        });
+        this.log('info', '✅ Service status check initiated');
+      } catch (statusError) {
+        this.log('warn', `⚠️  Could not trigger status check: ${statusError.message}`);
+      }
 
       const duration = Date.now() - startTime;
       

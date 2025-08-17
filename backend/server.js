@@ -198,6 +198,10 @@ app.use('/api', verifyToken, networkProxyRouter);
 app.use('/api', verifyToken, backupRouter);
 app.use('/api', verifyToken, backupEnhancedRouter);
 
+// Encryption utilities (for fixing double encryption issues)
+const encryptionUtilsRouter = require('./routes/encryption-utils');
+app.use('/api/encryption', verifyToken, encryptionUtilsRouter);
+
 // ====================================================================
 // ERROR HANDLING MIDDLEWARE
 // ====================================================================

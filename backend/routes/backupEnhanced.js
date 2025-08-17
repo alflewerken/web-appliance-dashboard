@@ -21,7 +21,15 @@ const upload = multer({
     fileSize: 100 * 1024 * 1024 // 100MB max
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/json') {
+    // Accept JSON files with various mime types
+    const acceptedMimeTypes = [
+      'application/json',
+      'text/json',
+      'text/plain',
+      'application/octet-stream'  // For files uploaded via curl -F
+    ];
+    
+    if (acceptedMimeTypes.includes(file.mimetype) || file.originalname.endsWith('.json')) {
       cb(null, true);
     } else {
       cb(new Error('Only JSON files are allowed'));
