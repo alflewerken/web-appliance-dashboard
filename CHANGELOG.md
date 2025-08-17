@@ -5,9 +5,68 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-08-16
+## [Unreleased] - 2025-08-18
+
+### Added
+- **SSH Infrastructure Modernization** - Complete overhaul of SSH key management
+  - Migrated from filesystem-based to database-based key storage
+  - StatusChecker now retrieves SSH keys directly from database
+  - Command execution uses database keys with temporary files
+  - Automatic cleanup of temporary key files after use
+  - Backward compatibility maintained for existing filesystem keys
+  - Support for both `hosts.private_key` and `ssh_keys` table
+
+- **Unified Encryption Architecture** - Consistent GCM encryption throughout system
+  - Replaced mixed GCM/CBC encryption with unified AES-256-GCM
+  - All password fields now use consistent `iv:authTag:encrypted` format
+  - Fixed encryption format inconsistencies between modules
+  - Eliminated encryption type confusion bugs
+  - Full 32-character authTag validation and preservation
+
+- **Backup/Restore System Overhaul** - Complete re-engineering of backup process
+  - Implemented consistent re-encryption during backup export
+  - Fixed appliance password corruption during backup/restore
+  - Automatic re-encryption from backup key to system key on restore
+  - Support for both host and appliance password re-encryption
+  - Automatic Guacamole connection recreation after restore
+  - Validation of authTag length to prevent data corruption
+
+- **Guacamole Integration Perfected** - Reliable token authentication
+  - Fixed Header-Authentication blocking Token-Authentication
+  - Removed conflicting authentication extensions permanently
+  - Service name resolution fixed (underscore in hostname issue)
+  - Automatic password propagation to Guacamole connections
+  - Token generation now works consistently
+  - No login dialogs after proper configuration
+
+- **Build Process Improvements** - Better credential recovery
+  - Enhanced detection of existing database without .env file
+  - Interactive credential prompts for database recovery
+  - Proper handling of both DB_PASSWORD and SSH_KEY_ENCRYPTION_SECRET
+  - Fixed integer comparison errors in database status checks
+  - Improved error messages and recovery options
 
 ### Fixed
+- **Critical Security Issues** - Removed hardcoded passwords
+  - Eliminated hardcoded fallback passwords in Guacamole connections
+  - Fixed bcrypt usage for service passwords (now using reversible encryption)
+  - Proper error handling when passwords cannot be decrypted
+  - User must manually enter passwords if decryption fails
+  - No default passwords used anywhere in the system
+
+- **Password Encryption Bugs** - Fixed critical encryption issues
+  - Host passwords changed from bcrypt (one-way) to encrypt (reversible)
+  - Service passwords now properly recoverable after backup/restore
+  - Fixed double encryption bug causing data corruption
+  - Corrected GCM format handling with proper authTag validation
+  - Resolved CBC/GCM format confusion in backup operations
+
+- **SSH Authentication** - Fixed container-to-host SSH connections
+  - Proper SSH key authorization in host's authorized_keys
+  - Fixed StatusChecker SSH connection failures
+  - Corrected host hostname resolution (removed host.docker.internal workaround)
+  - SSH keys now properly synchronized between database and filesystem
+
 - **Background Settings Persistence** - Fixed issues with background image settings
   - Background settings now persist across page reloads
   - Added localStorage caching for immediate background display on page load
@@ -28,6 +87,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed redundant CSS definitions for cleaner, maintainable code
 
 ### Changed
+- **Database Key Management** - Centralized SSH key handling
+  - StatusChecker refactored to use database keys directly
+  - Command execution migrated to database key retrieval
+  - Temporary key files created on-demand with proper permissions
+  - Automatic cleanup after SSH operations complete
+  - Reduced filesystem dependency for better container portability
+
+- **Encryption System Standardization** - Unified cryptographic approach
+  - All modules now use crypto.js for GCM encryption
+  - Removed legacy EncryptionManager CBC implementations
+  - Consistent key derivation using SHA-256 hashing
+  - Standardized format: `iv:authTag:encrypted` everywhere
+  - Better error handling with fallback mechanisms
+
 - **Major CSS Consolidation** - Complete restructuring of panel CSS architecture
   - **ServicePanel**: Consolidated 2 CSS files into components/ServicePanel.css (245 lines)
   - **UserPanel**: Consolidated 6 CSS files into components/UserPanel.css (510 lines)
