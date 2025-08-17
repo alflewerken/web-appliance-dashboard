@@ -89,6 +89,7 @@ backend/uploads/
 
 # Testdaten
 my-data/
+data/
 
 # Cache
 .cache/
