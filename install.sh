@@ -315,6 +315,10 @@ curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/
 curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/scripts/setup-env.sh \
     -o scripts/setup-env.sh 2>/dev/null && chmod +x scripts/setup-env.sh
 
+# Download ttyd-ssh-wrapper script (CRITICAL for terminal functionality!)
+curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/ttyd/ttyd-ssh-wrapper.sh \
+    -o scripts/ttyd-ssh-wrapper.sh 2>/dev/null && chmod +x scripts/ttyd-ssh-wrapper.sh
+
 # Check and find available ports
 echo "🔍 Checking port availability..."
 
