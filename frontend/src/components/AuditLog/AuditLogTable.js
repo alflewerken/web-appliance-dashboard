@@ -1382,6 +1382,7 @@ const AuditLogTable = ({
                     : log.metadata;
                 resourceName =
                   details.name ||
+                  details.host_name ||
                   details.command_description ||
                   details.service_name ||
                   details.appliance_name ||
@@ -1394,6 +1395,13 @@ const AuditLogTable = ({
                   details.appliance.name
                 ) {
                   resourceName = details.appliance.name;
+                }
+                if (
+                  !resourceName &&
+                  details.host &&
+                  details.host.name
+                ) {
+                  resourceName = details.host.name;
                 }
               } catch (e) {
                 console.error('Error parsing details:', e);
@@ -1757,6 +1765,21 @@ const AuditLogTable = ({
                     // For updates, check the name field directly
                     else if (details.name) {
                       resourceDisplay = details.name;
+                    }
+                  }
+                  // For hosts resource type
+                  else if (log.resourceType === 'hosts') {
+                    // Check for host_name in details (used in host operations)
+                    if (details.host_name) {
+                      resourceDisplay = details.host_name;
+                    }
+                    // Check for name field
+                    else if (details.name) {
+                      resourceDisplay = details.name;
+                    }
+                    // Check for host object
+                    else if (details.host && details.host.name) {
+                      resourceDisplay = details.host.name;
                     }
                   }
                   // For other resource types, keep existing logic
