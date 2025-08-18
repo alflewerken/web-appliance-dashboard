@@ -393,6 +393,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   };
 
   const handleToggleActive = async (userId, currentStatus) => {
+    // Verhindere, dass User sich selbst deaktivieren
+    if (userId === user.id && currentStatus) {
+      setError('Sie können Ihren eigenen Account nicht deaktivieren!');
+      return;
+    }
+    
     try {
       const response = await fetch(
         `/api/auth/users/${userId}/toggle-active`,
@@ -638,22 +644,33 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                 </Tooltip>
                 {isAdmin() && (
                   <>
-                    <Tooltip title={u.isActive ? 'Deaktivieren' : 'Aktivieren'}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleToggleActive(u.id, Boolean(u.isActive))}
-                        sx={{ 
-                          color: '#FF9500',
-                          backgroundColor: 'rgba(255, 149, 0, 0.1)',
-                          border: '1px solid rgba(255, 149, 0, 0.2)',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 149, 0, 0.2)',
-                            borderColor: 'rgba(255, 149, 0, 0.4)',
-                          }
-                        }}
-                      >
-                        {u.isActive ? <Lock size={16} /> : <Unlock size={16} />}
-                      </IconButton>
+                    <Tooltip title={
+                      u.id === user.id && u.isActive 
+                        ? 'Sie können sich nicht selbst deaktivieren' 
+                        : (u.isActive ? 'Deaktivieren' : 'Aktivieren')
+                    }>
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleToggleActive(u.id, Boolean(u.isActive))}
+                          disabled={u.id === user.id && u.isActive}
+                          sx={{ 
+                            color: '#FF9500',
+                            backgroundColor: 'rgba(255, 149, 0, 0.1)',
+                            border: '1px solid rgba(255, 149, 0, 0.2)',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 149, 0, 0.2)',
+                              borderColor: 'rgba(255, 149, 0, 0.4)',
+                            },
+                            '&:disabled': {
+                              opacity: 0.5,
+                              cursor: 'not-allowed',
+                            }
+                          }}
+                        >
+                          {u.isActive ? <Lock size={16} /> : <Unlock size={16} />}
+                        </IconButton>
+                      </span>
                     </Tooltip>
                     {u.username !== user.username && (
                       <Tooltip title="Löschen">
@@ -809,22 +826,33 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                         <Edit size={16} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title={u.isActive ? 'Account sperren' : 'Account aktivieren'}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleToggleActive(u.id, Boolean(u.isActive))}
-                        sx={{ 
-                          color: '#FF9500',
-                          backgroundColor: 'rgba(255, 149, 0, 0.1)',
-                          border: '1px solid rgba(255, 149, 0, 0.2)',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 149, 0, 0.2)',
-                            borderColor: 'rgba(255, 149, 0, 0.4)',
-                          }
-                        }}
-                      >
-                        {u.isActive ? <Lock size={16} /> : <Unlock size={16} />}
-                      </IconButton>
+                    <Tooltip title={
+                      u.id === user.id && u.isActive 
+                        ? 'Sie können sich nicht selbst deaktivieren' 
+                        : (u.isActive ? 'Account sperren' : 'Account aktivieren')
+                    }>
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleToggleActive(u.id, Boolean(u.isActive))}
+                          disabled={u.id === user.id && u.isActive}
+                          sx={{ 
+                            color: '#FF9500',
+                            backgroundColor: 'rgba(255, 149, 0, 0.1)',
+                            border: '1px solid rgba(255, 149, 0, 0.2)',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 149, 0, 0.2)',
+                              borderColor: 'rgba(255, 149, 0, 0.4)',
+                            },
+                            '&:disabled': {
+                              opacity: 0.5,
+                              cursor: 'not-allowed',
+                            }
+                          }}
+                        >
+                          {u.isActive ? <Lock size={16} /> : <Unlock size={16} />}
+                        </IconButton>
+                      </span>
                     </Tooltip>
                     {u.username !== user.username && (
                       <Tooltip title="Löschen">

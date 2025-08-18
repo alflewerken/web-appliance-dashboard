@@ -712,7 +712,8 @@ router.put(
   verifyToken,
   requireAdmin,
   async (req, res) => {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
+    const currentUserId = req.user.id;
     const ipAddress = req.clientIp;
 
     try {
@@ -720,6 +721,25 @@ router.put(
       const user = await db.findOne('users', { id: userId });
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Prevent users from deactivating themselves
+      if (userId === currentUserId && user.isActive) {
+        await createAuditLog(
+          req.user.id,
+          'self_deactivation_attempt',
+          'users',
+          userId,
+          {
+            username: user.username,
+            attempted_by: req.user.username,
+            timestamp: new Date().toISOString(),
+          },
+          ipAddress
+        );
+        return res.status(400).json({ 
+          error: 'Sie können Ihren eigenen Account nicht deaktivieren!' 
+        });
       }
 
       const newStatus = user.isActive ? 0 : 1;
