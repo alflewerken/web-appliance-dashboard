@@ -107,6 +107,7 @@ venv/
 
 # Electron
 .electron/
+electron-app/
 electron-builder.yml
 !electron-builder.json
 
