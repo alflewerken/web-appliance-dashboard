@@ -61,6 +61,61 @@ async function getGuacamoleAuthToken(forceNew = false) {
 }
 
 /**
+ * Test-Route für Guacamole Token
+ */
+router.get('/test-connection/:applianceId', async (req, res) => {
+  try {
+    const { applianceId } = req.params;
+    
+    // Hole Guacamole Auth Token
+    const authToken = await getGuacamoleAuthToken();
+    
+    // Hole Connection aus der Datenbank
+    const dbManager = new GuacamoleDBManager();
+    const connectionResult = await dbManager.pool.query(
+      'SELECT connection_id FROM guacamole_connection WHERE connection_name = $1',
+      [`dashboard-${applianceId}`]
+    );
+    await dbManager.close();
+    
+    if (!connectionResult.rows || connectionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    const connectionId = connectionResult.rows[0].connection_id;
+    
+    // Generiere Identifier
+    const identifier = Buffer.from(`${connectionId}\0c\0postgresql`).toString('base64');
+    const encodedIdentifier = encodeURIComponent(identifier);
+    
+    // Generiere URLs
+    const publicUrl = `http://localhost:9080/guacamole/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
+    const directUrl = `http://localhost:9080/guacamole/#/client/${encodedIdentifier}`;
+    
+    res.json({
+      success: true,
+      connectionId,
+      identifier,
+      encodedIdentifier,
+      token: authToken,
+      urls: {
+        withToken: publicUrl,
+        direct: directUrl,
+        loginFirst: `http://localhost:9080/guacamole/`
+      },
+      debug: {
+        connectionName: `dashboard-${applianceId}`,
+        tokenLength: authToken.length,
+        identifierDecoded: `${connectionId}\\0c\\0postgresql`
+      }
+    });
+  } catch (error) {
+    console.error('Test connection error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * Erstellt einen direkten Link zu einer Guacamole-Verbindung mit automatischer Authentifizierung
  */
 router.post('/token/:applianceId', async (req, res) => {
@@ -163,12 +218,25 @@ router.post('/token/:applianceId', async (req, res) => {
       const guacamoleUrl = `${baseUrl}/guacamole`;
       
       // Erstelle die korrekte Guacamole-URL mit Token
-      // Format: #/client/{identifier}?token={token}
+      // WICHTIG: Token muss als Query-Parameter VOR dem Hash sein!
       const identifier = Buffer.from(`${connectionId}\0c\0postgresql`).toString('base64');
       const encodedIdentifier = encodeURIComponent(identifier);
       
-      // Direkte Client-URL mit Token
-      const connectionUrl = `${guacamoleUrl}/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
+      // Alternative URL-Struktur, die besser funktionieren könnte
+      // Verwende die Session-basierte URL statt Token im Fragment
+      const connectionUrl = `${guacamoleUrl}/?token=${encodeURIComponent(authToken)}#/client/${encodedIdentifier}`;
+      
+      // Fallback: Direkte Client-URL (nach manuellem Login)
+      const directClientUrl = `${guacamoleUrl}/#/client/${encodedIdentifier}`;
+      
+      console.log('Generated Guacamole URLs:', {
+        connectionId,
+        identifier,
+        encodedIdentifier,
+        token: authToken.substring(0, 20) + '...',
+        connectionUrl,
+        directClientUrl
+      });
       
       // Audit Log
       await createAuditLog(
@@ -187,23 +255,15 @@ router.post('/token/:applianceId', async (req, res) => {
         appliance.name  // Add resource name for display
       );
       
-      console.log('Generated Guacamole URL with token:', {
-        connectionId,
-        identifier,
-        encodedIdentifier,
-        token: authToken.substring(0, 20) + '...',
-        baseUrl,
-        guacamoleUrl,
-        connectionUrl
-      });
-      
       // Gebe URL mit Token zurück
       res.json({
         url: connectionUrl,
+        directUrl: directClientUrl,  // Fallback URL nach manuellem Login
         needsLogin: false,
         hasToken: true,
         connectionId: connectionId,
-        connectionName: connectionInfo.connectionName
+        connectionName: connectionInfo.connectionName,
+        instructions: 'Falls die automatische Anmeldung nicht funktioniert, melden Sie sich manuell mit guacadmin/guacadmin an.'
       });
       
     } catch (error) {

@@ -5,6 +5,13 @@
 
 echo "Starting enhanced Guacamole startup..."
 
+# Fix the database hostname in guacamole.properties
+echo "Fixing database hostname in guacamole.properties..."
+if [ -f "/home/guacamole/.guacamole/guacamole.properties" ]; then
+    sed -i 's/postgresql-hostname: guacamole-postgres/postgresql-hostname: appliance_guacamole_db/g' /home/guacamole/.guacamole/guacamole.properties
+    echo "Database hostname fixed"
+fi
+
 # Ensure extensions directory exists
 mkdir -p /home/guacamole/.guacamole/extensions
 
