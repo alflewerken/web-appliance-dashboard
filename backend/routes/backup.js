@@ -939,7 +939,9 @@ router.post('/restore', verifyToken, async (req, res) => {
     }
 
     // Function to decrypt data from backup and re-encrypt with system key
-    // WICHTIG: Unterstützt beide GCM-Formate (2-Teile und 3-Teile)!
+    // WICHTIG: Unterstützt beide GCM-Formate für Backward Compatibility!
+    // - Neues Format (ab 18.08.2025): iv:authTag:encrypted (3 Teile, 32-char authTag)
+    // - Altes Format (vor 18.08.2025): iv:encryptedDataWithAuthTag (2 Teile, authTag in letzten 16 bytes)
     const reEncryptFromBackup = (encryptedData) => {
       if (!encryptedData) {
         return null;
@@ -960,9 +962,10 @@ router.post('/restore', verifyToken, async (req, res) => {
         let decrypted = null;
         
         if (parts.length === 2) {
-          // Altes Format: iv:encryptedDataWithAuthTag
+          // Altes Format (vor 18.08.2025): iv:encryptedDataWithAuthTag
+          // Für Backward Compatibility mit Backups die vor der Vereinheitlichung erstellt wurden
           // AuthTag ist in den letzten 16 Bytes enthalten
-          console.log('📦 Detected 2-part format (legacy)');
+          console.log('📦 Detected 2-part format (legacy backup from before 2025-08-18)');
           
           const [ivHex, encryptedWithTag] = parts;
           const encryptedBuffer = Buffer.from(encryptedWithTag, 'hex');
@@ -991,8 +994,9 @@ router.post('/restore', verifyToken, async (req, res) => {
           }
           
         } else if (parts.length === 3) {
-          // Neues Format: iv:authTag:encrypted
-          console.log('📦 Detected 3-part format (new)');
+          // Neues vereinheitlichtes Format (ab 18.08.2025): iv:authTag:encrypted
+          // Dies ist das aktuelle Standard-Format nach der Encryption-Vereinheitlichung
+          console.log('📦 Detected 3-part format (current standard since 2025-08-18)');
           
           const [ivHex, authTagHex, encrypted] = parts;
           
