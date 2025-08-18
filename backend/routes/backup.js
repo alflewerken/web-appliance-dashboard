@@ -939,7 +939,7 @@ router.post('/restore', verifyToken, async (req, res) => {
     }
 
     // Function to decrypt data from backup and re-encrypt with system key
-    // WICHTIG: Nutze crypto.js (GCM) für konsistente Verschlüsselung!
+    // WICHTIG: Unterstützt beide GCM-Formate (2-Teile und 3-Teile)!
     const reEncryptFromBackup = (encryptedData) => {
       if (!encryptedData) {
         return null;
@@ -949,49 +949,92 @@ router.post('/restore', verifyToken, async (req, res) => {
         data: encryptedData ? encryptedData.substring(0, 50) + '...' : 'null',
         hasBackupKey: !!backupDecryptionKey,
         backupKeyLength: backupDecryptionKey ? backupDecryptionKey.length : 0,
-        format: encryptedData ? (encryptedData.split(':').length === 3 ? 'GCM' : 'Other') : 'none'
+        parts: encryptedData ? encryptedData.split(':').length : 0
       });
       
       try {
-        // Check if data is in GCM format (iv:authTag:encrypted)
         const parts = encryptedData.split(':');
-        if (parts.length !== 3) {
-          console.error('❌ Invalid GCM format - expected iv:authTag:encrypted');
+        const crypto = require('crypto');
+        
+        // Unterstütze beide Formate
+        let decrypted = null;
+        
+        if (parts.length === 2) {
+          // Altes Format: iv:encryptedDataWithAuthTag
+          // AuthTag ist in den letzten 16 Bytes enthalten
+          console.log('📦 Detected 2-part format (legacy)');
+          
+          const [ivHex, encryptedWithTag] = parts;
+          const encryptedBuffer = Buffer.from(encryptedWithTag, 'hex');
+          
+          // AuthTag sind die letzten 16 Bytes
+          const authTag = encryptedBuffer.slice(-16);
+          const encrypted = encryptedBuffer.slice(0, -16);
+          
+          if (backupDecryptionKey) {
+            try {
+              const algorithm = 'aes-256-gcm';
+              const keyHash = crypto.createHash('sha256').update(backupDecryptionKey).digest();
+              const iv = Buffer.from(ivHex, 'hex');
+              
+              const decipher = crypto.createDecipheriv(algorithm, keyHash, iv);
+              decipher.setAuthTag(authTag);
+              
+              decrypted = decipher.update(encrypted, null, 'utf8');
+              decrypted += decipher.final('utf8');
+              
+              console.log('✅ Successfully decrypted 2-part format with backup key');
+            } catch (err) {
+              console.error('❌ Failed to decrypt 2-part format:', err.message);
+              return encryptedData;
+            }
+          }
+          
+        } else if (parts.length === 3) {
+          // Neues Format: iv:authTag:encrypted
+          console.log('📦 Detected 3-part format (new)');
+          
+          const [ivHex, authTagHex, encrypted] = parts;
+          
+          // Validate authTag length
+          if (authTagHex.length !== 32) {
+            console.error(`❌ Invalid authTag length: ${authTagHex.length} chars (expected 32)`);
+            return encryptedData;
+          }
+          
+          if (backupDecryptionKey) {
+            try {
+              const algorithm = 'aes-256-gcm';
+              const keyHash = crypto.createHash('sha256').update(backupDecryptionKey).digest();
+              const iv = Buffer.from(ivHex, 'hex');
+              const authTag = Buffer.from(authTagHex, 'hex');
+              
+              const decipher = crypto.createDecipheriv(algorithm, keyHash, iv);
+              decipher.setAuthTag(authTag);
+              
+              decrypted = decipher.update(encrypted, 'hex', 'utf8');
+              decrypted += decipher.final('utf8');
+              
+              console.log('✅ Successfully decrypted 3-part format with backup key');
+            } catch (err) {
+              console.error('❌ Failed to decrypt 3-part format:', err.message);
+              return encryptedData;
+            }
+          }
+          
+        } else {
+          console.error(`❌ Invalid format - ${parts.length} parts (expected 2 or 3)`);
           return encryptedData;
         }
         
-        const [ivHex, authTagHex, encrypted] = parts;
-        
-        // Validate authTag length
-        if (authTagHex.length !== 32) {
-          console.error(`❌ Invalid authTag length: ${authTagHex.length} chars (expected 32)`);
-          return encryptedData;
-        }
-        
-        // Decrypt with backup key using GCM
-        if (backupDecryptionKey) {
-          console.log('🔑 Attempting GCM decryption with backup key...');
-          
-          const algorithm = 'aes-256-gcm';
-          const crypto = require('crypto');
-          const keyHash = crypto.createHash('sha256').update(backupDecryptionKey).digest();
-          const iv = Buffer.from(ivHex, 'hex');
-          const authTag = Buffer.from(authTagHex, 'hex');
-          
-          const decipher = crypto.createDecipheriv(algorithm, keyHash, iv);
-          decipher.setAuthTag(authTag);
-          
-          let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-          decrypted += decipher.final('utf8');
-          
-          console.log('✅ Successfully decrypted with backup key, re-encrypting with system key...');
-          
-          // Re-encrypt with system key using crypto.js (GCM)
+        // Re-encrypt with system key if decryption was successful
+        if (decrypted && backupDecryptionKey) {
+          console.log('🔄 Re-encrypting with system key...');
           const reEncrypted = cryptoEncrypt(decrypted);
-          console.log('✅ Re-encrypted with system key (GCM format)');
+          console.log('✅ Re-encrypted with system key');
           return reEncrypted;
         } else {
-          console.warn('⚠️ No backup key provided, returning original data');
+          console.warn('⚠️ No decryption performed, returning original data');
           return encryptedData;
         }
       } catch (error) {
