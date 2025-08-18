@@ -747,6 +747,21 @@ $DOCKER_COMPOSE_CMD up -d || {
     exit 1
 }
 
+# Ensure Guacamole container is started (fix for dependency issues)
+echo "🔍 Checking Guacamole container status..."
+GUACAMOLE_STATUS=$($DOCKER_CMD inspect -f '{{.State.Status}}' ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole} 2>/dev/null || echo "not_found")
+if [ "$GUACAMOLE_STATUS" = "created" ]; then
+    echo "⚠️  Guacamole container not started, starting now..."
+    $DOCKER_CMD start ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole} || {
+        echo "❌ Failed to start Guacamole container"
+    }
+    sleep 3
+elif [ "$GUACAMOLE_STATUS" = "not_found" ]; then
+    echo "❌ Guacamole container not found!"
+else
+    echo "✅ Guacamole container is $GUACAMOLE_STATUS"
+fi
+
 # Wait for database
 echo "⏳ Waiting for database to be ready..."
 for i in {1..30}; do
@@ -757,6 +772,43 @@ for i in {1..30}; do
     echo -n "."
     sleep 2
 done
+echo ""
+
+# Wait for all critical services to be healthy
+echo "⏳ Waiting for all services to be healthy..."
+CRITICAL_SERVICES=("appliance_db" "appliance_backend" "appliance_guacamole_db" "appliance_guacd" "appliance_guacamole" "appliance_webserver")
+MAX_WAIT=60
+WAITED=0
+
+while [ $WAITED -lt $MAX_WAIT ]; do
+    ALL_HEALTHY=true
+    for SERVICE in "${CRITICAL_SERVICES[@]}"; do
+        STATUS=$($DOCKER_CMD inspect -f '{{.State.Status}}' $SERVICE 2>/dev/null || echo "not_found")
+        if [ "$STATUS" = "created" ]; then
+            # Container created but not started - start it
+            echo "  Starting $SERVICE..."
+            $DOCKER_CMD start $SERVICE >/dev/null 2>&1
+            ALL_HEALTHY=false
+        elif [ "$STATUS" != "running" ]; then
+            ALL_HEALTHY=false
+        fi
+    done
+    
+    if [ "$ALL_HEALTHY" = true ]; then
+        echo "✅ All services are running"
+        break
+    fi
+    
+    echo -n "."
+    sleep 2
+    WAITED=$((WAITED + 2))
+done
+
+if [ $WAITED -ge $MAX_WAIT ]; then
+    echo ""
+    echo "⚠️  Some services may not be fully ready:"
+    $DOCKER_COMPOSE_CMD ps
+fi
 echo ""
 
 # Initialize database schema if needed
@@ -842,9 +894,33 @@ if [ "$TABLES_EXIST" = "f" ]; then
         echo "⚠️  Could not create schema file - Remote Desktop may not work initially"
     fi
     
-    # Restart Guacamole
+    # Restart Guacamole and ensure it's running
+    echo "🔄 Restarting Guacamole service..."
     $DOCKER_COMPOSE_CMD restart guacamole >/dev/null 2>&1
+    sleep 5
+    
+    # Verify Guacamole is running
+    GUAC_STATUS=$($DOCKER_CMD inspect -f '{{.State.Status}}' ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole} 2>/dev/null)
+    if [ "$GUAC_STATUS" != "running" ]; then
+        echo "⚠️  Guacamole not running, attempting to start..."
+        $DOCKER_CMD start ${GUACAMOLE_CONTAINER_NAME:-appliance_guacamole} >/dev/null 2>&1
+        sleep 3
+    fi
 fi
+
+# Final check to ensure all containers are running
+echo "🔍 Verifying all services..."
+sleep 3
+
+# Try to restart any containers that aren't running
+for container in appliance_guacamole appliance_webserver; do
+    STATUS=$($DOCKER_CMD inspect -f '{{.State.Status}}' $container 2>/dev/null || echo "not_found")
+    if [ "$STATUS" = "created" ] || [ "$STATUS" = "exited" ]; then
+        echo "  Starting $container..."
+        $DOCKER_CMD start $container >/dev/null 2>&1
+        sleep 2
+    fi
+done
 
 # Final status check
 echo ""
