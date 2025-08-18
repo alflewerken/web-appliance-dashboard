@@ -670,7 +670,7 @@ const AuditLogTableMUI = ({
     const renderUpdateTable = (title, changes, oldValues) => {
       return (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: theme.palette.text.primary }}>
             {title}
           </Typography>
           <TableContainer component={Paper} sx={{ 
@@ -959,7 +959,7 @@ const AuditLogTableMUI = ({
     if (log.action === 'ssh_file_upload' && details.files) {
       return (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: theme.palette.text.primary }}>
             Upload Details
           </Typography>
           
@@ -1057,6 +1057,7 @@ const AuditLogTableMUI = ({
               gap: 1, 
               mb: 2,
               fontWeight: 600,
+              color: theme.palette.text.primary,
             }}
           >
             <Icon size={18} />
@@ -1092,7 +1093,7 @@ const AuditLogTableMUI = ({
                   <TableRow key={key}>
                     <TableCell sx={{ 
                       fontWeight: 500,
-                      color: theme.palette.text.secondary,
+                      color: theme.palette.text.primary,
                     }}>
                       {formatFieldName(key)}
                     </TableCell>
@@ -1144,6 +1145,7 @@ const AuditLogTableMUI = ({
               gap: 1, 
               mb: 1,
               fontWeight: 600,
+              color: theme.palette.text.primary,
             }}
           >
             <RefreshCw size={16} />
@@ -1151,7 +1153,7 @@ const AuditLogTableMUI = ({
           </Typography>
           {changedFields.map(field => (
             <Box key={field} sx={{ mb: 1 }}>
-              <Typography variant="body2" fontWeight={600}>
+              <Typography variant="body2" fontWeight={600} sx={{ color: theme.palette.text.primary }}>
                 {formatFieldName(field)}:
               </Typography>
               <Box sx={{ pl: 2 }}>
@@ -1517,7 +1519,7 @@ const AuditLogTableMUI = ({
           justifyContent: 'space-between', 
           alignItems: 'center' 
         }}>
-          <Typography variant="h6">Audit-Log Details</Typography>
+          <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>Audit-Log Details</Typography>
           <IconButton
             edge="end"
             color="inherit"
