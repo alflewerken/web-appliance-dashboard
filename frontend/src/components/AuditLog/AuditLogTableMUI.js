@@ -682,19 +682,22 @@ const AuditLogTableMUI = ({
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{
+                  <TableCell sx={{ 
+                    fontWeight: 600,
                     color: theme.palette.text.primary,
                     backgroundColor: theme.palette.mode === 'dark' 
                       ? 'rgba(255, 255, 255, 0.05)' 
                       : 'rgba(0, 0, 0, 0.03)',
                   }}>Feldname</TableCell>
-                  <TableCell sx={{
+                  <TableCell sx={{ 
+                    fontWeight: 600,
                     color: theme.palette.text.primary,
                     backgroundColor: theme.palette.mode === 'dark' 
                       ? 'rgba(255, 255, 255, 0.05)' 
                       : 'rgba(0, 0, 0, 0.03)',
                   }}>Alter Wert</TableCell>
-                  <TableCell sx={{
+                  <TableCell sx={{ 
+                    fontWeight: 600,
                     color: theme.palette.text.primary,
                     backgroundColor: theme.palette.mode === 'dark' 
                       ? 'rgba(255, 255, 255, 0.05)' 
