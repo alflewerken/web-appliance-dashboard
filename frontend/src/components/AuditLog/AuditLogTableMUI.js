@@ -347,7 +347,7 @@ const AuditLogTableMUI = ({
       }
       
       // Appliance/Service specific handling
-      if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+      if (log.resourceType === 'appliances' || log.resourceType === 'appliance') {
         // Check for service object (used in create operations)
         if (details.service && details.service.name) {
           return details.service.name;
@@ -371,7 +371,7 @@ const AuditLogTableMUI = ({
       }
       
       // SSH Host specific handling
-      if (log.resource_type === 'ssh_host') {
+      if (log.resourceType === 'ssh_host') {
         // Check for nested deleted_host object (used in delete operations)
         if (details.deleted_host && details.deleted_host.hostname) {
           return details.deleted_host.hostname;
@@ -387,7 +387,7 @@ const AuditLogTableMUI = ({
       }
       
       // Category specific handling
-      if (log.resource_type === 'categories' || log.resource_type === 'category') {
+      if (log.resourceType === 'categories' || log.resourceType === 'category') {
         // Check for nested category object (used in delete operations)
         if (details.category && details.category.name) {
           return details.category.name;
@@ -403,7 +403,7 @@ const AuditLogTableMUI = ({
       }
       
       // User specific handling
-      if (log.resource_type === 'users' || log.resource_type === 'user') {
+      if (log.resourceType === 'users' || log.resourceType === 'user') {
         // Check for old_data/new_data (used in update operations)
         if (details.old_data && details.old_data.username) {
           return details.old_data.username;
@@ -419,7 +419,7 @@ const AuditLogTableMUI = ({
       }
       
       // Host specific handling
-      if (log.resource_type === 'hosts' || log.resource_type === 'host') {
+      if (log.resourceType === 'hosts' || log.resourceType === 'host') {
         // Check for host_name field (used in host operations)
         if (details.host_name) {
           return details.host_name;
@@ -439,7 +439,7 @@ const AuditLogTableMUI = ({
       }
       
       // Service/Appliance specific handling
-      if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
+      if (log.resourceType === 'appliances' || log.resourceType === 'appliance') {
         // Check for old_data/new_data (used in update operations)
         if (details.old_data && details.old_data.name) {
           return details.old_data.name;
@@ -458,7 +458,7 @@ const AuditLogTableMUI = ({
       }
       
       // SSH Key specific handling
-      if (log.resource_type === 'ssh_key') {
+      if (log.resourceType === 'ssh_key') {
         return details.key_name || details.name || null;
       }
       
@@ -1240,10 +1240,10 @@ const AuditLogTableMUI = ({
           {logs.map(log => {
             const isExpanded = expandedRows.has(log.id);
             const resourceName = getResourceName(log);
-            const resourceDisplay = log.resource_name || resourceName || 
-              (log.resource_type && log.resource_id 
-                ? `${formatResourceType(log.resource_type)} #${log.resource_id}` 
-                : formatResourceType(log.resource_type));
+            const resourceDisplay = log.resourceName || resourceName || 
+              (log.resourceType && log.resourceId 
+                ? `${formatResourceType(log.resourceType)} #${log.resourceId}` 
+                : formatResourceType(log.resourceType));
 
             return (
               <Box
@@ -1397,10 +1397,10 @@ const AuditLogTableMUI = ({
             {logs.map(log => {
               const isExpanded = expandedRows.has(log.id);
               const resourceName = getResourceName(log);
-              const resourceDisplay = log.resource_name || resourceName || 
-                (log.resource_type && log.resource_id 
-                  ? `${formatResourceType(log.resource_type)} #${log.resource_id}` 
-                  : formatResourceType(log.resource_type));
+              const resourceDisplay = log.resourceName || resourceName || 
+                (log.resourceType && log.resourceId 
+                  ? `${formatResourceType(log.resourceType)} #${log.resourceId}` 
+                  : formatResourceType(log.resourceType));
 
               return (
                 <React.Fragment key={log.id}>
