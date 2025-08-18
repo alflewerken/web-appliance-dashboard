@@ -418,6 +418,26 @@ const AuditLogTableMUI = ({
         return details.username || details.name || null;
       }
       
+      // Host specific handling
+      if (log.resource_type === 'hosts' || log.resource_type === 'host') {
+        // Check for host_name field (used in host operations)
+        if (details.host_name) {
+          return details.host_name;
+        }
+        // Check for old_data/new_data (used in update operations)
+        if (details.old_data && details.old_data.name) {
+          return details.old_data.name;
+        }
+        if (details.new_data && details.new_data.name) {
+          return details.new_data.name;
+        }
+        // Check for host object
+        if (details.host && details.host.name) {
+          return details.host.name;
+        }
+        return details.name || null;
+      }
+      
       // Service/Appliance specific handling
       if (log.resource_type === 'appliances' || log.resource_type === 'appliance') {
         // Check for old_data/new_data (used in update operations)
@@ -685,7 +705,7 @@ const AuditLogTableMUI = ({
               <TableBody>
                 {Object.entries(changes).map(([field, newValue]) => (
                   <TableRow key={field}>
-                    <TableCell sx={{ fontWeight: 500 }}>
+                    <TableCell sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
                       {formatFieldName(field)}
                     </TableCell>
                     <TableCell sx={{ color: 'error.main' }}>
@@ -743,10 +763,10 @@ const AuditLogTableMUI = ({
               <TableBody>
                 {filteredData.map(([key, value]) => (
                   <TableRow key={key}>
-                    <TableCell sx={{ fontWeight: 500 }}>
+                    <TableCell sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
                       {formatFieldName(key)}
                     </TableCell>
-                    <TableCell>{formatFieldValue(value)}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{formatFieldValue(value)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -955,15 +975,15 @@ const AuditLogTableMUI = ({
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell align="right">Anzahl Bytes</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>Name</TableCell>
+                  <TableCell align="right" sx={{ color: theme.palette.text.primary }}>Anzahl Bytes</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {details.files.map((file, index) => (
                   <TableRow key={index}>
-                    <TableCell>{file.name}</TableCell>
-                    <TableCell align="right">
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{file.name}</TableCell>
+                    <TableCell align="right" sx={{ color: theme.palette.text.primary }}>
                       {file.bytes.toLocaleString('de-DE')} Bytes
                     </TableCell>
                   </TableRow>

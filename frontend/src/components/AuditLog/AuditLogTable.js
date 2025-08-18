@@ -1769,17 +1769,21 @@ const AuditLogTable = ({
                   }
                   // For hosts resource type
                   else if (log.resourceType === 'hosts') {
+                    console.log('[DEBUG] Host audit log detected:', log);
                     // Check for host_name in details (used in host operations)
                     if (details.host_name) {
                       resourceDisplay = details.host_name;
+                      console.log('[DEBUG] Using host_name:', details.host_name);
                     }
                     // Check for name field
                     else if (details.name) {
                       resourceDisplay = details.name;
+                      console.log('[DEBUG] Using name:', details.name);
                     }
                     // Check for host object
                     else if (details.host && details.host.name) {
                       resourceDisplay = details.host.name;
+                      console.log('[DEBUG] Using host.name:', details.host.name);
                     }
                   }
                   // For other resource types, keep existing logic
