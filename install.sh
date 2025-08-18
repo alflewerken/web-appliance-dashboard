@@ -533,7 +533,8 @@ TTYD_PASSWORD=${TTYD_PASS}
 # Guacamole Configuration (CRITICAL: Use correct password!)
 GUACAMOLE_URL=http://localhost:${HTTP_PORT}/guacamole
 GUACAMOLE_PROXY_URL=/guacamole/
-GUACAMOLE_DB_HOST=guacamole_db
+# WICHTIG: DB_HOST muss mit Container-Namen übereinstimmen!
+GUACAMOLE_DB_HOST=appliance_guacamole_db
 GUACAMOLE_DB_NAME=guacamole_db
 GUACAMOLE_DB_USER=guacamole_user
 GUACAMOLE_DB_PASSWORD=guacamole_pass123
