@@ -1,5 +1,6 @@
 #!/bin/bash
 # SSH-Wrapper for ttyd - SSH Key Only Version
+# Version: 1.0.1 - Fixed missing script in Docker image
 
 echo "=================================================================================="
 echo "Web Appliance Dashboard Terminal" 
