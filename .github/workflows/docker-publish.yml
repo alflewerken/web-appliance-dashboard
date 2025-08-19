@@ -80,7 +80,7 @@ jobs:
 
     # Build multi-platform Backend image
     - name: Build and push Backend Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./backend
         platforms: linux/amd64,linux/arm64
@@ -92,7 +92,7 @@ jobs:
 
     # Build multi-platform Frontend image
     - name: Build and push Frontend Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./frontend
         platforms: linux/amd64,linux/arm64
@@ -104,7 +104,7 @@ jobs:
 
     # Build multi-platform Guacamole image
     - name: Build and push Guacamole Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./guacamole
         platforms: linux/amd64,linux/arm64
@@ -116,7 +116,7 @@ jobs:
 
     # Build multi-platform Nginx image
     - name: Build and push Nginx Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./nginx
         platforms: linux/amd64,linux/arm64
@@ -128,7 +128,7 @@ jobs:
 
     # Build multi-platform TTYD image
     - name: Build and push TTYD Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./ttyd
         platforms: linux/amd64,linux/arm64
