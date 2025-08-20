@@ -246,3 +246,226 @@ body.theme-light .MuiPopover-paper {
   background-color: #ffffff !important;
   color: rgba(0, 0, 0, 0.87) !important;
 }
+
+/* ========================================================================
+   TABLE CELLS FIX - Speziell für Audit Log Detail
+   ======================================================================== */
+
+/* Dark Mode - Table Cells mit erhöhter Spezifität */
+body.theme-dark .MuiTableCell-root,
+body.theme-dark .MuiDialog-root .MuiTableCell-root,
+body.theme-dark .MuiModal-root .MuiTableCell-root,
+body.theme-dark .MuiPaper-root .MuiTableCell-root {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+body.theme-dark .MuiTableCell-head,
+body.theme-dark .MuiDialog-root .MuiTableCell-head,
+body.theme-dark .MuiModal-root .MuiTableCell-head {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+body.theme-dark .MuiTableCell-body,
+body.theme-dark .MuiDialog-root .MuiTableCell-body,
+body.theme-dark .MuiModal-root .MuiTableCell-body {
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+/* Dark Mode - Strong tags in tables mit erhöhter Spezifität */
+body.theme-dark .MuiTableCell-root strong,
+body.theme-dark .MuiTableCell-root b,
+body.theme-dark .MuiDialog-root .MuiTableCell-root strong,
+body.theme-dark .MuiModal-root .MuiTableCell-root strong {
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-weight: 600;
+}
+
+/* Audit Log spezifische Selektoren */
+body.theme-dark [role="dialog"] .MuiTableCell-root,
+body.theme-dark [role="presentation"] .MuiTableCell-root {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+body.theme-dark [role="dialog"] strong,
+body.theme-dark [role="presentation"] strong {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Light Mode - Table Cells */
+body.theme-light .MuiTableCell-root {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+body.theme-light .MuiTableCell-head {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+body.theme-light .MuiTableCell-body {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Light Mode - Strong tags in tables */
+body.theme-light .MuiTableCell-root strong,
+body.theme-light .MuiTableCell-root b {
+  color: rgba(0, 0, 0, 0.87) !important;
+  font-weight: 600;
+}
+
+/* Table Container Background - ENTFERNT für AuditLog Kompatibilität */
+/* 
+body.theme-dark .MuiTableContainer-root {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.theme-light .MuiTableContainer-root {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+*/
+
+/* OVERRIDE für Audit Log Panel - Höhere Spezifität */
+body.theme-dark .audit-log-panel .MuiTableContainer-root {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+body.theme-light .audit-log-panel .MuiTableContainer-root {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Table Row Hover */
+body.theme-dark .MuiTableRow-root:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.theme-light .MuiTableRow-root:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+
+/* Pre/Code blocks in Audit Log */
+body.theme-dark pre,
+body.theme-dark .MuiDialog-root pre,
+body.theme-dark .MuiModal-root pre {
+  color: rgba(255, 255, 255, 0.9) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.theme-light pre,
+body.theme-light .MuiDialog-root pre,
+body.theme-light .MuiModal-root pre {
+  color: rgba(0, 0, 0, 0.87) !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Alle Text-Elemente in Dialogen - Fallback */
+body.theme-dark .MuiDialog-root *,
+body.theme-dark .MuiModal-root * {
+  color: inherit;
+}
+
+/* Explizite Überschreibung für alle Texte in Tabellen */
+body.theme-dark .MuiTable-root *:not(svg):not(path) {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+body.theme-light .MuiTable-root *:not(svg):not(path) {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+
+/* ========================================================================
+   AUDIT LOG DETAIL SPEZIFISCH - MAXIMALE SPEZIFITÄT
+   ======================================================================== */
+
+/* Überschreibe ALLE Texte im Audit Log Detail Modal */
+body.theme-dark #root .MuiDialog-root .MuiTableCell-root,
+body.theme-dark #root .MuiModal-root .MuiTableCell-root,
+body.theme-dark .MuiBackdrop-root ~ .MuiDialog-root .MuiTableCell-root {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Feldname, Alter Wert, Neuer Wert - Header */
+body.theme-dark #root .MuiTableHead-root .MuiTableCell-root,
+body.theme-dark #root .MuiTableHead-root .MuiTableCell-root strong,
+body.theme-dark #root .MuiTableHead-root .MuiTableCell-root b {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Table Body Cells */
+body.theme-dark #root .MuiTableBody-root .MuiTableCell-root {
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+/* Forciere alle Texte in Tabellen-Containern */
+body.theme-dark .MuiTableContainer-root td,
+body.theme-dark .MuiTableContainer-root th {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Light Mode für Audit Log Detail */
+body.theme-light #root .MuiDialog-root .MuiTableCell-root,
+body.theme-light #root .MuiModal-root .MuiTableCell-root,
+body.theme-light .MuiBackdrop-root ~ .MuiDialog-root .MuiTableCell-root {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+body.theme-light #root .MuiTableHead-root .MuiTableCell-root,
+body.theme-light #root .MuiTableHead-root .MuiTableCell-root strong,
+body.theme-light #root .MuiTableHead-root .MuiTableCell-root b {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+body.theme-light .MuiTableContainer-root td,
+body.theme-light .MuiTableContainer-root th {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+
+/* ========================================================================
+   ULTIMATIVE LÖSUNG - INLINE STYLE OVERRIDE
+   ======================================================================== */
+
+/* Forciere mit der höchstmöglichen Spezifität */
+html body.theme-dark * {
+  --text-primary: rgba(255, 255, 255, 0.9);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+}
+
+html body.theme-light * {
+  --text-primary: rgba(0, 0, 0, 0.87);
+  --text-secondary: rgba(0, 0, 0, 0.6);
+}
+
+/* Überschreibe MUI Paper in Modals */
+body.theme-dark .MuiPaper-root {
+  color: var(--text-primary) !important;
+}
+
+body.theme-light .MuiPaper-root {
+  color: var(--text-primary) !important;
+}
+
+/* Spezifisch für Audit Log Tabellen mit absoluter Priorität */
+html body.theme-dark div[role="presentation"] table * {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html body.theme-light div[role="presentation"] table * {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Nuclear Option - Überschreibe ALLES in Audit Log Dialogen */
+html body.theme-dark .MuiDialog-container table,
+html body.theme-dark .MuiDialog-container td,
+html body.theme-dark .MuiDialog-container th,
+html body.theme-dark .MuiDialog-container strong {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html body.theme-light .MuiDialog-container table,
+html body.theme-light .MuiDialog-container td,
+html body.theme-light .MuiDialog-container th,
+html body.theme-light .MuiDialog-container strong {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
