@@ -20,7 +20,7 @@ import {
   Info,
 } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
-import { BackupService } from '../services/backupService';
+import { BackupService } from '../../services/backupService';
 import EncryptionKeyDialog from './EncryptionKeyDialog';
 import RestoreKeyDialog from './RestoreKeyDialog';
 import './BackupTab.css';

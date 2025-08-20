@@ -13,7 +13,7 @@ import {
   Divider
 } from '@mui/material';
 import { Monitor } from 'lucide-react';
-import RustDeskSetupDialog from '../../components/RustDeskSetupDialog';
+import RustDeskSetupDialog from '../../components/RemoteDesktop/RustDeskSetupDialog';
 import axios from '../../utils/axiosConfig';
 
 /**

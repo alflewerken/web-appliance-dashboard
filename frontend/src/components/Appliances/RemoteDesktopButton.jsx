@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { IconButton, Tooltip } from '@mui/material';
 import { Monitor } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import RustDeskSetupDialog from './RustDeskSetupDialog';
+import { useAuth } from '../../contexts/AuthContext';
+import RustDeskSetupDialog from '../RemoteDesktop/RustDeskSetupDialog';
 import { 
   openGuacamoleConnection, 
   openRustDeskConnection, 
   checkRustDeskStatus, 
   getRemoteDesktopType 
-} from '../modules/remoteDesktop/remoteDesktopUtils';
+} from '../../modules/remoteDesktop/remoteDesktopUtils';
 import './RemoteDesktopButton.css';
 
 const RemoteDesktopButton = ({ appliance, onUpdate }) => {

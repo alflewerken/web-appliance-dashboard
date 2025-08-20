@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import UnifiedPanelHeader from './UnifiedPanelHeader';
-import SSHKeyManagement from './SSHKeyManagement';
+import UnifiedPanelHeader from '../UnifiedPanelHeader';
+import SSHKeyManagement from '../SettingsPanel/SSHKeyManagement';
 import {
   Box,
   Typography,
@@ -45,12 +45,12 @@ import {
   Server,
   GripVertical,
 } from 'lucide-react';
-import SimpleIcon from './SimpleIcon';
-import IconSelector from './IconSelector';
-import RustDeskInstaller from './RustDeskInstaller';
-import { COLOR_PRESETS } from '../utils/constants';
-import { getAvailableIcons } from '../utils/iconMap';
-import axios from '../utils/axiosConfig';
+import SimpleIcon from '../SimpleIcon';
+import IconSelector from '../IconSelector';
+import RustDeskInstaller from '../RemoteDesktop/RustDeskInstaller';
+import { COLOR_PRESETS } from '../../utils/constants';
+import { getAvailableIcons } from '../../utils/iconMap';
+import axios from '../../utils/axiosConfig';
 
 const HostPanel = ({
   host,

@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Server, Plus } from 'lucide-react';
-import ApplianceCard from './ApplianceCard';
-import ApplianceCardErrorBoundary from './ApplianceCardErrorBoundary';
+import { ApplianceCard, ApplianceCardErrorBoundary } from './Appliances';
 import { useCategorySwipe } from '../hooks/useCategorySwipe';
 import { getFilteredAppliances, getTimeBasedSections } from '../utils';
 

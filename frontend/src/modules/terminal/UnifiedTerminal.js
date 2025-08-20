@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Alert, CircularProgress } from '@mui/material';
-import TTYDTerminal from '../../components/TTYDTerminal';
+import { TTYDTerminal } from '../../components/Appliances';
 import axios from '../../utils/axiosConfig';
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import UnifiedPanelHeader from './UnifiedPanelHeader';
+import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import {
   Box,
   Typography,
@@ -57,12 +57,12 @@ import {
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
-import SimpleIcon from './SimpleIcon';
-import { BackupService } from '../services/backupService';
-import { CategoryService } from '../services/categoryService';
-import { SettingsService } from '../services/settingsService';
-import { useSSE } from '../hooks/useSSE';
-import { backgroundSyncManager } from '../utils/backgroundSyncManager';
+import SimpleIcon from '../SimpleIcon';
+import { BackupService } from '../../services/backupService';
+import { CategoryService } from '../../services/categoryService';
+import { SettingsService } from '../../services/settingsService';
+import { useSSE } from '../../hooks/useSSE';
+import { backgroundSyncManager } from '../../utils/backgroundSyncManager';
 import CategoryModal from './CategoryModal';
 import BackgroundSettingsMUI from './BackgroundSettingsMUI';
 import BackupTab from './BackupTab';

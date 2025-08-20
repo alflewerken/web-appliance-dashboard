@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Monitor, Download, Key, CheckCircle, Circle, Loader } from 'lucide-react';
-import { getAuthHeaders } from '../utils/auth';
-import '../styles/components/RustDeskSetupDialog.css';
+import { getAuthHeaders } from '../../utils/auth';
+import '../../styles/components/RustDeskSetupDialog.css';
 
 function RustDeskSetupDialog({ isOpen, onClose, applianceName, applianceId, onInstall, onManualSave }) {
     const [selectedOption, setSelectedOption] = useState('install');

@@ -644,7 +644,8 @@ router.patch('/:id/lastUsed', verifyToken, async (req, res) => {
         access_time: new Date().toISOString(),
         method: 'web_interface'
       },
-      getClientIp(req)
+      getClientIp(req),
+      appliance.name  // Add resource name
     );
 
     res.json({ success: true });

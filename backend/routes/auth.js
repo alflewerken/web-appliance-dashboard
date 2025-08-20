@@ -456,7 +456,8 @@ router.post('/users', verifyToken, requireAdmin, async (req, res) => {
         created_by: req.user.username,
         timestamp: new Date().toISOString(),
       },
-      ipAddress
+      ipAddress,
+      username  // Add username as resource name
     );
 
     res.json({
@@ -565,7 +566,8 @@ router.patch('/users/:id', verifyToken, requireAdmin, async (req, res) => {
         updated_by: req.user.username,
         timestamp: new Date().toISOString(),
       },
-      ipAddress
+      ipAddress,
+      originalData.username  // Add username as resource name
     );
 
     // Get updated user
@@ -760,7 +762,8 @@ router.put(
           changed_by: req.user.username,
           timestamp: new Date().toISOString(),
         },
-        ipAddress
+        ipAddress,
+        user.username  // Add username as resource name
       );
 
       res.json({
@@ -839,7 +842,8 @@ router.delete('/users/:id', verifyToken, requireAdmin, async (req, res) => {
         deleted_by: req.user.username,
         timestamp: new Date().toISOString(),
       },
-      ipAddress
+      ipAddress,
+      userData.username  // Add username as resource name
     );
 
     await db.delete('users', { id: userId });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BackupService } from '../services/backupService';
-import RestoreKeyDialog from '../components/RestoreKeyDialog';
+import { RestoreKeyDialog } from '../components/SettingsPanel';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 

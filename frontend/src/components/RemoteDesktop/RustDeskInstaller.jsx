@@ -17,8 +17,8 @@ import {
   TextField
 } from '@mui/material';
 import { Check, X, Monitor, Download, Settings, Rocket, Edit2 } from 'lucide-react';
-import axios from '../utils/axiosConfig';
-import { useAuth } from '../contexts/AuthContext';
+import axios from '../../utils/axiosConfig';
+import { useAuth } from '../../contexts/AuthContext';
 
 const RustDeskInstaller = ({ open, onClose, appliance, onSuccess }) => {
   const { token } = useAuth();

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@mui/material';
-import axios from '../utils/axiosConfig';
+import axios from '../../utils/axiosConfig';
 import HostCard from './HostCard';
-import sseService from '../services/sseService';
-import './ApplianceCard.css';
+import sseService from '../../services/sseService';
+import '../Appliances/ApplianceCard.css';
 
 const HostsView = ({
   hosts: propsHosts,

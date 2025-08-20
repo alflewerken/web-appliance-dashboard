@@ -397,7 +397,8 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
                 executed_on: `${sshConnection.username}@${sshConnection.host}:${sshConnection.port}`,
                 exit_code: execError.code,
               },
-              ipAddress
+              ipAddress,
+              commandData.description || command  // Add command name as resource name
             );
 
             res.json({
@@ -427,7 +428,8 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
             executed_on: `${sshConnection.username}@${sshConnection.host}:${sshConnection.port}`,
             output_length: output.length,
           },
-          ipAddress
+          ipAddress,
+          commandData.description || command  // Add command name as resource name
         );
 
         res.json({
@@ -465,7 +467,8 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
             executed_on: 'local',
             output_length: output.length,
           },
-          ipAddress
+          ipAddress,
+          commandData.description || command  // Add command name as resource name
         );
 
         res.json({
@@ -496,7 +499,8 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
             ? `${sshConnection.username}@${sshConnection.host}:${sshConnection.port}`
             : 'local',
         },
-        ipAddress
+        ipAddress,
+        commandData.description || command  // Add command name as resource name
       );
 
       res.json({
@@ -547,7 +551,8 @@ router.post('/execute-direct', async (req, res) => {
         command,
         executed_on: appliance.sshConnection ? 'remote' : 'local',
       },
-      ipAddress
+      ipAddress,
+      command  // Add command as resource name
     );
 
     // Execute command with color support

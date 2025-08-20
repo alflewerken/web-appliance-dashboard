@@ -23,7 +23,6 @@ const categoriesRouter = require('./routes/categories');
 const settingsRouter = require('./routes/settings');
 const backgroundRouter = require('./routes/background');
 const backupRouter = require('./routes/backup');
-const backupEnhancedRouter = require('./routes/backupEnhanced');
 // const servicesRouter = require('./routes/services'); // Removed - using applianceProxy instead
 const terminalTokenRouter = require('./routes/terminalToken');
 const { router: terminalRouter } = require('./routes/terminal');
@@ -31,13 +30,10 @@ const terminalRedirectRouter = require('./routes/terminalRedirect');
 const terminalSessionRouter = require('./routes/terminalSession');
 const { router: sseRouter } = require('./routes/sse');
 const authRouter = require('./routes/auth');
-const browserRouter = require('./routes/browser');
 const commandsRouter = require('./routes/commands');
 const auditLogsRouter = require('./routes/auditLogs');
 const auditRestoreRouter = require('./routes/auditRestore');
-const statusCheckRouter = require('./routes/statusCheck');
 const restoreRouter = require('./routes/restore');
-const rolesRouter = require('./routes/roles');
 const guacamoleRouter = require('./routes/guacamole');
 
 // Import Swagger configuration
@@ -148,7 +144,6 @@ app.use('/api/background', verifyToken, backgroundRouter);
 // Services compatibility routes
 const servicesRouter = require('./routes/services');
 app.use('/api/services', verifyToken, servicesRouter);
-app.use('/api/statusCheck', verifyToken, statusCheckRouter);
 
 // SSE route MUST be before general API routes to avoid conflicts
 app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware because it uses query param
@@ -161,9 +156,8 @@ app.use('/api/terminal', verifyToken, terminalRouter);
 app.use('/api/terminal', verifyToken, terminalSessionRouter);
 app.use('/terminal', terminalTokenRouter); // Terminal token endpoint without /api prefix
 app.use('/terminal', terminalRedirectRouter); // Terminal redirect without /api prefix
-app.use('/api/browser', verifyToken, browserRouter);
 app.use('/api/commands', verifyToken, commandsRouter);
-app.use('/api/auditLogs', verifyToken, auditLogsRouter);
+app.use('/api/audit-logs', verifyToken, auditLogsRouter);
 app.use('/api/auditRestore', verifyToken, auditRestoreRouter);
 
 // Hosts routes
@@ -179,7 +173,6 @@ const sshRouter = require('./routes/ssh');
 app.use('/api/ssh', verifyToken, sshRouter);
 
 app.use('/api/restore', verifyToken, restoreRouter);
-app.use('/api/roles', verifyToken, rolesRouter); // Neue Rollen-Routen
 app.use('/api/guacamole', verifyToken, guacamoleRouter); // Guacamole Integration
 
 // RustDesk Integration
@@ -194,13 +187,8 @@ app.use('/api/rustdeskInstall', rustdeskInstallRouter);
 const networkProxyRouter = require('./routes/networkProxy');
 app.use('/api', verifyToken, networkProxyRouter);
 
-// Mount backup routes (both backup and restore) - also require auth
+// Mount backup routes - also require auth
 app.use('/api', verifyToken, backupRouter);
-app.use('/api', verifyToken, backupEnhancedRouter);
-
-// Encryption utilities (for fixing double encryption issues)
-const encryptionUtilsRouter = require('./routes/encryption-utils');
-app.use('/api/encryption', verifyToken, encryptionUtilsRouter);
 
 // ====================================================================
 // ERROR HANDLING MIDDLEWARE

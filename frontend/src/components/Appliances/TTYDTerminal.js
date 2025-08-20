@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom';
 import { X, Maximize2, Minimize2, RefreshCw, ExternalLink } from 'lucide-react';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import './TTYDTerminal.css';
-import { moveTerminalToNewWindow } from '../utils/terminalWindow';
-import axios from '../utils/axiosConfig';
-import '../utils/terminalErrorSuppressor';
+import { moveTerminalToNewWindow } from '../../utils/terminalWindow';
+import axios from '../../utils/axiosConfig';
+import '../../utils/terminalErrorSuppressor';
 
 const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = null, title = 'Terminal' }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);

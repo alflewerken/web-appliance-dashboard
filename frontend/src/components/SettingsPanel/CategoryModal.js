@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { X, Edit, Plus } from 'lucide-react';
-import { iconMap } from '../utils/iconMap';
-import { COLOR_PRESETS } from '../utils/constants';
-import IconSelector from './IconSelector';
-import SimpleIcon from './SimpleIcon';
+import { iconMap } from '../../utils/iconMap';
+import { COLOR_PRESETS } from '../../utils/constants';
+import IconSelector from '../IconSelector';
+import SimpleIcon from '../SimpleIcon';
 import './CategoryModal.css';
 
 const CategoryModal = ({

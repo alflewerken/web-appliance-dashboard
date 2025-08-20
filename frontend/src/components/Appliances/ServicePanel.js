@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import UnifiedPanelHeader from './UnifiedPanelHeader';
-import RustDeskInstaller from './RustDeskInstaller';
-import RustDeskSetupDialog from './RustDeskSetupDialog';
+import UnifiedPanelHeader from '../UnifiedPanelHeader';
+import RustDeskInstaller from '../RemoteDesktop/RustDeskInstaller';
+import RustDeskSetupDialog from '../RemoteDesktop/RustDeskSetupDialog';
 import {
   Box,
   Typography,
@@ -43,13 +43,13 @@ import {
   Search,
   Monitor,
 } from 'lucide-react';
-import SimpleIcon from './SimpleIcon';
-import IconSelector from './IconSelector';
-import { COLOR_PRESETS } from '../utils/constants';
-import { getAvailableIcons } from '../utils/iconMap';
+import SimpleIcon from '../SimpleIcon';
+import IconSelector from '../IconSelector';
+import { COLOR_PRESETS } from '../../utils/constants';
+import { getAvailableIcons } from '../../utils/iconMap';
 import AnsiToHtml from 'ansi-to-html';
 import TTYDTerminal from './TTYDTerminal';
-import axios from '../utils/axiosConfig';
+import axios from '../../utils/axiosConfig';
 import './ServicePanel.css';
 
 // ANSI to HTML converter for colored output

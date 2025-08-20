@@ -17,15 +17,13 @@ import AppHeader from './components/AppHeader';
 import AppContent from './components/AppContent';
 import MobileSearchHeader from './components/MobileSearchHeader';
 import BackgroundImage from './components/BackgroundImage';
-import SettingsPanel from './components/SettingsPanel';
-import ServicePanel from './components/ServicePanel';
-import TTYDTerminal from './components/TTYDTerminal';
+import SettingsPanel from './components/SettingsPanel/SettingsPanel';
+import { ServicePanel, TTYDTerminal, SSHFileUpload } from './components/Appliances';
 import MobileHeader from './components/MobileHeader';
 import Login from './components/Login';
 import UserPanel from './components/UserPanel';
-import HostsView from './components/HostsView';
-import HostPanel from './components/HostPanel';
-import SSHFileUpload from './components/SSHFileUpload';
+import { HostsView, HostPanel } from './components/Hosts';
+// (SSHFileUpload already imported above)
 import { openTerminalInNewWindow } from './utils/terminalWindow';
 import { AuditLogPanel } from './components/AuditLog';
 

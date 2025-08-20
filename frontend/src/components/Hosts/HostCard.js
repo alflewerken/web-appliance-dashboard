@@ -1,8 +1,8 @@
 import React from 'react';
 import { Settings, Monitor, Terminal, Upload } from 'lucide-react';
 import { IconButton, Tooltip } from '@mui/material';
-import SimpleIcon from './SimpleIcon';
-import './ApplianceCard.css';
+import SimpleIcon from '../SimpleIcon';
+import '../Appliances/ApplianceCard.css';
 import './HostCard.css';
 
 const HostCard = ({

@@ -2,19 +2,19 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { IconButton, Tooltip } from '@mui/material';
 import { MoreVertical, Star, Play, XCircle, Terminal } from 'lucide-react';
-import SimpleIcon from './SimpleIcon';
+import SimpleIcon from '../SimpleIcon';
 import RemoteDesktopButton from './RemoteDesktopButton';
 import FileTransferButton from './FileTransferButton';
 import TerminalButton from './TerminalButton';
-import ConfirmDialog from './ConfirmDialog';
-import proxyService from '../services/proxyService';
+import ConfirmDialog from '../ConfirmDialog';
+import proxyService from '../../services/proxyService';
 
-import { iconMap } from '../utils/iconMap';
+import { iconMap } from '../../utils/iconMap';
 import './ApplianceCard.css';
 import './ApplianceCard.mobile.css';
-import './MobileButtonFix.css';
-import './UnifiedButtonLayout.css';
-import './ButtonLayoutOverrides.css';
+import '../MobileButtonFix.css';
+import '../UnifiedButtonLayout.css';
+import '../ButtonLayoutOverrides.css';
 import './ServiceControls.css';
 import './ServiceControlsFix.css';
 

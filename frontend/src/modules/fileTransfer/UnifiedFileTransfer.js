@@ -12,7 +12,7 @@ import {
   MenuItem
 } from '@mui/material';
 import { Upload, Download, FolderOpen } from 'lucide-react';
-import SSHFileUpload from '../../components/SSHFileUpload';
+import { SSHFileUpload } from '../../components/Appliances';
 
 /**
  * Unified File Transfer Component for both Hosts and Services

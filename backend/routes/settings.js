@@ -109,7 +109,8 @@ router.post('/', async (req, res) => {
           description,
           updated_by: req.user?.username || 'unknown',
         },
-        ipAddress
+        ipAddress,
+        key  // Add setting key as resource name
       );
     }
 

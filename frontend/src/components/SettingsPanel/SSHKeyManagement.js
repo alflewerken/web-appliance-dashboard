@@ -32,8 +32,8 @@ import {
   EyeOff,
   Edit2,
 } from 'lucide-react';
-import axios from '../utils/axiosConfig';
-import { copyToClipboard } from '../utils/clipboard';
+import axios from '../../utils/axiosConfig';
+import { copyToClipboard } from '../../utils/clipboard';
 
 const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyName }) => {
   const [keys, setKeys] = useState([]);
