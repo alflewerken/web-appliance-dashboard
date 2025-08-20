@@ -5,6 +5,77 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2025-08-20
+
+### Changed
+- **Major Frontend Refactoring** - Complete modularization of components
+  - **AuditLog Modularization**: Split monolithic 2800+ line files into 8 focused modules
+    - `AuditLogActions.js` - Action icons, names, and formatting utilities (192 lines)
+    - `AuditLogFilters.js` - Filter UI with search, action, user, and date filters (210 lines)
+    - `AuditLogRestore.js` - Restore logic and endpoint mapping (130 lines)
+    - `AuditLogDetailRenderer.js` - Detail views for expanded rows (216 lines)
+    - `AuditLogStats.js` - Statistics cards display (94 lines)
+    - `AuditLogExport.js` - CSV export and print functionality (153 lines)
+    - Reduced `AuditLogPanel.js` by 64% (from 1333 to 482 lines)
+    - Reduced `AuditLogTableMUI.js` by 83% (from 1465 to 254 lines)
+  
+  - **Component Organization**: Restructured into logical folders
+    - `components/SettingsPanel/` - 11 settings-related components with index exports
+    - `components/Appliances/` - 19 appliance-related components with index exports
+    - Improved code locality with components and their CSS files together
+    - Named exports via index.js for cleaner imports
+    - Better separation of concerns and single responsibility principle
+
+- **AuditLog Panel Resize** - Complete reimplementation of resize mechanism
+  - Replaced complex state-based approach with simple useRef solution
+  - Fixed "jumping panel" bug where panel could only move 2-3 pixels
+  - Smooth resizing between 400-1200px width
+  - LocalStorage persistence of panel width
+  - Visual feedback during resize operation
+  - Four iterations to achieve optimal KISS-principle solution
+
+- **Frontend Naming Conventions** - Enforced consistent camelCase
+  - Removed all snake_case from frontend code
+  - Unified camelCase usage across all components
+  - Fixed field name mapping inconsistencies
+  - Better alignment with JavaScript conventions
+
+### Fixed
+- **Dark Mode Text Visibility** - Fixed table text colors in dark mode
+  - Increased CSS specificity for Modal/Dialog contexts
+  - Added multiple fallback selectors for reliability
+  - Text now properly shows white on dark backgrounds
+  - Fixed MuiTableCell color overrides
+
+- **AuditLog Restore Functionality** - Multiple fixes for restore buttons
+  - Fixed missing restore buttons on host updates and deletions
+  - Corrected action name mapping (host_update vs hostUpdate)
+  - Fixed data structure for changes/oldValues format
+  - Restore buttons now appear correctly for all restorable actions
+  - Proper handling of both snake_case and camelCase action names
+
+- **Frontend Volume Mounting** - Fixed development workflow
+  - Changed Docker volume from read-only to writable
+  - Frontend updates now properly sync to container
+  - Improved development iteration speed
+
+### Removed
+- **Dead Code Elimination** - Removed 16 unused files
+  - Deleted unused components: `RustDeskButton.jsx`, `SSHKeysView.js`, `AppliancePermissions.js`
+  - Removed unused RemoteDesktop components: `WebRTCRemoteDesktop.jsx`, `GuacamolePerformanceSelector.jsx`
+  - Cleaned up unused `ServiceCard.js`, `NetworkBrowser.js`, `AuditLogHeader.js`
+  - Removed orphaned CSS files: `FileTransferButton.css`, `UserManagement.light.css`, `ServiceCopyModal.css`
+  - Eliminated never-used dialog code from `AuditLogTableMUI.js`
+  - Total code reduction: ~2000 lines
+
+### Improved
+- **Code Quality Metrics**
+  - Maintainability: From monolithic 1400+ line files to ~200 line focused modules
+  - Performance: Better code-splitting possibilities with modular structure
+  - Readability: Clear separation of concerns and single responsibility
+  - Development Speed: Easier to locate and modify specific functionality
+  - Testing: Modules can now be tested in isolation
+
 ## [1.1.4] - 2025-08-18
 
 ### Added
