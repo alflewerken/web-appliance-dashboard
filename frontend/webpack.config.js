@@ -5,12 +5,16 @@ const webpack = require('webpack');
 const Dotenv = require('dotenv-webpack');
 
 module.exports = {
+  cache: false, // CACHE KOMPLETT DEAKTIVIERT!
   entry: './src/index.js',
   output: {
     path: path.resolve(__dirname, 'build'),
-    filename: 'static/js/bundle.[contenthash].js',
+    filename: `static/js/bundle.[contenthash].js`,
     publicPath: '/',
-    hashSalt: 'debug-' + Date.now()
+    clean: true, // Alte Builds löschen
+    hashFunction: 'xxhash64', // Schnellerer Hash-Algorithmus
+    hashDigest: 'hex',
+    hashDigestLength: 16,
   },
   module: {
     rules: [

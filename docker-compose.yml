@@ -106,8 +106,8 @@ services:
       - "${NGINX_HTTP_PORT:-9080}:80"
       - "${NGINX_HTTPS_PORT:-9443}:443"
     volumes:
-      # Mount frontend build as read-only
-      - ./frontend/build:/usr/share/nginx/html:ro
+      # Mount frontend build - writable for updates
+      - ./frontend/build:/usr/share/nginx/html
       # Override conf.d if needed for development
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
