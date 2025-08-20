@@ -99,7 +99,8 @@ An elegant, self-hosted dashboard for centralized management of VMs, Docker cont
 
 ## 🤔 Why Another Dashboard?
 
-Let me be honest - there are many dashboard solutions out there. **So why did I build another one?**
+<details>
+<summary><b>Let me be honest - there are many dashboard solutions out there. So why did I build another one?</b></summary>
 
 ### The Problem I Faced
 
@@ -124,6 +125,42 @@ I built Web Appliance Dashboard to solve **MY** problems, and maybe they're your
 ✅ **Actually Useful** - Every feature exists because I needed it, not because it was cool to build
 
 **This isn't just another dashboard - it's the dashboard I wish existed.**
+
+</details>
+
+## 🛡️ Why Trust This Dashboard?
+
+<details>
+<summary><b>Built by someone who programmed CNC machine interfaces - where software reliability isn't just about uptime, it's about human safety.</b></summary>
+
+In the CNC world, a software bug doesn't just mean a crashed application - it means:
+
+### 🚨 **Safety First**
+- **Emergency Stop Chains** - When an operator hits that red button, the software MUST respond in milliseconds. No exceptions. No "please wait" dialogs.
+- **Tool Breakage Detection** - A broken tool at 20,000 RPM becomes shrapnel. The interface must detect and react instantly.
+- **Real-time Parameter Monitoring** - Spindle power, servo drive loads, vibration levels - all monitored continuously with zero tolerance for lag or data loss.
+
+### 💥 **The Cost of Failure**
+When CNC software fails during rapid traverse (G00):
+- **Best case**: A workpiece worth thousands is destroyed
+- **Typical case**: Spindle collision, €50,000+ in damages
+- **Worst case**: Complete machine write-off (€500,000+) or operator injury
+
+### 🛡️ **This Experience Shaped Every Design Decision**
+
+In industrial automation, you learn:
+- **Redundancy is not optional** - Every critical path needs a fallback
+- **User mistakes must be anticipated** - If it can be clicked wrong, it will be
+- **"It works on my machine" is not acceptable** - It must work on EVERY machine, EVERY time
+- **Graceful degradation** - When something fails, fail safely, not catastrophically
+
+**This same reliability-first, safety-obsessed mindset went into every line of this dashboard's code.**
+
+When I handle your SSH keys, manage your service passwords, or control your infrastructure - I'm applying the same principles that kept machine operators safe and million-euro machines running.
+
+*Because in both worlds, there's no room for "oops".*
+
+</details>
 
 ## 🏆 Compare With Others
 
@@ -208,6 +245,27 @@ That's it! The dashboard will automatically update to the latest version.
 - Database migrations run automatically on startup
 - Your data and configuration are preserved
 - Check [CHANGELOG.md](https://github.com/alflewerken/web-appliance-dashboard/blob/main/CHANGELOG.md) for version changes
+
+## 📚 Documentation
+
+### 📖 For Users
+- **[User Guide](docs/user-guide-v2/USER-GUIDE.en.md)** - Comprehensive guide with personal touch
+  - Origin story & motivation
+  - 5-minute quick start (Host-First!)
+  - Mobile Experience Guide
+  - Practical workflows
+  - Clean UI Philosophy
+
+### Developer Documentation
+- [Developer Guide](docs/developer.html) - Architecture with diagrams
+- [API Reference](docs/api-reference-ger.md) - API documentation
+- [API Client SDKs](docs/api-client-sdks-ger.md) - Client examples
+- [Integration Guide](docs/integration-guide-ger.md) - Integration into existing systems
+- [Development Environment](docs/DEVELOPMENT_SETUP-ger.md) - Setting up development environment
+
+### Technical Documentation
+- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy architecture
+- [OpenAPI Specification](docs/openapi.yaml) - API specification
 
 ## 🆕 Latest Updates
 
@@ -365,27 +423,6 @@ Default login:
 
 Detailed instructions: [📖 User Guide](docs/user-guide-v2/USER-GUIDE.en.md)
 
-## 📚 Documentation
-
-### 📖 For Users
-- **[User Guide](docs/user-guide-v2/USER-GUIDE.en.md)** - Comprehensive guide with personal touch
-  - Origin story & motivation
-  - 5-minute quick start (Host-First!)
-  - Mobile Experience Guide
-  - Practical workflows
-  - Clean UI Philosophy
-
-### Developer Documentation
-- [Developer Guide](docs/developer.html) - Architecture with diagrams
-- [API Reference](docs/api-reference-ger.md) - API documentation
-- [API Client SDKs](docs/api-client-sdks-ger.md) - Client examples
-- [Integration Guide](docs/integration-guide-ger.md) - Integration into existing systems
-- [Development Environment](docs/DEVELOPMENT_SETUP-ger.md) - Setting up development environment
-
-### Technical Documentation
-- [Backend Proxy Implementation](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy architecture
-- [OpenAPI Specification](docs/openapi.yaml) - API specification
-
 ## 🔒 Security
 
 ### Integrated Security Features
@@ -425,6 +462,11 @@ Detailed instructions: [📖 User Guide](docs/user-guide-v2/USER-GUIDE.en.md)
                         ┌─────────────────┐               │
                         │    Guacamole    │◀──────────────┤
                         │   (VNC/RDP)     │               │
+                        └─────────────────┘               │
+                                                          │
+                        ┌─────────────────┐               │
+                        │    RustDesk     │◀──────────────┤
+                        │  (Remote Desk)  │               │
                         └─────────────────┘               │
                                                           │
                         ┌─────────────────┐               │

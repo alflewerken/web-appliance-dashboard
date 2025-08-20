@@ -99,7 +99,8 @@ Ein elegantes, selbst-gehostetes Dashboard für die zentrale Verwaltung von VMs,
 
 ## 🤔 Warum noch ein Dashboard?
 
-Seien wir ehrlich - es gibt viele Dashboard-Lösungen da draußen. **Warum also habe ich noch eines gebaut?**
+<details>
+<summary><b>Seien wir ehrlich - es gibt viele Dashboard-Lösungen da draußen. Warum also habe ich noch eines gebaut?</b></summary>
 
 ### Das Problem, das ich hatte
 
@@ -124,6 +125,42 @@ Ich habe das Web Appliance Dashboard gebaut, um **MEINE** Probleme zu lösen - u
 ✅ **Tatsächlich nützlich** - Jedes Feature existiert, weil ich es brauchte, nicht weil es cool zu bauen war
 
 **Das ist nicht nur ein weiteres Dashboard - es ist das Dashboard, das ich mir gewünscht hätte.**
+
+</details>
+
+## 🛡️ Warum diesem Dashboard vertrauen?
+
+<details>
+<summary><b>Entwickelt von jemandem, der CNC-Maschinen-Interfaces programmiert hat - wo Software-Zuverlässigkeit nicht nur Betriebszeit bedeutet, sondern menschliche Sicherheit.</b></summary>
+
+In der CNC-Welt bedeutet ein Software-Bug nicht nur eine abgestürzte Anwendung - er bedeutet:
+
+### 🚨 **Sicherheit zuerst**
+- **Not-Aus-Ketten** - Wenn ein Bediener den roten Knopf drückt, MUSS die Software in Millisekunden reagieren. Keine Ausnahmen. Keine "Bitte warten"-Dialoge.
+- **Werkzeugbruch-Erkennung** - Ein gebrochenes Werkzeug bei 20.000 U/min wird zu Schrapnell. Die Schnittstelle muss sofort erkennen und reagieren.
+- **Echtzeit-Parameter-Überwachung** - Spindelleistung, Servo-Antriebslasten, Vibrationspegel - alles kontinuierlich überwacht mit null Toleranz für Verzögerungen oder Datenverlust.
+
+### 💥 **Die Kosten des Versagens**
+Wenn CNC-Software während des Eilgangs (G00) versagt:
+- **Bestenfalls**: Ein Werkstück im Wert von Tausenden wird zerstört
+- **Normalfall**: Spindelkollision, 50.000€+ Schaden
+- **Schlimmstenfalls**: Kompletter Maschinentotalschaden (500.000€+) oder Verletzung des Bedieners
+
+### 🛡️ **Diese Erfahrung prägte jede Design-Entscheidung**
+
+In der industriellen Automatisierung lernt man:
+- **Redundanz ist nicht optional** - Jeder kritische Pfad braucht einen Fallback
+- **Benutzerfehler müssen antizipiert werden** - Wenn es falsch geklickt werden kann, wird es das
+- **"Es funktioniert auf meiner Maschine" ist nicht akzeptabel** - Es muss auf JEDER Maschine funktionieren, JEDES Mal
+- **Graceful Degradation** - Wenn etwas fehlschlägt, sicher fehlschlagen, nicht katastrophal
+
+**Diese selbe Zuverlässigkeits-zuerst, Sicherheits-besessene Denkweise floss in jede Zeile Code dieses Dashboards.**
+
+Wenn ich Ihre SSH-Schlüssel handhabe, Ihre Service-Passwörter verwalte oder Ihre Infrastruktur steuere - wende ich die gleichen Prinzipien an, die Maschinenbediener sicher und Millionen-Euro-Maschinen am Laufen hielten.
+
+*Denn in beiden Welten gibt es keinen Platz für "ups".*
+
+</details>
 
 ## 🏆 Vergleich mit Anderen
 
@@ -208,6 +245,27 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 - Datenbank-Migrationen laufen automatisch beim Start
 - Ihre Daten und Konfigurationen bleiben erhalten
 - Versionsänderungen finden Sie im [CHANGELOG.md](https://github.com/alflewerken/web-appliance-dashboard/blob/main/CHANGELOG.md)
+
+## 📚 Dokumentation
+
+### 📖 Für Benutzer
+- **[Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.md)** - Umfangreiche Anleitung mit persönlicher Note
+  - Entstehungsgeschichte & Motivation
+  - 5-Minuten-Schnellstart (Host-First!)
+  - Mobile Experience Guide
+  - Praktische Workflows
+  - Clean UI Philosophie
+
+### Entwickler-Dokumentation
+- [Developer Guide](docs/developer.html) - Architektur mit Diagrammen
+- [API-Referenz](docs/api-reference-ger.md) - API-Dokumentation
+- [API Client SDKs](docs/api-client-sdks-ger.md) - Client-Beispiele
+- [Integrations-Guide](docs/integration-guide-ger.md) - Integration in bestehende Systeme
+- [Entwicklungsumgebung](docs/DEVELOPMENT_SETUP-ger.md) - Entwicklungsumgebung einrichten
+
+### Technische Dokumentation
+- [Backend Proxy Implementierung](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy-Architektur
+- [OpenAPI Spezifikation](docs/openapi.yaml) - API-Spezifikation
 
 ## 🆕 Neueste Updates
 
@@ -365,27 +423,6 @@ Standard-Login:
 
 Ausführliche Anleitung: [📖 Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.md)
 
-## 📚 Dokumentation
-
-### 📖 Für Anwender
-- **[Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.md)** - Umfassende Anleitung mit persönlicher Note
-  - Entstehungsgeschichte & Motivation
-  - Schnellstart in 5 Minuten (Host-First!)
-  - Mobile Experience Guide
-  - Praktische Workflows
-  - Clean UI Philosophy
-
-### Entwickler-Dokumentation
-- [Entwicklerleitfaden](docs/developer.html) - Architektur mit Diagrammen
-- [API-Referenz](docs/api-reference-ger.md) - API-Dokumentation
-- [API Client SDKs](docs/api-client-sdks-ger.md) - Client-Beispiele
-- [Integrationsleitfaden](docs/integration-guide-ger.md) - Integration in bestehende Systeme
-- [Entwicklungsumgebung](docs/DEVELOPMENT_SETUP-ger.md) - Entwicklungsumgebung einrichten
-
-### Technische Dokumentation
-- [Backend-Proxy-Implementierung](docs/BACKEND_PROXY_IMPLEMENTATION-ger.md) - Proxy-Architektur
-- [OpenAPI-Spezifikation](docs/openapi.yaml) - API Spezifikation
-
 ## 🔒 Sicherheit
 
 ### Integrierte Sicherheitsfunktionen
@@ -425,6 +462,11 @@ Ausführliche Anleitung: [📖 Benutzerhandbuch](docs/user-guide-v2/USER-GUIDE.m
                         ┌─────────────────┐               │
                         │    Guacamole    │◀──────────────┤
                         │   (VNC/RDP)     │               │
+                        └─────────────────┘               │
+                                                          │
+                        ┌─────────────────┐               │
+                        │    RustDesk     │◀──────────────┤
+                        │  (Remote Desk)  │               │
                         └─────────────────┘               │
                                                           │
                         ┌─────────────────┐               │
