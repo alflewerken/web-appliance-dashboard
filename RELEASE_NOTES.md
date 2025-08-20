@@ -1,78 +1,127 @@
-# 🎉 Web Appliance Dashboard v1.1.3 - Critical Fixes Release
+# Release Notes - Version 1.1.5
 
-## Emergency fixes for Docker rebuild issues
+**Release Date:** August 20, 2025  
+**Type:** Minor Release - Major Frontend Refactoring
 
-This release addresses critical compatibility issues that prevented the application from running after a clean Docker rebuild. All major functionality has been restored.
+## 🎉 Highlights
 
-## 🔧 Critical Fixes
+This release represents a massive improvement in code quality, maintainability, and user experience. We've reduced the codebase by over 7,600 lines while improving functionality and fixing critical bugs.
 
-### 🐛 Express 5 Compatibility Issues - FIXED
-- **Problem**: Container restart loops after clean rebuild
-- **Solution**: Downgraded Express from 5.1.0 to 4.21.2
-- **Impact**: Backend and webserver containers now start successfully
+### Key Achievements
+- **83% code reduction** in AuditLog components through modularization
+- **~2,000 lines of dead code** eliminated
+- **16 unused components** removed
+- **Better organized** component structure with logical folders
 
-### ⚛️ React 19 Compatibility - RESOLVED
-- **Problem**: Drag-and-drop backup restore completely broken
-- **Solution**: Migrated to React 18+ createRoot API
-- **Impact**: Full backup/restore functionality restored
+## 🚀 What's New
 
-### 🗄️ Guacamole Database Authentication - FIXED
-- **Problem**: Remote Desktop connections failing with HTTP 500
-- **Solution**: Reset PostgreSQL database with correct credentials
-- **Impact**: Remote Desktop fully operational
+### Complete AuditLog Modularization
+The monolithic AuditLog component (2,800+ lines) has been split into 8 focused, maintainable modules:
+- `AuditLogActions.js` - Action icons and formatting utilities
+- `AuditLogFilters.js` - Advanced filtering interface
+- `AuditLogRestore.js` - Restore functionality logic
+- `AuditLogDetailRenderer.js` - Detail view rendering
+- `AuditLogStats.js` - Statistics display cards
+- `AuditLogExport.js` - Export functionality
+- `AuditLogPanel.js` - Main orchestrator (reduced by 64%)
+- `AuditLogTableMUI.js` - Table component (reduced by 83%)
 
-### 🛠️ Build Script Compatibility - FIXED
-- **Problem**: sync-compose.sh failing with GNU sed
-- **Solution**: Updated sed commands for cross-platform compatibility
-- **Impact**: Production builds now working
+### Frontend Component Organization
+All components are now organized into logical folders with proper separation of concerns:
+- `components/Appliances/` - 19 appliance-related components
+- `components/SettingsPanel/` - 11 settings-related components
+- `components/Hosts/` - Host management components
+- Named exports via index.js for cleaner imports
 
-## 📦 Dependencies
+## 🐛 Bug Fixes
 
-### Changed
-- Express: `5.1.0` → `4.21.2` (downgrade for stability)
-- React: `19.1.1` (compatibility issues fixed)
-- Node.js: `18+` minimum requirement
+### Critical Fixes
+- **Panel Resize Bug** - Fixed issue where AuditLog panel could only be moved 2-3 pixels
+- **Dark Mode Tables** - Text now properly visible in modal/dialog contexts
+- **Restore Buttons** - Now appear correctly for all restorable actions
+- **Docker Volume** - Changed from read-only to writable for proper frontend updates
 
-## 🧹 Repository Cleanup
-- Removed all temporary debug files
-- Cleaned up `temp-fix/` directory
-- Removed `backend/debug-routes.js`
-- Repository is now production-ready
+### UI/UX Improvements
+- Smooth panel resizing between 400-1200px width
+- LocalStorage persistence for panel positions
+- Consistent camelCase naming throughout frontend
+- Better dark mode support with increased CSS specificity
 
-## 📊 Version Information
-- **Project Version**: 1.1.3
-- **Express**: 4.21.2
-- **React**: 19.1.1
-- **Node.js**: 18+ (minimum)
-- **Docker**: Ready
+## 🧹 Code Cleanup
 
-## 🚀 Quick Start
+### Removed Components
+- Eliminated 16 unused components and CSS files
+- Removed obsolete backend routes (backupEnhanced, browser, roles, statusCheck)
+- Cleaned up never-used dialog code from AuditLogTableMUI
+- Deleted redundant CSS files and duplicate styles
 
-For new installations:
+### Structure Improvements
+- Components now colocated with their CSS files
+- Clear separation of concerns with single responsibility
+- Better maintainability with ~200 line focused modules (down from 1400+)
+- Improved testing possibilities with isolated modules
+
+## 📊 Statistics
+
+- **Total files changed:** 120
+- **Lines added:** 5,079
+- **Lines removed:** 12,730
+- **Net reduction:** 7,651 lines
+- **Code quality:** Significantly improved
+- **Maintainability:** Drastically enhanced
+
+## 📚 Documentation Updates
+
+- Updated README with version 1.1.5 features
+- Removed outdated Configuration and Performance sections
+- Added RustDesk to acknowledgments
+- Updated CHANGELOG with complete release details
+- Cleaned up documentation for better clarity
+
+## 🔧 Technical Improvements
+
+- Better code-splitting possibilities with modular structure
+- Improved build configuration
+- Added utility scripts for code analysis
+- Enhanced development workflow with writable Docker volumes
+
+## 💡 Migration Notes
+
+This release contains significant structural changes but maintains full backward compatibility. No migration steps are required. Simply pull the latest version and restart your containers:
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/alflewerken/web-appliance-dashboard/main/install.sh | bash
-```
-
-For existing installations experiencing issues:
-```bash
-# Pull latest changes
 git pull
-
-# Rebuild with no cache
-./scripts/build.sh --nocache
-
-# Or use quick refresh
-./scripts/build.sh --refresh
+docker compose down
+docker compose up -d
 ```
-
-## 💡 Notes
-
-This release focuses entirely on stability and compatibility. No new features were added. If you experienced container restart loops or drag-and-drop issues after rebuilding, this update will resolve those problems.
 
 ## 🙏 Acknowledgments
 
-Thanks to the community for patience while these critical issues were resolved. The project is now more stable and maintainable with Express 4.x.
+Special thanks to all the open-source projects that make this possible:
+- React.js for the UI framework
+- Express.js for the backend
+- Apache Guacamole for remote desktop functionality
+- RustDesk for remote access capabilities
+- ttyd for web terminal support
+
+## 📝 Commit History
+
+- `4f92147` - refactor: Complete AuditLog modularization and panel resize fix
+- `410734d` - refactor: Major frontend reorganization and dead code removal
+- `4f55dc7` - fix: Dark mode text visibility and CSS improvements
+- `2948e78` - docs: Update documentation for v1.1.5
+- `0153d14` - chore: Update build configurations and scripts
+- `c4de5f0` - cleanup: Remove relocated component files
+
+## 🚀 What's Next
+
+- Further performance optimizations
+- Additional component modularization
+- Enhanced testing coverage
+- Improved documentation
 
 ---
 
-**Full Changelog**: [v1.1.2...v1.1.3](https://github.com/alflewerken/web-appliance-dashboard/compare/v1.1.2...v1.1.3)
+**Full Changelog:** https://github.com/alflewerken/web-appliance-dashboard/compare/v1.1.4...v1.1.5
+
+**Download:** https://github.com/alflewerken/web-appliance-dashboard/releases/tag/v1.1.5
