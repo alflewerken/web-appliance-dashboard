@@ -7,6 +7,7 @@ const { requireAdmin } = require('../utils/auth');
 const { broadcast } = require('./sse');
 const { logger } = require('../utils/logger');
 const { Parser } = require('json2csv');
+const { createAuditLog } = require('../utils/auditLogger');
 const {
   mapAuditLogDbToJs,
   mapAuditLogJsToDb,
@@ -129,11 +130,23 @@ router.get('/', requireAdmin, async (req, res) => {
     }
     
     // Map logs to camelCase format
-    const mappedLogs = logs.map(log => ({
-      ...mapAuditLogDbToJs(log),
-      username: log.username, // Add username from JOIN
-      actionDisplay: getActionDisplayName(log.action)
-    }));
+    const mappedLogs = logs.map(log => {
+      const mapped = {
+        ...mapAuditLogDbToJs(log),
+        username: log.username, // Add username from JOIN
+        actionDisplay: getActionDisplayName(log.action)
+      };
+      
+      // Debug: Check action mapping for update events
+      if (log.action && log.action.includes('update')) {
+        console.log('[AUDIT_LOGS] Update action mapping:');
+        console.log('  - Original DB action:', log.action);
+        console.log('  - Mapped action:', mapped.action);
+        console.log('  - Details preview:', JSON.stringify(mapped.details).substring(0, 100));
+      }
+      
+      return mapped;
+    });
     
     // Debug: Check first mapped log for IP
     if (mappedLogs.length > 0) {
@@ -353,6 +366,71 @@ router.delete('/delete', requireAdmin, async (req, res) => {
     await connection.rollback();
     logger.error('Error deleting audit logs:', error);
     res.status(500).json({ error: 'Failed to delete audit logs' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Delete specific filtered audit logs
+router.delete('/delete-filtered', requireAdmin, async (req, res) => {
+  const { logIds } = req.body;
+  
+  if (!logIds || !Array.isArray(logIds) || logIds.length === 0) {
+    return res.status(400).json({ error: 'No log IDs provided' });
+  }
+  
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Create placeholders for SQL query
+    const placeholders = logIds.map(() => '?').join(',');
+    
+    // Delete the specified audit logs
+    const [result] = await connection.execute(
+      `DELETE FROM audit_logs WHERE id IN (${placeholders})`,
+      logIds
+    );
+    
+    await connection.commit();
+    
+    // Log this administrative action
+    logger.info(`Admin ${req.user.username} deleted ${result.affectedRows} filtered audit log entries`);
+    
+    // Create audit log for this deletion
+    await createAuditLog(
+      req.user.id,
+      'audit_logs_delete',
+      'audit_logs',
+      null,
+      {
+        deleted_count: result.affectedRows,
+        deleted_ids: logIds.slice(0, 10), // Log first 10 IDs for reference
+        total_ids: logIds.length,
+        deleted_by: req.user.username,
+        timestamp: new Date().toISOString(),
+      },
+      req.ip || req.connection.remoteAddress,
+      `${result.affectedRows} Einträge`
+    );
+    
+    // Broadcast the deletion event
+    broadcast('audit_logs_deleted', {
+      count: result.affectedRows,
+      deletedBy: req.user.username
+    });
+    
+    res.json({ 
+      success: true, 
+      deletedCount: result.affectedRows,
+      message: `${result.affectedRows} audit log entries deleted successfully`
+    });
+    
+  } catch (error) {
+    await connection.rollback();
+    logger.error('Error deleting filtered audit logs:', error);
+    res.status(500).json({ error: 'Failed to delete filtered audit logs' });
   } finally {
     connection.release();
   }

@@ -1,0 +1,42 @@
+/* GLASSMORPHISM FIX für Audit Log Tabellen-Card */
+/* Maximale Spezifität mit mehrfachen Selektoren */
+
+/* Dark Mode - Glassmorphism mit hellem Schimmer */
+html body.theme-dark div.audit-log-panel div.audit-log-table-card.MuiCard-root.MuiPaper-root {
+  background: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(10px) saturate(100%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Light Mode - Glassmorphism mit weißem Schimmer */
+html body.theme-light div.audit-log-panel div.audit-log-table-card.MuiCard-root.MuiPaper-root {
+  background: rgba(255, 255, 255, 0.95) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) saturate(100%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(100%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Sicherstellen, dass ALLE MUI-internen Styles überschrieben werden */
+html body div.audit-log-table-card.MuiPaper-root {
+  background-image: none !important;
+}
+
+/* Forciere transparent Background für innere Elemente */
+html body div.audit-log-table-card .MuiCardContent-root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+html body div.audit-log-table-card .MuiTableContainer-root {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}

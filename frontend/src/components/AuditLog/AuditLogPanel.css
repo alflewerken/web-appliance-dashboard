@@ -1,0 +1,109 @@
+/* ========================================
+   AUDIT LOG PANEL STYLES
+   Glassmorphism effects and theme consistency
+   ======================================== */
+
+/* Hauptcontainer Glassmorphism - wird jetzt über sx-Props in der JS-Datei gesetzt */
+/* Die CSS-Klasse bleibt auskommentiert um Konflikte zu vermeiden */
+/*
+.audit-log-panel {
+  background: rgba(118, 118, 128, 0.12) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: -20px 0 50px rgba(0, 0, 0, 0.5) !important;
+}
+*/
+
+/* FORCIERE Tabellen-Card Styles mit maximaler Spezifität */
+.audit-log-table-card,
+.audit-log-table-card.MuiCard-root,
+.audit-log-table-card.MuiPaper-root,
+.audit-log-panel .audit-log-table-card,
+body.theme-dark .audit-log-table-card {
+  /* Dark mode: Subtiler heller Glanz auf dunklem Grund */
+  background: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(10px) saturate(100%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Light mode overrides */
+body.theme-light .audit-log-table-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Table Container MUSS transparent sein */
+.audit-log-panel .MuiTableContainer-root {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Table selbst auch transparent */
+.audit-log-panel .MuiTable-root {
+  background: transparent !important;
+}
+
+/* CardContent transparent */
+.audit-log-panel .MuiCardContent-root {
+  background: transparent !important;
+}
+
+/* Table Header mit subtilem Hintergrund */
+.audit-log-panel .MuiTableHead-root .MuiTableRow-root {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Table Body transparent mit Hover */
+.audit-log-panel .MuiTableBody-root .MuiTableRow-root {
+  background: transparent !important;
+}
+
+.audit-log-panel .MuiTableBody-root .MuiTableRow-root:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ========================================
+   RESIZE BEHAVIOR STYLES
+   Prevent text selection during panel resize
+   ======================================== */
+
+/* When resizing is active, prevent all text selection */
+body.resizing-panel {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  cursor: ew-resize !important;
+}
+
+/* Prevent text selection on all elements during resize */
+body.resizing-panel * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  pointer-events: none !important;
+}
+
+/* Keep resize handle interactive */
+body.resizing-panel .resize-handle {
+  pointer-events: auto !important;
+}
+
+/* Smooth resize handle visual feedback */
+.resize-handle {
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background-color: var(--primary-color, #007AFF) !important;
+  opacity: 0.5 !important;
+}

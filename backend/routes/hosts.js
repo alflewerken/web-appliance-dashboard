@@ -421,13 +421,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
       }
     }
 
-    // Create audit log with only changed fields
+    // Create audit log with changed fields in correct format
     const auditChanges = {};
+    const auditOldValues = {};
     changedFields.forEach(field => {
-      auditChanges[field] = {
-        old: existingHost[field],
-        new: updatedHost[field]
-      };
+      auditOldValues[field] = existingHost[field];
+      auditChanges[field] = updatedHost[field];
     });
 
     await createAuditLog(
@@ -436,10 +435,11 @@ router.patch('/:id', verifyToken, async (req, res) => {
       'hosts',
       hostId,
       {
-        host_name: existingHost.name,
+        hostName: existingHost.name,
         changes: auditChanges,
-        fields_updated: changedFields,
-        updated_by: req.user.username
+        oldValues: auditOldValues,
+        fieldsUpdated: changedFields,
+        updatedBy: req.user.username
       },
       getClientIp(req),
       updatedHost.name
@@ -581,15 +581,31 @@ router.put('/:id', verifyToken, async (req, res) => {
       }
     }
 
-    // Create audit log
+    // Create audit log with changes in correct format
+    const auditChanges = {};
+    const auditOldValues = {};
+    
+    // Compare old and new values to find what changed
+    Object.keys(updateData).forEach(field => {
+      if (field !== 'updatedAt' && field !== 'updatedBy') {
+        if (existingHost[field] !== updatedHost[field]) {
+          auditOldValues[field] = existingHost[field];
+          auditChanges[field] = updatedHost[field];
+        }
+      }
+    });
+
     await createAuditLog(
       req.user.id,
       'host_update',
       'hosts',
       hostId,
       {
-        old_data: existingHost,
-        new_data: updatedHost
+        hostName: existingHost.name,
+        changes: auditChanges,
+        oldValues: auditOldValues,
+        fieldsUpdated: Object.keys(auditChanges),
+        updatedBy: req.user.username
       },
       getClientIp(req),
       updatedHost.name

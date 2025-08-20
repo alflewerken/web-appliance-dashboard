@@ -19,6 +19,76 @@ const AUDIT_LOG_DB_COLUMNS = {
 };
 
 /**
+ * Convert snake_case action names to camelCase
+ */
+function actionToCamelCase(action) {
+  if (!action) return action;
+  
+  // Map of snake_case actions to camelCase
+  const actionMap = {
+    'host_create': 'hostCreate',
+    'host_created': 'hostCreated',
+    'host_update': 'hostUpdate',
+    'host_updated': 'hostUpdated',
+    'host_delete': 'hostDelete',
+    'host_deleted': 'hostDeleted',
+    'host_restore': 'hostRestore',
+    'host_restored': 'hostRestored',
+    'ssh_key_registered': 'sshKeyRegistered',
+    'remote_desktop_access': 'remoteDesktopAccess',
+    'service_create': 'serviceCreate',
+    'service_update': 'serviceUpdate',
+    'service_delete': 'serviceDelete',
+    'service_restore': 'serviceRestore',
+    'user_login': 'userLogin',
+    'user_logout': 'userLogout',
+    'backup_create': 'backupCreate',
+    'backup_restore': 'backupRestore',
+    'settings_update': 'settingsUpdate',
+    'category_create': 'categoryCreate',
+    'category_update': 'categoryUpdate',
+    'category_delete': 'categoryDelete',
+  };
+  
+  return actionMap[action] || action;
+}
+
+/**
+ * Convert camelCase action names to snake_case for database
+ */
+function actionToSnakeCase(action) {
+  if (!action) return action;
+  
+  // Map of camelCase actions to snake_case
+  const actionMap = {
+    'hostCreate': 'host_create',
+    'hostCreated': 'host_created',
+    'hostUpdate': 'host_update',
+    'hostUpdated': 'host_updated',
+    'hostDelete': 'host_delete',
+    'hostDeleted': 'host_deleted',
+    'hostRestore': 'host_restore',
+    'hostRestored': 'host_restored',
+    'sshKeyRegistered': 'ssh_key_registered',
+    'remoteDesktopAccess': 'remote_desktop_access',
+    'serviceCreate': 'service_create',
+    'serviceUpdate': 'service_update',
+    'serviceDelete': 'service_delete',
+    'serviceRestore': 'service_restore',
+    'userLogin': 'user_login',
+    'userLogout': 'user_logout',
+    'backupCreate': 'backup_create',
+    'backupRestore': 'backup_restore',
+    'settingsUpdate': 'settings_update',
+    'categoryCreate': 'category_create',
+    'categoryUpdate': 'category_update',
+    'categoryDelete': 'category_delete',
+  };
+  
+  return actionMap[action] || action;
+}
+
+/**
  * Map database row to JavaScript object for audit logs
  */
 function mapAuditLogDbToJs(row) {
@@ -64,7 +134,7 @@ function mapAuditLogDbToJs(row) {
     id: row.id,
     userId: row.user_id,
     username: row.username,
-    action: row.action,
+    action: actionToCamelCase(row.action),  // Convert to camelCase
     resourceType: row.resource_type,
     resourceId: row.resource_id,
     resourceName: row.resource_name,
@@ -87,7 +157,7 @@ function mapAuditLogJsToDb(jsObj) {
   // Map each field if it exists
   if (jsObj.userId !== undefined) dbObj.user_id = jsObj.userId;
   if (jsObj.username !== undefined) dbObj.username = jsObj.username;
-  if (jsObj.action !== undefined) dbObj.action = jsObj.action;
+  if (jsObj.action !== undefined) dbObj.action = actionToSnakeCase(jsObj.action);  // Convert to snake_case
   if (jsObj.resourceType !== undefined) dbObj.resource_type = jsObj.resourceType;
   if (jsObj.resourceId !== undefined) dbObj.resource_id = jsObj.resourceId;
   if (jsObj.resourceName !== undefined) dbObj.resource_name = jsObj.resourceName;
@@ -153,4 +223,6 @@ module.exports = {
   mapAuditLogJsToDb,
   getAuditLogSelectColumns,
   getActionDisplayName,
+  actionToCamelCase,
+  actionToSnakeCase,
 };
