@@ -90,42 +90,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved click handling for nested interactive elements
   - Better state management for expanded rows
 
+- **Build Errors** - Fixed critical syntax error in AuditLogRestore.js
+  - Removed duplicate code and malformed ternary operator
+  - Fixed webpack build failure in GitHub Actions
+  - Cleaned up merge conflict artifacts
+
 ### Updated
 - **Dependencies** - Security and feature updates
-  - express updated in backend (production group)
   - docker/build-push-action upgraded from v5 to v6
   - lucide-react updated from 0.539.0 to 0.540.0
-
-## [1.1.6] - 2025-08-21
-
-### Added
-- **Enhanced Audit Log System** - Complete restoration and tracking capabilities
-  - Original data preservation for all modifications enabling reliable rollback
-  - Resource name tracking for improved audit trail readability
-  - Flexible user restoration with custom email/username options
-  - Automatic Guacamole connection sync for remote desktop configurations
-
-- **Real-time Synchronization** - Multi-session live updates via SSE
-  - Service status changes broadcast to all connected clients
-  - Host modifications synchronized across browser sessions
-  - Immediate reflection of appliance changes
-  - Unified event system for consistent state across users
-
-### Improved
-- **Audit Log User Experience** - Enhanced interface and functionality
-  - Comprehensive detail renderer with all relevant fields
-  - Responsive chip layouts for mobile devices
-  - Color-coded action badges for better visual scanning
-  - Alphabetically sorted action filters in German
-  - Better error messages with actionable guidance
-
-### Fixed
-- **Restoration Reliability** - Multiple critical fixes
-  - Appliance/service restore with proper field mapping
-  - Guacamole passwords correctly handled during restore
-  - Background images preserved in audit logs
-  - UI stability for detail panel interactions
-  - Host revert route 404 error resolved
+  - **IMPORTANT:** Express kept at 4.21.2 (reverted from 5.1.0 due to breaking changes)
 
 ## [1.1.5] - 2025-08-20
 
