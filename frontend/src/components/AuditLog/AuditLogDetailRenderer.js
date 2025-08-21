@@ -54,6 +54,162 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
 
   // Render different views based on action type
   const renderContent = () => {
+    // For host revert actions - show clean details
+    if (log.action === 'host_reverted' || log.action === 'hostReverted' || 
+        log.action === 'host_revert' || log.action === 'hostRevert') {
+      const name = details.name || details.resourceName || '-';
+      const revertedLogId = details.reverted_audit_log_id || details.revertedAuditLogId || '-';
+      const revertedBy = details.reverted_by || details.revertedBy || '-';
+      
+      // Parse reverted_changes and restored_values if they are strings
+      let revertedChanges = details.reverted_changes || details.revertedChanges || {};
+      let restoredValues = details.restored_values || details.restoredValues || {};
+      
+      if (typeof revertedChanges === 'string') {
+        try {
+          revertedChanges = JSON.parse(revertedChanges);
+        } catch (e) {
+          console.error('Error parsing reverted_changes:', e);
+        }
+      }
+      
+      if (typeof restoredValues === 'string') {
+        try {
+          restoredValues = JSON.parse(restoredValues);
+        } catch (e) {
+          console.error('Error parsing restored_values:', e);
+        }
+      }
+
+      return (
+        <Box>
+          <Typography variant="subtitle2" gutterBottom sx={{ 
+            mb: 2, 
+            color: isDarkMode 
+              ? 'rgba(255, 255, 255, 0.87)' 
+              : 'rgba(0, 0, 0, 0.87)' 
+          }}>
+            Wiederhergestellte Host-Details:
+          </Typography>
+          <Box sx={{
+            '& table': {
+              borderCollapse: 'collapse',
+              width: '100%',
+            },
+            '& td': {
+              padding: '8px 12px',
+              borderBottom: `1px solid ${isDarkMode 
+                ? 'rgba(255, 255, 255, 0.08)' 
+                : 'rgba(0, 0, 0, 0.08)'}`,
+            },
+            '& tr:last-child td': {
+              borderBottom: 'none',
+            },
+            '& td:first-of-type': {
+              fontWeight: 500,
+              color: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.6)' 
+                : 'rgba(0, 0, 0, 0.6)',
+              width: '30%',
+              minWidth: '120px',
+            },
+          }}>
+            <table>
+              <tbody>
+                <tr>
+                  <td>Host-Name:</td>
+                  <td>{name}</td>
+                </tr>
+                <tr>
+                  <td>Wiederhergestellt von Log-ID:</td>
+                  <td>{revertedLogId}</td>
+                </tr>
+                <tr>
+                  <td>Wiederhergestellt von:</td>
+                  <td>{revertedBy}</td>
+                </tr>
+              </tbody>
+            </table>
+          </Box>
+          
+          {Object.keys(revertedChanges).length > 0 && (
+            <>
+              <Typography variant="subtitle2" sx={{ 
+                mt: 3,
+                mb: 2, 
+                color: isDarkMode 
+                  ? 'rgba(255, 255, 255, 0.87)' 
+                  : 'rgba(0, 0, 0, 0.87)' 
+              }}>
+                Rückgängig gemachte Änderungen:
+              </Typography>
+              <Box sx={{
+                '& table': {
+                  borderCollapse: 'collapse',
+                  width: '100%',
+                },
+                '& td': {
+                  padding: '8px 12px',
+                  borderBottom: `1px solid ${isDarkMode 
+                    ? 'rgba(255, 255, 255, 0.08)' 
+                    : 'rgba(0, 0, 0, 0.08)'}`,
+                },
+                '& tr:last-child td': {
+                  borderBottom: 'none',
+                },
+              }}>
+                <table>
+                  <tbody>
+                    {Object.entries(revertedChanges).map(([field, value]) => {
+                      const formattedField = field
+                        .replace(/_/g, ' ')
+                        .replace(/([A-Z])/g, ' $1')
+                        .trim()
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(' ');
+                      
+                      const oldValue = restoredValues[field];
+                      
+                      return (
+                        <tr key={field}>
+                          <td style={{
+                            fontWeight: 500,
+                            color: isDarkMode 
+                              ? 'rgba(255, 255, 255, 0.6)' 
+                              : 'rgba(0, 0, 0, 0.6)',
+                            width: '30%',
+                          }}>{formattedField}:</td>
+                          <td>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              <Chip 
+                                label={value || '-'} 
+                                size="small" 
+                                variant="outlined"
+                                color="error"
+                                sx={{ textDecoration: 'line-through' }}
+                              />
+                              <Typography variant="caption">→</Typography>
+                              <Chip 
+                                label={oldValue || '-'} 
+                                size="small" 
+                                variant="outlined"
+                                color="success"
+                              />
+                            </Stack>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Box>
+            </>
+          )}
+        </Box>
+      );
+    }
+
     // For host update actions - show before/after comparison
     if (log.action === 'host_update' || log.action === 'host_updated' || 
         log.action === 'hostUpdate' || log.action === 'hostUpdated') {
@@ -281,6 +437,103 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
             {Object.entries(details).map(([key, value]) => {
               if (key === 'password' || key.includes('secret')) return null;
               
+              // Special handling for restored_items or restoredItems
+              if ((key === 'restored_items' || key === 'restoredItems') && typeof value === 'object' && value !== null) {
+                // Return a special component for restored items
+                return (
+                  <tr key={key}>
+                    <td colSpan={2} style={{ padding: 0 }}>
+                      <Box sx={{ p: 1 }}>
+                        <Typography variant="subtitle2" sx={{ 
+                          mb: 1,
+                          fontWeight: 500,
+                          color: isDarkMode 
+                            ? 'rgba(255, 255, 255, 0.6)' 
+                            : 'rgba(0, 0, 0, 0.6)',
+                        }}>
+                          Restored Items:
+                        </Typography>
+                        <Box sx={{
+                          ml: 2,
+                          p: 1,
+                          backgroundColor: isDarkMode
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : 'rgba(0, 0, 0, 0.03)',
+                          borderRadius: 1,
+                          border: `1px solid ${isDarkMode 
+                            ? 'rgba(255, 255, 255, 0.08)' 
+                            : 'rgba(0, 0, 0, 0.08)'}`,
+                        }}>
+                          <Stack spacing={0.5}>
+                            {Object.entries(value)
+                              .filter(([_, count]) => count > 0)
+                              .map(([itemKey, count]) => {
+                                const formattedItemKey = itemKey
+                                  .replace(/_/g, ' ')
+                                  .split(' ')
+                                  .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                  .join(' ');
+                                return (
+                                  <Box key={itemKey} sx={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    py: 0.5,
+                                    px: 1,
+                                    '&:hover': {
+                                      backgroundColor: isDarkMode
+                                        ? 'rgba(255, 255, 255, 0.05)'
+                                        : 'rgba(0, 0, 0, 0.05)',
+                                      borderRadius: 0.5,
+                                    }
+                                  }}>
+                                    <Typography variant="body2" sx={{ 
+                                      color: isDarkMode 
+                                        ? 'rgba(255, 255, 255, 0.7)' 
+                                        : 'rgba(0, 0, 0, 0.7)' 
+                                    }}>
+                                      {formattedItemKey}
+                                    </Typography>
+                                    <Chip 
+                                      label={count} 
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: isDarkMode
+                                          ? 'rgba(100, 200, 255, 0.2)'
+                                          : 'rgba(0, 150, 255, 0.1)',
+                                        color: isDarkMode 
+                                          ? '#64b5f6' 
+                                          : '#1976d2',
+                                        fontWeight: 600,
+                                        minWidth: '40px',
+                                      }}
+                                    />
+                                  </Box>
+                                );
+                              })}
+                            {Object.values(value).every(count => count === 0) && (
+                              <Typography variant="body2" sx={{ 
+                                color: isDarkMode 
+                                  ? 'rgba(255, 255, 255, 0.5)' 
+                                  : 'rgba(0, 0, 0, 0.5)',
+                                fontStyle: 'italic',
+                              }}>
+                                Keine Elemente wiederhergestellt
+                              </Typography>
+                            )}
+                          </Stack>
+                        </Box>
+                      </Box>
+                    </td>
+                  </tr>
+                );
+              }
+              
+              // Skip rendering if this was handled above
+              if (key === 'restored_items' || key === 'restoredItems') {
+                return null;
+              }
+              
               // Format the key to be more readable
               const formattedKey = key
                 .replace(/_/g, ' ')
@@ -292,7 +545,27 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
               
               // Format the value
               let formattedValue = value;
-              if (typeof value === 'object' && value !== null) {
+              
+              // Special handling for restored_items or restoredItems
+              if ((key === 'restored_items' || key === 'restoredItems') && typeof value === 'object' && value !== null) {
+                // Create a formatted list of restored items
+                const items = Object.entries(value)
+                  .filter(([_, count]) => count > 0)
+                  .map(([itemKey, count]) => {
+                    const formattedItemKey = itemKey
+                      .replace(/_/g, ' ')
+                      .split(' ')
+                      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                      .join(' ');
+                    return `${formattedItemKey}: ${count}`;
+                  });
+                
+                if (items.length > 0) {
+                  formattedValue = items.join(', ');
+                } else {
+                  formattedValue = 'Keine Elemente wiederhergestellt';
+                }
+              } else if (typeof value === 'object' && value !== null) {
                 formattedValue = JSON.stringify(value, null, 2);
               } else if (value === null || value === undefined) {
                 formattedValue = '-';
