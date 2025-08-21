@@ -14,7 +14,7 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { FileDown, FileText, File, Activity, FileCode, ChevronUp, ChevronDown } from 'lucide-react';
+import { FileDown, FileText, File, Activity, FileCode, ChevronUp, ChevronDown, FileJson } from 'lucide-react';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import axios from '../../utils/axiosConfig';
 import AuditLogTableMUI from './AuditLogTableMUI';
@@ -27,7 +27,7 @@ import {
   deleteFilteredAuditLogs,
   exportForPrint 
 } from './AuditLogExport';
-import { criticalActions } from './AuditLogActions';
+import { criticalActions, getActionColor } from './AuditLogActions';
 import './AuditLogPanel.css';
 import './AuditLogTableCardFix.css';
 
@@ -299,6 +299,164 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     setShowExportOptions(!showExportOptions);
   };
 
+  // CSV Export handler
+  const handleCsvExport = async () => {
+    try {
+      await exportAuditLogs({
+        selectedAction,
+        selectedUser,
+        selectedResourceType,
+        dateRange,
+        customStartDate,
+        customEndDate,
+      });
+      setShowExportOptions(false);
+    } catch (error) {
+      console.error('Error exporting audit logs:', error);
+      setError('Fehler beim CSV-Export der Logs');
+    }
+  };
+
+  // JSON Export handler
+  const handleJsonExport = async () => {
+    try {
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        filters: {
+          action: selectedAction,
+          user: selectedUser,
+          resourceType: selectedResourceType,
+          dateRange: dateRange,
+          customStartDate: customStartDate,
+          customEndDate: customEndDate,
+          criticalOnly: showCriticalOnly
+        },
+        stats: stats,
+        logs: filteredLogs
+      };
+      
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setShowExportOptions(false);
+    } catch (error) {
+      console.error('Error exporting logs as JSON:', error);
+      setError('Fehler beim JSON-Export der Logs');
+    }
+  };
+
+  // Helper function to format values for Markdown
+  const formatValueForMarkdown = (value) => {
+    if (typeof value === 'boolean') {
+      return value ? '✓ Ja' : '✗ Nein';
+    } else if (Array.isArray(value)) {
+      // Spezielle Behandlung für File-Arrays
+      if (value[0]?.name && value[0]?.bytes) {
+        return value.map(file => 
+          `\n  - **${file.name}** (${(file.bytes / 1048576).toFixed(2)} MB)`
+        ).join('');
+      }
+      // Normale Arrays
+      return value.map(item => `\n  - ${item}`).join('');
+    } else if (typeof value === 'object' && value !== null) {
+      // Spezielle Behandlung für restored_items
+      if (value.appliances !== undefined || value.hosts !== undefined) {
+        return Object.entries(value)
+          .filter(([_, count]) => count > 0)
+          .map(([key, count]) => `\n  - **${key}**: ${count}`)
+          .join('');
+      }
+      // Andere Objekte als Tabelle
+      return '\n' + Object.entries(value)
+        .map(([k, v]) => `  - **${k}**: ${v}`)
+        .join('\n');
+    } else if (value === null || value === undefined) {
+      return '-';
+    }
+    return String(value);
+  };
+
+  // Markdown Export handler
+  const handleMarkdownExport = async () => {
+    try {
+      let markdown = '# Audit Log Report\n\n';
+      markdown += `**Erstellt am:** ${new Date().toLocaleString('de-DE')}\n\n`;
+      markdown += `**Anzahl Einträge:** ${filteredLogs.length}\n\n`;
+      
+      // Filter-Info
+      markdown += '## Aktive Filter\n\n';
+      if (selectedAction !== 'all') markdown += `- **Aktion:** ${selectedAction}\n`;
+      if (selectedUser !== 'all') markdown += `- **Benutzer:** ${selectedUser}\n`;
+      if (selectedResourceType !== 'all') markdown += `- **Ressource:** ${selectedResourceType}\n`;
+      if (dateRange !== 'all') markdown += `- **Zeitraum:** ${dateRange}\n`;
+      if (showCriticalOnly) markdown += `- **Nur kritische Einträge**\n`;
+      markdown += '\n---\n\n';
+      
+      // Log-Einträge
+      markdown += '## Log-Einträge\n\n';
+      
+      filteredLogs.forEach((log, index) => {
+        markdown += `### ${index + 1}. ${log.action} - ${log.resourceName || log.resourceType || '-'}\n\n`;
+        markdown += `**Zeit:** ${new Date(log.createdAt).toLocaleString('de-DE')}\n`;
+        markdown += `**Benutzer:** ${log.username || 'System'}\n`;
+        markdown += `**IP-Adresse:** ${log.ipAddress || '-'}\n`;
+        
+        if (log.details) {
+          markdown += '\n**Details:**\n';
+          const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+          Object.entries(details).forEach(([key, value]) => {
+            markdown += `- **${key}:** ${formatValueForMarkdown(value)}\n`;
+          });
+        }
+        
+        markdown += '\n---\n\n';
+      });
+      
+      // Download der .md Datei
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.md`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setShowExportOptions(false);
+    } catch (error) {
+      console.error('Error exporting logs as Markdown:', error);
+      setError('Fehler beim Markdown-Export der Logs');
+    }
+  };
+
+  // PDF Export handler
+  const handlePdfExport = () => {
+    exportForPrint(filteredLogs);
+    setShowExportOptions(false);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Möchten Sie die gefilterten Audit-Logs wirklich löschen?')) {
+      return;
+    }
+
+    try {
+      const logIds = filteredLogs.map(log => log.id);
+      await deleteFilteredAuditLogs(logIds);
+      fetchAuditLogs(); // Refresh after deletion
+    } catch (error) {
+      console.error('Error deleting audit logs:', error);
+    }
+  };
+
   const uniqueUsers = [...new Set(logs.map(log => log.username || 'System'))];
   const uniqueActions = [...new Set(logs.map(log => log.action))];
   const uniqueResourceTypes = [...new Set(logs.map(log => log.resourceType))].filter(Boolean);
@@ -419,12 +577,112 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                 onShowCriticalOnlyChange={setShowCriticalOnly}
                 onRefresh={fetchAuditLogs}
                 onExport={handleExport}
-                onDelete={null}
+                onDelete={handleDelete}
                 uniqueUsers={uniqueUsers}
                 uniqueActions={uniqueActions}
                 uniqueResourceTypes={uniqueResourceTypes}
                 cardStyles={cardStyles}
               />
+            </Collapse>
+
+            {/* Export Options Card */}
+            <Collapse in={showExportOptions}>
+              <Box sx={{ px: 2, pb: 1 }}>
+                <Card sx={{ 
+                  ...cardStyles, 
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(59, 130, 246, 0.1)' 
+                    : 'rgba(59, 130, 246, 0.05)',
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'}`,
+                }}>
+                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                    <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, textAlign: 'center' }}>
+                      Export-Format wählen
+                    </Typography>
+                    <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleJsonExport}
+                        startIcon={<FileJson size={16} />}
+                        sx={{
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(100, 200, 255, 0.2)'
+                            : 'rgba(0, 150, 255, 0.1)',
+                          color: theme.palette.mode === 'dark' ? '#64b5f6' : '#1976d2',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark'
+                              ? 'rgba(100, 200, 255, 0.3)'
+                              : 'rgba(0, 150, 255, 0.2)',
+                          },
+                        }}
+                      >
+                        JSON
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleCsvExport}
+                        startIcon={<FileText size={16} />}
+                        sx={{
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(100, 255, 150, 0.2)'
+                            : 'rgba(0, 200, 100, 0.1)',
+                          color: theme.palette.mode === 'dark' ? '#81c784' : '#4caf50',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark'
+                              ? 'rgba(100, 255, 150, 0.3)'
+                              : 'rgba(0, 200, 100, 0.2)',
+                          },
+                        }}
+                      >
+                        CSV
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handlePdfExport}
+                        startIcon={<File size={16} />}
+                        sx={{
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(255, 100, 100, 0.2)'
+                            : 'rgba(255, 0, 0, 0.1)',
+                          color: theme.palette.mode === 'dark' ? '#ef5350' : '#f44336',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark'
+                              ? 'rgba(255, 100, 100, 0.3)'
+                              : 'rgba(255, 0, 0, 0.2)',
+                          },
+                        }}
+                      >
+                        PDF
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleMarkdownExport}
+                        startIcon={<FileCode size={16} />}
+                        sx={{
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(150, 100, 255, 0.2)'
+                            : 'rgba(100, 0, 255, 0.1)',
+                          color: theme.palette.mode === 'dark' ? '#b39ddb' : '#6200ea',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark'
+                              ? 'rgba(150, 100, 255, 0.3)'
+                              : 'rgba(100, 0, 255, 0.2)',
+                          },
+                        }}
+                      >
+                        MD
+                      </Button>
+                    </Stack>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'text.secondary', textAlign: 'center' }}>
+                      {filteredLogs.length} Einträge werden exportiert
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Box>
             </Collapse>
 
             <Box sx={{ flex: 1, overflow: 'auto', p: 2, pt: 0 }}>
