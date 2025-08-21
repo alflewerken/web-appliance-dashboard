@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import RustDeskInstaller from '../RemoteDesktop/RustDeskInstaller';
 import RustDeskSetupDialog from '../RemoteDesktop/RustDeskSetupDialog';
+import sseService from '../../services/sseService';
 import {
   Box,
   Typography,
@@ -349,6 +350,114 @@ const ServicePanel = ({
       }
     };
   }, []);
+
+  // Subscribe to SSE events for real-time updates
+  useEffect(() => {
+    if (!appliance || appliance.isNew) return; // Only for existing appliances
+    
+    console.log('Setting up SSE listeners for appliance:', appliance.id, appliance.name);
+    
+    const handleApplianceUpdated = async (data) => {
+      console.log('SSE appliance_updated event received:', data);
+      
+      // Check if this appliance was updated - compare IDs as strings for type safety
+      if (data.id && String(data.id) === String(appliance.id)) {
+        console.log('This appliance was updated via SSE, reloading data...', { 
+          eventId: data.id, 
+          applianceId: appliance.id,
+          applianceName: data.name 
+        });
+        
+        try {
+          const response = await axios.get(`/api/appliances/${appliance.id}`);
+          if (response.data) {
+            const updatedAppliance = response.data;
+            const updatedData = {
+              name: updatedAppliance.name || '',
+              url: updatedAppliance.url || '',
+              description: updatedAppliance.description || '',
+              icon: updatedAppliance.icon || 'Server',
+              color: updatedAppliance.color || '#007AFF',
+              category: updatedAppliance.category || '',
+              sshConnection: updatedAppliance.sshConnection || '',
+              statusCommand: updatedAppliance.statusCommand || '',
+              startCommand: updatedAppliance.startCommand || '',
+              stopCommand: updatedAppliance.stopCommand || '',
+              isFavorite: updatedAppliance.isFavorite || false,
+              openModeMini: updatedAppliance.openModeMini || 'browser_tab',
+              openModeMobile: updatedAppliance.openModeMobile || 'browser_tab',
+              openModeDesktop: updatedAppliance.openModeDesktop || 'browser_tab',
+              remoteDesktopEnabled: updatedAppliance.remoteDesktopEnabled || false,
+              remoteDesktopType: updatedAppliance.remoteDesktopType || 'guacamole',
+              remoteProtocol: updatedAppliance.remoteProtocol || 'vnc',
+              remoteHost: updatedAppliance.remoteHost || extractHostFromUrl(updatedAppliance.url) || '',
+              remotePort: updatedAppliance.remotePort || null,
+              remoteUsername: updatedAppliance.remoteUsername || '',
+              remotePassword: '', // Password not returned from server
+              guacamolePerformanceMode: updatedAppliance.guacamolePerformanceMode || 'balanced',
+              rustdeskId: updatedAppliance.rustdeskId || '',
+              rustdeskPassword: '', // Password not returned from server
+              rustdeskInstalled: updatedAppliance.rustdeskInstalled || false,
+              transparency: updatedAppliance.transparency || 0.85,
+              blur: updatedAppliance.blur || 8,
+            };
+            
+            setFormData(updatedData);
+            setOriginalFormData(updatedData);
+            
+            // Update visual settings
+            const transparencyPercentage = Math.round(
+              (updatedAppliance.transparency || 0.85) * 100
+            );
+            setVisualSettings({
+              transparency: transparencyPercentage,
+              blur: updatedAppliance.blur || 8,
+            });
+            
+            setSuccess('Appliance wurde extern aktualisiert und neu geladen');
+          }
+        } catch (error) {
+          console.error('Error reloading appliance data:', error);
+          setError('Fehler beim Neuladen der Appliance-Daten');
+        }
+      }
+    };
+    
+    const handleApplianceDeleted = (data) => {
+      console.log('SSE appliance_deleted event received:', data);
+      
+      // Check if this appliance was deleted
+      if (data.id && String(data.id) === String(appliance.id)) {
+        console.log('This appliance was deleted externally, closing panel...');
+        setError('Appliance wurde extern gelöscht');
+        setTimeout(() => {
+          if (onClose) onClose();
+        }, 2000);
+      }
+    };
+    
+    const handleApplianceRestored = handleApplianceUpdated; // Same treatment as update
+    
+    // Connect to SSE and add event listeners
+    sseService.connect().then(() => {
+      console.log('SSE connected, adding appliance listeners...');
+      sseService.addEventListener('appliance_updated', handleApplianceUpdated);
+      sseService.addEventListener('appliance_deleted', handleApplianceDeleted);
+      sseService.addEventListener('appliance_restored', handleApplianceRestored);
+      sseService.addEventListener('appliance_patched', handleApplianceUpdated); // PATCH also triggers update
+    }).catch(error => {
+      console.error('Failed to connect to SSE:', error);
+    });
+    
+    // Cleanup listeners on unmount
+    return () => {
+      console.log('Cleaning up SSE listeners for appliance:', appliance.id);
+      sseService.removeEventListener('appliance_updated', handleApplianceUpdated);
+      sseService.removeEventListener('appliance_deleted', handleApplianceDeleted);
+      sseService.removeEventListener('appliance_restored', handleApplianceRestored);
+      sseService.removeEventListener('appliance_patched', handleApplianceUpdated);
+    };
+  }, [appliance, onClose]);
 
   // Load commands when switching to commands tab
   useEffect(() => {
