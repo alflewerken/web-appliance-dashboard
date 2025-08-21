@@ -5,6 +5,42 @@ All notable changes to the Web Appliance Dashboard project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Audit Log Export** - Restored complete export functionality
+  - Fixed missing delete button in audit log panel
+  - Restored all 4 export formats (JSON, CSV, PDF, Markdown)
+  - JSON export now includes metadata and filter settings
+  - Markdown export with intelligent formatting (no raw JSON blocks)
+  - PDF export opens print preview for easy saving
+  - Color-coded export buttons with dark/light mode support
+
+- **Host Revert Functionality** - Fixed 404 error when reverting host changes
+  - Corrected incomplete route definition in backend
+  - Route now accepts multiple action name formats (camelCase and snake_case)
+  - Improved error handling with specific error messages
+  - Consistent with other resource revert operations
+
+### Improved
+- **Audit Log Action Badges** - Enhanced visual consistency
+  - Action badges now use full column width for better readability
+  - All badges have uniform width regardless of text length
+  - Centered alignment for improved visual appeal
+  - Minimum width of 200px ensures consistent presentation
+
+- **Backup Restore Details** - Better visualization in audit logs
+  - Restored items now display as structured list instead of raw JSON
+  - Each restore type shown with formatted name and count badge
+  - Only non-zero items are displayed for clarity
+  - Dark/Light mode compatible styling with hover effects
+
+- **Audit Log Filters** - German translations for dropdowns
+  - Action dropdown now shows German action names (e.g., "Host aktualisiert" instead of "host_updated")
+  - Resource dropdown displays German resource types (e.g., "Benutzer" instead of "user")
+  - Consistent with German labels already used in the audit log table
+  - Technical values remain unchanged internally for filtering
+
 ## [1.1.5] - 2025-08-20
 
 ### Changed
