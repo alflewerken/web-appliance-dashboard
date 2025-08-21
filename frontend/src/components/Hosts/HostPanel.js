@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import SSHKeyManagement from '../SettingsPanel/SSHKeyManagement';
+import sseService from '../../services/sseService';
 import {
   Box,
   Typography,
@@ -176,6 +177,95 @@ const HostPanel = ({
       // Dashboard wird standardmäßig ausgewählt
       setSelectedKey('dashboard');
     }
+  }, [host]);
+
+  // Subscribe to SSE events for real-time updates
+  useEffect(() => {
+    if (!host || host.isNew) return; // Nur für existierende Hosts
+    
+    console.log('Setting up SSE listeners for host:', host.id, host.name);
+    
+    const handleHostUpdated = async (data) => {
+      console.log('SSE host_updated event received:', data);
+      
+      // Wenn dieser Host aktualisiert wurde, lade die neuen Daten
+      // Vergleiche IDs als Strings für Typ-Sicherheit
+      if (data.id && String(data.id) === String(host.id)) {
+        console.log('Host was updated via SSE, reloading data...', { 
+          eventId: data.id, 
+          hostId: host.id,
+          eventName: data.name 
+        });
+        try {
+          const response = await axios.get(`/api/hosts/${host.id}`);
+          if (response.data.host) {
+            const updatedHost = response.data.host;
+            const updatedData = {
+              name: updatedHost.name || '',
+              description: updatedHost.description || '',
+              hostname: updatedHost.hostname || '',
+              port: updatedHost.port || 22,
+              username: updatedHost.username || 'root',
+              password: updatedHost.password || '',
+              privateKey: updatedHost.privateKey || '',
+              sshKeyName: updatedHost.sshKeyName || null,
+              icon: updatedHost.icon || 'Server',
+              color: updatedHost.color || '#007AFF',
+              transparency: updatedHost.transparency !== undefined ? updatedHost.transparency : 0.15,
+              blur: updatedHost.blur !== undefined ? updatedHost.blur : 8,
+              remoteDesktopEnabled: updatedHost.remoteDesktopEnabled || false,
+              remoteDesktopType: updatedHost.remoteDesktopType || 'guacamole',
+              remoteProtocol: updatedHost.remoteProtocol || 'vnc',
+              remotePort: updatedHost.remotePort || null,
+              remoteUsername: updatedHost.remoteUsername || '',
+              remotePassword: updatedHost.remotePassword || '',
+              rustdeskId: updatedHost.rustdeskId || '',
+              rustdeskPassword: updatedHost.rustdeskPassword || '',
+              guacamolePerformanceMode: updatedHost.guacamolePerformanceMode || 'balanced',
+            };
+            setFormData(updatedData);
+            setOriginalFormData(updatedData);
+            setSuccess('Host wurde extern aktualisiert und neu geladen');
+          }
+        } catch (error) {
+          console.error('Error reloading host data:', error);
+          setError('Fehler beim Neuladen der Host-Daten');
+        }
+      }
+    };
+    
+    const handleHostReverted = handleHostUpdated; // Gleiche Behandlung für revert
+    
+    const handleHostDeleted = (data) => {
+      console.log('SSE host_deleted event received:', data);
+      
+      // Wenn dieser Host gelöscht wurde, schließe das Panel
+      if (data.id && String(data.id) === String(host.id)) {
+        console.log('This host was deleted externally, closing panel...');
+        setError('Host wurde extern gelöscht');
+        setTimeout(() => {
+          if (onClose) onClose();
+        }, 2000);
+      }
+    };
+    
+    // Connect to SSE and add event listeners
+    sseService.connect().then(() => {
+      console.log('SSE connected, adding listeners...');
+      sseService.addEventListener('host_updated', handleHostUpdated);
+      sseService.addEventListener('host_reverted', handleHostReverted);
+      sseService.addEventListener('host_deleted', handleHostDeleted);
+    }).catch(error => {
+      console.error('Failed to connect to SSE:', error);
+    });
+    
+    // Cleanup listeners on unmount
+    return () => {
+      console.log('Cleaning up SSE listeners for host:', host.id);
+      sseService.removeEventListener('host_updated', handleHostUpdated);
+      sseService.removeEventListener('host_reverted', handleHostReverted);
+      sseService.removeEventListener('host_deleted', handleHostDeleted);
+    };
   }, [host]);
 
   // Fetch SSH keys
