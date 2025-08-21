@@ -109,7 +109,9 @@ router.post('/restore/category/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const categoryData = details.category;
 
       if (!categoryData) {
@@ -194,7 +196,9 @@ router.post('/revert/category/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const originalData = details.original_data;
 
       if (!originalData) {
@@ -267,7 +271,9 @@ router.post('/revert/user/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const originalData = details.original_data;
 
       if (!originalData) {
@@ -357,7 +363,9 @@ router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const applianceData = details.service || details.appliance;
 
       if (!applianceData) {
@@ -489,7 +497,9 @@ router.post('/revert/appliances/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const originalData = details.original_data;
 
       if (!originalData) {
@@ -593,7 +603,9 @@ router.post('/restore/users/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const userData = details.user;
 
       if (!userData) {
@@ -680,7 +692,9 @@ router.post('/revert/users/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const originalData = details.original_data;
 
       if (!originalData) {
@@ -773,7 +787,9 @@ router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
 
       if (!details.name) {
         throw new Error('No host data found in audit log');
@@ -856,21 +872,27 @@ router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
 });
 
 // Revert host to original state
-router.post('/revert/hosts/:logId', requireAdmin, async (req, res) => {
+router.post('/revert/host/:logId', requireAdmin, async (req, res) => {
   try {
     const result = await db.transaction(async (trx) => {
       // Get the audit log
       const logs = await trx.select('audit_logs', {
-        id: req.params.logId,
-        action: 'host_updated'
+        id: req.params.logId
       }, { limit: 1 });
 
       if (logs.length === 0) {
-        throw new Error('Audit log not found or not a host update');
+        throw new Error('Audit log not found');
       }
 
       const log = logs[0];
-      const details = JSON.parse(log.details || '{}');
+      
+      // Check if this is a host update action
+      if (!['host_updated', 'host_update', 'hostUpdated', 'hostUpdate'].includes(log.action)) {
+        throw new Error('Audit log is not a host update action');
+      }
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
       const originalData = details.oldValues || details.original_data;
 
       if (!originalData) {
@@ -913,6 +935,11 @@ router.post('/revert/hosts/:logId', requireAdmin, async (req, res) => {
         throw new Error('No fields to revert');
       }
 
+      // Get the current host for name
+      const hosts = await trx.select('hosts', { id: log.resourceId }, { limit: 1 });
+      const currentHost = hosts[0];
+      const hostName = originalData.name || currentHost?.name || 'Unknown Host';
+
       // Revert the host
       await trx.update('hosts', updateData, { id: log.resourceId });
 
@@ -923,15 +950,23 @@ router.post('/revert/hosts/:logId', requireAdmin, async (req, res) => {
         'hosts',
         log.resourceId,
         {
-          revertedFromLogId: req.params.logId,
-          revertedToData: originalData,
-          revertedFromData: details.changes || details.new_data,
-          revertedBy: req.user.username
+          name: hostName,
+          reverted_audit_log_id: req.params.logId,
+          reverted_changes: details.changes || details.new_data || {},
+          restored_values: originalData,
+          reverted_by: req.user.username
         },
-        getClientIp(req)
+        getClientIp(req),
+        hostName  // Add the host name here
       );
 
-      // Broadcast updates
+      // Broadcast updates - both events for compatibility
+      broadcast('host_reverted', {
+        id: log.resourceId,
+        ...originalData
+      });
+      
+      // Also send host_updated for general update listeners
       broadcast('host_updated', {
         id: log.resourceId,
         ...originalData
