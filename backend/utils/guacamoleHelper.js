@@ -1,5 +1,5 @@
 const GuacamoleDBManager = require('./guacamole/GuacamoleDBManager');
-const { decrypt } = require('./crypto');
+const { decrypt } = require('./encryption');  // Use encryption.js, not crypto.js!
 const pool = require('./database');
 
 /**
@@ -27,15 +27,13 @@ async function syncGuacamoleConnection(data) {
     // Handle password - could be plain text (from form) or encrypted (from DB)
     let finalPassword = null;
     if (remotePassword) {
-      // Check if it's encrypted (starts with specific pattern) or hashed (bcrypt)
-      if (remotePassword.startsWith('enc:') || remotePassword.includes('$')) {
+      // Check if it's encrypted (contains colon separator from encryption format)
+      if (remotePassword.includes(':')) {
         try {
-          // Try to decrypt if it's encrypted
-          if (remotePassword.startsWith('enc:')) {
-            finalPassword = decrypt(remotePassword);
-          } else {
-            // If it's a bcrypt hash, we can't use it for VNC/RDP
-            console.log(`Warning: Cannot use bcrypt hashed password for Guacamole connection ${entityId}`);
+          // Try to decrypt if it appears to be encrypted
+          finalPassword = decrypt(remotePassword);
+          if (!finalPassword) {
+            console.log(`Warning: Failed to decrypt password for entity ${entityId}`);
             finalPassword = '';
           }
         } catch (error) {

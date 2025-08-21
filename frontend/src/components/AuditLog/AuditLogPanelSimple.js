@@ -27,7 +27,7 @@ import {
   deleteFilteredAuditLogs,
   exportForPrint 
 } from './AuditLogExport';
-import { criticalActions } from './AuditLogActions';
+import { criticalActions, formatActionName } from './AuditLogActions';
 import './AuditLogPanel.css';
 import './AuditLogTableCardFix.css';
 
@@ -300,7 +300,12 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   };
 
   const uniqueUsers = [...new Set(logs.map(log => log.username || 'System'))];
-  const uniqueActions = [...new Set(logs.map(log => log.action))];
+  const uniqueActions = [...new Set(logs.map(log => log.action))].sort((a, b) => {
+    // Sort by formatted (German) names for better user experience
+    const nameA = formatActionName(a);
+    const nameB = formatActionName(b);
+    return nameA.localeCompare(nameB, 'de');
+  });
   const uniqueResourceTypes = [...new Set(logs.map(log => log.resourceType))].filter(Boolean);
 
   const cardStyles = {

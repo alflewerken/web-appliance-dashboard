@@ -83,7 +83,7 @@ export const getResourceName = (log) => {
 };
 
 // Handle restore action
-export const handleRestore = async (log, newName = null) => {
+export const handleRestore = async (log, restoreData = null) => {
   const restoreInfo = canRestore(log);
   if (!restoreInfo.canRestore) {
     throw new Error('Diese Aktion kann nicht rückgängig gemacht werden');
@@ -105,14 +105,32 @@ export const handleRestore = async (log, newName = null) => {
       : `/api/auditRestore/revert/category/${log.id}`;
   } else if (restoreInfo.resourceType === 'users') {
     endpoint = restoreInfo.type === 'restore'
-      ? `/api/auditRestore/restore/user/${log.id}`
-      : `/api/auditRestore/revert/user/${log.id}`;
+      ? `/api/auditRestore/restore/users/${log.id}`
+      : `/api/auditRestore/revert/users/${log.id}`;
   } else if (restoreInfo.resourceType === 'ssh_host') {
     endpoint = restoreInfo.type === 'restore'
       ? `/api/auditRestore/restore/ssh_host/${log.id}`
       : `/api/auditRestore/revert/ssh_host/${log.id}`;
   } else if (restoreInfo.resourceType === 'host') {
     endpoint = restoreInfo.type === 'restore'
+      ? `/api/auditRestore/restore/host/${log.id}`
+      : `/api/auditRestore/revert/host/${log.id}`;
+  }
+
+  if (!endpoint) {
+    throw new Error('Kein Restore-Endpoint für diesen Ressourcentyp definiert');
+  }
+
+  // Handle different data formats
+  // For backward compatibility, if restoreData is a string, treat it as newName
+  let requestData = {};
+  if (typeof restoreData === 'string') {
+    requestData = { newName: restoreData };
+  } else if (restoreData && typeof restoreData === 'object') {
+    requestData = restoreData;
+  }
+  
+  const response = await axios.post(endpoint, requestData);
       ? `/api/auditRestore/restore/host/${log.id}`
       : `/api/auditRestore/revert/host/${log.id}`;
   }

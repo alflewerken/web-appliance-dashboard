@@ -8,6 +8,8 @@ const { createAuditLog } = require('../utils/auditLogger');
 const { broadcast } = require('./sse');
 const { getClientIp } = require('../utils/getClientIp');
 const { restoreBackgroundImageFromAuditLog } = require('../utils/backgroundImageHelper');
+const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
+const { decrypt } = require('../utils/encryption');
 
 // Get audit log details with restore options
 router.get('/:id', requireAdmin, async (req, res) => {
@@ -152,7 +154,8 @@ router.post('/restore/category/:logId', requireAdmin, async (req, res) => {
           restoredCategoryData: categoryData,
           newName: categoryName !== categoryData.name ? categoryName : undefined
         },
-        getClientIp(req)
+        getClientIp(req),
+        categoryName  // Pass the category name as resourceName
       );
 
       // Broadcast the restoration
@@ -234,7 +237,8 @@ router.post('/revert/category/:logId', requireAdmin, async (req, res) => {
           revertedData: originalData,
           previousData: details.new_data
         },
-        getClientIp(req)
+        getClientIp(req),
+        originalData.name  // Pass the category name as resourceName
       );
 
       // Broadcast the update
@@ -349,7 +353,7 @@ router.post('/revert/user/:logId', requireAdmin, async (req, res) => {
   }
 });
 // Restore deleted appliance
-router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
+router.post('/restore/appliance/:logId', requireAdmin, async (req, res) => {
   try {
     const result = await db.transaction(async (trx) => {
       // Get the audit log
@@ -366,7 +370,20 @@ router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
       const details = typeof log.details === 'string' 
         ? JSON.parse(log.details || '{}')
         : log.details || {};
-      const applianceData = details.service || details.appliance;
+      
+      // The appliance data could be in different places depending on how it was saved
+      // New format: directly in details (spread operator)
+      // Old format: under details.service or details.appliance
+      let applianceData = null;
+      
+      if (details.service) {
+        applianceData = details.service;
+      } else if (details.appliance) {
+        applianceData = details.appliance;
+      } else if (details.name && details.url) {
+        // New format: appliance data is directly in details
+        applianceData = details;
+      }
 
       if (!applianceData) {
         throw new Error('No appliance data found in audit log');
@@ -386,7 +403,7 @@ router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
       }
 
       // Restore background image if it was saved
-      let restoredBackgroundImage = applianceData.background_image;
+      let restoredBackgroundImage = applianceData.backgroundImage || applianceData.background_image;
       if (details.backgroundImageData) {
         const newFilename = await restoreBackgroundImageFromAuditLog(details.backgroundImageData);
         if (newFilename) {
@@ -402,46 +419,47 @@ router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
         icon: applianceData.icon,
         color: applianceData.color,
         category: applianceData.category,
-        isFavorite: applianceData.isFavorite || 0,
-        startCommand: applianceData.start_command,
-        stopCommand: applianceData.stop_command,
-        statusCommand: applianceData.status_command,
-        restartCommand: applianceData.restart_command,
-        autoStart: applianceData.auto_start || 0,
-        sshConnection: applianceData.ssh_connection,
+        isFavorite: applianceData.isFavorite || applianceData.is_favorite || 0,
+        startCommand: applianceData.startCommand || applianceData.start_command,
+        stopCommand: applianceData.stopCommand || applianceData.stop_command,
+        statusCommand: applianceData.statusCommand || applianceData.status_command,
+        restartCommand: applianceData.restartCommand || applianceData.restart_command,
+        autoStart: applianceData.autoStart || applianceData.auto_start || 0,
+        sshConnection: applianceData.sshConnection || applianceData.ssh_connection,
         transparency: applianceData.transparency,
-        blurAmount: applianceData.blur_amount,
-        openModeMini: applianceData.open_mode_mini,
-        openModeMobile: applianceData.open_mode_mobile,
-        openModeDesktop: applianceData.open_mode_desktop,
-        serviceStatus: applianceData.service_status,
+        blurAmount: applianceData.blurAmount || applianceData.blur_amount,
+        openModeMini: applianceData.openModeMini || applianceData.open_mode_mini,
+        openModeMobile: applianceData.openModeMobile || applianceData.open_mode_mobile,
+        openModeDesktop: applianceData.openModeDesktop || applianceData.open_mode_desktop,
+        serviceStatus: applianceData.serviceStatus || applianceData.service_status,
         backgroundImage: restoredBackgroundImage,
-        remoteDesktopEnabled: applianceData.remote_desktop_enabled,
-        remoteDesktopType: applianceData.remote_desktop_type,
-        remoteProtocol: applianceData.remote_protocol,
-        remoteHost: applianceData.remote_host,
-        remotePort: applianceData.remote_port,
-        remoteUsername: applianceData.remote_username,
-        remotePasswordEncrypted: applianceData.remote_password_encrypted,
-        rustdeskId: applianceData.rustdeskId,
-        rustdeskPasswordEncrypted: applianceData.rustdesk_password_encrypted,
-        rustdeskInstalled: applianceData.rustdesk_installed,
-        rustdeskInstallationDate: applianceData.rustdesk_installation_date,
-        guacamolePerformanceMode: applianceData.guacamolePerformanceMode,
-        orderIndex: applianceData.order_index
+        remoteDesktopEnabled: applianceData.remoteDesktopEnabled || applianceData.remote_desktop_enabled,
+        remoteDesktopType: applianceData.remoteDesktopType || applianceData.remote_desktop_type,
+        remoteProtocol: applianceData.remoteProtocol || applianceData.remote_protocol,
+        remoteHost: applianceData.remoteHost || applianceData.remote_host,
+        remotePort: applianceData.remotePort || applianceData.remote_port,
+        remoteUsername: applianceData.remoteUsername || applianceData.remote_username,
+        remotePasswordEncrypted: applianceData.remotePasswordEncrypted || applianceData.remote_password_encrypted,
+        rustdeskId: applianceData.rustdeskId || applianceData.rustdesk_id,
+        rustdeskPasswordEncrypted: applianceData.rustdeskPasswordEncrypted || applianceData.rustdesk_password_encrypted,
+        rustdeskInstalled: applianceData.rustdeskInstalled || applianceData.rustdesk_installed,
+        rustdeskInstallationDate: applianceData.rustdeskInstallationDate || applianceData.rustdesk_installation_date,
+        guacamolePerformanceMode: applianceData.guacamolePerformanceMode || applianceData.guacamole_performance_mode,
+        orderIndex: applianceData.orderIndex || applianceData.order_index
       });
 
       const restoredApplianceId = insertResult.insertId;
 
       // Restore commands if they existed
-      if (details.commands && Array.isArray(details.commands)) {
-        for (const cmd of details.commands) {
+      const commands = details.customCommands || details.commands;
+      if (commands && Array.isArray(commands)) {
+        for (const cmd of commands) {
           await trx.insert('appliance_commands', {
             applianceId: restoredApplianceId,
             description: cmd.description,
             command: cmd.command,
-            hostId: cmd.host_id,
-            orderIndex: cmd.order_index || 0
+            hostId: cmd.hostId || cmd.host_id,
+            orderIndex: cmd.orderIndex || cmd.order_index || 0
           });
         }
       }
@@ -457,7 +475,8 @@ router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
           restoredApplianceData: applianceData,
           newName: applianceName !== applianceData.name ? applianceName : undefined
         },
-        getClientIp(req)
+        getClientIp(req),
+        applianceName  // Pass the service name as resourceName
       );
 
       // Broadcast the restoration
@@ -483,7 +502,7 @@ router.post('/restore/appliances/:logId', requireAdmin, async (req, res) => {
   }
 });
 // Revert appliance to original state
-router.post('/revert/appliances/:logId', requireAdmin, async (req, res) => {
+router.post('/revert/appliance/:logId', requireAdmin, async (req, res) => {
   try {
     const result = await db.transaction(async (trx) => {
       // Get the audit log
@@ -517,9 +536,10 @@ router.post('/revert/appliances/:logId', requireAdmin, async (req, res) => {
       }
 
       // Build update data from original data
+      // Original data is already in camelCase format from QueryBuilder
       const updateData = {};
       
-      // Map all the fields from snake_case to camelCase
+      // Copy all fields from originalData (already in camelCase)
       if (originalData.name !== undefined) updateData.name = originalData.name;
       if (originalData.url !== undefined) updateData.url = originalData.url;
       if (originalData.description !== undefined) updateData.description = originalData.description;
@@ -527,21 +547,22 @@ router.post('/revert/appliances/:logId', requireAdmin, async (req, res) => {
       if (originalData.color !== undefined) updateData.color = originalData.color;
       if (originalData.category !== undefined) updateData.category = originalData.category;
       if (originalData.isFavorite !== undefined) updateData.isFavorite = originalData.isFavorite;
-      if (originalData.start_command !== undefined) updateData.startCommand = originalData.start_command;
-      if (originalData.stop_command !== undefined) updateData.stopCommand = originalData.stop_command;
-      if (originalData.status_command !== undefined) updateData.statusCommand = originalData.status_command;
-      if (originalData.restart_command !== undefined) updateData.restartCommand = originalData.restart_command;
-      if (originalData.auto_start !== undefined) updateData.autoStart = originalData.auto_start;
-      if (originalData.ssh_connection !== undefined) updateData.sshConnection = originalData.ssh_connection;
+      if (originalData.startCommand !== undefined) updateData.startCommand = originalData.startCommand;
+      if (originalData.stopCommand !== undefined) updateData.stopCommand = originalData.stopCommand;
+      if (originalData.statusCommand !== undefined) updateData.statusCommand = originalData.statusCommand;
+      if (originalData.restartCommand !== undefined) updateData.restartCommand = originalData.restartCommand;
+      if (originalData.autoStart !== undefined) updateData.autoStart = originalData.autoStart;
+      if (originalData.sshConnection !== undefined) updateData.sshConnection = originalData.sshConnection;
       if (originalData.transparency !== undefined) updateData.transparency = originalData.transparency;
-      if (originalData.blur_amount !== undefined) updateData.blurAmount = originalData.blur_amount;
-      if (originalData.background_image !== undefined) updateData.backgroundImage = originalData.background_image;
-      if (originalData.remote_desktop_enabled !== undefined) updateData.remoteDesktopEnabled = originalData.remote_desktop_enabled;
-      if (originalData.remote_desktop_type !== undefined) updateData.remoteDesktopType = originalData.remote_desktop_type;
-      if (originalData.remote_protocol !== undefined) updateData.remoteProtocol = originalData.remote_protocol;
-      if (originalData.remote_host !== undefined) updateData.remoteHost = originalData.remote_host;
-      if (originalData.remote_port !== undefined) updateData.remotePort = originalData.remote_port;
-      if (originalData.remote_username !== undefined) updateData.remoteUsername = originalData.remote_username;
+      if (originalData.blurAmount !== undefined) updateData.blurAmount = originalData.blurAmount;
+      if (originalData.backgroundImage !== undefined) updateData.backgroundImage = originalData.backgroundImage;
+      if (originalData.remoteDesktopEnabled !== undefined) updateData.remoteDesktopEnabled = originalData.remoteDesktopEnabled;
+      if (originalData.remoteDesktopType !== undefined) updateData.remoteDesktopType = originalData.remoteDesktopType;
+      if (originalData.remoteProtocol !== undefined) updateData.remoteProtocol = originalData.remoteProtocol;
+      if (originalData.remoteHost !== undefined) updateData.remoteHost = originalData.remoteHost;
+      if (originalData.remotePort !== undefined) updateData.remotePort = originalData.remotePort;
+      if (originalData.remoteUsername !== undefined) updateData.remoteUsername = originalData.remoteUsername;
+      if (originalData.visualSettings !== undefined) updateData.visualSettings = originalData.visualSettings;
 
       if (Object.keys(updateData).length === 0) {
         throw new Error('No fields to revert');
@@ -559,13 +580,20 @@ router.post('/revert/appliances/:logId', requireAdmin, async (req, res) => {
         {
           revertedFromLogId: req.params.logId,
           revertedToData: originalData,
-          revertedFromData: details.new_data,
-          revertedBy: req.user.username
+          revertedFromData: details.changes || details.new_data,
+          revertedBy: req.user.username,
+          appliance_name: originalData.name
         },
-        getClientIp(req)
+        getClientIp(req),
+        originalData.name  // resourceName
       );
 
-      // Broadcast updates
+      // Broadcast updates - both events for compatibility
+      broadcast('appliance_reverted', {
+        id: log.resourceId,
+        ...originalData
+      });
+      
       broadcast('appliance_updated', {
         id: log.resourceId,
         ...originalData
@@ -606,31 +634,55 @@ router.post('/restore/users/:logId', requireAdmin, async (req, res) => {
       const details = typeof log.details === 'string' 
         ? JSON.parse(log.details || '{}')
         : log.details || {};
-      const userData = details.user;
+      const userData = details.user || details.User || details;
 
       if (!userData) {
         throw new Error('No user data found in audit log');
       }
 
-      // Check if username or email already exists
-      const existing = await trx.select('users', {
-        $or: [
-          { username: userData.username },
-          { email: userData.email }
-        ]
-      }, { limit: 1 });
-
-      if (existing.length > 0) {
-        throw new Error('User with this username or email already exists');
+      // Use new name if provided, otherwise use original
+      const newUsername = req.body.newName || userData.username;
+      const newUserEmail = req.body.newEmail || userData.email;
+      const useNewName = req.body.newName && req.body.newName !== userData.username;
+      const useNewEmail = req.body.newEmail && req.body.newEmail !== userData.email;
+      
+      // Check if new email is provided and valid
+      if (useNewEmail) {
+        // Check if new email is already taken
+        const emailCheck = await trx.select('users', { email: newUserEmail }, { limit: 1 });
+        if (emailCheck.length > 0) {
+          throw new Error(`Email "${newUserEmail}" is already in use by another user (${emailCheck[0].username})`);
+        }
+      } else {
+        // If no new email provided, check if original email is available
+        const emailCheck = await trx.select('users', { email: userData.email }, { limit: 1 });
+        if (emailCheck.length > 0) {
+          // Return specific error that frontend can handle
+          throw new Error(`Email "${userData.email}" is already in use by another user (${emailCheck[0].username}). Please provide a new email address.`);
+        }
+      }
+      
+      // Check if username is already taken
+      if (useNewName) {
+        const usernameCheck = await trx.select('users', { username: newUsername }, { limit: 1 });
+        if (usernameCheck.length > 0) {
+          throw new Error(`User with username "${newUsername}" already exists`);
+        }
+      } else {
+        // When restoring with original name, also check username
+        const usernameCheck = await trx.select('users', { username: userData.username }, { limit: 1 });
+        if (usernameCheck.length > 0) {
+          throw new Error(`User with username "${userData.username}" already exists`);
+        }
       }
 
-      // Restore the user (reuse the password hash from the deleted user)
+      // Restore the user with new name/email if provided
       const insertResult = await trx.insert('users', {
-        username: userData.username,
-        email: userData.email,
-        passwordHash: userData.password_hash || '',
+        username: newUsername,  // Use new name here
+        email: newUserEmail,    // Use new email here
+        passwordHash: userData.password_hash || userData.passwordHash || '',
         role: userData.role || 'user',
-        isActive: userData.is_active !== undefined ? userData.is_active : 1
+        isActive: userData.is_active !== undefined ? userData.is_active : (userData.isActive !== undefined ? userData.isActive : 1)
       });
 
       const restoredUserId = insertResult.insertId;
@@ -644,25 +696,29 @@ router.post('/restore/users/:logId', requireAdmin, async (req, res) => {
         {
           restoredFromLogId: req.params.logId,
           restoredUserData: userData,
+          newName: useNewName ? newUsername : undefined,
+          newEmail: useNewEmail ? newUserEmail : undefined,
           restoredBy: req.user.username
         },
-        getClientIp(req)
+        getClientIp(req),
+        newUsername  // Pass the new username as resourceName
       );
 
       // Broadcast the restoration
       broadcast('user_restored', {
         id: restoredUserId,
-        username: userData.username,
-        email: userData.email,
+        username: newUsername,  // Use new name in broadcast
+        email: newUserEmail,    // Use new email in broadcast
         role: userData.role,
-        isActive: userData.is_active
+        isActive: userData.is_active || userData.isActive
       });
 
       return {
         success: true,
         message: 'User restored successfully',
         userId: restoredUserId,
-        username: userData.username
+        username: newUsername,  // Return new name
+        email: newUserEmail     // Return new email
       };
     });
 
@@ -749,7 +805,8 @@ router.post('/revert/users/:logId', requireAdmin, async (req, res) => {
           revertedFromData: details.new_data || existing[0],
           revertedBy: req.user.username
         },
-        getClientIp(req)
+        getClientIp(req),
+        originalData.username || existing[0].username  // Pass the username as resourceName
       );
 
       // Broadcast updates
@@ -773,13 +830,13 @@ router.post('/revert/users/:logId', requireAdmin, async (req, res) => {
   }
 });
 // Restore deleted host
-router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
+router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
   try {
     const result = await db.transaction(async (trx) => {
       // Get the audit log
       const logs = await trx.select('audit_logs', {
         id: req.params.logId,
-        action: 'host_deleted'
+        action: 'host_delete'  // WICHTIG: ohne 'd' am Ende, so wie es gespeichert wird
       }, { limit: 1 });
 
       if (logs.length === 0) {
@@ -795,44 +852,78 @@ router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
         throw new Error('No host data found in audit log');
       }
 
+      // Use new name if provided, otherwise use original name
+      const hostName = req.body.newName || details.name;
+
       // Check if host with same name already exists
       const existing = await trx.select('hosts',
-        { name: details.name },
+        { name: hostName },
         { limit: 1 }
       );
 
       if (existing.length > 0) {
-        throw new Error(`Host with name "${details.name}" already exists`);
+        throw new Error(`Host with name "${hostName}" already exists`);
       }
 
       // Restore the host
+      // WICHTIG: Details kommen bereits in camelCase vom QueryBuilder
+      // Passwörter sind bereits verschlüsselt und müssen so übernommen werden
       const insertResult = await trx.insert('hosts', {
-        name: details.name,
+        name: hostName,  // Use new name if provided
         description: details.description || null,
         hostname: details.hostname,
         port: details.port,
         username: details.username,
-        password: details.password,
-        privateKey: details.private_key,
-        sshKeyName: details.sshKeyName,
+        password: details.password,  // Already encrypted
+        privateKey: details.privateKey || details.private_key,  // Fallback für alte Logs
+        sshKeyName: details.sshKeyName || details.ssh_key_name,
         icon: details.icon,
         color: details.color,
         transparency: details.transparency,
         blur: details.blur,
-        remoteDesktopEnabled: details.remote_desktop_enabled,
-        remoteDesktopType: details.remote_desktop_type,
-        remoteProtocol: details.remote_protocol,
-        remotePort: details.remote_port,
-        remoteUsername: details.remote_username,
-        remotePassword: details.remote_password,
-        guacamolePerformanceMode: details.guacamole_performance_mode,
-        rustdeskId: details.rustdesk_id,
-        rustdeskPassword: details.rustdeskPassword,
+        remoteDesktopEnabled: details.remoteDesktopEnabled ?? details.remote_desktop_enabled ?? 0,  // Wichtig: ?? statt || für boolean
+        remoteDesktopType: details.remoteDesktopType || details.remote_desktop_type,
+        remoteProtocol: details.remoteProtocol || details.remote_protocol,
+        remotePort: details.remotePort || details.remote_port,
+        remoteUsername: details.remoteUsername || details.remote_username,
+        remotePassword: details.remotePassword || details.remote_password,  // Already encrypted
+        guacamolePerformanceMode: details.guacamolePerformanceMode || details.guacamole_performance_mode,
+        rustdeskId: details.rustdeskId || details.rustdesk_id,
+        rustdeskPassword: details.rustdeskPassword || details.rustdesk_password,  // Already encrypted
         createdBy: req.user.id,
         updatedBy: req.user.id
       });
 
       const restoredHostId = insertResult.insertId;
+
+      // Restore Guacamole connection if Remote Desktop was enabled
+      const remoteEnabled = details.remoteDesktopEnabled ?? details.remote_desktop_enabled;
+      const remoteDesktopType = details.remoteDesktopType || details.remote_desktop_type || 'guacamole';
+      
+      if (remoteEnabled && remoteDesktopType === 'guacamole') {
+        try {
+          // Prepare data for syncGuacamoleConnection
+          // The password is already encrypted in the audit log, pass it as-is
+          const guacamoleData = {
+            id: restoredHostId,
+            name: hostName,
+            remote_desktop_enabled: true,
+            remote_host: details.hostname,
+            remote_protocol: details.remoteProtocol || details.remote_protocol,
+            remote_port: details.remotePort || details.remote_port,
+            remote_username: details.remoteUsername || details.remote_username,
+            remote_password_encrypted: details.remotePassword || details.remote_password || '',  // Pass encrypted password as-is
+            guacamole_performance_mode: details.guacamolePerformanceMode || details.guacamole_performance_mode
+          };
+          
+          // syncGuacamoleConnection will handle the decryption
+          await syncGuacamoleConnection(guacamoleData);
+          console.log(`Guacamole connection restored for host ${hostName}`);
+        } catch (guacError) {
+          console.error('Failed to restore Guacamole connection:', guacError);
+          // Don't fail the entire restoration if Guacamole fails
+        }
+      }
 
       // Create audit log for restoration
       await createAuditLog(
@@ -843,15 +934,17 @@ router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
         {
           restoredFromLogId: req.params.logId,
           restoredHostData: details,
+          newName: hostName !== details.name ? hostName : undefined,  // Log new name if changed
           restoredBy: req.user.username
         },
-        getClientIp(req)
+        getClientIp(req),
+        hostName  // Use new name as resourceName
       );
 
       // Broadcast the restoration
       broadcast('host_restored', {
         hostId: restoredHostId,
-        hostName: details.name,
+        hostName: hostName,  // Use new name in broadcast
         restoredBy: req.user.username
       });
 
@@ -859,7 +952,7 @@ router.post('/restore/hosts/:logId', requireAdmin, async (req, res) => {
         success: true,
         message: 'Host restored successfully',
         hostId: restoredHostId,
-        hostName: details.name
+        hostName: hostName  // Return new name
       };
     });
 

@@ -1671,9 +1671,9 @@ router.post('/restore', verifyToken, async (req, res) => {
               remotePort: host.remote_port || host.remotePort || null,
               remoteUsername: host.remote_username || host.remoteUsername || null,
               remotePassword: reEncryptFromBackup(host.remote_password || host.remotePassword),
-              guacamolePerformanceMode: host.guacamolePerformanceMode || 'balanced',
+              guacamolePerformanceMode: host.guacamole_performance_mode || host.guacamolePerformanceMode || 'balanced',
               rustdeskId: host.rustdesk_id || host.rustdeskId || null,
-              rustdeskPassword: reEncryptFromBackup(host.rustdeskPassword),
+              rustdeskPassword: reEncryptFromBackup(host.rustdesk_password || host.rustdeskPassword),
               isActive: host.is_active !== undefined ? host.is_active : (host.isActive !== false)
             };
 

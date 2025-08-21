@@ -543,10 +543,12 @@ router.put('/:id', verifyToken, async (req, res) => {
             appliance_name: updatedAppliance.name || originalData.name,
             changes: changedFields,
             oldValues: oldValues,
+            original_data: originalMapped,  // WICHTIG: Original-Daten für Revert
             fields_updated: Object.keys(changedFields),
             updated_by: req.user.username,
           },
-          req.clientIp || req.ip
+          req.clientIp || req.ip,
+          updatedAppliance.name || originalData.name  // resourceName
         );
       } else {
         console.log('PUT Debug - No changes detected, skipping audit log');
@@ -830,10 +832,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
             appliance_name: originalData.name,
             changes: changedFields,
             oldValues: oldValues,
+            original_data: originalData,  // WICHTIG: Original-Daten für Revert
             fields_updated: Object.keys(changedFields),
             updated_by: req.user.username,
           },
-          getClientIp(req)
+          getClientIp(req),
+          originalData.name  // resourceName
         );
       }
     }
@@ -893,10 +897,12 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
           appliance_name: updatedAppliance.name,
           changes: { isFavorite: newStatus },
           oldValues: { isFavorite: current.is_favorite },
+          original_data: current,  // WICHTIG: Original-Daten für Revert
           field_updated: 'isFavorite',
           updated_by: req.user.username,
         },
-        req.clientIp || req.ip
+        req.clientIp || req.ip,
+        updatedAppliance.name  // resourceName
       );
     }
 
@@ -956,12 +962,13 @@ router.delete('/:id', verifyToken, async (req, res) => {
         id,
         {
           appliance_name: appliance.name,
-          appliance: appliance,
+          ...appliance,  // Spread all appliance fields directly into details
           customCommands,
           backgroundImageData,
           deleted_by: req.user.username,
         },
-        req.clientIp || req.ip
+        req.clientIp || req.ip,
+        appliance.name  // resourceName
       );
     }
 

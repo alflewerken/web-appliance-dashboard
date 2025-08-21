@@ -95,11 +95,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       'user_login', 'user_logout', 'login', 'logout',
     ];
 
-    const unsubscribers = userEvents.map(eventType =>
-      addEventListener(eventType, data => {
+    const handleUserEvent = (eventType) => (data) => {
+      console.log(`[UserPanel] Received ${eventType} event:`, data);
+      debouncedFetchUsers();
+    };
 
-        debouncedFetchUsers();
-      })
+    const unsubscribers = userEvents.map(eventType =>
+      addEventListener(eventType, handleUserEvent(eventType))
     );
 
     return () => {
@@ -110,7 +112,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         if (typeof unsubscribe === 'function') unsubscribe();
       });
     };
-  }, [addEventListener]);
+  }, [addEventListener, debouncedFetchUsers]);
 
   // Panel width notification
   useEffect(() => {
