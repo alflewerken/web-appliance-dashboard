@@ -259,7 +259,12 @@ router.post('/host/:hostId/revert/:auditLogId', verifyToken, async (req, res) =>
       details.name
     );
 
-    // Send SSE event
+    // Send SSE events - both for compatibility
+    sseManager.broadcast({
+      type: 'host_reverted',
+      data: { id: hostId }
+    });
+    
     sseManager.broadcast({
       type: 'host_updated',
       data: { id: hostId }
