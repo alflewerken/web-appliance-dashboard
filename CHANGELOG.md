@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Enhanced Audit Log Restore** - Comprehensive data preservation and recovery
+  - Original data preservation in all audit log entries for reliable revert operations
+  - Resource name tracking in audit logs for better identification
+  - Support for both camelCase and snake_case field formats in restore operations
+  - Automatic Guacamole connection synchronization for remote desktop restores
+  - User restore with custom email when original address is already in use
+  - Improved error handling with specific, actionable error messages
+
+- **Real-time SSE Synchronization** - Live updates across browser sessions
+  - Service panel status updates synchronized in real-time
+  - Host changes immediately reflected across all connected clients
+  - Appliance modifications synchronized between sessions
+  - Audit log updates broadcast to all active users
+
+### Changed
+- **Audit Log Detail Renderer** - Comprehensive field display improvements
+  - Extended detail views with all relevant fields for each action type
+  - Better handling of nested data structures
+  - Improved display of changes with before/after comparisons
+  - Responsive chip layouts for better mobile experience
+  - Enhanced color coding for different action types
+
+- **User Restoration Process** - More flexible recovery options
+  - Users can be restored with new usernames
+  - Email address conflicts handled gracefully with input prompt
+  - Support for restoring users with both new name and new email
+  - Clear feedback when restoration requires additional information
+
 ### Fixed
 - **Audit Log Export** - Restored complete export functionality
   - Fixed missing delete button in audit log panel
@@ -40,6 +69,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Resource dropdown displays German resource types (e.g., "Benutzer" instead of "user")
   - Consistent with German labels already used in the audit log table
   - Technical values remain unchanged internally for filtering
+  - Actions sorted alphabetically in dropdown for better usability
+
+- **Appliance/Service Restoration** - Fixed multiple restore issues
+  - Corrected route naming (singular vs plural) for appliance restore endpoint
+  - Fixed data structure handling for both old and new audit log formats
+  - Proper field mapping between camelCase and snake_case
+  - Background images correctly restored from audit logs
+  - Remote desktop configurations properly preserved
+
+- **Guacamole Integration** - Fixed remote desktop password handling
+  - Passwords correctly decrypted during host restoration
+  - Guacamole connections automatically created after restore
+  - Remote desktop configurations preserved in audit logs
+  - Connection sync improved for all resource types
+
+- **UI Stability** - Fixed audit log detail panel behavior
+  - Detail panel no longer closes unexpectedly during interactions
+  - "Restore with new name" button works without closing panel
+  - Improved click handling for nested interactive elements
+  - Better state management for expanded rows
+
+### Updated
+- **Dependencies** - Security and feature updates
+  - express updated in backend (production group)
+  - docker/build-push-action upgraded from v5 to v6
+  - lucide-react updated from 0.539.0 to 0.540.0
+
+## [1.1.6] - 2025-08-21
+
+### Added
+- **Enhanced Audit Log System** - Complete restoration and tracking capabilities
+  - Original data preservation for all modifications enabling reliable rollback
+  - Resource name tracking for improved audit trail readability
+  - Flexible user restoration with custom email/username options
+  - Automatic Guacamole connection sync for remote desktop configurations
+
+- **Real-time Synchronization** - Multi-session live updates via SSE
+  - Service status changes broadcast to all connected clients
+  - Host modifications synchronized across browser sessions
+  - Immediate reflection of appliance changes
+  - Unified event system for consistent state across users
+
+### Improved
+- **Audit Log User Experience** - Enhanced interface and functionality
+  - Comprehensive detail renderer with all relevant fields
+  - Responsive chip layouts for mobile devices
+  - Color-coded action badges for better visual scanning
+  - Alphabetically sorted action filters in German
+  - Better error messages with actionable guidance
+
+### Fixed
+- **Restoration Reliability** - Multiple critical fixes
+  - Appliance/service restore with proper field mapping
+  - Guacamole passwords correctly handled during restore
+  - Background images preserved in audit logs
+  - UI stability for detail panel interactions
+  - Host revert route 404 error resolved
 
 ## [1.1.5] - 2025-08-20
 
