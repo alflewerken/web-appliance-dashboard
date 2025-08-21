@@ -131,17 +131,6 @@ export const handleRestore = async (log, restoreData = null) => {
   }
   
   const response = await axios.post(endpoint, requestData);
-      ? `/api/auditRestore/restore/host/${log.id}`
-      : `/api/auditRestore/revert/host/${log.id}`;
-  }
-
-  if (!endpoint) {
-    throw new Error('Kein Restore-Endpoint für diesen Ressourcentyp definiert');
-  }
-
-  // Add new name to request body if provided
-  const requestData = newName ? { newName } : {};
-  const response = await axios.post(endpoint, requestData);
   
   return response.data;
 };
