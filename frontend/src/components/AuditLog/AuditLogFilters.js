@@ -26,6 +26,47 @@ import {
   Trash2,
   AlertTriangle,
 } from 'lucide-react';
+import { formatActionName } from './AuditLogActions';
+
+// Helper function to format resource types to German
+const formatResourceType = (type) => {
+  const resourceTypeMap = {
+    'appliance': 'Appliance',
+    'appliances': 'Appliances',
+    'host': 'Host',
+    'hosts': 'Hosts',
+    'ssh_host': 'SSH Host',
+    'ssh_hosts': 'SSH Hosts',
+    'category': 'Kategorie',
+    'categories': 'Kategorien',
+    'service': 'Service',
+    'services': 'Services',
+    'user': 'Benutzer',
+    'users': 'Benutzer',
+    'settings': 'Einstellungen',
+    'backup': 'Backup',
+    'audit_logs': 'Audit Logs',
+    'ssh_key': 'SSH Schlüssel',
+    'ssh_keys': 'SSH Schlüssel',
+    'ssh_config': 'SSH Konfiguration',
+    'background_image': 'Hintergrundbild',
+    'background_images': 'Hintergrundbilder',
+    'custom_command': 'Benutzerbefehl',
+    'custom_commands': 'Benutzerbefehle',
+    'role_permission': 'Rollenberechtigung',
+    'role_permissions': 'Rollenberechtigungen',
+    'user_appliance_permission': 'Benutzer-Appliance-Berechtigung',
+    'user_appliance_permissions': 'Benutzer-Appliance-Berechtigungen',
+    'service_command_log': 'Service-Befehl-Log',
+    'service_command_logs': 'Service-Befehl-Logs',
+  };
+  
+  return resourceTypeMap[type] || type
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
 
 const AuditLogFilters = ({
   searchTerm,
@@ -146,7 +187,9 @@ const AuditLogFilters = ({
               >
                 <MenuItem value="all">Alle Aktionen</MenuItem>
                 {uniqueActions.map(action => (
-                  <MenuItem key={action} value={action}>{action}</MenuItem>
+                  <MenuItem key={action} value={action}>
+                    {formatActionName(action)}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -174,7 +217,9 @@ const AuditLogFilters = ({
               >
                 <MenuItem value="all">Alle Ressourcen</MenuItem>
                 {uniqueResourceTypes.map(type => (
-                  <MenuItem key={type} value={type}>{type}</MenuItem>
+                  <MenuItem key={type} value={type}>
+                    {formatResourceType(type)}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>

@@ -292,7 +292,7 @@ const AuditLogTableMUI = ({
               <TableCell sx={headerCellStyle} width={50}></TableCell>
               <TableCell sx={headerCellStyle}>Zeitstempel</TableCell>
               <TableCell sx={headerCellStyle}>Benutzer</TableCell>
-              <TableCell sx={headerCellStyle}>Aktion</TableCell>
+              <TableCell sx={{ ...headerCellStyle, minWidth: 200 }}>Aktion</TableCell>
               <TableCell sx={headerCellStyle}>Ressource</TableCell>
               <TableCell sx={headerCellStyle}>IP-Adresse</TableCell>
               <TableCell sx={headerCellStyle} width={50}>Aktion</TableCell>
@@ -331,18 +331,20 @@ const AuditLogTableMUI = ({
                         {log.username || 'System'}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ minWidth: 200 }}>
                       <Box
                         component="span"
                         sx={{
-                          display: 'inline-flex',
+                          display: 'flex',  // Changed to 'flex' for full width
                           alignItems: 'center',
+                          justifyContent: 'center',  // Center the content
                           gap: 0.5,
                           px: 1.5,
                           py: 0.5,
                           borderRadius: '16px',
                           fontSize: '0.75rem',
                           fontWeight: 500,
+                          width: '100%',  // Take full width of the cell
                           ...getActionColorStyle(log.action),
                         }}
                       >
