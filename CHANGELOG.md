@@ -33,7 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Click "Today's Activities" to filter today's logs
   - Toggle "Critical Actions" to show/hide important actions only
   - Visual feedback shows active filters with colored borders and tinted backgrounds
-  - Automatic filter panel expansion when stat card is clicked
+  - Filter section state preserved when clicking stat cards
+
+- **Persistent Audit Log Settings** - Filter preferences saved across sessions
+  - All filter settings stored in localStorage
+  - Search term, selected dropdowns, and date range preserved
+  - Filter collapsed/expanded state remembered
+  - Critical actions filter state maintained
+  - Settings automatically restored when panel reopens
+  - Each user has their own local preferences
 
 - **Secure File Transfers Documentation** - New user guide section
   - Comprehensive explanation of SSH/rsync encryption
@@ -137,6 +145,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Host card gradient respects border-radius
   - Card info sections use overflow:hidden to contain content
   - Consistent 16px border-radius on all corners
+
+- **Category Navigation** - Fixed hosts view blocking category selection
+  - Category clicks now properly deactivate hosts view
+  - Seamless switching between hosts and appliances view
+  - Prevents confusing overlay where hosts view blocks category filtering
+  - Applies to all categories: All, Favorites, Recent, and custom categories
 
 ### Improved
 - **Audit Log Action Badges** - Enhanced visual consistency
