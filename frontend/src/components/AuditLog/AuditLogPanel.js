@@ -89,20 +89,44 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     };
   }, [panelWidth, onWidthChange]);
 
+  // Load saved filter settings from localStorage
+  const loadFilterSettings = () => {
+    try {
+      const savedSettings = localStorage.getItem('auditLogFilterSettings');
+      if (savedSettings) {
+        return JSON.parse(savedSettings);
+      }
+    } catch (error) {
+      console.error('Error loading filter settings:', error);
+    }
+    // Default values if nothing saved
+    return {
+      searchTerm: '',
+      selectedAction: 'all',
+      selectedUser: 'all',
+      selectedResourceType: 'all',
+      dateRange: 'today',
+      showCriticalOnly: false,
+      filtersCollapsed: false
+    };
+  };
+
+  const savedFilterSettings = loadFilterSettings();
+
   // Rest of your component state
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAction, setSelectedAction] = useState('all');
-  const [selectedUser, setSelectedUser] = useState('all');
-  const [selectedResourceType, setSelectedResourceType] = useState('all');
-  const [dateRange, setDateRange] = useState('today');
+  const [searchTerm, setSearchTerm] = useState(savedFilterSettings.searchTerm);
+  const [selectedAction, setSelectedAction] = useState(savedFilterSettings.selectedAction);
+  const [selectedUser, setSelectedUser] = useState(savedFilterSettings.selectedUser);
+  const [selectedResourceType, setSelectedResourceType] = useState(savedFilterSettings.selectedResourceType);
+  const [dateRange, setDateRange] = useState(savedFilterSettings.dateRange);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [expandedRows, setExpandedRows] = useState(new Set());
-  const [showCriticalOnly, setShowCriticalOnly] = useState(false);
+  const [showCriticalOnly, setShowCriticalOnly] = useState(savedFilterSettings.showCriticalOnly);
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [stats, setStats] = useState({
     totalLogs: 0,
@@ -110,7 +134,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     uniqueUsers: 0,
     criticalActions: 0,
   });
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(savedFilterSettings.filtersCollapsed);
   
   const isAdmin = true;
   const { addEventListener, removeEventListener, isConnected } = useSSE();
@@ -233,6 +257,26 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   useEffect(() => {
     fetchAuditLogs();
   }, [fetchAuditLogs]);
+
+  // Save filter settings when they change
+  useEffect(() => {
+    const filterSettings = {
+      searchTerm,
+      selectedAction,
+      selectedUser,
+      selectedResourceType,
+      dateRange,
+      showCriticalOnly,
+      filtersCollapsed
+    };
+    
+    try {
+      localStorage.setItem('auditLogFilterSettings', JSON.stringify(filterSettings));
+    } catch (error) {
+      console.error('Error saving filter settings:', error);
+    }
+  }, [searchTerm, selectedAction, selectedUser, selectedResourceType, 
+      dateRange, showCriticalOnly, filtersCollapsed]);
 
   // SSE Event Listeners
   useEffect(() => {
