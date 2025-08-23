@@ -37,6 +37,12 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
   const restoreInfo = canRestore(log);
 
   const handleRestoreClick = async () => {
+    // Validierung: Bei User-Wiederherstellung mit neuen Daten muss E-Mail angegeben werden
+    if (showEmailInput && (log.action === 'user_delete' || log.action === 'user_deleted') && !newEmail) {
+      setRestoreError('Bitte geben Sie eine neue E-Mail-Adresse ein.');
+      return;
+    }
+
     setIsRestoring(true);
     setRestoreError(null);
     setRestoreSuccess(false);
@@ -59,12 +65,31 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
     } catch (error) {
       const errorMessage = error.response?.data?.error || error.message;
       
-      // Check if error is about email already in use for user restoration
-      if ((log.action === 'user_delete' || log.action === 'user_deleted') && 
-          errorMessage.includes('Email') && errorMessage.includes('already in use')) {
-        // Instead of showing error, prompt for new email
-        setShowEmailInput(true);
-        setRestoreError('Die E-Mail-Adresse ist bereits vergeben. Bitte geben Sie eine neue E-Mail-Adresse ein.');
+      // Check if error is about email or username already in use for user restoration
+      if (log.action === 'user_delete' || log.action === 'user_deleted') {
+        if (errorMessage.includes('Email') && errorMessage.includes('already in use')) {
+          // Show BOTH name and email inputs when email conflict occurs
+          if (!showEmailInput) {
+            setShowEmailInput(true);
+            setShowNameInput(true);  // Also show name input for complete flexibility
+            setRestoreError('Die E-Mail-Adresse ist bereits vergeben. Bitte geben Sie neue Benutzerdaten ein.');
+          } else {
+            // If email input is already shown, the provided email is also taken
+            setRestoreError('Diese E-Mail-Adresse ist ebenfalls bereits vergeben. Bitte verwenden Sie eine andere.');
+          }
+        } else if (errorMessage.includes('username') && errorMessage.includes('already exists')) {
+          // Show BOTH inputs when username conflict occurs
+          if (!showNameInput) {
+            setShowNameInput(true);
+            setShowEmailInput(true);  // Also show email input
+            setRestoreError('Der Benutzername ist bereits vergeben. Bitte geben Sie neue Benutzerdaten ein.');
+          } else {
+            // If name input is already shown, the provided name is also taken
+            setRestoreError('Dieser Benutzername ist ebenfalls bereits vergeben. Bitte verwenden Sie einen anderen.');
+          }
+        } else {
+          setRestoreError(errorMessage);
+        }
       } else {
         setRestoreError(errorMessage);
       }
@@ -75,6 +100,215 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
 
   // Render different views based on action type
   const renderContent = () => {
+    // For user activated/deactivated actions - show formatted status change
+    if (log.action === 'user_activated' || log.action === 'userActivated' || 
+        log.action === 'user_deactivated' || log.action === 'userDeactivated') {
+      const username = details.username || details.user_name || '-';
+      const originalStatus = details.originalStatus !== undefined ? details.originalStatus : 
+                           details.original_status !== undefined ? details.original_status : null;
+      const newStatus = details.newStatus !== undefined ? details.newStatus : 
+                       details.new_status !== undefined ? details.new_status : null;
+      const changedBy = details.changedBy || details.changed_by || '-';
+      const timestamp = log.createdAt || details.timestamp || log.timestamp || '-';
+      
+      // Format date
+      const formatDate = (date) => {
+        if (!date || date === '-') return '-';
+        try {
+          return new Date(date).toLocaleString('de-DE');
+        } catch {
+          return date;
+        }
+      };
+      
+      return (
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Status-Änderung:
+          </Typography>
+          
+          <Box sx={{
+            '& table': {
+              borderCollapse: 'collapse',
+              width: '100%',
+            },
+            '& td': {
+              padding: '10px 12px',
+              borderBottom: `1px solid ${isDarkMode 
+                ? 'rgba(255, 255, 255, 0.08)' 
+                : 'rgba(0, 0, 0, 0.08)'}`,
+            },
+            '& tr:last-child td': {
+              borderBottom: 'none',
+            },
+            '& td:first-of-type': {
+              fontWeight: 500,
+              color: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.6)' 
+                : 'rgba(0, 0, 0, 0.6)',
+              width: '35%',
+            },
+          }}>
+            <table>
+              <tbody>
+                {originalStatus !== null && (
+                  <tr>
+                    <td>Original Status:</td>
+                    <td>
+                      <Chip 
+                        label={originalStatus ? "Aktiv" : "Inaktiv"} 
+                        size="small"
+                        sx={{ 
+                          backgroundColor: originalStatus ? '#66bb6a' : '#f44336',
+                          color: '#fff',
+                          fontWeight: 500
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                {newStatus !== null && (
+                  <tr>
+                    <td>Neuer Status:</td>
+                    <td>
+                      <Chip 
+                        label={newStatus ? "Aktiv" : "Inaktiv"} 
+                        size="small"
+                        sx={{ 
+                          backgroundColor: newStatus ? '#66bb6a' : '#f44336',
+                          color: '#fff',
+                          fontWeight: 500
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                <tr><td>Benutzername:</td><td>{username}</td></tr>
+                <tr><td>Geändert von:</td><td>{changedBy}</td></tr>
+                <tr><td>Zeitstempel:</td><td>{formatDate(timestamp)}</td></tr>
+              </tbody>
+            </table>
+          </Box>
+        </Box>
+      );
+    }
+    
+    // For SSH file upload/download actions - show file transfer details
+    if (log.action === 'ssh_file_upload' || log.action === 'ssh_file_download' || 
+        log.action === 'file_upload' || log.action === 'file_download' ||
+        log.action === 'fileUpload' || log.action === 'fileDownload') {
+      
+      // Handle different data structures from backend
+      let fileName = details.fileName || details.file_name || details.filename || '-';
+      let fileSize = details.fileSize || details.file_size || details.size || '-';
+      let hostName = details.hostname || details.hostName || details.host_name || details.host || '-';
+      let targetPath = details.target_path || details.targetPath || details.destinationPath || details.destination_path || details.destination || '-';
+      
+      // Check if files array exists (new structure from sshUploadHandler)
+      if (details.files && Array.isArray(details.files) && details.files.length > 0) {
+        const firstFile = details.files[0];
+        fileName = firstFile.name || firstFile.filename || fileName;
+        fileSize = firstFile.bytes || firstFile.size || fileSize;
+      }
+      
+      const hostIp = details.host_ip || details.hostIp || '-';
+      const sourcePath = details.sourcePath || details.source_path || details.source || '-';
+      const transferredBy = details.transferredBy || details.transferred_by || details.username || log.username || '-';
+      const timestamp = log.createdAt || details.timestamp || log.timestamp || '-';
+      
+      // Format file size
+      const formatFileSize = (size) => {
+        if (!size || size === '-') return '-';
+        const bytes = parseInt(size);
+        if (isNaN(bytes)) return size;
+        
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let unitIndex = 0;
+        let formattedSize = bytes;
+        
+        while (formattedSize >= 1024 && unitIndex < units.length - 1) {
+          formattedSize /= 1024;
+          unitIndex++;
+        }
+        
+        return `${formattedSize.toFixed(2)} ${units[unitIndex]}`;
+      };
+      
+      // Format date
+      const formatDate = (date) => {
+        if (!date || date === '-') return '-';
+        try {
+          return new Date(date).toLocaleString('de-DE');
+        } catch {
+          return date;
+        }
+      };
+      
+      const isUpload = log.action.includes('upload');
+      
+      return (
+        <Box>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {isUpload ? 'Datei wurde hochgeladen' : 'Datei wurde heruntergeladen'}
+          </Alert>
+          
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Dateiübertragung-Details:
+          </Typography>
+          
+          <Box sx={{
+            '& table': {
+              borderCollapse: 'collapse',
+              width: '100%',
+            },
+            '& td': {
+              padding: '10px 12px',
+              borderBottom: `1px solid ${isDarkMode 
+                ? 'rgba(255, 255, 255, 0.08)' 
+                : 'rgba(0, 0, 0, 0.08)'}`,
+            },
+            '& tr:last-child td': {
+              borderBottom: 'none',
+            },
+            '& td:first-of-type': {
+              fontWeight: 500,
+              color: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.6)' 
+                : 'rgba(0, 0, 0, 0.6)',
+              width: '35%',
+            },
+          }}>
+            <table>
+              <tbody>
+                {fileName !== '-' && (
+                  <tr><td>Dateiname:</td><td style={{ fontFamily: 'monospace' }}>{fileName}</td></tr>
+                )}
+                {fileSize !== '-' && (
+                  <tr><td>Dateigröße:</td><td>{formatFileSize(fileSize)}</td></tr>
+                )}
+                {hostName !== '-' && (
+                  <tr><td>Host:</td><td style={{ fontWeight: 600 }}>{hostName}</td></tr>
+                )}
+                {hostIp !== '-' && (
+                  <tr><td>Host-IP:</td><td style={{ fontFamily: 'monospace' }}>{hostIp}</td></tr>
+                )}
+                {targetPath !== '-' && (
+                  <tr><td>Zielpfad:</td><td style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{targetPath}</td></tr>
+                )}
+                {sourcePath !== '-' && (
+                  <tr><td>Quellpfad:</td><td style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{sourcePath}</td></tr>
+                )}
+                {transferredBy !== '-' && (
+                  <tr><td>Übertragen von:</td><td>{transferredBy}</td></tr>
+                )}
+                <tr><td>Zeitstempel:</td><td>{formatDate(timestamp)}</td></tr>
+              </tbody>
+            </table>
+          </Box>
+        </Box>
+      );
+    }
+    
     // For host revert actions - show clean details
     if (log.action === 'host_reverted' || log.action === 'hostReverted' || 
         log.action === 'host_revert' || log.action === 'hostRevert') {
@@ -638,6 +872,208 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
               </Box>
             </>
           )}
+        </Box>
+      );
+    }
+
+    // For user restored actions - show nicely formatted restored user details
+    if (log.action === 'user_restored' || log.action === 'userRestored') {
+      const restoredFromLogId = details.restoredFromLogId || details.restored_from_log_id || '-';
+      const restoredBy = details.restoredBy || details.restored_by || '-';
+      const newName = details.newName || details.new_name || null;
+      const newEmail = details.newEmail || details.new_email || null;
+      
+      // Parse the restored user data
+      let userData = details.restoredUserData || details.restored_user_data || {};
+      if (typeof userData === 'string') {
+        try {
+          userData = JSON.parse(userData);
+        } catch (e) {
+          console.error('Error parsing userData:', e);
+        }
+      }
+      
+      // Extract fields with proper handling for both camelCase and snake_case
+      const username = userData.username || userData.user_name || '-';
+      const email = userData.email || '-';
+      const role = userData.role || '-';
+      const isActive = userData.isActive !== undefined ? (userData.isActive ? 'Ja' : 'Nein') : 
+                      userData.is_active !== undefined ? (userData.is_active ? 'Ja' : 'Nein') : '-';
+      const createdAt = userData.createdAt || userData.created_at || '-';
+      const updatedAt = userData.updatedAt || userData.updated_at || '-';
+      const lastLogin = userData.lastLogin || userData.last_login || null;
+      const lastActivity = userData.lastActivity || userData.last_activity || null;
+      
+      // Format dates if they exist
+      const formatDate = (date) => {
+        if (!date || date === '-' || date === null) return 'Nie';
+        try {
+          return new Date(date).toLocaleString('de-DE');
+        } catch {
+          return date;
+        }
+      };
+
+      return (
+        <Box>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Benutzer wurde erfolgreich wiederhergestellt
+          </Alert>
+          
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Wiederherstellungs-Details:
+          </Typography>
+          
+          <Box sx={{
+            '& table': {
+              borderCollapse: 'collapse',
+              width: '100%',
+            },
+            '& td': {
+              padding: '10px 12px',
+              borderBottom: `1px solid ${isDarkMode 
+                ? 'rgba(255, 255, 255, 0.08)' 
+                : 'rgba(0, 0, 0, 0.08)'}`,
+            },
+            '& tr:last-child td': {
+              borderBottom: 'none',
+            },
+            '& td:first-of-type': {
+              fontWeight: 500,
+              color: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.6)' 
+                : 'rgba(0, 0, 0, 0.6)',
+              width: '35%',
+            },
+          }}>
+            <table>
+              <tbody>
+                <tr><td>Wiederhergestellt von Log ID:</td><td>{restoredFromLogId}</td></tr>
+                {newName && (
+                  <tr>
+                    <td>Neuer Benutzername:</td>
+                    <td>
+                      <Chip 
+                        label={newName} 
+                        size="small"
+                        color="success"
+                        sx={{ fontWeight: 500 }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                {newEmail && (
+                  <tr>
+                    <td>Neue E-Mail-Adresse:</td>
+                    <td>
+                      <Chip 
+                        label={newEmail} 
+                        size="small"
+                        color="success"
+                        sx={{ fontWeight: 500 }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                <tr><td>Wiederhergestellt von:</td><td style={{ fontWeight: 600 }}>{restoredBy}</td></tr>
+              </tbody>
+            </table>
+          </Box>
+
+          <Typography variant="subtitle2" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
+            Ursprüngliche Benutzerdaten:
+          </Typography>
+          
+          <Box sx={{
+            '& table': {
+              borderCollapse: 'collapse',
+              width: '100%',
+            },
+            '& td': {
+              padding: '10px 12px',
+              borderBottom: `1px solid ${isDarkMode 
+                ? 'rgba(255, 255, 255, 0.08)' 
+                : 'rgba(0, 0, 0, 0.08)'}`,
+            },
+            '& tr:last-child td': {
+              borderBottom: 'none',
+            },
+            '& td:first-of-type': {
+              fontWeight: 500,
+              color: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.6)' 
+                : 'rgba(0, 0, 0, 0.6)',
+              width: '35%',
+            },
+          }}>
+            <table>
+              <tbody>
+                <tr>
+                  <td>Benutzername:</td>
+                  <td>
+                    {newName ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography 
+                          sx={{ 
+                            textDecoration: 'line-through',
+                            color: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'
+                          }}
+                        >
+                          {username}
+                        </Typography>
+                        <Typography variant="caption">→</Typography>
+                        <Typography sx={{ fontWeight: 500 }}>{newName}</Typography>
+                      </Stack>
+                    ) : username}
+                  </td>
+                </tr>
+                <tr>
+                  <td>E-Mail:</td>
+                  <td>
+                    {newEmail ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography 
+                          sx={{ 
+                            textDecoration: 'line-through',
+                            color: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'
+                          }}
+                        >
+                          {email}
+                        </Typography>
+                        <Typography variant="caption">→</Typography>
+                        <Typography sx={{ fontWeight: 500 }}>{newEmail}</Typography>
+                      </Stack>
+                    ) : email}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Rolle:</td>
+                  <td>
+                    <Chip 
+                      label={role} 
+                      size="small"
+                      color={role === 'admin' ? 'error' : 'default'}
+                      sx={{ fontWeight: 500 }}
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td>Aktiv:</td>
+                  <td>
+                    <Chip 
+                      label={isActive} 
+                      size="small"
+                      color={isActive === 'Ja' ? 'success' : 'default'}
+                    />
+                  </td>
+                </tr>
+                <tr><td>Erstellt am:</td><td>{formatDate(createdAt)}</td></tr>
+                <tr><td>Zuletzt geändert:</td><td>{formatDate(updatedAt)}</td></tr>
+                <tr><td>Letzter Login:</td><td>{formatDate(lastLogin)}</td></tr>
+                <tr><td>Letzte Aktivität:</td><td>{formatDate(lastActivity)}</td></tr>
+              </tbody>
+            </table>
+          </Box>
         </Box>
       );
     }
@@ -1386,11 +1822,24 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
             <TextField
               fullWidth
               size="small"
-              label="Neuer Name (optional)"
+              label={
+                (log.action === 'user_delete' || log.action === 'user_deleted') && showEmailInput
+                  ? "Neuer Benutzername (optional)"
+                  : "Neuer Name (optional)"
+              }
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               sx={{ mb: 2 }}
-              placeholder={`Neuer Name für ${getResourceName(log)}`}
+              placeholder={
+                (log.action === 'user_delete' || log.action === 'user_deleted')
+                  ? `Neuer Benutzername für ${getResourceName(log)}`
+                  : `Neuer Name für ${getResourceName(log)}`
+              }
+              helperText={
+                (log.action === 'user_delete' || log.action === 'user_deleted') && showEmailInput
+                  ? "Lassen Sie leer, um den ursprünglichen Namen zu behalten"
+                  : null
+              }
             />
           )}
 
@@ -1398,14 +1847,19 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
             <TextField
               fullWidth
               size="small"
-              label="Neue E-Mail-Adresse"
+              label="Neue E-Mail-Adresse (erforderlich)"
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               sx={{ mb: 2 }}
               placeholder="neue.email@example.com"
               required
-              helperText="Die ursprüngliche E-Mail-Adresse ist bereits vergeben. Bitte geben Sie eine neue ein."
+              error={showEmailInput && !newEmail}
+              helperText={
+                showEmailInput && !newEmail 
+                  ? "E-Mail-Adresse ist erforderlich für die Wiederherstellung"
+                  : "Eine neue E-Mail-Adresse verhindert Konflikte mit bestehenden Benutzern"
+              }
             />
           )}
 
@@ -1425,9 +1879,17 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
               <Button
                 variant="outlined"
                 size="small"
-                onClick={() => setShowNameInput(true)}
+                onClick={() => {
+                  setShowNameInput(true);
+                  // Bei User-Wiederherstellung auch E-Mail-Feld anzeigen
+                  if (log.action === 'user_delete' || log.action === 'user_deleted') {
+                    setShowEmailInput(true);
+                  }
+                }}
               >
-                Mit neuem Namen
+                {(log.action === 'user_delete' || log.action === 'user_deleted') 
+                  ? 'Mit neuen Daten' 
+                  : 'Mit neuem Namen'}
               </Button>
             )}
           </Stack>

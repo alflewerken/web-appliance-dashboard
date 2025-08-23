@@ -50,6 +50,19 @@ export const canRestore = (log) => {
 export const getResourceName = (log) => {
   const details = log.metadata || log.details || {};
   
+  // For file upload/download actions - return hostname
+  if (log.action === 'ssh_file_upload' || log.action === 'ssh_file_download' || 
+      log.action === 'file_upload' || log.action === 'file_download' ||
+      log.action === 'fileUpload' || log.action === 'fileDownload') {
+    return details.hostname || details.hostName || details.host_name || details.host || '-';
+  }
+  
+  // For user activation/deactivation - return username
+  if (log.action === 'user_activated' || log.action === 'userActivated' || 
+      log.action === 'user_deactivated' || log.action === 'userDeactivated') {
+    return details.username || details.user_name || '-';
+  }
+  
   // Try common name fields
   if (details.name) return details.name;
   if (details.appliance_name) return details.appliance_name;

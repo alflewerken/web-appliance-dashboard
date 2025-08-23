@@ -166,15 +166,17 @@ export const formatActionName = (action) => {
     terminalOpen: 'Terminal geöffnet',
     command_execute: 'Befehl ausgeführt',  // Hinzugefügt
     ssh_key_registered: 'SSH-Schlüssel registriert',
+    ssh_file_upload: 'Dateiübertragung',  // Neu hinzugefügt
+    ssh_file_download: 'Dateiübertragung',  // Neu hinzugefügt
     remote_desktop_access: 'Remote Desktop Zugriff',
     remoteDesktopAccess: 'Remote Desktop Zugriff',
     host_created: 'Host erstellt',
     host_updated: 'Host aktualisiert',
     host_deleted: 'Host gelöscht',
     host_restored: 'Host wiederhergestellt',
-    host_reverted: 'Host wiederhergestellt',
-    host_revert: 'Host wiederhergestellt',
-    hostReverted: 'Host wiederhergestellt',
+    host_reverted: 'Host zurückgesetzt',  // Geändert von "wiederhergestellt" zu "zurückgesetzt"
+    host_revert: 'Host zurückgesetzt',    // Geändert von "wiederhergestellt" zu "zurückgesetzt"
+    hostReverted: 'Host zurückgesetzt',   // Geändert von "wiederhergestellt" zu "zurückgesetzt"
     hostCreated: 'Host erstellt',
     hostUpdated: 'Host aktualisiert',
     hostDeleted: 'Host gelöscht',

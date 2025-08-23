@@ -5,8 +5,8 @@ import { formatActionName, getActionColor } from './AuditLogActions';
 // Helper function to translate action names to German
 const translateAction = (action) => {
   const translations = {
-    'ssh_file_upload': 'Dateiupload',
-    'ssh_file_download': 'Dateidownload',
+    'ssh_file_upload': 'Dateiübertragung',
+    'ssh_file_download': 'Dateiübertragung',
     'backup_create': 'Backup erstellt',
     'backup_restore': 'Backup wiederhergestellt',
     'backupRestore': 'Backup wiederhergestellt',

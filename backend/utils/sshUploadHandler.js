@@ -496,7 +496,8 @@ const handleSSHUpload = async (req, res) => {
             bytes: file.size
           }]
         },
-        ipAddress
+        ipAddress,
+        host.name || host.hostname  // resourceName - this will be shown in the Resource column
       );
     } catch (auditError) {
       console.error('Failed to create audit log:', auditError);
