@@ -305,9 +305,9 @@ export const getActionColorStyle = (action) => {
       border: '1px solid #ff9800',
     },
     remoteDesktop: {
-      backgroundColor: '#ef5350',  // Hellrot
+      backgroundColor: '#ff8c00',  // Helles Orange (DarkOrange)
       color: '#ffffff',
-      border: '1px solid #ef5350',
+      border: '1px solid #ff8c00',
     },
     fileTransfer: {
       backgroundColor: '#9c27b0',  // Violett
