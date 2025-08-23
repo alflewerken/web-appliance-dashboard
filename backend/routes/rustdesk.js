@@ -58,7 +58,7 @@ router.post('/access/:applianceId', authenticateToken, async (req, res) => {
 
     const appliance = appliances[0];
     
-    // Create audit log
+    // Create audit log with resource name
     await createAuditLog(
       userId,
       'rustdesk_access',
@@ -68,9 +68,11 @@ router.post('/access/:applianceId', authenticateToken, async (req, res) => {
         appliance_name: appliance.name,
         rustdeskId: appliance.rustdeskId,
         access_type: 'remote_desktop',
-        protocol: 'rustdesk'
+        protocol: 'rustdesk',
+        action: req.body?.action || 'connect'
       },
-      ipAddress
+      ipAddress,
+      appliance.name  // Add resource name here
     );
     
     res.json({ success: true });
@@ -221,10 +223,11 @@ router.get('/install/:hostId/status', authenticateToken, async (req, res) => {
             appliance_name: appliances[0].name,
             rustdeskId: status.rustdeskId,
             access_type: 'remote_desktop',
-            protocol: 'rustdesk'
+            protocol: 'rustdesk',
+            action: 'status_check'
           },
           ipAddress,
-          req
+          appliances[0].name  // Add resource name here
         );
         console.log('Audit log created successfully');
       }
