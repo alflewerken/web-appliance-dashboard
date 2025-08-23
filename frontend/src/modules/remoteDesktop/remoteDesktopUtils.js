@@ -82,11 +82,23 @@ export const openRustDeskConnection = async (appliance, token) => {
   }
   
   try {
-    // Log the access
-    await axios.post(`/api/rustdesk/access/${appliance.id}`, {
-      action: 'connect',
-      rustdesk_id: rustdeskId
-    });
+    console.log('RustDesk connect - sending audit log for appliance:', appliance.id);
+    
+    // Log the access - ensure this is sent before opening RustDesk
+    const auditResponse = await axios.post(
+      `/api/rustdesk/access/${appliance.id}`,
+      {
+        action: 'connect',
+        rustdesk_id: rustdeskId
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    console.log('Audit log response:', auditResponse.data);
     
     // Create RustDesk URL
     let rustdeskUrl = `rustdesk://${rustdeskId}`;
@@ -94,12 +106,20 @@ export const openRustDeskConnection = async (appliance, token) => {
       rustdeskUrl += `?password=${encodeURIComponent(rustdeskPassword)}`;
     }
     
+    console.log('Opening RustDesk with URL:', rustdeskUrl);
+    
     // Open RustDesk
     window.location.href = rustdeskUrl;
     
     return true;
   } catch (error) {
     console.error('Failed to connect to RustDesk:', error);
+    // If audit log fails, we should still show the error but might want to continue
+    if (error.response?.status === 404) {
+      throw new Error('Appliance nicht gefunden');
+    } else if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
     throw error;
   }
 };
