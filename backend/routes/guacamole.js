@@ -89,7 +89,7 @@ router.get('/test-connection/:applianceId', async (req, res) => {
     const encodedIdentifier = encodeURIComponent(identifier);
     
     // Generiere URLs
-    const publicUrl = `http://localhost:9080/guacamole/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
+    const publicUrl = `http://localhost:9080/guacamole/?token=${encodeURIComponent(authToken)}#/client/${encodedIdentifier}`;
     const directUrl = `http://localhost:9080/guacamole/#/client/${encodedIdentifier}`;
     
     res.json({
@@ -307,7 +307,8 @@ router.get('/auto-login/:applianceId', async (req, res) => {
     const encodedIdentifier = encodeURIComponent(identifier);
     
     // Leite zur Guacamole-URL mit Token weiter
-    const redirectUrl = `${baseUrl}/guacamole/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
+    // WICHTIG: Token muss VOR dem Hash sein!
+    const redirectUrl = `${baseUrl}/guacamole/?token=${encodeURIComponent(authToken)}#/client/${encodedIdentifier}`;
     
     console.log('Auto-login redirect to:', redirectUrl);
     res.redirect(redirectUrl);

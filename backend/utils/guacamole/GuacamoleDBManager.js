@@ -95,10 +95,11 @@ class GuacamoleDBManager {
           parameters['sftp-hostname'] = config.sshHostname;
           parameters['sftp-username'] = config.sshUsername || config.username || '';
           
-          // SSH-Passwort entschlüsseln wenn es verschlüsselt ist
+          // SSH-Passwort sollte bereits entschlüsselt sein, wenn es von guacamoleHelper kommt
+          // Nur entschlüsseln wenn es noch verschlüsselt ist (enthält ':')
           let sftpPassword = config.sshPassword || config.password || '';
-          if (sftpPassword && sftpPassword.includes(':')) {
-            // Es ist verschlüsselt, wir müssen es entschlüsseln
+          if (sftpPassword && sftpPassword.includes(':') && sftpPassword.split(':').length === 3) {
+            // Es sieht verschlüsselt aus (format: iv:authTag:encrypted)
             const { decrypt } = require('../encryption');
             try {
               sftpPassword = decrypt(sftpPassword) || '';

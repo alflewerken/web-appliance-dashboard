@@ -27,8 +27,8 @@ async function syncGuacamoleConnection(data) {
     // Handle password - could be plain text (from form) or encrypted (from DB)
     let finalPassword = null;
     
-    // FIX: Bei der Wiederherstellung haben wir möglicherweise ein separates VNC-Passwort
-    const vncPassword = data.password || remotePassword;  // data.password ist für VNC-spezifisches Passwort
+    // Use remotePassword for VNC/RDP password (not SSH password!)
+    const vncPassword = remotePassword;  // This is the VNC/RDP password
     
     if (vncPassword) {
       // Check if it's encrypted (contains colon separator from encryption format)
@@ -37,16 +37,32 @@ async function syncGuacamoleConnection(data) {
           // Try to decrypt if it appears to be encrypted
           finalPassword = decrypt(vncPassword);
           if (!finalPassword) {
-            console.log(`Warning: Failed to decrypt password for entity ${entityId}`);
+            console.log(`Warning: Failed to decrypt VNC/RDP password for entity ${entityId}`);
             finalPassword = '';
           }
         } catch (error) {
-          console.error(`Failed to decrypt password for entity ${entityId}:`, error.message);
+          console.error(`Failed to decrypt VNC/RDP password for entity ${entityId}:`, error.message);
           finalPassword = '';
         }
       } else {
         // It's plain text password from the form
         finalPassword = vncPassword;
+      }
+    }
+    
+    // Handle SSH password for SFTP separately
+    let sshPasswordDecrypted = null;
+    if (data.sshPassword || data.password) {
+      const sshPwd = data.sshPassword || data.password;
+      if (sshPwd.includes(':')) {
+        try {
+          sshPasswordDecrypted = decrypt(sshPwd);
+        } catch (error) {
+          console.error(`Failed to decrypt SSH password for entity ${entityId}:`, error.message);
+          sshPasswordDecrypted = '';
+        }
+      } else {
+        sshPasswordDecrypted = sshPwd;
       }
     }
 
@@ -59,10 +75,10 @@ async function syncGuacamoleConnection(data) {
         port: remotePort || (remoteProtocol === 'vnc' ? 5900 : 3389),
         username: remoteUsername || '',
         password: finalPassword || '',
-        // SSH credentials für SFTP (wenn vorhanden)
+        // SSH credentials für SFTP (wenn vorhanden) - bereits entschlüsselt
         sshHostname: data.sshHostname,
         sshUsername: data.sshUsername,
-        sshPassword: data.sshPassword  // Wird von GuacamoleDBManager entschlüsselt
+        sshPassword: sshPasswordDecrypted  // Verwende bereits entschlüsseltes SSH-Passwort
       };
       
       // Erstelle oder aktualisiere die Verbindung
