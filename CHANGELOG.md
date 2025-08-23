@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Appliance modifications synchronized between sessions
   - Audit log updates broadcast to all active users
 
+- **Interactive Audit Log Statistics** - Clickable stat cards with smart filters
+  - Tooltips display descriptions when hovering in compact mode
+  - Click "All Log Entries" to show all logs
+  - Click "Today's Activities" to filter today's logs
+  - Toggle "Critical Actions" to show/hide important actions only
+  - Visual feedback shows active filters with colored borders and tinted backgrounds
+  - Automatic filter panel expansion when stat card is clicked
+
 ### Changed
 - **Audit Log Detail Renderer** - Comprehensive field display improvements
   - Extended detail views with all relevant fields for each action type
@@ -29,12 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved display of changes with before/after comparisons
   - Responsive chip layouts for better mobile experience
   - Enhanced color coding for different action types
+  - File transfer details now show hostname and correct timestamp
+  - User activation/deactivation shows colored status pills instead of true/false
 
 - **User Restoration Process** - More flexible recovery options
   - Users can be restored with new usernames
   - Email address conflicts handled gracefully with input prompt
   - Support for restoring users with both new name and new email
   - Clear feedback when restoration requires additional information
+
+- **Visual Improvements** - Enhanced UI/UX elements
+  - Remote Desktop access badge changed from light red to bright orange (#ff8c00)
+  - Better visual distinction between different action types
+  - Improved visibility and friendlier appearance of status badges
 
 ### Fixed
 - **Audit Log Export** - Restored complete export functionality
@@ -48,6 +63,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Host Revert Functionality** - Fixed 404 error when reverting host changes
   - Corrected incomplete route definition in backend
   - Route now accepts multiple action name formats (camelCase and snake_case)
+
+- **SSH File Upload** - Fixed missing resource name in audit logs
+  - Added resourceName parameter to createAuditLog call
+  - Hostname now correctly appears in Resource column of audit log table
+  - Improved traceability of file transfer operations
+
+- **Audit Log Timestamps** - Fixed missing timestamps in detail views
+  - File transfer details now show actual timestamp instead of "-"
+  - User activation/deactivation details display correct timestamps
+  - Changed from non-existent fields to log.createdAt
+
+- **Stat Cards Interactivity** - Fixed non-functional click handlers
+  - Removed duplicate export statement in AuditLogStats.js
+  - Fixed tooltip implementation with dynamic wrapper approach
+  - Added userSelect: 'none' to prevent text cursor on hover
+  - Cards now properly respond to clicks with correct cursor display
   - Improved error handling with specific error messages
   - Consistent with other resource revert operations
 
