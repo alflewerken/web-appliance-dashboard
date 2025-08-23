@@ -65,6 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - User activation/deactivation shows colored status pills instead of true/false
   - JSON strings replaced with formatted tables for user_restored entries
   - Before/After pills with clear "Vorher"/"Nachher" labels for user updates
+  - **NEW:** Audit log detail chips now display with opaque colored backgrounds
+  - **NEW:** Long text in chips displays completely without ellipsis truncation
+  - **NEW:** Implemented word-break for very long strings (hashes, IDs)
+  - **NEW:** Responsive layout with horizontal scrolling for wide content
 
 - **User Restoration Process** - More flexible recovery options
   - Users can be restored with new usernames
@@ -79,6 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved visibility and friendlier appearance of status badges
   - Appliance and host cards now have properly rounded bottom corners
   - Card info sections respect border-radius with overflow:hidden
+  - **NEW:** Audit log chips use consistent opaque color scheme (red/green/orange/blue/gray)
+  - **NEW:** All chips display with white text for optimal contrast
 
 - **Documentation Structure** - User guides reorganized
   - Advanced Configuration section removed from user guides
@@ -98,6 +104,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Host Revert Functionality** - Fixed 404 error when reverting host changes
   - Corrected incomplete route definition in backend
   - Route now accepts multiple action name formats (camelCase and snake_case)
+  
+- **Guacamole Remote Desktop Authentication** - Direct connections without login prompts
+  - Fixed incorrect token placement in URL (moved before hash fragment)
+  - Corrected VNC/RDP password decryption and storage
+  - Fixed SSH vs VNC password confusion in connection parameters
+  - Token URL format changed from `#/client/XXX?token=YYY` to `?token=YYY#/client/XXX`
+  - Remote desktop connections now open directly without password prompts
+  - Both host and service connections work seamlessly
   - Endpoint path corrected from /users/ to /user/ for consistency
 
 - **SSH File Upload** - Fixed missing resource name in audit logs

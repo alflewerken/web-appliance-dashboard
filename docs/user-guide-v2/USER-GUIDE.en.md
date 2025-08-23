@@ -436,48 +436,108 @@ That's intentional! The Clean UI philosophy hides actions until you need them. H
 
 ---
 
-## 🔧 Advanced Configuration
+---
 
-### Environment Variables
-The most important settings in `.env`:
+## 🔒 Secure File Transfers
 
+<details>
+<summary><b>Click to expand: Learn about encrypted file transfers</b></summary>
+
+### Overview
+
+The Web Appliance Dashboard uses a highly secure, encrypted method for all file transfers via SSH (Secure Shell). This ensures that your data is always protected during transmission.
+
+### How File Transfers Work
+
+All file transfers use a combination of two proven technologies:
+
+1. **SSH (Secure Shell)**: Establishes an encrypted connection between hosts
+2. **rsync**: Transfers files efficiently and reliably through the SSH tunnel
+
+```
+┌─────────────┐     SSH Tunnel       ┌─────────────┐
+│   Source    │ ==================> │ Destination │
+│    Host     │    Encrypted         │    Host     │
+└─────────────┘  (AES-256/ChaCha20)  └─────────────┘
+       │                                     │
+       └── rsync data stream ───────────────┘
+           (runs THROUGH SSH tunnel)
+```
+
+### Security Features
+
+✅ **End-to-End Encryption**: All data is encrypted from start to finish  
+✅ **Modern Algorithms**: AES-256 or ChaCha20-Poly1305 encryption  
+✅ **Authentication**: SSH key-based authentication (no passwords)  
+✅ **Integrity Protection**: Automatic detection of any data manipulation  
+
+### Performance Expectations
+
+Encryption provides maximum security but affects transfer speed:
+
+| Network Type | Expected Speed | Example: 1 GB File |
+|--------------|----------------|---------------------|
+| **Local LAN** | 1-5 MB/s | 3-17 minutes |
+| **Gigabit LAN** | 5-30 MB/s | 30 seconds - 3 minutes |
+| **WiFi** | 0.5-3 MB/s | 5-35 minutes |
+| **Internet** | 0.1-2 MB/s | 8-170 minutes |
+
+### Monitoring Active Transfers
+
+The Dashboard shows progress of active transfers:
+
+```
+Transfer in progress...
+[████████████░░░░░░░] 63% (471 MB / 747 MB)
+Speed: 1.3 MB/s
+Estimated time remaining: 3:23 minutes
+```
+
+You can also check detailed information in the container logs:
 ```bash
-# Security
-JWT_SECRET=<generate-with-setup-script>
-SSH_KEY_ENCRYPTION_SECRET=<your-key>
-
-# Ports
-PUBLIC_PORT=9080
-TTYD_PORT=7681
-
-# Features
-FEATURE_AUDIT_LOG=true
-FEATURE_BACKUP_RESTORE=true
-FEATURE_SSH_TERMINAL=true
-FEATURE_REMOTE_DESKTOP=true
+docker logs appliance_backend --tail 20
 ```
 
-### Docker Compose Customizations
-Create a `docker-compose.override.yml` for your customizations:
+### Best Practices
 
-```yaml
-version: '3.8'
-services:
-  webserver:
-    ports:
-      - "443:443"  # HTTPS
-    volumes:
-      - ./ssl:/etc/nginx/ssl:ro
-```
+**For Optimal Performance:**
+- Schedule large transfers during off-peak hours
+- Use wired connections when possible
+- Consider SSH compression for uncompressed data
 
-### Database
-- MySQL/MariaDB in container
-- Automatic backups
-- Restore possible via UI
+**For Security:**
+- Rotate SSH keys regularly (every 90 days recommended)
+- Monitor the Audit Log for unusual transfers
+- Only authorize necessary hosts for transfers
+
+### Troubleshooting Slow Transfers
+
+**Problem**: Transfer running at < 500 KB/s
+
+**Solutions**:
+- Check CPU usage on both hosts
+- Test network connection (`ping`, `iperf3`)
+- Try alternative encryption (ChaCha20 on weak CPUs)
+
+**Problem**: Transfer interrupted
+
+**Solutions**:
+- Check SSH connection: `ssh user@host`
+- Increase timeout in settings
+- Check disk space on destination host
+
+### Summary
+
+The Web Appliance Dashboard prioritizes **security without compromise**. The typical transfer speed of 1-5 MB/s on local networks is a fair price for comprehensive security. Your data is fully protected throughout the entire transfer - from the first to the last byte.
+
+</details>
 
 ---
 
 ## 🚨 Troubleshooting
+
+<details>
+<summary><b>Click to expand: Common problems and solutions</b></summary>
 
 ### "Connection Refused" to service
 - Is the host online?
@@ -507,9 +567,14 @@ docker exec appliance_backend npm run reset-admin-password
 - Backup file intact?
 - Enough disk space?
 
+</details>
+
 ---
 
 ## 🗺️ Roadmap
+
+<details>
+<summary><b>Click to expand: Future development plans</b></summary>
 
 ### Coming Soon (v1.2)
 - [ ] Multi-user finally working properly
@@ -529,9 +594,14 @@ docker exec appliance_backend npm run reset-admin-password
 - [ ] AI assistant ("Start all dev VMs")
 - [ ] Mobile app (React Native)
 
+</details>
+
 ---
 
 ## 🤝 Community & Support
+
+<details>
+<summary><b>Click to expand: How to get help and contribute</b></summary>
 
 ### Found a bug?
 Create an issue on GitHub with:
@@ -551,9 +621,14 @@ Pull requests are welcome! Please read CONTRIBUTING.md first.
 - Search existing issues
 - Ask in discussions
 
+</details>
+
 ---
 
 ## 📝 Closing Words from the Developer
+
+<details>
+<summary><b>Click to expand: A personal message from Alf</b></summary>
 
 > "After 30 years in IT and countless companies later, I just wanted a tool that works. No frills, no cloud dependency, no monthly fees. Just a solid, beautiful dashboard for my homelab.
 > 
@@ -569,9 +644,14 @@ Pull requests are welcome! Please read CONTRIBUTING.md first.
 > 
 > *- Alf, 56, IT enthusiast since the Sinclair ZX80, grown up on SGI (formerly SiliconGraphics), Sun, IBM, HP Hardware from Workstations to enterprise scale Server farms -*
 
+</details>
+
 ---
 
 ## 📊 My Personal Setup
+
+<details>
+<summary><b>Click to expand: See my homelab configuration</b></summary>
 
 Maybe as inspiration:
 
@@ -588,6 +668,8 @@ Maybe as inspiration:
 - 15+ Docker containers (GitLab, Nextcloud, etc.)
 
 **This Dashboard manages all of it!** From gaming in the evening to AI experiments at night - everything with one click.
+
+</details>
 
 ---
 

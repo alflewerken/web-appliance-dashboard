@@ -476,47 +476,12 @@ oder einfach ein Bild in die Desktop-Anwendung draggen.
 
 ---
 
-## 🔧 Erweiterte Konfiguration
+## 🔧 Erweiterte Konfiguration---
 
-### Multi-User Setup (Beta)
-**Verschiedene Benutzer, verschiedene Rechte**
+## 🔒 Sichere Dateiübertragungen
 
-**Admin kann:**
-- Alles
-- User verwalten
-- System-Backups
-- Alle Appliances sehen/bearbeiten
-
-**User kann:**
-- Zugewiesene Appliances nutzen
-- Eigene SSH-Keys verwalten
-- UI personalisieren
-- Kein Zugriff auf Admin-Features
-
-**Hinweis:** Multi-User ist noch in Entwicklung. Für Familien-Homelabs reicht es, für Firmen noch nicht.
-
-### Backup & Restore
-**Ihre Konfiguration sicher gespeichert**
-
-**Was wird gesichert?**
-- Alle Appliances
-- SSH-Keys (verschlüsselt)
-- User-Accounts
-- UI-Einstellungen
-- Audit-Logs
-
-**Backup erstellen:**
-1. Settings → Backup
-2. "Create Backup" klicken
-3. **WICHTIG:** Encryption Key sofort kopieren!
-4. Key in Passwort-Manager speichern
-5. Backup-File herunterladen
-
-**Restore:**
-1. Settings → Restore
-2. Backup-File hochladen
-3. Encryption Key eingeben
-4. Restore starten
+<details>
+<summary><b>Klicken zum Aufklappen: Erfahren Sie mehr über verschlüsselte Dateiübertragungen</b></summary>
 5. Fertig!
 
 ### API für Automatisierung
@@ -543,7 +508,103 @@ fetch('http://dashboard/api/appliances/5/start', {
 
 ---
 
+## 🔒 Sichere Dateiübertragungen
+
+### Überblick
+
+Das Web Appliance Dashboard verwendet für alle Dateiübertragungen eine hochsichere, verschlüsselte Methode über SSH (Secure Shell). Dies gewährleistet, dass Ihre Daten während der Übertragung immer geschützt sind.
+
+### Wie funktionieren Dateiübertragungen?
+
+Alle Dateiübertragungen nutzen eine Kombination aus zwei bewährten Technologien:
+
+1. **SSH (Secure Shell)**: Stellt eine verschlüsselte Verbindung zwischen Hosts her
+2. **rsync**: Überträgt Dateien effizient und zuverlässig durch den SSH-Tunnel
+
+```
+┌─────────────┐     SSH-Tunnel       ┌─────────────┐
+│   Quelle    │ ==================> │    Ziel     │
+│    Host     │   Verschlüsselt      │    Host     │
+└─────────────┘  (AES-256/ChaCha20)  └─────────────┘
+       │                                     │
+       └── rsync-Datenstrom ────────────────┘
+           (läuft DURCH SSH-Tunnel)
+```
+
+### Sicherheitsmerkmale
+
+✅ **Ende-zu-Ende-Verschlüsselung**: Alle Daten werden vom Start bis zum Ziel verschlüsselt  
+✅ **Moderne Algorithmen**: AES-256 oder ChaCha20-Poly1305 Verschlüsselung  
+✅ **Authentifizierung**: SSH-Key-basierte Authentifizierung (keine Passwörter)  
+✅ **Integritätsschutz**: Automatische Erkennung jeder Datenmanipulation  
+
+### Performance-Erwartungen
+
+Die Verschlüsselung bietet maximale Sicherheit, beeinflusst aber die Übertragungsgeschwindigkeit:
+
+| Netzwerktyp | Erwartete Geschwindigkeit | Beispiel: 1 GB Datei |
+|-------------|---------------------------|----------------------|
+| **Lokales LAN** | 1-5 MB/s | 3-17 Minuten |
+| **Gigabit LAN** | 5-30 MB/s | 30 Sekunden - 3 Minuten |
+| **WLAN** | 0,5-3 MB/s | 5-35 Minuten |
+| **Internet** | 0,1-2 MB/s | 8-170 Minuten |
+
+### Überwachung aktiver Übertragungen
+
+Das Dashboard zeigt den Fortschritt aktiver Übertragungen:
+
+```
+Übertragung läuft...
+[████████████░░░░░░░] 63% (471 MB / 747 MB)
+Geschwindigkeit: 1,3 MB/s
+Geschätzte Restzeit: 3:23 Minuten
+```
+
+Detaillierte Informationen finden Sie auch in den Container-Logs:
+```bash
+docker logs appliance_backend --tail 20
+```
+
+### Best Practices
+
+**Für optimale Performance:**
+- Große Übertragungen außerhalb der Hauptnutzungszeiten planen
+- Nach Möglichkeit kabelgebundene Verbindungen verwenden
+- SSH-Komprimierung für unkomprimierte Daten in Betracht ziehen
+
+**Für Sicherheit:**
+- SSH-Keys regelmäßig rotieren (alle 90 Tage empfohlen)
+- Audit-Log auf ungewöhnliche Übertragungen überwachen
+- Nur notwendige Hosts für Übertragungen autorisieren
+
+### Fehlerbehebung bei langsamen Übertragungen
+
+**Problem**: Übertragung läuft mit < 500 KB/s
+
+**Lösungen**:
+- CPU-Auslastung auf beiden Hosts prüfen
+- Netzwerkverbindung testen (`ping`, `iperf3`)
+- Alternative Verschlüsselung testen (ChaCha20 auf schwachen CPUs)
+
+**Problem**: Übertragung unterbrochen
+
+**Lösungen**:
+- SSH-Verbindung prüfen: `ssh user@host`
+- Timeout in den Einstellungen erhöhen
+- Speicherplatz auf Zielhost prüfen
+
+### Zusammenfassung
+
+Das Web Appliance Dashboard priorisiert **Sicherheit ohne Kompromisse**. Die typische Übertragungsgeschwindigkeit von 1-5 MB/s im lokalen Netzwerk ist ein fairer Preis für umfassende Sicherheit. Ihre Daten sind während der gesamten Übertragung vollständig geschützt - vom ersten bis zum letzten Byte.
+
+</details>
+
+---
+
 ## 🚨 Troubleshooting
+
+<details>
+<summary><b>Klicken zum Aufklappen: Häufige Probleme und Lösungen</b></summary>
 
 ### Problem: "Kann mich nicht einloggen"
 **Lösung:**
@@ -609,9 +670,14 @@ docker exec -it appliance_backend npm run reset-admin
 ### Ihre Ideen?
 GitHub Issues sind willkommen! Oder schreiben Sie mir direkt.
 
+</details>
+
 ---
 
 ## 🤝 Community & Support
+
+<details>
+<summary><b>Klicken zum Aufklappen: Hilfe bekommen und beitragen</b></summary>
 
 ### GitHub
 **Repository:** [github.com/alflewerken/web-appliance-dashboard](https://github.com/alflewerken/web-appliance-dashboard)
@@ -629,9 +695,14 @@ GitHub Issues sind willkommen! Oder schreiben Sie mir direkt.
 ### Lizenz
 MIT - Nutzen Sie es, verändern Sie es, teilen Sie es!
 
+</details>
+
 ---
 
 ## 📝 Schlusswort vom Entwickler
+
+<details>
+<summary><b>Klicken zum Aufklappen: Eine persönliche Nachricht von Alf</b></summary>
 
 > "Nach 30 Jahren in der IT und unzähligen Firmen später wollte ich einfach ein Tool, das funktioniert. Kein Schnickschnack, keine Cloud-Abhängigkeit, keine monatlichen Gebühren. Nur ein solides, schönes Dashboard für mein Homelab.
 > 
@@ -647,9 +718,14 @@ MIT - Nutzen Sie es, verändern Sie es, teilen Sie es!
 > 
 > *- Alf, 56, IT-Enthusiast seit dem Sinclair ZX80*
 
+</details>
+
 ---
 
 ## 📊 Anhang: Meine Setup-Details
+
+<details>
+<summary><b>Klicken zum Aufklappen: Mein Homelab als Inspiration</b></summary>
 
 ### Mein Homelab
 - **Proxmox Server:** Dell R730 mit 128GB RAM
@@ -670,6 +746,8 @@ MIT - Nutzen Sie es, verändern Sie es, teilen Sie es!
 - **Lernen:** Jedes Problem macht mich besser
 - **Kosten:** Einmal Hardware, keine Abos
 - **Spaß:** Es ist ein fantastisches Hobby!
+
+</details>
 
 ---
 
