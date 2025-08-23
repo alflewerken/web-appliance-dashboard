@@ -114,6 +114,10 @@ const AppSidebar = ({
 
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
+    // Deactivate hosts view when selecting a category
+    if (setShowHostsView) {
+      setShowHostsView(false);
+    }
     // Auto-close sidebar on mobile after selection
     if (isMobile && onClose) {
       onClose();
