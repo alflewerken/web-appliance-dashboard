@@ -67,7 +67,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
         };
       }
     } catch (error) {
-      console.error('Error extracting SSH data:', error);
+      // Silently handle SSH data extraction errors
       sshData = {};
     }
   }
@@ -225,7 +225,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
 
             }}
             onError={(e) => {
-              console.error('Terminal iframe error:', e);
+              // Silently handle iframe errors - terminal still works
             }}
           />
         </div>
