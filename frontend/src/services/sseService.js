@@ -5,11 +5,15 @@ class SSEService {
   constructor() {
     this.eventSource = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = Infinity; // Unbegrenzte Reconnect-Versuche
     this.reconnectDelay = 1000;
+    this.maxReconnectDelay = 30000; // Maximaler Delay von 30 Sekunden
     this.listeners = new Map();
     this.isConnected = false;
     this.connectionPromise = null;
+    this.reconnectTimer = null;
+    this.heartbeatTimer = null;
+    this.lastHeartbeat = Date.now();
   }
 
   connect() {
@@ -34,26 +38,34 @@ class SSEService {
         this.eventSource = new EventSource(SSE_URL);
 
         this.eventSource.onopen = () => {
+          // console.log('[SSE] Connection established');
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.notifyListeners('connection', { status: 'connected' });
+          
+          // Start heartbeat monitoring
+          this.startHeartbeatMonitor();
+          
           resolve();
         };
 
         this.eventSource.onerror = error => {
+          // console.error('[SSE] Connection error:', error);
           this.isConnected = false;
           this.notifyListeners('connection', { status: 'disconnected' });
-
-          if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            setTimeout(() => {
-              this.reconnectAttempts++;
-              this.connect();
-            }, this.reconnectDelay * this.reconnectAttempts);
-          }
+          
+          // Stop heartbeat monitoring
+          this.stopHeartbeatMonitor();
+          
+          // Always try to reconnect with exponential backoff
+          this.scheduleReconnect();
         };
 
-        // Remove generic message handler - we'll use specific event handlers only
-        // This prevents double processing of events
+        // Add heartbeat event handler
+        this.eventSource.addEventListener('heartbeat', event => {
+          this.lastHeartbeat = Date.now();
+          // console.log('[SSE] Heartbeat received');
+        });
 
         // Specific event handlers
         const events = [
@@ -90,6 +102,9 @@ class SSEService {
           'user_activated',
           'user_deactivated',
           'user_status_changed',
+          'user_restore',
+          'user_restored',
+          'user_reverted',
           'user_login',
           'user_logout',
           'login_failed',
@@ -143,12 +158,68 @@ class SSEService {
   }
 
   disconnect() {
+    // console.log('[SSE] Disconnecting...');
+    this.stopHeartbeatMonitor();
+    this.cancelReconnect();
+    
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
       this.isConnected = false;
       this.connectionPromise = null;
       this.notifyListeners('connection', { status: 'disconnected' });
+    }
+  }
+  
+  scheduleReconnect() {
+    // Cancel any existing reconnect timer
+    this.cancelReconnect();
+    
+    // Calculate delay with exponential backoff
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
+      this.maxReconnectDelay
+    );
+    
+    // console.log(`[SSE] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+    
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectAttempts++;
+      // console.log(`[SSE] Reconnecting... (attempt ${this.reconnectAttempts})`);
+      this.connect().catch(error => {
+        // console.error('[SSE] Reconnect failed:', error);
+      });
+    }, delay);
+  }
+  
+  cancelReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+  
+  startHeartbeatMonitor() {
+    this.stopHeartbeatMonitor();
+    this.lastHeartbeat = Date.now();
+    
+    // Check for heartbeat every 30 seconds
+    this.heartbeatTimer = setInterval(() => {
+      const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeat;
+      
+      // If no heartbeat for 60 seconds, assume connection is dead
+      if (timeSinceLastHeartbeat > 60000) {
+        // console.warn('[SSE] No heartbeat for 60 seconds, reconnecting...');
+        this.disconnect();
+        this.scheduleReconnect();
+      }
+    }, 30000);
+  }
+  
+  stopHeartbeatMonitor() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
     }
   }
 

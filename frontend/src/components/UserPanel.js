@@ -96,7 +96,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     ];
 
     const handleUserEvent = (eventType) => (data) => {
-      console.log(`[UserPanel] Received ${eventType} event:`, data);
+      // Nur bei restore/revert Events zur Fehlersuche loggen
+      // if (eventType.includes('restore') || eventType.includes('revert')) {
+      //   console.log(`[UserPanel] Received ${eventType} event:`, data);
+      // }
       debouncedFetchUsers();
     };
 
@@ -177,10 +180,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   }, [isResizing, panelWidth, onWidthChange]);
 
   const fetchUsers = useCallback(async () => {
+    console.log('[UserPanel] fetchUsers called');
     try {
       const token = localStorage.getItem('token');
       
       if (!isAdmin()) {
+        console.log('[UserPanel] Not admin, showing only current user');
         setUsers([{
           id: user.id,
           username: user.username,
@@ -194,6 +199,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         return;
       }
       
+      console.log('[UserPanel] Fetching users from API');
       const response = await fetch(`/api/auth/users`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -203,8 +209,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       
       if (response.ok) {
         const data = await response.json();
+        console.log(`[UserPanel] Received ${data.length} users from API`);
         setUsers(data);
       } else {
+        console.error(`[UserPanel] Failed to fetch users: ${response.status}`);
         if (response.status === 403) {
           setUsers([{
             id: user.id,
@@ -221,7 +229,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         }
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('[UserPanel] Error fetching users:', error);
       setError('Fehler beim Laden der Benutzer: ' + error.message);
     } finally {
       setLoading(false);
@@ -234,7 +242,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     }
     fetchUsersTimeoutRef.current = setTimeout(() => {
       fetchUsers();
-    }, 300);
+    }, 100); // Reduziert von 300ms auf 100ms für schnellere Updates
   }, [fetchUsers]);
 
   const fetchRoles = async () => {
