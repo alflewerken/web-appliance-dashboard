@@ -360,8 +360,12 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       setDateRange(value);
       setFiltersCollapsed(false); // Filter ausklappen
     } else if (type === 'criticalOnly') {
-      // Für "Wichtige Aktionen"
-      setShowCriticalOnly(value);
+      // Für "Wichtige Aktionen" - Toggle-Funktion
+      if (value === 'toggle') {
+        setShowCriticalOnly(prev => !prev);
+      } else {
+        setShowCriticalOnly(value);
+      }
       setFiltersCollapsed(false); // Filter ausklappen
     }
   };
@@ -550,6 +554,8 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
               cardStyles={cardStyles} 
               panelWidth={panelWidth}
               onStatClick={handleStatClick}
+              showCriticalOnly={showCriticalOnly}
+              dateRange={dateRange}
             />
             
             <Box sx={{ px: 1, py: 0.5, display: 'flex', justifyContent: 'center' }}>

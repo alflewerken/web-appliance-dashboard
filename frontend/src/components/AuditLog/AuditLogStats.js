@@ -22,6 +22,8 @@ const AuditLogStats = ({
   cardStyles, 
   panelWidth,
   onStatClick,  // Neue Prop für Click-Handler
+  showCriticalOnly = false,  // Prop für aktiven Status
+  dateRange = 'today',  // Prop für aktiven Zeitraum
 }) => {
   const theme = useTheme();
   
@@ -36,6 +38,7 @@ const AuditLogStats = ({
       icon: <Activity size={14} />,
       color: theme.palette.primary.main,
       action: 'all',
+      isActive: dateRange === 'all',
       clickAction: () => {
         if (onStatClick) {
           onStatClick('all', 'dateRange');
@@ -49,6 +52,7 @@ const AuditLogStats = ({
       icon: <Calendar size={14} />,
       color: theme.palette.info.main,
       action: 'today',
+      isActive: dateRange === 'today',
       clickAction: () => {
         if (onStatClick) {
           onStatClick('today', 'dateRange');
@@ -62,18 +66,20 @@ const AuditLogStats = ({
       icon: <Users size={14} />,
       color: theme.palette.success.main,
       action: null,
+      isActive: false,
       clickAction: null,
     },
     {
       label: 'Kritisch',
       value: stats.criticalActions,
-      description: 'Wichtige Aktionen',
+      description: showCriticalOnly ? 'Filter aktiv' : 'Wichtige Aktionen',
       icon: <AlertTriangle size={14} />,
       color: theme.palette.error.main,
       action: 'critical',
+      isActive: showCriticalOnly,
       clickAction: () => {
         if (onStatClick) {
-          onStatClick(true, 'criticalOnly');
+          onStatClick('toggle', 'criticalOnly');
         }
       },
     },
@@ -101,7 +107,13 @@ const AuditLogStats = ({
                   ...cardStyles,
                   flex: '0 0 auto',
                   cursor: item.clickAction ? 'pointer' : 'default',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+                  border: item.isActive 
+                    ? `2px solid ${item.color}` 
+                    : cardStyles.border || '1px solid rgba(255, 255, 255, 0.08)',
+                  backgroundColor: item.isActive
+                    ? `${item.color}15`
+                    : cardStyles.backgroundColor,
                   '&:hover': item.clickAction ? {
                     transform: 'translateY(-2px)',
                     boxShadow: theme.shadows[4],
