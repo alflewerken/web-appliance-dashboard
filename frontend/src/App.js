@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 import axios from './utils/axiosConfig';
+import './components/EmergencyButtonFix.css'; // EMERGENCY FIX FOR BUTTONS
 
 // Initialize background state early
 import './utils/backgroundInitializer';
@@ -1702,3 +1703,4 @@ function App() {
 }
 
 export default App;
+// Cache bust: Sat Aug 23 20:52:28 CEST 2025

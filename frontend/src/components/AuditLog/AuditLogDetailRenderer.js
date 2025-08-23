@@ -19,6 +19,41 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { canRestore, getResourceName, handleRestore } from './AuditLogRestore';
+import './AuditLogDetail.css';
+
+// Custom Chip component that handles long text better
+const ResponsiveChip = ({ label, ...props }) => {
+  const [showFull, setShowFull] = useState(false);
+  const maxLength = 50;
+  const isLong = label && label.length > maxLength;
+  
+  const displayLabel = isLong && !showFull 
+    ? label.substring(0, maxLength) + '...' 
+    : label;
+  
+  return (
+    <Chip 
+      {...props}
+      label={displayLabel}
+      onClick={isLong ? () => setShowFull(!showFull) : undefined}
+      sx={{
+        ...props.sx,
+        maxWidth: '100%',
+        height: 'auto',
+        '& .MuiChip-label': {
+          display: 'block',
+          whiteSpace: isLong ? 'normal' : 'nowrap',
+          overflow: 'hidden',
+          textOverflow: isLong && !showFull ? 'ellipsis' : 'unset',
+          wordBreak: isLong ? 'break-word' : 'normal',
+          padding: '4px 12px',
+          cursor: isLong ? 'pointer' : 'default',
+        }
+      }}
+      title={isLong ? (showFull ? 'Klicken zum Verkleinern' : 'Klicken für vollständigen Text') : label}
+    />
+  );
+};
 
 const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
   const theme = useTheme();
@@ -434,23 +469,56 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
                               ? 'rgba(255, 255, 255, 0.6)' 
                               : 'rgba(0, 0, 0, 0.6)',
                             width: '30%',
+                            verticalAlign: 'top',
+                            paddingTop: '12px',
                           }}>{formattedField}:</td>
-                          <td>
-                            <Stack direction="row" spacing={2} alignItems="center">
-                              <Chip 
-                                label={value || '-'} 
-                                size="small" 
-                                variant="outlined"
-                                color="error"
-                                sx={{ textDecoration: 'line-through' }}
-                              />
-                              <Typography variant="caption">→</Typography>
-                              <Chip 
-                                label={oldValue || '-'} 
-                                size="small" 
-                                variant="outlined"
-                                color="success"
-                              />
+                          <td style={{
+                            paddingTop: '8px',
+                            paddingBottom: '8px',
+                          }}>
+                            <Stack 
+                              direction="row" 
+                              spacing={1} 
+                              alignItems="flex-start"
+                              sx={{
+                                flexWrap: 'wrap',
+                                gap: 1,
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  display: 'inline-block',
+                                  padding: '4px 12px',
+                                  backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                  border: '1px solid rgba(244, 67, 54, 0.5)',
+                                  borderRadius: '16px',
+                                  color: '#f44336',
+                                  fontSize: '0.75rem',
+                                  textDecoration: 'line-through',
+                                  wordBreak: 'break-all',
+                                  maxWidth: '100%',
+                                  whiteSpace: 'pre-wrap',
+                                }}
+                              >
+                                {value || '-'}
+                              </Box>
+                              <Typography variant="caption" sx={{ alignSelf: 'center' }}>→</Typography>
+                              <Box
+                                sx={{
+                                  display: 'inline-block',
+                                  padding: '4px 12px',
+                                  backgroundColor: 'rgba(102, 187, 106, 0.1)',
+                                  border: '1px solid rgba(102, 187, 106, 0.5)',
+                                  borderRadius: '16px',
+                                  color: '#66bb6a',
+                                  fontSize: '0.75rem',
+                                  wordBreak: 'break-all',
+                                  maxWidth: '100%',
+                                  whiteSpace: 'pre-wrap',
+                                }}
+                              >
+                                {oldValue || '-'}
+                              </Box>
                             </Stack>
                           </td>
                         </tr>
@@ -546,15 +614,23 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
                           <Chip 
                             label={oldValues[field] || '-'} 
                             size="small" 
-                            variant="outlined"
                             color="error"
+                            sx={{
+                              backgroundColor: '#f44336',
+                              color: '#ffffff',
+                              fontWeight: 500,
+                            }}
                           />
                           <Typography variant="caption">→</Typography>
                           <Chip 
                             label={changes[field] || '-'} 
                             size="small" 
-                            variant="outlined"
                             color="success"
+                            sx={{
+                              backgroundColor: '#66bb6a',
+                              color: '#ffffff',
+                              fontWeight: 500,
+                            }}
                           />
                         </Stack>
                       </td>

@@ -30,12 +30,12 @@ import AuditLogDetailRenderer from './AuditLogDetailRenderer';
 import { formatTimestamp, formatActionName, getActionIcon, getActionColor, getActionColorStyle } from './AuditLogActions';
 
 const AuditLogTableMUI = ({
-  logs,
-  expandedRows,
+  logs = [],
+  expandedRows = new Set(),
   onToggleExpand,
   onRefresh,
   onDeleteLog,
-  cardStyles, // Add cardStyles prop
+  cardStyles = {}, // Add default value
 }) => {
   console.log('AuditLogTableMUI rendered with onDeleteLog:', typeof onDeleteLog);
   const theme = useTheme();
@@ -84,7 +84,21 @@ const AuditLogTableMUI = ({
     return (
       <Stack spacing={0.5}>
         {logs.map((log) => {
-          const isExpanded = expandedRows.has(log.id);
+          // Ensure we're comparing the same type (convert to string)
+          const logIdStr = String(log.id);
+          const isExpanded = expandedRows && expandedRows.has ? expandedRows.has(logIdStr) : false;
+          
+          // Debug logging
+          if (logs.length > 0 && logs.indexOf(log) === 0) {
+            console.log('[AuditLogTable] First log check:', {
+              logId: log.id,
+              logIdStr: logIdStr,
+              expandedRows: expandedRows,
+              isSet: expandedRows instanceof Set,
+              hasMethod: typeof expandedRows.has,
+              isExpanded: isExpanded
+            });
+          }
           
           return (
             <Paper
@@ -99,7 +113,7 @@ const AuditLogTableMUI = ({
                   boxShadow: theme.shadows[2],
                 }
               }}
-              onClick={() => onToggleExpand(log.id)}
+              onClick={() => onToggleExpand && onToggleExpand(String(log.id))}
             >
               <Stack spacing={0.5}>
                 {/* Erste Zeile: Zeitstempel, Action, Löschen/Expand */}
@@ -261,7 +275,72 @@ const AuditLogTableMUI = ({
                     ? 'rgba(255, 255, 255, 0.12)' 
                     : 'rgba(0, 0, 0, 0.12)'
                 }} />
-                <AuditLogDetailRenderer log={log} onRestoreComplete={onRefresh} />
+                <Box 
+                  className="audit-log-detail-container"
+                  sx={{
+                    // Wichtige Styles für lange Inhalte in Widget-View
+                    overflowX: 'auto',
+                    maxWidth: '100%',
+                    px: 1,
+                    // Chips vollständig anzeigen und opak machen
+                    '& .MuiChip-root': {
+                      maxWidth: '100%',
+                      height: 'auto',
+                      opacity: '1 !important',
+                      border: 'none !important',
+                      backgroundColor: '#757575 !important',
+                      color: '#ffffff !important',
+                      '&[color="error"], &.MuiChip-colorError': {
+                        backgroundColor: '#f44336 !important',
+                      },
+                      '&[color="success"], &.MuiChip-colorSuccess': {
+                        backgroundColor: '#66bb6a !important',
+                      },
+                      '&[color="warning"], &.MuiChip-colorWarning': {
+                        backgroundColor: '#ff9800 !important',
+                      },
+                      '&[color="info"], &.MuiChip-colorInfo': {
+                        backgroundColor: '#2196f3 !important',
+                      },
+                      '&[style*="background-color: rgb(244, 67, 54)"]': {
+                        backgroundColor: '#f44336 !important',
+                      },
+                      '&[style*="background-color: rgb(102, 187, 106)"]': {
+                        backgroundColor: '#66bb6a !important',
+                      },
+                      '& .MuiChip-label': {
+                        display: 'block',
+                        overflow: 'visible',
+                        textOverflow: 'unset',
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-all',
+                        padding: '6px 10px',
+                        color: '#ffffff !important',
+                      }
+                    },
+                    // Tabellen-Layout optimieren
+                    '& table': {
+                      tableLayout: 'auto',
+                      width: '100%',
+                    },
+                    '& td': {
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
+                      '&:first-of-type': {
+                        width: '35%',
+                        minWidth: '80px',
+                        verticalAlign: 'top',
+                      }
+                    },
+                    // Stack für Chips responsive machen
+                    '& .MuiStack-root': {
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                      alignItems: 'flex-start',
+                    }
+                  }}>
+                  <AuditLogDetailRenderer log={log} onRestoreComplete={onRefresh} />
+                </Box>
               </Collapse>
             </Paper>
           );
@@ -300,7 +379,9 @@ const AuditLogTableMUI = ({
           </TableHead>
           <TableBody>
             {logs.map((log) => {
-              const isExpanded = expandedRows.has(log.id);
+              // Ensure we're comparing the same type (convert to string)
+              const logIdStr = String(log.id);
+              const isExpanded = expandedRows && expandedRows.has ? expandedRows.has(logIdStr) : false;
               
               return (
                 <React.Fragment key={log.id}>
@@ -314,7 +395,7 @@ const AuditLogTableMUI = ({
                           : 'rgba(0, 0, 0, 0.08)',
                       },
                     }}
-                    onClick={() => onToggleExpand(log.id)}
+                    onClick={() => onToggleExpand && onToggleExpand(String(log.id))}
                   >
                     <TableCell>
                       <IconButton size="small">
@@ -388,12 +469,87 @@ const AuditLogTableMUI = ({
                   <TableRow>
                     <TableCell colSpan={8} sx={{ py: 0, px: 0 }}>
                       <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                        <Box sx={{
-                          p: 3,
-                          backgroundColor: theme.palette.mode === 'dark'
-                            ? 'rgba(255, 255, 255, 0.05)'
-                            : 'rgba(0, 0, 0, 0.02)',
-                        }}>
+                        <Box 
+                          className="audit-log-detail-container"
+                          sx={{
+                            p: 3,
+                            backgroundColor: theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.05)'
+                              : 'rgba(0, 0, 0, 0.02)',
+                            // Wichtige Styles für lange Inhalte
+                            overflowX: 'auto',
+                            maxWidth: '100%',
+                            // Chips vollständig anzeigen und opak machen
+                            '& .MuiChip-root': {
+                              maxWidth: '100%',
+                              height: 'auto',
+                              opacity: '1 !important',
+                              border: 'none !important',
+                              // Default opaque background
+                              backgroundColor: '#757575 !important',
+                              color: '#ffffff !important',
+                              // Color variants
+                              '&[color="error"], &.MuiChip-colorError': {
+                                backgroundColor: '#f44336 !important',
+                              },
+                              '&[color="success"], &.MuiChip-colorSuccess': {
+                                backgroundColor: '#66bb6a !important',
+                              },
+                              '&[color="warning"], &.MuiChip-colorWarning': {
+                                backgroundColor: '#ff9800 !important',
+                              },
+                              '&[color="info"], &.MuiChip-colorInfo': {
+                                backgroundColor: '#2196f3 !important',
+                              },
+                              '&[color="primary"], &.MuiChip-colorPrimary': {
+                                backgroundColor: '#1976d2 !important',
+                              },
+                              '&[color="secondary"], &.MuiChip-colorSecondary': {
+                                backgroundColor: '#dc004e !important',
+                              },
+                              // Override any sx styles that contain specific background colors
+                              '&[style*="background-color: rgb(244, 67, 54)"]': {
+                                backgroundColor: '#f44336 !important',
+                              },
+                              '&[style*="background-color: rgb(102, 187, 106)"]': {
+                                backgroundColor: '#66bb6a !important',
+                              },
+                              '& .MuiChip-label': {
+                                display: 'block',
+                                overflow: 'visible',
+                                textOverflow: 'unset',
+                                whiteSpace: 'normal',
+                                wordBreak: 'break-all',
+                                padding: '8px 12px',
+                                lineHeight: '1.4',
+                                color: '#ffffff !important',
+                              }
+                            },
+                            // Tabellen-Layout optimieren
+                            '& table': {
+                              tableLayout: 'auto',
+                              width: '100%',
+                              wordBreak: 'break-word',
+                            },
+                            '& td': {
+                              wordBreak: 'break-word',
+                              overflowWrap: 'break-word',
+                              '&:first-of-type': {
+                                width: '30%',
+                                minWidth: '100px',
+                                verticalAlign: 'top',
+                              },
+                              '&:last-of-type': {
+                                width: '70%',
+                              }
+                            },
+                            // Stack für Chips responsive machen
+                            '& .MuiStack-root': {
+                              flexWrap: 'wrap',
+                              gap: 1,
+                              alignItems: 'flex-start',
+                            }
+                          }}>
                           <AuditLogDetailRenderer log={log} onRestoreComplete={onRefresh} />
                         </Box>
                       </Collapse>

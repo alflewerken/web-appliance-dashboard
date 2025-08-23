@@ -102,7 +102,9 @@ router.get('/', requireAdmin, async (req, res) => {
   try {
     console.log('[AUDIT_LOGS] API called at:', new Date().toISOString());
     
-    const query = `
+    const { since } = req.query;
+    
+    let query = `
       SELECT 
         al.id,
         al.user_id,
@@ -117,11 +119,20 @@ router.get('/', requireAdmin, async (req, res) => {
         u.username
       FROM audit_logs al
       LEFT JOIN users u ON al.user_id = u.id
-      ORDER BY al.created_at DESC
-      LIMIT 500
     `;
+    
+    const params = [];
+    
+    // If 'since' parameter is provided, only return logs newer than this timestamp
+    if (since) {
+      query += ' WHERE al.created_at > ?';
+      params.push(since);
+      console.log('[AUDIT_LOGS] Fetching logs since:', since);
+    }
+    
+    query += ' ORDER BY al.created_at DESC LIMIT 500';
 
-    const [logs] = await pool.execute(query);
+    const [logs] = await pool.execute(query, params);
     console.log('[AUDIT_LOGS] Found', logs.length, 'logs from DB');
     
     // Debug: Check first log for IP

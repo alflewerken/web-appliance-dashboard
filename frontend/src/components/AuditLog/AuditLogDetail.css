@@ -1,0 +1,193 @@
+/* Audit Log Detail Styles */
+
+/* Container für Detail-Ansicht */
+.audit-log-detail-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Responsive Tabellen */
+.audit-log-detail-container table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.audit-log-detail-container td {
+  padding: 8px 12px;
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.audit-log-detail-container td:first-child {
+  width: 30%;
+  min-width: 100px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-log-detail-container td:last-child {
+  width: 70%;
+}
+
+/* Chip/Pill Styles für lange Texte - OPAK mit vollem Text */
+.audit-log-detail-container .MuiChip-root {
+  max-width: 100%;
+  height: auto !important;
+  white-space: normal !important;
+  /* Opake Hintergründe für bessere Lesbarkeit */
+  opacity: 1 !important;
+}
+
+.audit-log-detail-container .MuiChip-root.MuiChip-colorError {
+  background-color: #f44336 !important;
+  color: #ffffff !important;
+}
+
+.audit-log-detail-container .MuiChip-root.MuiChip-colorSuccess {
+  background-color: #66bb6a !important;
+  color: #ffffff !important;
+}
+
+.audit-log-detail-container .MuiChip-root.MuiChip-colorWarning {
+  background-color: #ff9800 !important;
+  color: #ffffff !important;
+}
+
+.audit-log-detail-container .MuiChip-root.MuiChip-colorInfo {
+  background-color: #2196f3 !important;
+  color: #ffffff !important;
+}
+
+.audit-log-detail-container .MuiChip-root.MuiChip-colorDefault {
+  background-color: #757575 !important;
+  color: #ffffff !important;
+}
+
+.audit-log-detail-container .MuiChip-label {
+  display: block !important;
+  white-space: normal !important;
+  word-break: break-all !important;
+  overflow-wrap: break-word !important;
+  padding: 8px 12px !important;
+  line-height: 1.4 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+/* Stack Layout für Chips */
+.audit-log-detail-container .MuiStack-root {
+  flex-wrap: wrap !important;
+  gap: 8px;
+  align-items: flex-start !important;
+}
+
+/* Custom Pills für sehr lange Inhalte */
+.audit-log-pill {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  max-width: 100%;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  margin: 2px;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  line-height: 1.5;
+}
+
+.audit-log-pill-error {
+  background-color: #f44336;
+  color: #ffffff;
+  border: none;
+}
+
+.audit-log-pill-success {
+  background-color: #66bb6a;
+  color: #ffffff;
+  border: none;
+}
+
+.audit-log-pill-warning {
+  background-color: #ff9800;
+  color: #ffffff;
+  border: none;
+}
+
+.audit-log-pill-info {
+  background-color: #2196f3;
+  color: #ffffff;
+  border: none;
+}
+
+.audit-log-pill-strikethrough {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Mobile Optimierungen */
+@media (max-width: 768px) {
+  .audit-log-detail-container td:first-child {
+    width: 40%;
+    min-width: 80px;
+  }
+  
+  .audit-log-detail-container td:last-child {
+    width: 60%;
+  }
+  
+  .audit-log-detail-container .MuiChip-root {
+    font-size: 0.7rem;
+  }
+  
+  .audit-log-detail-container .MuiChip-label {
+    padding: 6px 10px !important;
+  }
+}
+
+/* Scrollbare Container für sehr breite Inhalte */
+.audit-log-detail-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 8px;
+}
+
+.audit-log-detail-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.audit-log-detail-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.audit-log-detail-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.audit-log-detail-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark Mode Anpassungen */
+.theme-dark .audit-log-detail-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.theme-dark .audit-log-detail-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.theme-dark .audit-log-detail-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Ensure chips in dark mode have proper contrast */
+.theme-dark .audit-log-detail-container .MuiChip-root {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
