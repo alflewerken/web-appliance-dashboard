@@ -1,91 +1,93 @@
-/* Mobile Styles for ApplianceCard Buttons */
+/* Mobile-specific styles for ApplianceCard - FIXED VERSION */
 
 /* Mobile breakpoint - max-width: 768px */
 @media (max-width: 768px) {
-  /* Keep vertical layout on mobile - same as desktop */
+  /* CRITICAL: Fix z-index stacking on mobile */
+  /* Info section should be at bottom, buttons at top */
+  
+  /* Force info section to bottom with lower z-index */
+  .card-info {
+    z-index: 2 !important;
+    position: absolute !important;
+    bottom: 0 !important;
+  }
+  
+  /* Force buttons to top with highest z-index */
   .card-buttons-left,
   .card-buttons-right {
-    /* Keep the same positioning as desktop */
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 6px; /* Slightly smaller gap for mobile */
-    z-index: 5;
-    opacity: 1; /* Always visible on mobile/touch devices */
-    transition: opacity 0.3s ease;
+    position: absolute !important;
+    top: 10px !important;
+    transform: none !important;
+    z-index: 20 !important; /* Higher than everything else */
+    opacity: 1 !important;
+    gap: 6px;
   }
 
   .card-buttons-left {
-    left: 6px; /* Slightly less padding on mobile */
+    left: 6px !important;
   }
 
   .card-buttons-right {
-    right: 6px; /* Slightly less padding on mobile */
+    right: 6px !important;
+  }
+  
+  /* Ensure card-cover doesn't interfere */
+  .card-cover {
+    z-index: 1 !important;
+  }
+  
+  /* Ensure service status bar is ABOVE the card */
+  .service-status-bar {
+    z-index: 25 !important; /* Highest z-index */
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
   }
 
-  /* Keep button sizes consistent but slightly smaller on mobile */
+  /* Button sizes for mobile */
   .card-front .action-btn,
   .card-front .file-transfer-button,
   .card-front .remote-desktop-btn {
-    width: clamp(20px, calc(var(--card-size) * 0.15), 32px);
-    height: clamp(20px, calc(var(--card-size) * 0.15), 32px);
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
   }
 
-  /* Adjust icon size for mobile */
+  /* Icon sizes */
   .card-front .action-btn svg,
   .card-front .file-transfer-button svg,
   .card-front .remote-desktop-btn svg {
-    width: clamp(12px, calc(var(--card-size) * 0.09), 18px);
-    height: clamp(12px, calc(var(--card-size) * 0.09), 18px);
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Touch feedback */
+  .card-front {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Better touch targets */
+  .action-btn,
+  .file-transfer-button,
+  .remote-desktop-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
   }
 }
 
-/* Very small screens */
-@media (max-width: 375px) {
-  /* Even smaller buttons on very small screens */
-  .card-front .action-btn,
-  .card-front .file-transfer-button,
-  .card-front .remote-desktop-btn {
-    width: clamp(18px, calc(var(--card-size) * 0.14), 28px);
-    height: clamp(18px, calc(var(--card-size) * 0.14), 28px);
-  }
-
-  .card-front .action-btn svg,
-  .card-front .file-transfer-button svg,
-  .card-front .remote-desktop-btn svg {
-    width: clamp(10px, calc(var(--card-size) * 0.08), 14px);
-    height: clamp(10px, calc(var(--card-size) * 0.08), 14px);
-  }
-
-  /* Reduce gap between buttons */
-  .card-buttons-left,
-  .card-buttons-right {
-    gap: 4px;
-  }
-
-  /* Less padding from edges */
-  .card-buttons-left {
-    left: 4px;
-  }
-
-  .card-buttons-right {
-    right: 4px;
-  }
-}
-
-/* Tablet/iPad specific styles */
+/* Tablet-specific adjustments */
 @media (min-width: 769px) and (max-width: 1024px) {
-  /* Keep vertical layout with appropriate spacing */
   .card-buttons-left,
   .card-buttons-right {
+    /* Tablets: auch oben positioniert */
+    top: 12px !important;
+    transform: none !important;
+    z-index: 20 !important;
+    opacity: 1;
     gap: 8px;
-    opacity: 1; /* Always visible on touch devices */
   }
 
   .card-buttons-left {
@@ -95,49 +97,42 @@
   .card-buttons-right {
     right: 10px;
   }
+  
+  .service-status-bar {
+    z-index: 25 !important;
+  }
 }
 
-/* Touch device specific adjustments */
+/* Touch devices override */
 @media (hover: none) {
-  /* Always show buttons on touch devices */
-  .card-front .card-buttons-left,
-  .card-front .card-buttons-right {
+  .card-buttons-left,
+  .card-buttons-right {
     opacity: 1;
+    top: 10px !important;
+    transform: translateY(0) !important;
+    z-index: 20 !important;
   }
-
-  /* Keep the same transparent background style as desktop */
-  .card-front .action-btn,
-  .card-front .file-transfer-button,
-  .card-front .remote-desktop-btn {
-    /* Don't override the existing styles - keep desktop appearance */
+  
+  .card-info {
+    z-index: 2 !important;
+  }
+  
+  .service-status-bar {
+    z-index: 25 !important;
   }
 }
 
 /* Landscape orientation on mobile */
 @media (max-width: 768px) and (orientation: landscape) {
-  /* Use smaller buttons in landscape to save space */
-  .card-front .action-btn,
-  .card-front .file-transfer-button,
-  .card-front .remote-desktop-btn {
-    width: clamp(18px, calc(var(--card-size) * 0.14), 28px);
-    height: clamp(18px, calc(var(--card-size) * 0.14), 28px);
-  }
-
-  .card-front .action-btn svg,
-  .card-front .file-transfer-button svg,
-  .card-front .remote-desktop-btn svg {
-    width: clamp(10px, calc(var(--card-size) * 0.08), 14px);
-    height: clamp(10px, calc(var(--card-size) * 0.08), 14px);
-  }
-
-  /* Tighter spacing in landscape */
   .card-buttons-left,
   .card-buttons-right {
     gap: 4px;
+    top: 8px !important;
+    z-index: 20 !important;
   }
 }
 
-/* Special handling for notched devices (iPhone X and later) */
+/* Safe area insets for iOS */
 @supports (padding-left: env(safe-area-inset-left)) {
   @media (max-width: 768px) {
     .card-buttons-left {
@@ -147,5 +142,27 @@
     .card-buttons-right {
       right: max(6px, env(safe-area-inset-right));
     }
+  }
+}
+
+/* EXTRA OVERRIDE: Force button visibility on all small screens */
+@media screen and (max-width: 768px) {
+  /* Make absolutely sure buttons are on top */
+  .appliance-card-container .card-buttons-left,
+  .appliance-card-container .card-buttons-right {
+    z-index: 9999 !important;
+    position: absolute !important;
+    top: 10px !important;
+  }
+  
+  /* Make sure info doesn't overlap buttons */
+  .appliance-card-container .card-info {
+    z-index: 1 !important;
+    max-height: 35% !important;
+  }
+  
+  /* Status bar must be visible */
+  .appliance-card-container .service-status-bar {
+    z-index: 10000 !important;
   }
 }

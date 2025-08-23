@@ -265,7 +265,7 @@
 .card-buttons-left,
 .card-buttons-right {
   position: absolute;
-  /* Buttons angepasst an den kleineren Content-Bereich (65% statt 75%) */
+  /* Desktop: Buttons zentriert, Mobile: Buttons oben */
   --content-height: calc(var(--card-size) * 0.65); /* 65% ist Content, 35% ist Info */
   top: calc(var(--content-height) / 2);
   transform: translateY(-50%);
@@ -280,6 +280,25 @@
   max-height: calc(var(--content-height) - 20px);
   overflow: visible;
   pointer-events: auto; /* Buttons müssen klickbar bleiben */
+}
+
+/* MOBILE OVERRIDE - Buttons starten oben */
+@media screen and (max-width: 768px) {
+  .card-buttons-left,
+  .card-buttons-right {
+    top: 12px !important;
+    transform: none !important;
+    max-height: calc(100% - 70px); /* Platz für Title unten */
+  }
+}
+
+/* Touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .card-buttons-left,
+  .card-buttons-right {
+    top: 12px !important;
+    transform: none !important;
+  }
 }
 
 .card-buttons-left {
