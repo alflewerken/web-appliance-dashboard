@@ -28,6 +28,9 @@
   text-align: center;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  /* Fix für abgerundete untere Ecken */
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
 }
 
 .card-info-overlay .card-title {
