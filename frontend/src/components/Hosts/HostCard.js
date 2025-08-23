@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Settings, Monitor, Terminal, Upload } from 'lucide-react';
 import { IconButton, Tooltip } from '@mui/material';
 import SimpleIcon from '../SimpleIcon';
@@ -15,6 +15,45 @@ const HostCard = ({
   isAdmin,
   cardSize,
 }) => {
+  // Touch detection state
+  const [hasBeenTouched, setHasBeenTouched] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    // Detect if device supports touch
+    const checkTouch = () => {
+      const hasTouch = (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        navigator.msMaxTouchPoints > 0 ||
+        window.matchMedia('(hover: none)').matches
+      );
+      setIsTouchDevice(hasTouch);
+    };
+
+    checkTouch();
+    window.addEventListener('resize', checkTouch);
+    
+    return () => window.removeEventListener('resize', checkTouch);
+  }, []);
+
+  const handleCardTouch = useCallback((e) => {
+    // Don't handle touch if clicking on a button
+    if (e.target.closest('button') || e.target.closest('[role="button"]')) {
+      return;
+    }
+    
+    if (isTouchDevice && !hasBeenTouched) {
+      e.stopPropagation();
+      setHasBeenTouched(true);
+      
+      // Reset touch state after a delay to allow hiding buttons again
+      setTimeout(() => {
+        setHasBeenTouched(false);
+      }, 10000); // Hide buttons after 10 seconds of no interaction
+    }
+  }, [isTouchDevice, hasBeenTouched]);
+
   const handleEdit = (event) => {
     event.stopPropagation();
     // Direkt das Host-Panel öffnen
@@ -43,6 +82,7 @@ const HostCard = ({
     <div 
       className="appliance-card-container"
       style={{ '--card-size': `${cardSize || 180}px` }}
+      onClick={handleCardTouch}
     >
       <div className="appliance-card">
         {/* Front Side */}
@@ -70,60 +110,42 @@ const HostCard = ({
             </div>
             
             {/* Left Button Column - Edit Button */}
-            <div className="card-buttons-left">
-              <Tooltip title="Host bearbeiten">
-                <IconButton
-                  onClick={handleEdit}
-                  size="small"
-                  sx={{
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                    },
-                    width: 28,
-                    height: 28,
-                    padding: 0,
-                  }}
-                >
-                  <Settings size={16} />
-                </IconButton>
-              </Tooltip>
-            </div>
+            {(!isTouchDevice || hasBeenTouched) && (
+              <div 
+                className="card-buttons-left"
+              >
+                <Tooltip title="Host bearbeiten">
+                  <IconButton
+                    onClick={handleEdit}
+                    size="small"
+                    sx={{
+                      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      },
+                      width: 28,
+                      height: 28,
+                      padding: 0,
+                    }}
+                  >
+                    <Settings size={16} />
+                  </IconButton>
+                </Tooltip>
+              </div>
+            )}
             
             {/* Right Button Column - Action Buttons */}
-            <div className="card-buttons-right">
-              <Tooltip title="Terminal">
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTerminal(host);
-                  }}
-                  size="small"
-                  sx={{
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                    },
-                    width: 28,
-                    height: 28,
-                    padding: 0,
-                  }}
-                >
-                  <Terminal size={16} />
-                </IconButton>
-              </Tooltip>
-              
-              {/* Only show Remote Desktop button if enabled */}
-              {(host.remoteDesktopEnabled) && (
-                <Tooltip title="Remote Desktop">
+            {(!isTouchDevice || hasBeenTouched) && (
+              <div 
+                className="card-buttons-right"
+              >
+                <Tooltip title="Terminal">
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRemoteDesktop(host);
+                      onTerminal(host);
                     }}
                     size="small"
                     sx={{
@@ -138,34 +160,65 @@ const HostCard = ({
                       padding: 0,
                     }}
                   >
-                    <Monitor size={16} />
+                    <Terminal size={16} />
                   </IconButton>
                 </Tooltip>
-              )}
-              
-              <Tooltip title="Datei übertragen">
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFileTransfer(host);
-                  }}
-                  size="small"
-                  sx={{
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                    },
-                    width: 28,
-                    height: 28,
-                    padding: 0,
-                  }}
-                >
-                  <Upload size={16} />
-                </IconButton>
-              </Tooltip>
-            </div>
+                
+                {/* Only show Remote Desktop button if enabled */}
+                {(host.remoteDesktopEnabled) && (
+                  <Tooltip title="Remote Desktop">
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('[HostCard] Remote Desktop clicked for host:', host);
+                        if (onRemoteDesktop) {
+                          onRemoteDesktop(host);
+                        } else {
+                          console.error('[HostCard] onRemoteDesktop function not provided!');
+                        }
+                      }}
+                      size="small"
+                      sx={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        },
+                        width: 28,
+                        height: 28,
+                        padding: 0,
+                      }}
+                    >
+                      <Monitor size={16} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                
+                <Tooltip title="Datei übertragen">
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFileTransfer(host);
+                    }}
+                    size="small"
+                    sx={{
+                      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      },
+                      width: 28,
+                      height: 28,
+                      padding: 0,
+                    }}
+                  >
+                    <Upload size={16} />
+                  </IconButton>
+                </Tooltip>
+              </div>
+            )}
           </div>
           
           {/* Title with dark background */}

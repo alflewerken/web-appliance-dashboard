@@ -760,6 +760,34 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
         
         const authToken = authResponse.data.authToken;
         
+        // Always sync the connection to ensure it's up to date
+        // Transform host object to match expected structure for syncGuacamoleConnection
+        const guacamoleData = {
+          id: hostId,
+          name: host.name,
+          remote_desktop_enabled: host.remoteDesktopEnabled,
+          remote_host: host.hostname,  // Use hostname as remote_host
+          remote_protocol: host.remoteProtocol || 'vnc',
+          remote_port: host.remotePort || 5900,  // Default VNC port
+          remote_username: host.remoteUsername,
+          remote_password_encrypted: host.remotePassword,  // Pass encrypted password
+          guacamole_performance_mode: host.guacamolePerformanceMode,
+          // SSH credentials for SFTP
+          sshHostname: host.hostname,
+          sshUsername: host.username,
+          sshPassword: host.password  // SSH password (encrypted)
+        };
+        
+        console.log('[HOSTS] Syncing Guacamole connection for host:', hostId);
+        console.log('[HOSTS] Guacamole data:', {
+          ...guacamoleData,
+          remote_password_encrypted: guacamoleData.remote_password_encrypted ? '[ENCRYPTED]' : null,
+          sshPassword: guacamoleData.sshPassword ? '[ENCRYPTED]' : null
+        });
+        
+        const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
+        await syncGuacamoleConnection(guacamoleData);
+        
         // Get connection ID from Guacamole database
         const dbManager = new GuacamoleDBManager();
         const connectionResult = await dbManager.pool.query(
@@ -769,53 +797,26 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
         await dbManager.close();
         
         if (!connectionResult.rows || connectionResult.rows.length === 0) {
-          // Connection doesn't exist, try to create it
-          // Transform host object to match expected structure for syncGuacamoleConnection
-          const guacamoleData = {
-            id: hostId,
-            name: host.name,
-            remote_desktop_enabled: host.remoteDesktopEnabled,
-            remote_host: host.hostname,  // Use hostname as remote_host
-            remote_protocol: host.remoteProtocol || 'vnc',
-            remote_port: host.remotePort,
-            remote_username: host.remoteUsername,
-            remote_password_encrypted: host.remotePassword,  // Pass encrypted password
-            guacamole_performance_mode: host.guacamolePerformanceMode,
-            // SSH credentials for SFTP
-            sshHostname: host.hostname,
-            sshUsername: host.username,
-            sshPassword: host.password  // SSH password (encrypted)
-          };
-          
-          const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
-          await syncGuacamoleConnection(guacamoleData);
-          
-          // Try again to get the connection
-          const dbManager2 = new GuacamoleDBManager();
-          const retryResult = await dbManager2.pool.query(
-            'SELECT connection_id FROM guacamole_connection WHERE connection_name = $1',
-            [`dashboard-${hostId}`]  // Note: syncGuacamoleConnection uses dashboard-{id}, not dashboard-host-{id}
-          );
-          await dbManager2.close();
-          
-          if (!retryResult.rows || retryResult.rows.length === 0) {
-            throw new Error('Failed to create Guacamole connection');
-          }
-          
-          connectionResult.rows = retryResult.rows;
+          throw new Error('Failed to create Guacamole connection');
         }
         
         const connectionId = connectionResult.rows[0].connection_id;
         
-        // Generate connection identifier
+        // Generate connection identifier für PostgreSQL
         const identifier = Buffer.from(`${connectionId}\0c\0postgresql`).toString('base64');
         const encodedIdentifier = encodeURIComponent(identifier);
         
-        // Generate Guacamole URL
+        // Build the Guacamole URL with proper token placement
+        // WICHTIG: Der Token muss VOR dem Hash-Fragment sein!
         const baseUrl = getGuacamoleUrl(req);
-        const guacamoleUrl = `${baseUrl}/guacamole/#/client/${encodedIdentifier}?token=${encodeURIComponent(authToken)}`;
+        const guacamoleUrl = `${baseUrl}/guacamole/?token=${encodeURIComponent(authToken)}#/client/${encodedIdentifier}`;
         
-        logger.info(`Generated Guacamole URL for host ${hostId}: ${guacamoleUrl}`);
+        console.log(`[HOSTS] Generated Guacamole URL for host ${hostId}:`, {
+          connectionId: connectionId,
+          identifier: identifier,
+          baseUrl: baseUrl,
+          tokenLength: authToken.length
+        });
         
         // Create audit log
         await createAuditLog(

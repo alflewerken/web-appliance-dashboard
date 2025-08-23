@@ -11,6 +11,31 @@
   min-height: calc(var(--min-card-size, 50px) + 80px);
 }
 
+/* Hide buttons by default on desktop, show on hover */
+@media (hover: hover) and (pointer: fine) {
+  /* Desktop with mouse - hide buttons by default */
+  .appliance-card .card-buttons-left,
+  .appliance-card .card-buttons-right {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  /* Show buttons on card hover */
+  .appliance-card-container:hover .card-buttons-left,
+  .appliance-card-container:hover .card-buttons-right {
+    opacity: 1;
+  }
+}
+
+/* Touch devices - buttons are controlled by JavaScript state */
+@media (hover: none), (pointer: coarse) {
+  /* Touch devices - opacity controlled by component state */
+  .appliance-card .card-buttons-left,
+  .appliance-card .card-buttons-right {
+    transition: opacity 0.3s ease;
+  }
+}
+
 /* Dark info overlay at bottom - similar to service cards */
 .card-info-overlay {
   position: absolute;
