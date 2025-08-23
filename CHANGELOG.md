@@ -15,12 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic Guacamole connection synchronization for remote desktop restores
   - User restore with custom email when original address is already in use
   - Improved error handling with specific, actionable error messages
+  - Email address can be changed when restoring deleted users
+  - Intelligent error handling shows both name and email fields on any conflict
 
 - **Real-time SSE Synchronization** - Live updates across browser sessions
   - Service panel status updates synchronized in real-time
   - Host changes immediately reflected across all connected clients
   - Appliance modifications synchronized between sessions
   - Audit log updates broadcast to all active users
+  - Unlimited reconnection attempts with exponential backoff (1s, 2s, 4s, 8s, 16s, max 30s)
+  - Heartbeat monitoring to detect dead connections
+  - Reduced UI update debounce from 300ms to 100ms for faster responsiveness
 
 - **Interactive Audit Log Statistics** - Clickable stat cards with smart filters
   - Tooltips display descriptions when hovering in compact mode
@@ -29,6 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Toggle "Critical Actions" to show/hide important actions only
   - Visual feedback shows active filters with colored borders and tinted backgrounds
   - Automatic filter panel expansion when stat card is clicked
+
+- **Secure File Transfers Documentation** - New user guide section
+  - Comprehensive explanation of SSH/rsync encryption
+  - Performance expectations with realistic speed tables
+  - Troubleshooting guide for common transfer issues
+  - Best practices for optimization and security
+
+- **RustDesk Access Logging** - Audit trail for remote desktop connections
+  - New endpoint for logging RustDesk access from host cards
+  - Consistent audit logging for both appliances and hosts
+  - Resource name properly included in audit entries
 
 ### Changed
 - **Audit Log Detail Renderer** - Comprehensive field display improvements
@@ -39,17 +55,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced color coding for different action types
   - File transfer details now show hostname and correct timestamp
   - User activation/deactivation shows colored status pills instead of true/false
+  - JSON strings replaced with formatted tables for user_restored entries
+  - Before/After pills with clear "Vorher"/"Nachher" labels for user updates
 
 - **User Restoration Process** - More flexible recovery options
   - Users can be restored with new usernames
   - Email address conflicts handled gracefully with input prompt
   - Support for restoring users with both new name and new email
   - Clear feedback when restoration requires additional information
+  - Button text changed to "Mit neuen Daten" for user restoration
 
 - **Visual Improvements** - Enhanced UI/UX elements
   - Remote Desktop access badge changed from light red to bright orange (#ff8c00)
   - Better visual distinction between different action types
   - Improved visibility and friendlier appearance of status badges
+  - Appliance and host cards now have properly rounded bottom corners
+  - Card info sections respect border-radius with overflow:hidden
+
+- **Documentation Structure** - User guides reorganized
+  - Advanced Configuration section removed from user guides
+  - Main sections now use collapsible details/summary tags
+  - Cleaner navigation with expandable content blocks
+  - Separate technical documentation from user-facing guides
 
 ### Fixed
 - **Audit Log Export** - Restored complete export functionality
@@ -63,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Host Revert Functionality** - Fixed 404 error when reverting host changes
   - Corrected incomplete route definition in backend
   - Route now accepts multiple action name formats (camelCase and snake_case)
+  - Endpoint path corrected from /users/ to /user/ for consistency
 
 - **SSH File Upload** - Fixed missing resource name in audit logs
   - Added resourceName parameter to createAuditLog call
@@ -79,8 +107,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed tooltip implementation with dynamic wrapper approach
   - Added userSelect: 'none' to prevent text cursor on hover
   - Cards now properly respond to clicks with correct cursor display
-  - Improved error handling with specific error messages
-  - Consistent with other resource revert operations
+
+- **Installation Script** - Improved Docker Compose dependency handling
+  - Added recovery mechanism for "dependency failed to start" errors
+  - Implemented staged container startup sequence
+  - Extended wait times for database initialization
+  - Services now start in correct dependency order
+
+- **Guacamole Password Sync** - Fixed password transmission for hosts
+  - syncGuacamoleConnection now receives correct data structure
+  - Encrypted passwords properly passed from database
+  - SSH credentials included for SFTP functionality
+  - Consistent handling across create, update, and patch operations
+
+- **Terminal Error Suppression** - Enhanced browser console cleanup
+  - Extended patterns for xterm.js warnings
+  - Added ttyd specific message suppression
+  - WebSocket error filtering improved
+  - ResizeObserver and source map warnings suppressed
+
+- **Audit Log Translations** - Fixed duplicate and missing translations
+  - "Host wiederhergestellt" vs "Host zurückgesetzt" properly differentiated
+  - ssh_file_upload/download translated to "Dateiübertragung"
+  - Removed duplicate entries in action dropdowns
+  - Consistent terminology across the application
+
+- **Visual Card Rendering** - Fixed missing rounded corners
+  - Bottom corners of appliance cards now properly rounded
+  - Host card gradient respects border-radius
+  - Card info sections use overflow:hidden to contain content
+  - Consistent 16px border-radius on all corners
 
 ### Improved
 - **Audit Log Action Badges** - Enhanced visual consistency
