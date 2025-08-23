@@ -119,7 +119,7 @@ export const handleRestore = async (log, restoreData = null) => {
   } else if (restoreInfo.resourceType === 'users') {
     endpoint = restoreInfo.type === 'restore'
       ? `/api/auditRestore/restore/users/${log.id}`
-      : `/api/auditRestore/revert/users/${log.id}`;
+      : `/api/auditRestore/revert/user/${log.id}`;  // Fixed: "user" not "users" for revert
   } else if (restoreInfo.resourceType === 'ssh_host') {
     endpoint = restoreInfo.type === 'restore'
       ? `/api/auditRestore/restore/ssh_host/${log.id}`

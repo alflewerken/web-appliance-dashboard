@@ -1175,9 +1175,11 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
 
     // For user update actions - show before/after comparison
     if (log.action === 'user_update' || log.action === 'user_updated') {
-      const changedFields = details.changedFields || details.changed_fields || [];
+      const originalData = details.original_data || {};
+      const newData = details.new_data || {};
+      const fieldsUpdated = details.fields_updated || details.changedFields || details.changed_fields || [];
       const username = details.username || details.user_name || '-';
-      const updatedBy = details.updatedBy || details.updated_by || req.user?.username || '-';
+      const updatedBy = details.updated_by || details.updatedBy || req.user?.username || '-';
       
       return (
         <Box>
@@ -1214,7 +1216,7 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
             </table>
           </Box>
           
-          {changedFields.length > 0 && (
+          {fieldsUpdated.length > 0 && (
             <>
               <Typography variant="subtitle2" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
                 Geänderte Felder:
@@ -1233,10 +1235,10 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
               }}>
                 <table>
                   <tbody>
-                    {changedFields.map((change, index) => {
-                      const fieldName = change.field || change.fieldName || 'Unbekannt';
-                      const oldValue = change.oldValue !== undefined ? change.oldValue : change.old_value;
-                      const newValue = change.newValue !== undefined ? change.newValue : change.new_value;
+                    {fieldsUpdated.map((fieldName, index) => {
+                      // Get the old and new values from the data objects
+                      const oldValue = originalData[fieldName];
+                      const newValue = newData[fieldName];
                       
                       // Format field names
                       const formatFieldName = (field) => {
@@ -1261,7 +1263,7 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
                         if (field === 'password' || field === 'passwordHash' || field === 'password_hash') {
                           return '••••••••';
                         }
-                        return value || '-';
+                        return value !== undefined && value !== null ? value : '-';
                       };
                       
                       return (
@@ -1272,22 +1274,24 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
                           <td>
                             <Stack direction="row" spacing={1} alignItems="center">
                               <Chip 
-                                label={formatValue(oldValue, fieldName)} 
+                                label={`Vorher: ${formatValue(oldValue, fieldName)}`} 
                                 size="small"
                                 sx={{ 
                                   backgroundColor: '#f44336',
                                   color: '#fff',
-                                  fontSize: '0.75rem'
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500
                                 }} 
                               />
                               <Typography variant="caption">→</Typography>
                               <Chip 
-                                label={formatValue(newValue, fieldName)} 
+                                label={`Nachher: ${formatValue(newValue, fieldName)}`} 
                                 size="small"
                                 sx={{ 
                                   backgroundColor: '#66bb6a',
                                   color: '#fff',
-                                  fontSize: '0.75rem'
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500
                                 }} 
                               />
                             </Stack>
