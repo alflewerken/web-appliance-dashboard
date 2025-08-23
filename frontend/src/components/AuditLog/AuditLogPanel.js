@@ -358,7 +358,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     if (type === 'dateRange') {
       // Für "Alle Log-Einträge" oder "Heutige Aktivitäten"
       setDateRange(value);
-      setFiltersCollapsed(false); // Filter ausklappen
+      // Filter-Status bleibt unverändert (nicht mehr automatisch ausklappen)
     } else if (type === 'criticalOnly') {
       // Für "Wichtige Aktionen" - Toggle-Funktion
       if (value === 'toggle') {
@@ -366,7 +366,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       } else {
         setShowCriticalOnly(value);
       }
-      setFiltersCollapsed(false); // Filter ausklappen
+      // Filter-Status bleibt unverändert (nicht mehr automatisch ausklappen)
     }
   };
 
