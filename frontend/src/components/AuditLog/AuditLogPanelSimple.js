@@ -299,6 +299,19 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     setShowExportOptions(!showExportOptions);
   };
 
+  // Handle stat card clicks
+  const handleStatClick = (value, type) => {
+    if (type === 'dateRange') {
+      // Für "Alle Log-Einträge" oder "Heutige Aktivitäten"
+      setDateRange(value);
+      setFiltersCollapsed(false); // Filter ausklappen
+    } else if (type === 'criticalOnly') {
+      // Für "Wichtige Aktionen"
+      setShowCriticalOnly(value);
+      setFiltersCollapsed(false); // Filter ausklappen
+    }
+  };
+
   const uniqueUsers = [...new Set(logs.map(log => log.username || 'System'))];
   const uniqueActions = [...new Set(logs.map(log => log.action))].sort((a, b) => {
     // Sort by formatted (German) names for better user experience
@@ -373,7 +386,12 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           </Box>
         ) : (
           <>
-            <AuditLogStats stats={stats} cardStyles={cardStyles} panelWidth={panelWidth} />
+            <AuditLogStats 
+              stats={stats} 
+              cardStyles={cardStyles} 
+              panelWidth={panelWidth}
+              onStatClick={handleStatClick}
+            />
             
             <Box sx={{ px: 1, py: 0.5, display: 'flex', justifyContent: 'center' }}>
               <Tooltip title={filtersCollapsed ? "Filter anzeigen" : "Filter ausblenden"}>

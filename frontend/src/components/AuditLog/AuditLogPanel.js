@@ -352,6 +352,19 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     }
   };
 
+  // Handle stat card clicks
+  const handleStatClick = (value, type) => {
+    if (type === 'dateRange') {
+      // Für "Alle Log-Einträge" oder "Heutige Aktivitäten"
+      setDateRange(value);
+      setFiltersCollapsed(false); // Filter ausklappen
+    } else if (type === 'criticalOnly') {
+      // Für "Wichtige Aktionen"
+      setShowCriticalOnly(value);
+      setFiltersCollapsed(false); // Filter ausklappen
+    }
+  };
+
   // Helper function to format values for Markdown
   const formatValueForMarkdown = (value) => {
     if (typeof value === 'boolean') {
@@ -531,7 +544,12 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           </Box>
         ) : (
           <>
-            <AuditLogStats stats={stats} cardStyles={cardStyles} panelWidth={panelWidth} />
+            <AuditLogStats 
+              stats={stats} 
+              cardStyles={cardStyles} 
+              panelWidth={panelWidth}
+              onStatClick={handleStatClick}
+            />
             
             <Box sx={{ px: 1, py: 0.5, display: 'flex', justifyContent: 'center' }}>
               <Tooltip title={filtersCollapsed ? "Filter anzeigen" : "Filter ausblenden"}>
