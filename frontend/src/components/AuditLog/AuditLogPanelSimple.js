@@ -301,6 +301,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
 
   // Handle stat card clicks
   const handleStatClick = (value, type) => {
+    console.log('Stat card clicked:', value, type); // Debug log
     if (type === 'dateRange') {
       // Für "Alle Log-Einträge" oder "Heutige Aktivitäten"
       setDateRange(value);

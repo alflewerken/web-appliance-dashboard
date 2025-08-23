@@ -6,10 +6,9 @@ import {
   CardContent,
   Typography,
   Stack,
-  Grid,
+  Tooltip,
   useTheme,
   useMediaQuery,
-  Tooltip,
 } from '@mui/material';
 import {
   Activity,
@@ -25,8 +24,6 @@ const AuditLogStats = ({
   onStatClick,  // Neue Prop für Click-Handler
 }) => {
   const theme = useTheme();
-  const isSmallScreen = useMediaQuery('(max-width:800px)');
-  const isVerySmallScreen = useMediaQuery('(max-width:600px)');
   
   // Kompakt-Ansicht bei Panel-Breite unter 900px
   const isCompactView = panelWidth && panelWidth < 900;
@@ -38,8 +35,12 @@ const AuditLogStats = ({
       description: 'Alle Log-Einträge',
       icon: <Activity size={14} />,
       color: theme.palette.primary.main,
-      action: 'all', // Für Zeitraum-Filter
-      clickAction: () => onStatClick && onStatClick('all', 'dateRange'),
+      action: 'all',
+      clickAction: () => {
+        if (onStatClick) {
+          onStatClick('all', 'dateRange');
+        }
+      },
     },
     {
       label: 'Heute',
@@ -48,7 +49,11 @@ const AuditLogStats = ({
       icon: <Calendar size={14} />,
       color: theme.palette.info.main,
       action: 'today',
-      clickAction: () => onStatClick && onStatClick('today', 'dateRange'),
+      clickAction: () => {
+        if (onStatClick) {
+          onStatClick('today', 'dateRange');
+        }
+      },
     },
     {
       label: 'Benutzer',
@@ -56,7 +61,7 @@ const AuditLogStats = ({
       description: 'Aktive Benutzer',
       icon: <Users size={14} />,
       color: theme.palette.success.main,
-      action: null, // Keine spezielle Aktion für Benutzer
+      action: null,
       clickAction: null,
     },
     {
@@ -66,7 +71,11 @@ const AuditLogStats = ({
       icon: <AlertTriangle size={14} />,
       color: theme.palette.error.main,
       action: 'critical',
-      clickAction: () => onStatClick && onStatClick(true, 'criticalOnly'),
+      clickAction: () => {
+        if (onStatClick) {
+          onStatClick(true, 'criticalOnly');
+        }
+      },
     },
   ];
 
@@ -80,99 +89,90 @@ const AuditLogStats = ({
         }}
       >
         {statItems.map((item, index) => {
-          const cardContent = (
-            <Card 
-              key={index}
-              sx={{
-                ...cardStyles,
-                flex: '0 0 auto',
-                cursor: item.clickAction ? 'pointer' : 'default',
-                transition: 'all 0.2s',
-                '&:hover': item.clickAction ? {
-                  transform: 'translateY(-2px)',
-                  boxShadow: theme.shadows[4],
-                } : {},
-              }}
-              onClick={item.clickAction}
-            >
-              <CardContent sx={{ 
-                p: 0.75,
-                '&:last-child': { pb: 0.75 },
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                minWidth: isCompactView ? 'auto' : '140px',
-              }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 24,
-                    height: 24,
-                    borderRadius: 0.5,
-                    backgroundColor: `${item.color}20`,
-                    color: item.color,
-                    flexShrink: 0,
-                  }}
-                >
-                  {item.icon}
-                </Box>
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexDirection: isCompactView ? 'row' : 'column',
-                  alignItems: isCompactView ? 'center' : 'flex-start',
-                  gap: isCompactView ? 0.5 : 0.25,
+          const CardWrapper = isCompactView && item.description ? Tooltip : React.Fragment;
+          const wrapperProps = isCompactView && item.description 
+            ? { title: item.description, placement: 'top', arrow: true }
+            : {};
+
+          return (
+            <CardWrapper key={index} {...wrapperProps}>
+              <Card 
+                sx={{
+                  ...cardStyles,
+                  flex: '0 0 auto',
+                  cursor: item.clickAction ? 'pointer' : 'default',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': item.clickAction ? {
+                    transform: 'translateY(-2px)',
+                    boxShadow: theme.shadows[4],
+                  } : {},
+                }}
+                onClick={item.clickAction}
+              >
+                <CardContent sx={{ 
+                  p: 0.75,
+                  '&:last-child': { pb: 0.75 },
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  minWidth: isCompactView ? 'auto' : '140px',
+                  userSelect: 'none', // Verhindert Text-Selektion
                 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontWeight: 600,
-                      fontSize: isCompactView ? '0.9rem' : '1rem',
-                      lineHeight: 1,
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 24,
+                      height: 24,
+                      borderRadius: 0.5,
+                      backgroundColor: `${item.color}20`,
+                      color: item.color,
+                      flexShrink: 0,
                     }}
                   >
-                    {item.value.toLocaleString('de-DE')}
-                  </Typography>
-                  {!isCompactView && (
+                    {item.icon}
+                  </Box>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    flexDirection: isCompactView ? 'row' : 'column',
+                    alignItems: isCompactView ? 'center' : 'flex-start',
+                    gap: isCompactView ? 0.5 : 0.25,
+                  }}>
                     <Typography 
-                      variant="caption" 
+                      variant="body2" 
                       sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.7rem',
-                        lineHeight: 1.2,
-                        opacity: 0.8,
+                        fontWeight: 600,
+                        fontSize: isCompactView ? '0.9rem' : '1rem',
+                        lineHeight: 1,
+                        userSelect: 'none',
                       }}
                     >
-                      {item.description}
+                      {item.value.toLocaleString('de-DE')}
                     </Typography>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
+                    {!isCompactView && (
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          color: theme.palette.text.secondary,
+                          fontSize: '0.7rem',
+                          lineHeight: 1.2,
+                          opacity: 0.8,
+                          userSelect: 'none',
+                        }}
+                      >
+                        {item.description}
+                      </Typography>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </CardWrapper>
           );
-
-          // Tooltip nur im Kompakt-Modus anzeigen
-          if (isCompactView) {
-            return (
-              <Tooltip 
-                key={index}
-                title={item.description} 
-                placement="top"
-                arrow
-              >
-                {cardContent}
-              </Tooltip>
-            );
-          }
-
-          return cardContent;
         })}
       </Stack>
     </Box>
   );
 };
-
-export default AuditLogStats;
 
 export default AuditLogStats;
