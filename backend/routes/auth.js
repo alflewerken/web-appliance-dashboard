@@ -561,6 +561,18 @@ router.patch('/users/:id', verifyToken, requireAdmin, async (req, res) => {
       userId,
       {
         username: originalData.username,
+        original_data: {
+          username: originalData.username,
+          email: originalData.email,
+          role: originalData.role,
+          is_active: originalData.is_active || originalData.isActive
+        },
+        new_data: {
+          username: changedFields.username || originalData.username,
+          email: changedFields.email || originalData.email,
+          role: changedFields.role !== undefined ? changedFields.role : originalData.role,
+          is_active: changedFields.is_active !== undefined ? changedFields.is_active : (originalData.is_active || originalData.isActive)
+        },
         changes: changedFields,
         fields_updated: fieldsUpdated,
         updated_by: req.user.username,
