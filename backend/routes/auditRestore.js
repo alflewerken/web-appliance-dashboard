@@ -903,22 +903,31 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
       if (remoteEnabled && remoteDesktopType === 'guacamole') {
         try {
           // Prepare data for syncGuacamoleConnection
+          // WICHTIG: Bei VNC ist das Passwort im remotePassword Feld!
           // The password is already encrypted in the audit log, pass it as-is
           const guacamoleData = {
             id: restoredHostId,
             name: hostName,
             remote_desktop_enabled: true,
             remote_host: details.hostname,
-            remote_protocol: details.remoteProtocol || details.remote_protocol,
+            remote_protocol: details.remoteProtocol || details.remote_protocol || 'vnc',
             remote_port: details.remotePort || details.remote_port,
             remote_username: details.remoteUsername || details.remote_username,
             remote_password_encrypted: details.remotePassword || details.remote_password || '',  // Pass encrypted password as-is
-            guacamole_performance_mode: details.guacamolePerformanceMode || details.guacamole_performance_mode
+            guacamole_performance_mode: details.guacamolePerformanceMode || details.guacamole_performance_mode,
+            // FIX: Für VNC brauchen wir das Passwort auch für die VNC-Verbindung selbst
+            password: details.remotePassword || details.remote_password || '',  // VNC password (encrypted)
+            // SSH-Credentials für SFTP (verwende normale SSH-Credentials des Hosts)
+            sshHostname: details.hostname,
+            sshUsername: details.username,  // SSH username
+            sshPassword: details.password   // SSH password (encrypted)
           };
+          
+          console.log(`Restoring Guacamole connection for host ${hostName} with protocol ${guacamoleData.remote_protocol}`);
           
           // syncGuacamoleConnection will handle the decryption
           await syncGuacamoleConnection(guacamoleData);
-          console.log(`Guacamole connection restored for host ${hostName}`);
+          console.log(`✅ Guacamole connection restored for host ${hostName}`);
         } catch (guacError) {
           console.error('Failed to restore Guacamole connection:', guacError);
           // Don't fail the entire restoration if Guacamole fails

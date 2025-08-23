@@ -170,11 +170,25 @@ router.post('/', verifyToken, async (req, res) => {
     // Create Guacamole connection if remote desktop is enabled
     if (remoteDesktopEnabled && remoteDesktopType === 'guacamole') {
       try {
-        await syncGuacamoleConnection({
-          ...newHost,
-          // Pass unencrypted passwords for Guacamole
-          remotePassword: remotePassword
-        });
+        // Prepare data for syncGuacamoleConnection with proper structure
+        const guacamoleData = {
+          id: newHost.id,
+          name: newHost.name,
+          remote_desktop_enabled: newHost.remoteDesktopEnabled,
+          remote_host: newHost.hostname,  // Use hostname as remote_host for hosts
+          remote_protocol: newHost.remoteProtocol || 'vnc',
+          remote_port: newHost.remotePort,
+          remote_username: newHost.remoteUsername,
+          // Pass the encrypted password from DB (will be decrypted by syncGuacamoleConnection)
+          remote_password_encrypted: newHost.remotePassword,
+          guacamole_performance_mode: newHost.guacamolePerformanceMode,
+          // SSH credentials for SFTP
+          sshHostname: newHost.hostname,
+          sshUsername: newHost.username,
+          sshPassword: newHost.password  // SSH password (encrypted)
+        };
+        
+        await syncGuacamoleConnection(guacamoleData);
       } catch (guacError) {
         logger.error('Failed to create Guacamole connection:', guacError);
       }
@@ -404,11 +418,25 @@ router.patch('/:id', verifyToken, async (req, res) => {
     if (changedFields.some(field => field.startsWith('remote'))) {
       if (updatedHost.remoteDesktopEnabled && updatedHost.remoteDesktopType === 'guacamole') {
         try {
-          await syncGuacamoleConnection({
-            ...updatedHost,
-            // Pass the plain text password if it was just changed, otherwise it's already hashed in DB
-            remotePassword: remotePassword || updatedHost.remotePassword
-          });
+          // Prepare data for syncGuacamoleConnection with proper structure
+          const guacamoleData = {
+            id: updatedHost.id,
+            name: updatedHost.name,
+            remote_desktop_enabled: updatedHost.remoteDesktopEnabled,
+            remote_host: updatedHost.hostname,  // Use hostname as remote_host for hosts
+            remote_protocol: updatedHost.remoteProtocol || 'vnc',
+            remote_port: updatedHost.remotePort,
+            remote_username: updatedHost.remoteUsername,
+            // Pass the encrypted password from DB (will be decrypted by syncGuacamoleConnection)
+            remote_password_encrypted: updatedHost.remotePassword,
+            guacamole_performance_mode: updatedHost.guacamolePerformanceMode,
+            // SSH credentials for SFTP
+            sshHostname: updatedHost.hostname,
+            sshUsername: updatedHost.username,
+            sshPassword: updatedHost.password  // SSH password (encrypted)
+          };
+          
+          await syncGuacamoleConnection(guacamoleData);
         } catch (guacError) {
           logger.error('Failed to update Guacamole connection:', guacError);
         }
@@ -565,10 +593,26 @@ router.put('/:id', verifyToken, async (req, res) => {
     // Update Guacamole connection if needed
     if (remoteDesktopEnabled && remoteDesktopType === 'guacamole') {
       try {
-        await syncGuacamoleConnection({
-          ...updatedHost,
-          remotePassword: remotePassword // Pass unencrypted password
-        });
+        // Prepare data for syncGuacamoleConnection
+        // WICHTIG: Wir müssen das verschlüsselte Passwort aus der DB übergeben
+        const guacamoleData = {
+          id: updatedHost.id,
+          name: updatedHost.name,
+          remote_desktop_enabled: updatedHost.remoteDesktopEnabled,
+          remote_host: updatedHost.hostname,  // Use hostname as remote_host for hosts
+          remote_protocol: updatedHost.remoteProtocol || 'vnc',
+          remote_port: updatedHost.remotePort,
+          remote_username: updatedHost.remoteUsername,
+          // Pass the encrypted password from DB (will be decrypted by syncGuacamoleConnection)
+          remote_password_encrypted: updatedHost.remotePassword,
+          guacamole_performance_mode: updatedHost.guacamolePerformanceMode,
+          // SSH credentials for SFTP
+          sshHostname: updatedHost.hostname,
+          sshUsername: updatedHost.username,
+          sshPassword: updatedHost.password  // SSH password (encrypted)
+        };
+        
+        await syncGuacamoleConnection(guacamoleData);
       } catch (guacError) {
         logger.error('Failed to update Guacamole connection:', guacError);
       }
@@ -726,19 +770,25 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
         
         if (!connectionResult.rows || connectionResult.rows.length === 0) {
           // Connection doesn't exist, try to create it
-          // Transform host object to match appliance structure for syncGuacamoleConnection
-          const applianceCompatible = {
+          // Transform host object to match expected structure for syncGuacamoleConnection
+          const guacamoleData = {
             id: hostId,
+            name: host.name,
             remote_desktop_enabled: host.remoteDesktopEnabled,
             remote_host: host.hostname,  // Use hostname as remote_host
-            remote_protocol: host.remoteProtocol,
+            remote_protocol: host.remoteProtocol || 'vnc',
             remote_port: host.remotePort,
             remote_username: host.remoteUsername,
-            remote_password_encrypted: host.remotePassword  // Pass encrypted password
+            remote_password_encrypted: host.remotePassword,  // Pass encrypted password
+            guacamole_performance_mode: host.guacamolePerformanceMode,
+            // SSH credentials for SFTP
+            sshHostname: host.hostname,
+            sshUsername: host.username,
+            sshPassword: host.password  // SSH password (encrypted)
           };
           
           const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
-          await syncGuacamoleConnection(applianceCompatible);
+          await syncGuacamoleConnection(guacamoleData);
           
           // Try again to get the connection
           const dbManager2 = new GuacamoleDBManager();
@@ -916,6 +966,62 @@ router.post('/:id/test', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to test SSH connection'
+    });
+  }
+});
+
+// Log RustDesk access for hosts
+router.post('/:id/rustdeskAccess', verifyToken, async (req, res) => {
+  try {
+    const hostId = req.params.id;
+    const userId = req.user?.id || req.userId || 1;
+    const ipAddress = getClientIp(req);
+    
+    console.log(`📝 Logging RustDesk access for host ${hostId} by user ${userId}`);
+    
+    // Get host details
+    const host = await db.findOne('hosts', {
+      id: hostId,
+      createdBy: userId
+    });
+
+    if (!host) {
+      return res.status(404).json({
+        success: false,
+        error: 'Host not found'
+      });
+    }
+
+    // Create audit log for RustDesk access
+    await createAuditLog(
+      userId,
+      'rustdesk_access',
+      'hosts',
+      hostId,
+      {
+        host_name: host.name,
+        hostname: host.hostname,
+        rustdeskId: host.rustdeskId,
+        access_type: 'remote_desktop',
+        protocol: 'rustdesk',
+        action: 'connect'
+      },
+      ipAddress,
+      host.name
+    );
+    
+    console.log(`✅ RustDesk access logged for host: ${host.name}`);
+    
+    res.json({
+      success: true,
+      message: 'RustDesk access logged'
+    });
+
+  } catch (error) {
+    console.error('Error logging RustDesk access:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to log RustDesk access'
     });
   }
 });

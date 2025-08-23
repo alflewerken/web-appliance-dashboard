@@ -94,7 +94,20 @@ class GuacamoleDBManager {
         if (config.sshHostname) {
           parameters['sftp-hostname'] = config.sshHostname;
           parameters['sftp-username'] = config.sshUsername || config.username || '';
-          parameters['sftp-password'] = config.sshPassword || config.password || '';
+          
+          // SSH-Passwort entschlüsseln wenn es verschlüsselt ist
+          let sftpPassword = config.sshPassword || config.password || '';
+          if (sftpPassword && sftpPassword.includes(':')) {
+            // Es ist verschlüsselt, wir müssen es entschlüsseln
+            const { decrypt } = require('../encryption');
+            try {
+              sftpPassword = decrypt(sftpPassword) || '';
+            } catch (e) {
+              console.error('Failed to decrypt SFTP password:', e);
+              sftpPassword = '';
+            }
+          }
+          parameters['sftp-password'] = sftpPassword;
         } else {
           // Fallback: Verwende die gleichen Host/Credentials wie Remote Desktop
           parameters['sftp-hostname'] = config.hostname;
