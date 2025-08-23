@@ -745,12 +745,59 @@ echo "🚀 Building and starting services..."
 $DOCKER_COMPOSE_CMD build --no-cache guacamole 2>/dev/null || {
     echo "⚠️  Build step completed (some services use pre-built images)"
 }
-$DOCKER_COMPOSE_CMD up -d || {
+
+# Try to start all services, capture output to check for errors
+COMPOSE_OUTPUT=$($DOCKER_COMPOSE_CMD up -d 2>&1)
+COMPOSE_EXIT_CODE=$?
+
+echo "$COMPOSE_OUTPUT"
+
+# Check if there was a dependency error
+if echo "$COMPOSE_OUTPUT" | grep -q "dependency failed to start"; then
+    echo ""
+    echo "⚠️  Some services failed due to dependencies. Attempting recovery..."
+    echo ""
+    
+    # Give databases time to fully initialize
+    echo "  ⏳ Waiting for database services to be ready..."
+    sleep 10
+    
+    # Start services in dependency order
+    echo "  🔄 Starting services in correct order..."
+    
+    # 1. Databases first
+    echo "    - Starting databases..."
+    $DOCKER_COMPOSE_CMD up -d database guacamole-postgres 2>/dev/null
+    sleep 5
+    
+    # 2. Core services that depend on databases
+    echo "    - Starting core services..."
+    $DOCKER_COMPOSE_CMD up -d guacd ttyd backend 2>/dev/null
+    sleep 5
+    
+    # 3. Guacamole needs both guacd and guacamole-postgres
+    echo "    - Starting Guacamole..."
+    $DOCKER_COMPOSE_CMD up -d guacamole 2>/dev/null
+    sleep 5
+    
+    # 4. Webserver needs guacamole to be running
+    echo "    - Starting web server..."
+    $DOCKER_COMPOSE_CMD up -d webserver 2>/dev/null
+    sleep 3
+    
+    # 5. Optional services
+    echo "    - Starting optional services..."
+    $DOCKER_COMPOSE_CMD up -d rustdesk-server rustdesk-relay 2>/dev/null
+    
+    echo ""
+    echo "✅ Recovery complete - all services should be running now"
+    echo ""
+elif [ $COMPOSE_EXIT_CODE -ne 0 ]; then
     echo "❌ Failed to start services"
     echo "📋 Checking configuration..."
     $DOCKER_COMPOSE_CMD config 2>&1 | head -20
     exit 1
-}
+fi
 
 # Ensure Guacamole container is started (fix for dependency issues)
 echo "🔍 Checking Guacamole container status..."
