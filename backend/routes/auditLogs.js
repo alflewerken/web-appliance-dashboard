@@ -406,25 +406,8 @@ router.delete('/delete-filtered', requireAdmin, async (req, res) => {
     
     await connection.commit();
     
-    // Log this administrative action
+    // Log this administrative action (nur für interne Logs, nicht Audit-Log)
     logger.info(`Admin ${req.user.username} deleted ${result.affectedRows} filtered audit log entries`);
-    
-    // Create audit log for this deletion
-    await createAuditLog(
-      req.user.id,
-      'audit_logs_delete',
-      'audit_logs',
-      null,
-      {
-        deleted_count: result.affectedRows,
-        deleted_ids: logIds.slice(0, 10), // Log first 10 IDs for reference
-        total_ids: logIds.length,
-        deleted_by: req.user.username,
-        timestamp: new Date().toISOString(),
-      },
-      req.ip || req.connection.remoteAddress,
-      `${result.affectedRows} Einträge`
-    );
     
     // Broadcast the deletion event
     broadcast('audit_logs_deleted', {
@@ -442,6 +425,56 @@ router.delete('/delete-filtered', requireAdmin, async (req, res) => {
     await connection.rollback();
     logger.error('Error deleting filtered audit logs:', error);
     res.status(500).json({ error: 'Failed to delete filtered audit logs' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Delete single audit log entry
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const connection = await pool.getConnection();
+  
+  try {
+    const logId = req.params.id;
+    
+    // Verify the log exists
+    const [existing] = await connection.execute(
+      'SELECT * FROM audit_logs WHERE id = ?',
+      [logId]
+    );
+    
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Audit log entry not found' });
+    }
+    
+    await connection.beginTransaction();
+    
+    // Delete the audit log entry
+    const [result] = await connection.execute(
+      'DELETE FROM audit_logs WHERE id = ?',
+      [logId]
+    );
+    
+    await connection.commit();
+    
+    // Log this administrative action (nur für interne Logs, nicht Audit-Log)
+    logger.info(`Admin ${req.user.username} deleted audit log entry ID: ${logId}`);
+    
+    // Broadcast the deletion event
+    broadcast('audit_log_deleted', {
+      id: logId,
+      deletedBy: req.user.username
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Audit log entry deleted successfully'
+    });
+    
+  } catch (error) {
+    await connection.rollback();
+    logger.error('Error deleting audit log entry:', error);
+    res.status(500).json({ error: 'Failed to delete audit log entry' });
   } finally {
     connection.release();
   }

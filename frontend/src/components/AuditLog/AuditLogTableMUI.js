@@ -157,7 +157,7 @@ const AuditLogTableMUI = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onDeleteLog) {
-                          onDeleteLog(log);
+                          onDeleteLog(log.id);
                         }
                       }}
                       sx={{

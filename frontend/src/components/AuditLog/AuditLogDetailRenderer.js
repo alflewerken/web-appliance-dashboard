@@ -1154,6 +1154,176 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
       );
     }
 
+    // For user reverted actions - show before/after comparison
+    if (log.action === 'user_reverted') {
+      const revertedFromLogId = details.revertedFromLogId || details.reverted_from_log_id || '-';
+      const revertedBy = details.revertedBy || details.reverted_by || log.username || '-';
+      const revertedToData = details.revertedToData || details.reverted_to_data || {};
+      const revertedFromData = details.revertedFromData || details.reverted_from_data || {};
+      
+      // Parse data if it's a string
+      let toData = revertedToData;
+      let fromData = revertedFromData;
+      
+      try {
+        if (typeof toData === 'string') {
+          toData = JSON.parse(toData);
+        }
+        if (typeof fromData === 'string') {
+          fromData = JSON.parse(fromData);
+        }
+      } catch (e) {
+        console.error('Error parsing reverted data:', e);
+      }
+      
+      // Extract all fields that changed
+      const changedFields = [];
+      const allKeys = new Set([...Object.keys(toData), ...Object.keys(fromData)]);
+      
+      allKeys.forEach(key => {
+        // Skip system fields
+        if (key === 'id' || key === 'created_at' || key === 'updated_at' || 
+            key === 'createdAt' || key === 'updatedAt' || key === 'password') {
+          return;
+        }
+        
+        const fromValue = fromData[key];
+        const toValue = toData[key];
+        
+        // Only show fields that actually changed
+        if (JSON.stringify(fromValue) !== JSON.stringify(toValue)) {
+          // Format field name
+          const fieldName = key
+            .replace(/_/g, ' ')
+            .replace(/([A-Z])/g, ' $1')
+            .trim()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+          
+          changedFields.push({
+            name: fieldName,
+            from: fromValue,
+            to: toValue,
+            key: key
+          });
+        }
+      });
+      
+      // Format value for display
+      const formatValue = (value, key) => {
+        if (value === null || value === undefined) return '-';
+        if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
+        if (key === 'role') {
+          const roleMap = {
+            'admin': 'Administrator',
+            'power_user': 'Power User',
+            'user': 'Benutzer'
+          };
+          return roleMap[value] || value;
+        }
+        if (key === 'is_active' || key === 'isActive') {
+          return value ? 'Aktiv' : 'Inaktiv';
+        }
+        return value.toString();
+      };
+      
+      return (
+        <Box>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Benutzer-Änderungen wurden rückgängig gemacht
+          </Alert>
+          
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Rückgängig-Details:
+          </Typography>
+          
+          <Box sx={{
+            '& table': {
+              borderCollapse: 'collapse',
+              width: '100%',
+            },
+            '& td': {
+              padding: '10px 12px',
+              borderBottom: `1px solid ${isDarkMode 
+                ? 'rgba(255, 255, 255, 0.08)' 
+                : 'rgba(0, 0, 0, 0.08)'}`,
+            },
+            '& tr:last-child td': {
+              borderBottom: 'none',
+            },
+            '& td:first-of-type': {
+              fontWeight: 500,
+              color: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.6)' 
+                : 'rgba(0, 0, 0, 0.6)',
+              width: '35%',
+            },
+          }}>
+            <table>
+              <tbody>
+                <tr>
+                  <td>Reverted From Log Id:</td>
+                  <td>{revertedFromLogId}</td>
+                </tr>
+                <tr>
+                  <td>Reverted By:</td>
+                  <td style={{ fontWeight: 600 }}>{revertedBy}</td>
+                </tr>
+              </tbody>
+            </table>
+          </Box>
+          
+          {changedFields.length > 0 && (
+            <>
+              <Typography variant="subtitle2" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
+                Geänderte Felder:
+              </Typography>
+              
+              <Stack spacing={2}>
+                {changedFields.map((field, index) => (
+                  <Box key={index}>
+                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                      {field.name}:
+                    </Typography>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Chip
+                        label={`Vorher: ${formatValue(field.from, field.key)}`}
+                        size="small"
+                        color="error"
+                        sx={{
+                          backgroundColor: '#f44336',
+                          color: '#ffffff',
+                          fontWeight: 500,
+                        }}
+                      />
+                      <Typography variant="caption">→</Typography>
+                      <Chip
+                        label={`Nachher: ${formatValue(field.to, field.key)}`}
+                        size="small"
+                        color="success"
+                        sx={{
+                          backgroundColor: '#66bb6a',
+                          color: '#ffffff',
+                          fontWeight: 500,
+                        }}
+                      />
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
+            </>
+          )}
+          
+          {changedFields.length === 0 && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Keine Änderungen gefunden
+            </Alert>
+          )}
+        </Box>
+      );
+    }
+
     // For user delete actions - show formatted user details
     if (log.action === 'user_delete' || log.action === 'user_deleted') {
       const userData = details.user || details.User || details;
@@ -1352,9 +1522,10 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
                               <Chip 
                                 label={`Vorher: ${formatValue(oldValue, fieldName)}`} 
                                 size="small"
+                                color="error"
                                 sx={{ 
                                   backgroundColor: '#f44336',
-                                  color: '#fff',
+                                  color: '#ffffff',
                                   fontSize: '0.75rem',
                                   fontWeight: 500
                                 }} 
@@ -1363,9 +1534,10 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
                               <Chip 
                                 label={`Nachher: ${formatValue(newValue, fieldName)}`} 
                                 size="small"
+                                color="success"
                                 sx={{ 
                                   backgroundColor: '#66bb6a',
-                                  color: '#fff',
+                                  color: '#ffffff',
                                   fontSize: '0.75rem',
                                   fontWeight: 500
                                 }} 

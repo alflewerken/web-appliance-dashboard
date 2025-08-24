@@ -1,4 +1,4 @@
-// Simplified AuditLogPanel Component with fixed resize and mobile auto-update
+// Simplified AuditLogPanel Component with fixed resize
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
@@ -14,7 +14,7 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { FileDown, FileText, File, Activity, FileCode, ChevronUp, ChevronDown, FileJson, RefreshCw } from 'lucide-react';
+import { FileDown, FileText, File, Activity, FileCode, ChevronUp, ChevronDown, FileJson } from 'lucide-react';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import axios from '../../utils/axiosConfig';
 import AuditLogTableMUI from './AuditLogTableMUI';
@@ -99,20 +99,21 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     } catch (error) {
       console.error('Error loading filter settings:', error);
     }
+    // Default values if nothing saved
     return {
       searchTerm: '',
       selectedAction: 'all',
       selectedUser: 'all',
       selectedResourceType: 'all',
-      dateRange: 'all',
+      dateRange: 'today',
       showCriticalOnly: false,
-      filtersCollapsed: false,
+      filtersCollapsed: false
     };
   };
 
   const savedFilterSettings = loadFilterSettings();
-  
-  // State for logs and filters
+
+  // Rest of your component state
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,13 +138,8 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   
   const isAdmin = true;
   const { addEventListener, removeEventListener, isConnected } = useSSE();
-  
-  // Track last update timestamp and initial load state
-  const lastUpdateRef = useRef(null);
-  const hasInitialLoadRef = useRef(false);
-  const isMobileRef = useRef(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768);
 
-  // Fetch Audit Logs (full load - only used for initial load and manual refresh)
+  // Fetch Audit Logs
   const fetchAuditLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -155,14 +151,6 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       
       setLogs(logsArray);
       setFilteredLogs(logsArray);
-      
-      // Track the timestamp of the newest log
-      if (logsArray.length > 0) {
-        lastUpdateRef.current = logsArray[0].createdAt;
-      }
-      
-      // Mark initial load as complete
-      hasInitialLoadRef.current = true;
       
       const today = new Date().toISOString().split('T')[0];
       const todayLogs = logsArray.filter(log => 
@@ -186,62 +174,6 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       setError('Fehler beim Laden der Audit-Logs');
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  // Fetch only new logs (incremental update for mobile)
-  const fetchNewLogs = useCallback(async () => {
-    // Skip if initial load hasn't happened yet or no lastUpdate
-    if (!hasInitialLoadRef.current || !lastUpdateRef.current) {
-      return;
-    }
-
-    try {
-      // Fetch logs newer than the last update
-      const response = await axios.get('/api/audit-logs', {
-        params: {
-          since: lastUpdateRef.current
-        }
-      });
-      
-      const newLogsData = response.data.logs || response.data || [];
-      const newLogsArray = Array.isArray(newLogsData) ? newLogsData : [];
-      
-      if (newLogsArray.length > 0) {
-        console.log(`[AuditLog] Adding ${newLogsArray.length} new logs`);
-        
-        // Merge new logs with existing ones
-        setLogs(prevLogs => {
-          // Remove duplicates and sort by date
-          const mergedLogs = [...newLogsArray, ...prevLogs];
-          const uniqueLogs = Array.from(
-            new Map(mergedLogs.map(log => [log.id, log])).values()
-          );
-          return uniqueLogs.sort((a, b) => 
-            new Date(b.createdAt) - new Date(a.createdAt)
-          );
-        });
-        
-        // Update the last update timestamp
-        lastUpdateRef.current = newLogsArray[0].createdAt;
-        
-        // Update stats incrementally
-        const today = new Date().toISOString().split('T')[0];
-        const newTodayLogs = newLogsArray.filter(log => 
-          log.createdAt && log.createdAt.startsWith(today)
-        );
-        
-        setStats(prevStats => ({
-          totalLogs: prevStats.totalLogs + newLogsArray.length,
-          todayLogs: prevStats.todayLogs + newTodayLogs.length,
-          uniqueUsers: prevStats.uniqueUsers, // This would need recalculation
-          criticalActions: prevStats.criticalActions + 
-            newLogsArray.filter(log => criticalActions.includes(log.action)).length,
-        }));
-      }
-    } catch (err) {
-      console.error('Error fetching new audit logs:', err);
-      // On error, don't show error message for incremental updates
     }
   }, []);
 
@@ -326,30 +258,6 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     fetchAuditLogs();
   }, [fetchAuditLogs]);
 
-  // Mobile polling for incremental updates
-  useEffect(() => {
-    if (!isMobileRef.current) return;
-    
-    // Set up polling interval for mobile (every 5 seconds)
-    const intervalId = setInterval(() => {
-      // Only fetch new logs if document is visible
-      if (!document.hidden) {
-        fetchNewLogs();
-      }
-    }, 5000);
-
-    // Cleanup
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [fetchNewLogs]);
-
-  // Manual refresh function for mobile
-  const manualRefresh = useCallback(() => {
-    // For manual refresh, do a full reload
-    fetchAuditLogs();
-  }, [fetchAuditLogs]);
-
   // Save filter settings when they change
   useEffect(() => {
     const filterSettings = {
@@ -370,13 +278,8 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   }, [searchTerm, selectedAction, selectedUser, selectedResourceType, 
       dateRange, showCriticalOnly, filtersCollapsed]);
 
-  // SSE Event Listeners - disabled on mobile for better performance
+  // SSE Event Listeners
   useEffect(() => {
-    // Skip SSE on mobile devices - use polling instead
-    if (isMobileRef.current) {
-      return;
-    }
-    
     if (!addEventListener || !isConnected) {
       return;
     }
@@ -450,101 +353,205 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         dateRange,
         customStartDate,
         customEndDate,
-        showCriticalOnly,
-        logs: filteredLogs
       });
+      setShowExportOptions(false);
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error('Error exporting audit logs:', error);
+      setError('Fehler beim CSV-Export der Logs');
     }
   };
 
   // JSON Export handler
   const handleJsonExport = async () => {
     try {
-      const dataStr = JSON.stringify(filteredLogs, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-      const exportFileDefaultName = `audit-logs-${new Date().toISOString().split('T')[0]}.json`;
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        filters: {
+          action: selectedAction,
+          user: selectedUser,
+          resourceType: selectedResourceType,
+          dateRange: dateRange,
+          customStartDate: customStartDate,
+          customEndDate: customEndDate,
+          criticalOnly: showCriticalOnly
+        },
+        stats: stats,
+        logs: filteredLogs
+      };
       
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setShowExportOptions(false);
     } catch (error) {
-      console.error('JSON Export failed:', error);
+      console.error('Error exporting logs as JSON:', error);
+      setError('Fehler beim JSON-Export der Logs');
     }
   };
 
-  // Print handler
-  const handlePrint = async () => {
-    try {
-      await exportForPrint(filteredLogs);
-    } catch (error) {
-      console.error('Print failed:', error);
+  // Handle stat card clicks
+  const handleStatClick = (value, type) => {
+    console.log('Stat card clicked:', value, type); // Debug log
+    if (type === 'dateRange') {
+      // Für "Alle Log-Einträge" oder "Heutige Aktivitäten"
+      setDateRange(value);
+      // Filter-Status bleibt unverändert (nicht mehr automatisch ausklappen)
+    } else if (type === 'criticalOnly') {
+      // Für "Wichtige Aktionen" - Toggle-Funktion
+      if (value === 'toggle') {
+        setShowCriticalOnly(prev => !prev);
+      } else {
+        setShowCriticalOnly(value);
+      }
+      // Filter-Status bleibt unverändert (nicht mehr automatisch ausklappen)
     }
+  };
+
+  // Helper function to format values for Markdown
+  const formatValueForMarkdown = (value) => {
+    if (typeof value === 'boolean') {
+      return value ? '✓ Ja' : '✗ Nein';
+    } else if (Array.isArray(value)) {
+      // Spezielle Behandlung für File-Arrays
+      if (value[0]?.name && value[0]?.bytes) {
+        return value.map(file => 
+          `\n  - **${file.name}** (${(file.bytes / 1048576).toFixed(2)} MB)`
+        ).join('');
+      }
+      // Normale Arrays
+      return value.map(item => `\n  - ${item}`).join('');
+    } else if (typeof value === 'object' && value !== null) {
+      // Spezielle Behandlung für restored_items
+      if (value.appliances !== undefined || value.hosts !== undefined) {
+        return Object.entries(value)
+          .filter(([_, count]) => count > 0)
+          .map(([key, count]) => `\n  - **${key}**: ${count}`)
+          .join('');
+      }
+      // Andere Objekte als Tabelle
+      return '\n' + Object.entries(value)
+        .map(([k, v]) => `  - **${k}**: ${v}`)
+        .join('\n');
+    } else if (value === null || value === undefined) {
+      return '-';
+    }
+    return String(value);
+  };
+
+  // Markdown Export handler
+  const handleMarkdownExport = async () => {
+    try {
+      let markdown = '# Audit Log Report\n\n';
+      markdown += `**Erstellt am:** ${new Date().toLocaleString('de-DE')}\n\n`;
+      markdown += `**Anzahl Einträge:** ${filteredLogs.length}\n\n`;
+      
+      // Filter-Info
+      markdown += '## Aktive Filter\n\n';
+      if (selectedAction !== 'all') markdown += `- **Aktion:** ${selectedAction}\n`;
+      if (selectedUser !== 'all') markdown += `- **Benutzer:** ${selectedUser}\n`;
+      if (selectedResourceType !== 'all') markdown += `- **Ressource:** ${selectedResourceType}\n`;
+      if (dateRange !== 'all') markdown += `- **Zeitraum:** ${dateRange}\n`;
+      if (showCriticalOnly) markdown += `- **Nur kritische Einträge**\n`;
+      markdown += '\n---\n\n';
+      
+      // Log-Einträge
+      markdown += '## Log-Einträge\n\n';
+      
+      filteredLogs.forEach((log, index) => {
+        markdown += `### ${index + 1}. ${log.action} - ${log.resourceName || log.resourceType || '-'}\n\n`;
+        markdown += `**Zeit:** ${new Date(log.createdAt).toLocaleString('de-DE')}\n`;
+        markdown += `**Benutzer:** ${log.username || 'System'}\n`;
+        markdown += `**IP-Adresse:** ${log.ipAddress || '-'}\n`;
+        
+        if (log.details) {
+          markdown += '\n**Details:**\n';
+          const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+          Object.entries(details).forEach(([key, value]) => {
+            markdown += `- **${key}:** ${formatValueForMarkdown(value)}\n`;
+          });
+        }
+        
+        markdown += '\n---\n\n';
+      });
+      
+      // Download der .md Datei
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.md`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setShowExportOptions(false);
+    } catch (error) {
+      console.error('Error exporting logs as Markdown:', error);
+      setError('Fehler beim Markdown-Export der Logs');
+    }
+  };
+
+  // PDF Export handler
+  const handlePdfExport = () => {
+    exportForPrint(filteredLogs);
+    setShowExportOptions(false);
   };
 
   const handleDelete = async () => {
-    const hasFilters = searchTerm || selectedAction !== 'all' || 
-                      selectedUser !== 'all' || selectedResourceType !== 'all' || 
-                      dateRange !== 'all' || showCriticalOnly;
+    if (!window.confirm('Möchten Sie die gefilterten Audit-Logs wirklich löschen?')) {
+      return;
+    }
 
-    if (hasFilters) {
-      const confirmDelete = window.confirm(
-        `Möchten Sie wirklich ${filteredLogs.length} gefilterte Audit-Logs löschen?`
-      );
-
-      if (confirmDelete) {
-        try {
-          await deleteFilteredAuditLogs({
-            selectedAction,
-            selectedUser,
-            selectedResourceType,
-            dateRange,
-            customStartDate,
-            customEndDate,
-            showCriticalOnly,
-            searchTerm
-          });
-          
-          // Refresh logs after deletion
-          await fetchAuditLogs();
-        } catch (error) {
-          console.error('Delete failed:', error);
-        }
-      }
-    } else {
-      await deleteOldAuditLogs(fetchAuditLogs);
+    try {
+      const logIds = filteredLogs.map(log => log.id);
+      await deleteFilteredAuditLogs(logIds);
+      fetchAuditLogs(); // Refresh after deletion
+    } catch (error) {
+      console.error('Error deleting audit logs:', error);
     }
   };
 
-  const handleRowExpand = (logId) => {
-    // Convert to string to ensure consistency
-    const logIdStr = String(logId);
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(logIdStr)) {
-        newSet.delete(logIdStr);
-      } else {
-        newSet.add(logIdStr);
-      }
-      return newSet;
-    });
-  };
+  // Delete single log entry
+  const handleDeleteSingleLog = async (logId) => {
+    if (!window.confirm('Möchten Sie diesen Audit-Log-Eintrag wirklich löschen?')) {
+      return;
+    }
 
-  const handleStatClick = (action, type) => {
-    if (type === 'dateRange') {
-      switch (action) {
-        case 'all':
-          setDateRange('all');
-          break;
-        case 'today':
-          setDateRange('today');
-          break;
-        default:
-          break;
-      }
-    } else if (type === 'criticalOnly') {
-      setShowCriticalOnly(!showCriticalOnly);
+    try {
+      await axios.delete(`/api/audit-logs/${logId}`);
+      // Remove from local state immediately for better UX
+      setLogs(prevLogs => prevLogs.filter(log => log.id !== logId));
+      setFilteredLogs(prevLogs => prevLogs.filter(log => log.id !== logId));
+      // Update stats
+      const updatedLogs = logs.filter(log => log.id !== logId);
+      const today = new Date().toISOString().split('T')[0];
+      const todayLogs = updatedLogs.filter(log => 
+        log.createdAt && log.createdAt.startsWith(today)
+      );
+      const uniqueUsers = new Set(updatedLogs.map(log => log.username || 'System'));
+      const criticalLogs = updatedLogs.filter(log => 
+        criticalActions.includes(log.action)
+      );
+      
+      setStats({
+        totalLogs: updatedLogs.length,
+        todayLogs: todayLogs.length,
+        uniqueUsers: uniqueUsers.size,
+        criticalActions: criticalLogs.length,
+      });
+    } catch (error) {
+      console.error('Error deleting audit log:', error);
+      setError('Fehler beim Löschen des Audit-Log-Eintrags');
+      // Refresh on error to ensure consistency
+      fetchAuditLogs();
     }
   };
 
@@ -609,28 +616,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         title="Audit Log"
         onClose={onClose}
         icon={Activity}
-        actions={
-          isMobileRef.current ? (
-            <Tooltip title="Aktualisieren">
-              <IconButton
-                size="small"
-                onClick={manualRefresh}
-                sx={{ 
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  '&:hover': { 
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)' 
-                  }
-                }}
-              >
-                <RefreshCw size={18} />
-              </IconButton>
-            </Tooltip>
-          ) : null
-        }
       />
 
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <CircularProgress />
@@ -640,25 +628,27 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
             <Alert severity="error">{error}</Alert>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-            {/* Fixed Stats Section */}
-            <Box sx={{ flexShrink: 0 }}>
-              <AuditLogStats 
-                stats={stats} 
-                cardStyles={cardStyles} 
-                panelWidth={panelWidth}
-                onStatClick={handleStatClick}
-                showCriticalOnly={showCriticalOnly}
-                dateRange={dateRange}
-              />
-            </Box>
+          <>
+            <AuditLogStats 
+              stats={stats} 
+              cardStyles={cardStyles} 
+              panelWidth={panelWidth}
+              onStatClick={handleStatClick}
+              showCriticalOnly={showCriticalOnly}
+              dateRange={dateRange}
+            />
             
-            {/* Fixed Filter Toggle Button */}
-            <Box sx={{ px: 1, py: 0.5, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+            <Box sx={{ px: 1, py: 0.5, display: 'flex', justifyContent: 'center' }}>
               <Tooltip title={filtersCollapsed ? "Filter anzeigen" : "Filter ausblenden"}>
                 <Button
                   size="small"
-                  onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+                  onClick={() => {
+                    setFiltersCollapsed(!filtersCollapsed);
+                    // Wenn Filter ausgeblendet werden, auch Export-Optionen schließen
+                    if (!filtersCollapsed) {
+                      setShowExportOptions(false);
+                    }
+                  }}
                   startIcon={filtersCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                   sx={{
                     minWidth: 'auto',
@@ -683,8 +673,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
               </Tooltip>
             </Box>
             
-            {/* Fixed Filters Section */}
-            <Collapse in={!filtersCollapsed} sx={{ flexShrink: 0 }}>
+            <Collapse in={!filtersCollapsed}>
               <AuditLogFilters
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
@@ -710,10 +699,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                 uniqueResourceTypes={uniqueResourceTypes}
                 cardStyles={cardStyles}
               />
-            </Collapse>
-
-            {/* Fixed Export Options Card */}
-            <Collapse in={showExportOptions} sx={{ flexShrink: 0 }}>
+              
+              {/* Export Options Card - jetzt innerhalb des Filter-Collapse */}
+              <Collapse in={showExportOptions}>
               <Box sx={{ px: 2, pb: 1 }}>
                 <Card sx={{ 
                   ...cardStyles, 
@@ -746,64 +734,102 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                       >
                         JSON
                       </Button>
-                      
                       <Button
                         variant="contained"
                         size="small"
                         onClick={handleCsvExport}
-                        startIcon={<FileDown size={16} />}
+                        startIcon={<FileText size={16} />}
                         sx={{
                           backgroundColor: theme.palette.mode === 'dark'
-                            ? 'rgba(76, 175, 80, 0.2)'
-                            : 'rgba(76, 175, 80, 0.1)',
+                            ? 'rgba(100, 255, 150, 0.2)'
+                            : 'rgba(0, 200, 100, 0.1)',
                           color: theme.palette.mode === 'dark' ? '#81c784' : '#4caf50',
                           '&:hover': {
                             backgroundColor: theme.palette.mode === 'dark'
-                              ? 'rgba(76, 175, 80, 0.3)'
-                              : 'rgba(76, 175, 80, 0.2)',
+                              ? 'rgba(100, 255, 150, 0.3)'
+                              : 'rgba(0, 200, 100, 0.2)',
                           },
                         }}
                       >
                         CSV
                       </Button>
-                      
                       <Button
                         variant="contained"
                         size="small"
-                        onClick={handlePrint}
-                        startIcon={<FileText size={16} />}
+                        onClick={handlePdfExport}
+                        startIcon={<File size={16} />}
                         sx={{
                           backgroundColor: theme.palette.mode === 'dark'
-                            ? 'rgba(255, 152, 0, 0.2)'
-                            : 'rgba(255, 152, 0, 0.1)',
-                          color: theme.palette.mode === 'dark' ? '#ffb74d' : '#ff9800',
+                            ? 'rgba(255, 100, 100, 0.2)'
+                            : 'rgba(255, 0, 0, 0.1)',
+                          color: theme.palette.mode === 'dark' ? '#ef5350' : '#f44336',
                           '&:hover': {
                             backgroundColor: theme.palette.mode === 'dark'
-                              ? 'rgba(255, 152, 0, 0.3)'
-                              : 'rgba(255, 152, 0, 0.2)',
+                              ? 'rgba(255, 100, 100, 0.3)'
+                              : 'rgba(255, 0, 0, 0.2)',
                           },
                         }}
                       >
-                        Drucken
+                        PDF
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleMarkdownExport}
+                        startIcon={<FileCode size={16} />}
+                        sx={{
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(150, 100, 255, 0.2)'
+                            : 'rgba(100, 0, 255, 0.1)',
+                          color: theme.palette.mode === 'dark' ? '#b39ddb' : '#6200ea',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark'
+                              ? 'rgba(150, 100, 255, 0.3)'
+                              : 'rgba(100, 0, 255, 0.2)',
+                          },
+                        }}
+                      >
+                        MD
                       </Button>
                     </Stack>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'text.secondary', textAlign: 'center' }}>
+                      {filteredLogs.length} Einträge werden exportiert
+                    </Typography>
                   </CardContent>
                 </Card>
               </Box>
             </Collapse>
+            </Collapse>
 
-            {/* Scrollable Table Section */}
-            <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-              <AuditLogTableMUI
-                logs={filteredLogs}
-                expandedRows={expandedRows}
-                onToggleExpand={handleRowExpand}
-                isAdmin={isAdmin}
-                panelWidth={panelWidth}
-                cardStyles={cardStyles}
-              />
+            <Box sx={{ flex: 1, overflow: 'auto', p: 2, pt: 0 }}>
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ flex: 1, overflow: 'auto' }}>
+                  {filteredLogs.length === 0 ? (
+                    <Alert severity="info">Keine Audit-Logs gefunden</Alert>
+                  ) : (
+                    <AuditLogTableMUI
+                      logs={filteredLogs}
+                      expandedRows={expandedRows}
+                      onToggleExpand={(id) => {
+                        setExpandedRows(prev => {
+                          const newSet = new Set(prev);
+                          if (newSet.has(id)) {
+                            newSet.delete(id);
+                          } else {
+                            newSet.add(id);
+                          }
+                          return newSet;
+                        });
+                      }}
+                      onRefresh={fetchAuditLogs}
+                      onDeleteLog={handleDeleteSingleLog}
+                      cardStyles={cardStyles}
+                    />
+                  )}
+                </Box>
+              </Box>
             </Box>
-          </Box>
+          </>
         )}
       </Box>
     </Box>
