@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
+import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import {
   Box,
   Typography,
@@ -108,56 +109,12 @@ const SettingsPanel = ({
   // Filter tabs based on admin status
   const visibleTabs = tabs.filter(tab => !tab.adminOnly || isAdmin);
 
-  // Resize functionality
-  const [panelWidth, setPanelWidth] = useState(() => {
-    const savedWidth = localStorage.getItem('settingsPanelWidth');
-    return savedWidth ? parseInt(savedWidth) : 600;
-  });
-  const [isResizing, setIsResizing] = useState(false);
-  const panelRef = useRef(null);
-
-  const startResize = useCallback(e => {
-    e.preventDefault();
-    setIsResizing(true);
-  }, []);
-
-  useEffect(() => {
-    const handleMouseMove = e => {
-      if (!isResizing) return;
-
-      const newWidth = window.innerWidth - e.clientX;
-      const minWidth = 400;
-      const maxWidth = window.innerWidth - 100;
-
-      if (newWidth >= minWidth && newWidth <= maxWidth) {
-        setPanelWidth(newWidth);
-        if (onWidthChange) {
-          onWidthChange(newWidth);
-        }
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        localStorage.setItem('settingsPanelWidth', panelWidth);
-      }
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'ew-resize';
-      document.body.style.userSelect = 'none';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing, panelWidth, onWidthChange]);
+  // EINHEITLICHER RESIZE-HOOK (ersetzt alten Code)
+  const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
+    'settingsPanelWidth',
+    600,
+    onWidthChange
+  );
 
   // Find initial tab index
   const getInitialTabIndex = () => {
@@ -1207,37 +1164,15 @@ const SettingsPanel = ({
   return (
     <Box
       ref={panelRef}
-      sx={{
-        position: 'relative',
-        width: `${panelWidth}px`,
-        height: '100%',
-        backgroundColor: 'rgba(118, 118, 128, 0.12)',
-        backdropFilter: 'blur(30px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(150%)',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: isResizing ? 'none' : 'transform 0.3s ease',
-        boxShadow: '-20px 0 50px rgba(0, 0, 0, 0.5)',
-      }}
+      style={{ width: `${panelWidth}px` }}  // Width als style für Safari/iPad
+      sx={getPanelStyles(isResizing)}
     >
-      {/* Resize Handle */}
+      {/* Resize Handle - einheitlich */}
       <Box
         onMouseDown={startResize}
-        sx={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: '5px',
-          cursor: 'ew-resize',
-          backgroundColor: 'transparent',
-          '&:hover': {
-            backgroundColor: 'var(--primary-color)',
-            opacity: 0.5,
-          },
-          zIndex: 1,
-        }}
+        onTouchStart={startResize}
+        onPointerDown={startResize}
+        sx={getResizeHandleStyles()}
       />
 
       {/* Header */}

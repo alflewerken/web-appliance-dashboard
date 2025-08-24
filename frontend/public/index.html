@@ -1,159 +1,41 @@
 <!DOCTYPE html>
 <html lang="de">
-<head>
-  <meta charset="utf-8" />
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
-  <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png" />
-  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
-  <link rel="icon" type="image/png" sizes="128x128" href="/favicon-128x128.png" />
-  
-  <!-- CRITICAL: Safari Navigation Hiding Meta Tags -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-  <meta name="apple-mobile-web-app-title" content="Dashboard" />
-  <meta name="format-detection" content="telephone=no" />
-  <meta name="msapplication-tap-highlight" content="no" />
-  
-  <!-- Theme Color für schwarze Safari Bars -->
-  <meta name="theme-color" content="#000000" />
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#000000" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
-  
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json" />
-  
-  <!-- Apple Touch Icons für bessere PWA Integration -->
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-  
-  <!-- Android Chrome Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
-  <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
-  
-  <!-- Microsoft Tile -->
-  <meta name="msapplication-TileColor" content="#1a1a1a" />
-  <meta name="msapplication-TileImage" content="/mstile-150x150.png" />
-  
-  <!-- Theme und Beschreibung -->
-  <meta name="description" content="Web Appliance Dashboard - Service Management ohne Safari Navigation" />
-  <title>Web Appliance Dashboard</title>
-  
-  <!-- Theme Handler Script -->
-  <script src="/theme-handler.js"></script>
-  
-  <!-- Terminal Error Suppressor -->
-  <script src="/terminal-error-suppressor.js"></script>
-  
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Web Appliance Dashboard" />
     
-    html {
-      /* Safari Navigation Hiding */
-      height: 100%;
-      height: 100vh;
-      height: -webkit-fill-available;
-    }
+    <!-- Apple Web App -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Appliance Dashboard">
     
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-        sans-serif;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      /* Black as fallback, but allow background images */
-      background-color: #000000;
-      color: #ffffff;
-      
-      /* Safari Navigation Hiding */
-      height: 100%;
-      height: 100vh;
-      height: -webkit-fill-available;
-      overflow: hidden;
-      
-      /* Disable iOS Safari bounce */
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: none;
-      position: fixed;
-      width: 100%;
-      top: 0;
-      left: 0;
-    }
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="57x57" href="%PUBLIC_URL%/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="%PUBLIC_URL%/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="%PUBLIC_URL%/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="%PUBLIC_URL%/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="%PUBLIC_URL%/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="%PUBLIC_URL%/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="%PUBLIC_URL%/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon-180x180.png">
     
-    #root {
-      /* Full viewport für App */
-      height: 100%;
-      height: 100vh;
-      height: -webkit-fill-available;
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
-    }
+    <!-- Android Chrome -->
+    <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="%PUBLIC_URL%/android-chrome-512x512.png">
     
-    /* iOS Safari spezifische Anpassungen */
-    @supports (-webkit-touch-callout: none) {
-      body {
-        /* Extend into safe areas */
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-    }
-  </style>
-</head>
-<body>
-  <noscript>Aktivieren Sie JavaScript, um diese App zu verwenden.</noscript>
-  <div id="root"></div>
-  
-  <!-- Safari Navigation Hiding Script -->
-  <script>
-    // Immediate Safari navigation hiding and theme color
-    (function() {
-      const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-                         /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      
-      if (isIOSSafari) {
-        console.log('🍎 iOS Safari detected - applying immediate fixes');
-        
-        // Force black theme color for Safari bars
-        const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-        if (themeColorMeta) {
-          themeColorMeta.content = '#000000';
-        }
-        
-        // Also set for status bar
-        const statusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-        if (statusBarMeta) {
-          statusBarMeta.content = 'black';
-        }
-        
-        // Force minimal UI
-        const viewport = document.querySelector('meta[name="viewport"]');
-        if (viewport && !viewport.content.includes('minimal-ui')) {
-          viewport.content += ', minimal-ui';
-        }
-        
-        // Trigger scroll to hide address bar
-        setTimeout(() => {
-          window.scrollTo(0, 1);
-          setTimeout(() => window.scrollTo(0, 0), 100);
-        }, 500);
-        
-        // Add Safari class immediately
-        document.documentElement.classList.add('ios-safari');
-        document.body.classList.add('safari-minimal-ui');
-        
-        // Don't force body background - let CSS handle it
-        // This allows background images to show
-      }
-    })();
-  </script>
-</body>
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <title>Web Appliance Dashboard</title>
+    
+    <!-- Theme Handler - Must be first -->
+    <script src="%PUBLIC_URL%/theme-handler.js"></script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
 </html>

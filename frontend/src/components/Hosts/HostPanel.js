@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import SSHKeyManagement from '../SettingsPanel/SSHKeyManagement';
 import sseService from '../../services/sseService';
+import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import {
   Box,
   Typography,
@@ -44,7 +45,6 @@ import {
   Plus,
   Edit2,
   Server,
-  GripVertical,
 } from 'lucide-react';
 import SimpleIcon from '../SimpleIcon';
 import IconSelector from '../IconSelector';
@@ -71,11 +71,13 @@ const HostPanel = ({
   const [registeringKey, setRegisteringKey] = useState(false);
   const [checkingRustDeskStatus, setCheckingRustDeskStatus] = useState(false);
   const [showRustDeskInstaller, setShowRustDeskInstaller] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(() => {
-    return parseInt(localStorage.getItem('hostPanelWidth')) || defaultWidth;
-  });
-  const [isResizing, setIsResizing] = useState(false);
-  const panelRef = useRef(null);
+  
+  // Use the unified resize hook
+  const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
+    'hostPanelWidth',
+    defaultWidth,
+    onWidthChange
+  );
 
   // Store original data for comparison
   const [originalFormData, setOriginalFormData] = useState(null);
@@ -644,32 +646,6 @@ const HostPanel = ({
     }
   };
 
-  // Handle resize
-  const handleMouseDown = (e) => {
-    setIsResizing(true);
-    const startX = e.pageX;
-    const startWidth = panelWidth;
-
-    const handleMouseMove = (e) => {
-      const newWidth = startWidth - (e.pageX - startX);
-      const clampedWidth = Math.max(400, Math.min(1200, newWidth));
-      setPanelWidth(clampedWidth);
-      if (onWidthChange) {
-        onWidthChange(clampedWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      localStorage.setItem('hostPanelWidth', panelWidth);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
   // Card styles
   const cardStyles = {
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
@@ -700,49 +676,16 @@ const HostPanel = ({
   return (
     <Box
       ref={panelRef}
-      sx={{
-        position: 'relative',
-        width: `${panelWidth}px`,
-        height: '100%',
-        backgroundColor: 'rgba(118, 118, 128, 0.12)',
-        backdropFilter: 'blur(30px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(150%)',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: isResizing ? 'none' : 'transform 0.3s ease',
-        boxShadow: '-20px 0 50px rgba(0, 0, 0, 0.5)',
-      }}
+      style={{ width: `${panelWidth}px` }} // Width als style für Safari-Kompatibilität
+      sx={getPanelStyles(isResizing)}
     >
-      {/* Resize Handle */}
+      {/* Resize Handle mit Touch-Support */}
       <Box
-        onMouseDown={handleMouseDown}
-        sx={{
-          position: 'absolute',
-          left: -5,
-          top: 0,
-          bottom: 0,
-          width: 10,
-          cursor: 'col-resize',
-          zIndex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          },
-        }}
-      >
-        <GripVertical
-          size={16}
-          style={{
-            position: 'absolute',
-            opacity: isResizing ? 1 : 0.5,
-            color: 'var(--text-secondary)',
-            transition: 'opacity 0.2s',
-          }}
-        />
-      </Box>
+        onMouseDown={startResize}
+        onTouchStart={startResize}
+        onPointerDown={startResize}
+        sx={getResizeHandleStyles()}
+      />
 
       {/* Header */}
       <UnifiedPanelHeader

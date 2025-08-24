@@ -21,6 +21,37 @@ const HostsView = ({
   const [hosts, setHosts] = useState(propsHosts || []);
   const [loading, setLoading] = useState(!propsHosts);
   const [error, setError] = useState(null);
+  const [activeCardId, setActiveCardId] = useState(null); // Track which card is active on touch devices
+
+  // Auto-hide active card after timeout
+  useEffect(() => {
+    if (activeCardId) {
+      const timeout = setTimeout(() => {
+        setActiveCardId(null);
+      }, 10000); // Hide after 10 seconds
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [activeCardId]);
+
+  // Handle clicks outside of cards to deactivate
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      // Check if click is outside any card
+      if (!e.target.closest('.appliance-card-container')) {
+        setActiveCardId(null);
+      }
+    };
+
+    // Add event listeners for both mouse and touch
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // Update hosts when propsHosts change
   useEffect(() => {
@@ -156,6 +187,8 @@ const HostsView = ({
             onShowAuditLog={handleShowAuditLog}
             isAdmin={isAdmin}
             cardSize={Math.max(cardSize || 180, 50)}
+            isActive={activeCardId === host.id}
+            onActivate={() => setActiveCardId(host.id)}
           />
         ))}
         

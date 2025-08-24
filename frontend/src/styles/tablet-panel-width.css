@@ -1,0 +1,73 @@
+/* ============================================
+   TABLET PANEL FINAL FIX
+   Erlaubt inline width styles Priorität
+   ============================================ */
+
+/* Base positioning for tablets - OHNE width override */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Panel Container - nur Positionierung, KEINE width */
+  .panel-container {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    height: 100vh !important;
+    z-index: 2000 !important;
+    transform: none !important;
+    translate: none !important;
+  }
+  
+  /* KRITISCH: Erlaube inline styles für width */
+  .panel-container > .MuiBox-root,
+  .panel-container > div[style*="width"] {
+    /* Keine width !important hier - inline styles haben Vorrang */
+    position: relative;
+    height: 100%;
+  }
+}
+
+/* Default-Breiten NUR für initiales Laden (ohne !important) */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Verwende niedrigere Spezifität ohne !important */
+  .audit-log-panel-container > .MuiBox-root {
+    width: 900px; /* KEIN !important */
+  }
+  
+  .settings-panel-container > .MuiBox-root {
+    width: 700px; /* KEIN !important */
+  }
+  
+  .service-panel-container > .MuiBox-root {
+    width: 700px; /* KEIN !important */
+  }
+  
+  .user-panel-container > .MuiBox-root {
+    width: 600px; /* KEIN !important */
+  }
+}
+
+/* Override mobile styles */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  body .panel-container {
+    transform: translateX(0) !important;
+  }
+}
+
+/* Debug-Helper zum Testen */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Zeige Panel-Breite visuell */
+  .panel-container > .MuiBox-root::before {
+    content: attr(style);
+    position: absolute;
+    top: 60px;
+    left: 10px;
+    background: rgba(255, 0, 0, 0.8);
+    color: white;
+    padding: 5px;
+    font-size: 12px;
+    z-index: 9999;
+    max-width: 200px;
+    word-break: break-all;
+  }
+}

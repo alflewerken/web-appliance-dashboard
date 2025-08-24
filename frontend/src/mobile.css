@@ -591,9 +591,8 @@ body.sidebar-open {
   }
 }
 
-/* iPad Category Transitions */
+/* Smooth category transitions */
 @media (max-width: 1024px) {
-  /* Smooth category transitions */
   .content-body {
     overflow: hidden;
     position: relative;
@@ -618,7 +617,7 @@ body.sidebar-open {
   }
 }
 
-/* Mobile & iPad Action Button Improvements */
+/* Mobile Action Button Improvements */
 @media (max-width: 768px) {
   /* Larger touch targets for action buttons */
   .card-actions-grid.mobile-actions-visible .action-btn,
@@ -656,18 +655,6 @@ body.sidebar-open {
   /* Faster feedback for touch interactions */
   .card-front.mobile-tap-hint {
     animation-duration: 0.15s !important;
-  }
-}
-
-/* iPad Landscape Optimizations */
-@media (max-width: 1024px) and (orientation: landscape) {
-  .swipe-indicator {
-    bottom: 20px;
-  }
-
-  .category-content .appliances-grid {
-    gap: 12px;
-    padding: 12px;
   }
 }
 
@@ -716,13 +703,6 @@ body.sidebar-open {
 
   .settings-dialog {
     z-index: 9999 !important;
-  }
-}
-
-/* iPad specific adjustments */
-@media (max-width: 1024px) and (min-width: 769px) {
-  .settings-dialog {
-    max-width: 80vw !important;
   }
 }
 

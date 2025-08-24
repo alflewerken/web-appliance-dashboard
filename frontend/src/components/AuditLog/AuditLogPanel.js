@@ -1,4 +1,4 @@
-// Simplified AuditLogPanel Component with fixed resize
+// AuditLogPanel mit einheitlichem Resize-Hook
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
@@ -28,66 +28,19 @@ import {
   exportForPrint 
 } from './AuditLogExport';
 import { criticalActions, getActionColor, formatActionName } from './AuditLogActions';
+import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import './AuditLogPanel.css';
 import './AuditLogTableCardFix.css';
 
 const AuditLogPanel = ({ onClose, onWidthChange }) => {
   const theme = useTheme();
   
-  // Panel width state - simple approach
-  const [panelWidth, setPanelWidth] = useState(() => {
-    const savedWidth = localStorage.getItem('auditLogPanelWidth');
-    return savedWidth ? parseInt(savedWidth) : 800;
-  });
-
-  // Refs for resize handling
-  const isResizingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(0);
-  const panelRef = useRef(null);
-
-  // Simple resize handler
-  const handleMouseDown = (e) => {
-    e.preventDefault();
-    isResizingRef.current = true;
-    startXRef.current = e.pageX;
-    startWidthRef.current = panelWidth;
-    document.body.style.cursor = 'ew-resize';
-    document.body.style.userSelect = 'none';
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isResizingRef.current) return;
-      
-      const currentX = e.pageX;
-      const deltaX = startXRef.current - currentX;
-      const newWidth = Math.max(400, Math.min(1200, startWidthRef.current + deltaX));
-      
-      setPanelWidth(newWidth);
-      
-      if (onWidthChange) {
-        onWidthChange(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (isResizingRef.current) {
-        isResizingRef.current = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        localStorage.setItem('auditLogPanelWidth', panelWidth);
-      }
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [panelWidth, onWidthChange]);
+  // EINHEITLICHER RESIZE-HOOK
+  const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
+    'auditLogPanelWidth',
+    800,
+    onWidthChange
+  );
 
   // Load saved filter settings from localStorage
   const loadFilterSettings = () => {
@@ -580,36 +533,15 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   return (
     <Box
       ref={panelRef}
-      sx={{
-        position: 'relative',
-        width: `${panelWidth}px`,
-        height: '100%',
-        backgroundColor: 'rgba(118, 118, 128, 0.12)',
-        backdropFilter: 'blur(30px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(150%)',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '-20px 0 50px rgba(0, 0, 0, 0.5)',
-      }}
+      style={{ width: `${panelWidth}px` }}  // Width als style für Safari/iPad
+      sx={getPanelStyles(isResizing)}
     >
-      {/* Resize handle - simplified */}
+      {/* Resize handle - einheitlich */}
       <Box
-        onMouseDown={handleMouseDown}
-        sx={{
-          position: 'absolute',
-          left: -5,
-          top: 0,
-          bottom: 0,
-          width: '10px',
-          cursor: 'ew-resize',
-          backgroundColor: 'transparent',
-          '&:hover': {
-            backgroundColor: 'var(--primary-color, #007AFF)',
-            opacity: 0.3,
-          },
-          zIndex: 1000,
-        }}
+        onMouseDown={startResize}
+        onTouchStart={startResize}
+        onPointerDown={startResize}
+        sx={getResizeHandleStyles()}
       />
 
       <UnifiedPanelHeader 

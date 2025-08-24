@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import RustDeskInstaller from '../RemoteDesktop/RustDeskInstaller';
 import RustDeskSetupDialog from '../RemoteDesktop/RustDeskSetupDialog';
+import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import sseService from '../../services/sseService';
 import {
   Box,
@@ -178,18 +179,15 @@ const ServicePanel = ({
   const [rustDeskStatus, setRustDeskStatus] = useState(null);
   const [checkingRustDeskStatus, setCheckingRustDeskStatus] = useState(false);
 
-  // Panel width state
-  const [panelWidth, setPanelWidth] = useState(() => {
-    const saved = localStorage.getItem('servicePanelWidth');
-    return saved ? parseInt(saved, 10) : 600;
-  });
-  const [isResizing, setIsResizing] = useState(false);
+  // EINHEITLICHER RESIZE-HOOK (ersetzt alten Code)
+  const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
+    'servicePanelWidth',
+    600,
+    onWidthChange
+  );
 
   // Refs
   const updateTimeoutRef = useRef(null);
-  const panelRef = useRef(null);
-  const startX = useRef(0);
-  const startWidth = useRef(0);
 
   // Get current tab name from index
   const getTabFromIndex = (index) => {
@@ -467,66 +465,6 @@ const ServicePanel = ({
       fetchAvailableCommands();
     }
   }, [activeTabIndex, appliance?.id]);
-
-  // Notify parent of initial width
-  useEffect(() => {
-    if (onWidthChange) {
-      onWidthChange(panelWidth);
-    }
-  }, []); // Only on mount
-
-  // Handle resize
-  const handleMouseDown = useCallback(
-    e => {
-      e.preventDefault();
-      setIsResizing(true);
-      startX.current = e.clientX;
-      startWidth.current = panelWidth;
-
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    },
-    [panelWidth]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = e => {
-      if (!isResizing) return;
-
-      const diff = startX.current - e.clientX;
-      const newWidth = Math.min(
-        Math.max(startWidth.current + diff, 400),
-        window.innerWidth - 100
-      );
-      setPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-
-        // Save to localStorage
-        localStorage.setItem('servicePanelWidth', panelWidth.toString());
-
-        // Notify parent component
-        if (onWidthChange) {
-          onWidthChange(panelWidth);
-        }
-      }
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing, panelWidth]);
 
   // Handle form field changes
   const handleFieldChange = (field, value) => {
@@ -1107,63 +1045,16 @@ const ServicePanel = ({
   return (
     <Box
       ref={panelRef}
-      sx={{
-        position: 'relative',
-        width: `${panelWidth}px`,
-        height: '100%',
-        backgroundColor: 'rgba(118, 118, 128, 0.12)',  // Gleich wie Audit Log
-        backdropFilter: 'blur(30px) saturate(150%)',   // Gleich wie Audit Log
-        WebkitBackdropFilter: 'blur(30px) saturate(150%)',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: isResizing ? 'none' : 'transform 0.3s ease',
-        boxShadow: '-20px 0 50px rgba(0, 0, 0, 0.5)',
-      }}
+      style={{ width: `${panelWidth}px` }}  // Width als style für Safari/iPad
+      sx={getPanelStyles(isResizing)}
     >
-      {/* Resize Handle */}
+      {/* Resize Handle - einheitlich mit Touch-Support */}
       <Box
-        onMouseDown={handleMouseDown}
-        sx={{
-          position: 'absolute',
-          left: -5,
-          top: 0,
-          bottom: 0,
-          width: 10,
-          cursor: 'col-resize',
-          zIndex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 2,
-            height: 40,
-            backgroundColor: isResizing
-              ? 'var(--primary-color)'
-              : 'rgba(255, 255, 255, 0.3)',
-            borderRadius: 1,
-            transition: 'background-color 0.2s',
-          },
-        }}
-      >
-        <GripVertical
-          size={16}
-          style={{
-            position: 'absolute',
-            opacity: isResizing ? 1 : 0.5,
-            color: 'var(--text-secondary)',
-            transition: 'opacity 0.2s',
-          }}
-        />
-      </Box>
+        onMouseDown={startResize}
+        onTouchStart={startResize}
+        onPointerDown={startResize}
+        sx={getResizeHandleStyles()}
+      />
 
       {/* Header */}
       {console.log('[ServicePanel Render] formData.name:', formData.name, 'appliance.name:', appliance?.name)}

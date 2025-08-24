@@ -1,0 +1,74 @@
+/* ============================================
+   MUI DROPDOWN Z-INDEX FIX
+   Ensures dropdowns appear above panels
+   ============================================ */
+
+/* Fix für MUI Select/Menu Komponenten auf Tablets */
+/* Standard MUI Menu z-index ist 1300, Panels sind bei 1300-2000 */
+
+/* Erhöhe z-index für alle MUI Popover-basierten Komponenten */
+.MuiPopover-root,
+.MuiMenu-root {
+  z-index: 2100 !important; /* Über den Panels (2000) */
+}
+
+/* MUI Select Dropdown */
+.MuiSelect-popper,
+.MuiAutocomplete-popper {
+  z-index: 2100 !important;
+}
+
+/* MUI Modal/Dialog (falls benötigt) */
+.MuiModal-root {
+  z-index: 2200 !important; /* Noch höher für Modals */
+}
+
+/* MUI Tooltip */
+.MuiTooltip-popper {
+  z-index: 2150 !important;
+}
+
+/* Spezifisch für Tablet-Breakpoints */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Stelle sicher, dass Dropdowns in Panels funktionieren */
+  .panel-container .MuiPopover-root,
+  .panel-container .MuiMenu-root,
+  .panel-container .MuiSelect-popper {
+    z-index: 2100 !important;
+  }
+  
+  /* Fix für verschachtelte Dropdowns */
+  .MuiPopover-paper,
+  .MuiMenu-paper {
+    z-index: 2100 !important;
+  }
+  
+  /* Backdrop für Dropdowns (falls vorhanden) */
+  .MuiBackdrop-root {
+    z-index: 2050 !important;
+  }
+}
+
+/* Fix für Date/Time Picker */
+.MuiPickersPopper-root {
+  z-index: 2100 !important;
+}
+
+/* Fix für Snackbar (Benachrichtigungen) */
+.MuiSnackbar-root {
+  z-index: 2300 !important; /* Ganz oben */
+}
+
+/* Debug-Helper: Zeigt z-index Werte an (kann später entfernt werden) */
+.debug-z-index .MuiPopover-root::before,
+.debug-z-index .panel-container::before {
+  content: attr(style);
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: red;
+  color: white;
+  padding: 5px;
+  font-size: 10px;
+  pointer-events: none;
+}

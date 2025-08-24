@@ -336,7 +336,7 @@ const ApplianceCard = ({
 
   // Handle touch outside the card
   useEffect(() => {
-    if (!isMobile) return; // Nur für mobile Geräte
+    if (!isMobile && !isIPad) return; // Für mobile Geräte UND iPads
 
     const handleOutsideClick = e => {
       // Check if clicking on another card
@@ -351,14 +351,24 @@ const ApplianceCard = ({
       }
     };
 
+    // Global event handler to reset all cards when another is touched
+    const handleGlobalTouch = e => {
+      const touchedCard = e.target.closest('.appliance-card-container');
+      
+      if (touchedCard && touchedCard !== cardContainerRef.current) {
+        // Another card was touched - hide our buttons
+        setHasBeenTouched(false);
+      }
+    };
+
     document.addEventListener('click', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('touchstart', handleGlobalTouch);
 
     return () => {
       document.removeEventListener('click', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('touchstart', handleGlobalTouch);
     };
-  }, [isMobile]);
+  }, [isMobile, isIPad]);
 
   // Cleanup timer on unmount
   useEffect(

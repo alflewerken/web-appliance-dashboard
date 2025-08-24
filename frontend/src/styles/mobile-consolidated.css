@@ -48,7 +48,7 @@
 }
 
 /* ============================================
-   2. SAFE AREA SUPPORT (iPhone X+, iPads)
+   2. SAFE AREA SUPPORT (iPhone X+)
    ============================================ */
 
 @media (max-width: 768px) {
@@ -110,6 +110,72 @@
     background: var(--panel-bg, white);
     box-sizing: border-box !important;
   }
+  
+  /* Specific for service panel container */
+  .service-panel-container {
+    position: fixed !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: -webkit-fill-available !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    z-index: 1300 !important;
+    transform: translateX(0) !important;
+    background: var(--bg-primary, #000) !important;
+  }
+  
+  /* Service panel inner box */
+  .service-panel-container > .MuiBox-root {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: -webkit-fill-available !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    position: relative !important;
+    transform: none !important;
+  }
+
+  /* Specific panel containers for mobile fullscreen */
+  .service-panel-container,
+  .user-panel-container,
+  .settings-panel-container,
+  .audit-log-panel-container,
+  .host-panel-container {
+    position: fixed !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: -webkit-fill-available !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    z-index: 1300 !important;
+    transform: translateX(0) !important;
+    background: var(--bg-primary, #000) !important;
+  }
+  
+  /* All panel inner boxes on mobile */
+  .service-panel-container > .MuiBox-root,
+  .user-panel-container > .MuiBox-root,
+  .settings-panel-container > .MuiBox-root,
+  .audit-log-panel-container > .MuiBox-root,
+  .host-panel-container > .MuiBox-root {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: -webkit-fill-available !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    position: relative !important;
+    transform: none !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
 
   /* Panel overlay for background dimming */
   .panel-overlay {
@@ -159,9 +225,13 @@
     padding-bottom: calc(20px + env(safe-area-inset-bottom, 0)) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
-    height: calc(100% - 60px) !important;
+    height: calc(100vh - 60px) !important;
+    height: calc(100dvh - 60px) !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: contain !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
   }
 
   /* Disable resize handles on mobile */
@@ -384,42 +454,6 @@
     select:focus {
       outline: none !important;
       border-color: var(--primary-color, #2196f3) !important;
-    }
-  }
-}
-
-/* ============================================
-   9. iPAD SPECIFIC ADJUSTMENTS
-   ============================================ */
-
-@media (min-width: 769px) and (max-width: 1024px) {
-  /* iPad portrait */
-  .panel-container {
-    width: 70vw !important;
-    max-width: 600px !important;
-    left: auto !important;
-    right: 0 !important;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.1) !important;
-  }
-
-  /* iPad landscape */
-  @media (orientation: landscape) {
-    .panel-container {
-      width: 50vw !important;
-      max-width: 500px !important;
-    }
-
-    /* Split view for iPad landscape */
-    .music-app.has-panel-open .content-area {
-      margin-right: 50vw !important;
-    }
-  }
-
-  /* iPad Pro adjustments */
-  @media (min-width: 1024px) {
-    .panel-container {
-      width: 40vw !important;
-      max-width: 450px !important;
     }
   }
 }

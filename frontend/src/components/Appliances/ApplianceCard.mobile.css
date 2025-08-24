@@ -78,31 +78,6 @@
   }
 }
 
-/* Tablet-specific adjustments */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .card-buttons-left,
-  .card-buttons-right {
-    /* Tablets: auch oben positioniert */
-    top: 12px !important;
-    transform: none !important;
-    z-index: 20 !important;
-    opacity: 1;
-    gap: 8px;
-  }
-
-  .card-buttons-left {
-    left: 10px;
-  }
-
-  .card-buttons-right {
-    right: 10px;
-  }
-  
-  .service-status-bar {
-    z-index: 25 !important;
-  }
-}
-
 /* Touch devices override */
 @media (hover: none) {
   .card-buttons-left,

@@ -9,6 +9,9 @@ import './utils/axiosConfig'; // Import axios configuration
 // Import mobile button override as LAST CSS file
 // Mobile styles are now in App.js (consolidated)
 
+// CRITICAL: Import tablet fixes as ABSOLUTE LAST to override everything
+import './styles/tablet-panel-width.css';
+
 // Error Boundary für besseres Debugging
 class ErrorBoundary extends React.Component {
   constructor(props) {

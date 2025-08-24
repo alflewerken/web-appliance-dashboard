@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../hooks/usePanelResize';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
 import {
   Box,
@@ -69,16 +70,14 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
+  // EINHEITLICHER RESIZE-HOOK (ersetzt alten Code)
+  const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
+    'userPanelWidth',
+    600,
+    onWidthChange
+  );
+  
   const fetchUsersTimeoutRef = useRef(null);
-  const [panelWidth, setPanelWidth] = useState(() => {
-    const saved = localStorage.getItem('userPanelWidth');
-    return saved ? parseInt(saved, 10) : 600;
-  });
-  const [isResizing, setIsResizing] = useState(false);
-  const panelRef = useRef(null);
-  const startX = useRef(0);
-  const startWidth = useRef(0);
-
   useEffect(() => {
     fetchUsers();
     fetchRoles();
@@ -116,68 +115,6 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       });
     };
   }, [addEventListener, debouncedFetchUsers]);
-
-  // Panel width notification
-  useEffect(() => {
-    if (onWidthChange) {
-      onWidthChange(panelWidth);
-    }
-  }, []);
-
-  // Handle resize
-  const handleMouseDown = useCallback(e => {
-    e.preventDefault();
-    setIsResizing(true);
-    startX.current = e.clientX;
-    startWidth.current = panelWidth;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    
-    // Add visual feedback
-    if (panelRef.current) {
-      panelRef.current.style.transition = 'none';
-    }
-  }, [panelWidth]);
-
-  useEffect(() => {
-    const handleMouseMove = e => {
-      if (!isResizing) return;
-      const diff = startX.current - e.clientX;
-      const newWidth = Math.min(
-        Math.max(startWidth.current + diff, 400),
-        window.innerWidth - 100
-      );
-      setPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        
-        // Restore transition
-        if (panelRef.current) {
-          panelRef.current.style.transition = '';
-        }
-        
-        localStorage.setItem('userPanelWidth', panelWidth.toString());
-        if (onWidthChange) {
-          onWidthChange(panelWidth);
-        }
-      }
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing, panelWidth, onWidthChange]);
 
   const fetchUsers = useCallback(async () => {
     console.log('[UserPanel] fetchUsers called');
@@ -896,74 +833,16 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   return (
     <Box
       ref={panelRef}
-      sx={{
-        position: 'relative',
-        width: { xs: '100vw', sm: `${panelWidth}px` },
-        height: '100%',
-        backgroundColor: 'rgba(118, 118, 128, 0.12)',
-        backdropFilter: 'blur(30px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(150%)',
-        borderLeft: { xs: 'none', sm: '1px solid rgba(255, 255, 255, 0.08)' },
-        display: 'flex',
-        flexDirection: 'column',
-        transition: isResizing ? 'none' : 'transform 0.3s ease',
-        color: '#fff',
-        overflow: 'hidden',
-        boxShadow: '-20px 0 50px rgba(0, 0, 0, 0.5)',
-      }}
+      style={{ width: `${panelWidth}px` }}  // Width als style für Safari/iPad
+      sx={getPanelStyles(isResizing)}
     >
-      {/* Resize Handle */}
+      {/* Resize Handle - einheitlich mit Touch-Support */}
       <Box
-        onMouseDown={handleMouseDown}
-        sx={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: '8px',
-          height: '100%',
-          cursor: 'col-resize',
-          display: { xs: 'none', sm: 'flex' },
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'transparent',
-          transition: 'all 0.2s',
-          zIndex: 10,
-          '&:hover': {
-            backgroundColor: 'rgba(0, 122, 255, 0.3)',
-            width: '10px',
-          },
-          '&:active': {
-            backgroundColor: 'rgba(0, 122, 255, 0.5)',
-            width: '10px',
-          },
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '2px',
-            height: '40px',
-            backgroundColor: 'rgba(255, 255, 255, 0.3)',
-            borderRadius: '1px',
-            transition: 'all 0.2s',
-          },
-          '&:hover::before': {
-            backgroundColor: 'rgba(255, 255, 255, 0.5)',
-            height: '60px',
-          },
-        }}
-      >
-        <GripVertical
-          size={16}
-          style={{
-            color: 'rgba(255, 255, 255, 0.5)',
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-          }}
-        />
-      </Box>
+        onMouseDown={startResize}
+        onTouchStart={startResize}
+        onPointerDown={startResize}
+        sx={getResizeHandleStyles()}
+      />
 
       {/* Header */}
       <UnifiedPanelHeader 

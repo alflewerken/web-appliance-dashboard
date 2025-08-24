@@ -14,9 +14,10 @@ const HostCard = ({
   onShowAuditLog,
   isAdmin,
   cardSize,
+  isActive,
+  onActivate,
 }) => {
   // Touch detection state
-  const [hasBeenTouched, setHasBeenTouched] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   useEffect(() => {
@@ -43,16 +44,11 @@ const HostCard = ({
       return;
     }
     
-    if (isTouchDevice && !hasBeenTouched) {
+    if (isTouchDevice && !isActive && onActivate) {
       e.stopPropagation();
-      setHasBeenTouched(true);
-      
-      // Reset touch state after a delay to allow hiding buttons again
-      setTimeout(() => {
-        setHasBeenTouched(false);
-      }, 10000); // Hide buttons after 10 seconds of no interaction
+      onActivate();
     }
-  }, [isTouchDevice, hasBeenTouched]);
+  }, [isTouchDevice, isActive, onActivate]);
 
   const handleEdit = (event) => {
     event.stopPropagation();
@@ -110,7 +106,7 @@ const HostCard = ({
             </div>
             
             {/* Left Button Column - Edit Button */}
-            {(!isTouchDevice || hasBeenTouched) && (
+            {(!isTouchDevice || isActive) && (
               <div 
                 className="card-buttons-left"
               >
@@ -137,7 +133,7 @@ const HostCard = ({
             )}
             
             {/* Right Button Column - Action Buttons */}
-            {(!isTouchDevice || hasBeenTouched) && (
+            {(!isTouchDevice || isActive) && (
               <div 
                 className="card-buttons-right"
               >

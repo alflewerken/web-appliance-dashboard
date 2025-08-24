@@ -72,7 +72,8 @@ import './styles/modal-theme-support.css'; // Modal Theme Support für Dark/Ligh
 import './styles/host-panel.css'; // Host Panel Styles
 import './components/terminal-light-mode.css'; // Terminal Light Mode Styles
 import './styles/fixes/header-light-mode-fix.css'; // Fix für transparenten Header im Light Mode
-import './styles/sidebar-tooltips.css'; // Sidebar Tooltip Styles
+import './styles/sidebar-tooltips.css';
+import './styles/mui-dropdown-fix.css'; // Fix für Dropdown z-index auf Tablets // Sidebar Tooltip Styles
 
 // Dashboard Component - Only rendered when authenticated
 function Dashboard() {
@@ -1558,7 +1559,7 @@ function Dashboard() {
           />
         </div>
       )}
-
+      
       {showSettingsModal && (
         <div className="panel-container settings-panel-container">
           <SettingsPanel

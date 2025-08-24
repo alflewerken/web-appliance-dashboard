@@ -894,3 +894,7 @@ body:not(.theme-light) .modal-close:hover {
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+
+/* Import tablet panel width adjustments */
+@import './styles/tablet-panel-width.css';

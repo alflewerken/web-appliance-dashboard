@@ -170,7 +170,15 @@ const BackgroundSettingsMUI = ({
             sx={{
               position: 'relative',
               width: '100%',
-              aspectRatio: '2/1',
+              // Responsive aspect ratio for different screen sizes
+              aspectRatio: {
+                xs: '16/9',   // Mobile: wider
+                sm: '16/10',  // Small screens
+                md: '2/1',    // Desktop: original
+                lg: '2/1',    // Large screens
+              },
+              minHeight: 200,
+              maxHeight: 400,
               backgroundColor: '#0a0a0a',
             }}
           >
