@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unified Panel Resize System** - Consistent resize behavior across all panels
+  - New `usePanelResize` hook replaces 5 different implementations
+  - Full touch/iPad support with 20px touch areas
+  - Delta-based calculations prevent jumps on resize start
+  - Live updates to main view during resize operations
+  - All 5 panels migrated: Settings, AuditLog, Service, User, and Host panels
+  - ~500 lines of redundant resize code eliminated
+
+- **Enhanced Touch/Mobile UX for Host Cards** - Professional mobile interactions
+  - Only one host card shows action buttons at a time on touch devices
+  - Click-outside detection hides all buttons when tapping elsewhere
+  - 10-second auto-hide timer for inactive cards
+  - State management elevated to HostsView component level
+  - Smooth transitions between active cards
+
+- **MUI Dropdown z-index Fix** - Dropdowns now appear above panels on tablets
+  - New global CSS file `mui-dropdown-fix.css` for z-index hierarchy
+  - All MUI components (Select, Menu, Autocomplete, DatePicker) fixed
+  - z-index hierarchy: Panels (1300-2000) < Dropdowns (2100) < Modals (2200)
+  - Works consistently across all panels without component changes
+
+- **Mobile Panel Fullscreen Support** - Proper viewport coverage on smartphones
+  - All panels enforced to 100vw/100vh on devices < 768px
+  - Modern viewport units support (100dvh, -webkit-fill-available)
+  - Safe area insets for iPhone notch and home indicator
+  - Fixed ServicePanel partial display issue on iPhone
+  - Position fixed without transformations for stability
 - **Enhanced Audit Log Restore** - Comprehensive data preservation and recovery
   - Original data preservation in all audit log entries for reliable revert operations
   - Resource name tracking in audit logs for better identification
@@ -92,6 +119,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cleaner navigation with expandable content blocks
   - Separate technical documentation from user-facing guides
 
+- **Panel Resize Implementation** - Migrated to unified system
+  - HostPanel now uses `usePanelResize` hook
+  - ServicePanel migrated from custom resize to unified hook
+  - UserPanel simplified with new resize system
+  - All panels now have consistent resize behavior
+  - Safari/iPad compatibility with direct style attributes
+  - Width updates use direct style attribute for better performance
+
+- **Host Cards Touch Behavior** - Improved mobile interactions
+  - Touch state management centralized in parent component
+  - Removed individual card state tracking
+  - Props-based activation instead of local state
+  - Consistent behavior across all touch devices
+
+- **Mobile CSS Organization** - Enhanced mobile styles structure
+  - Extended mobile-consolidated.css for fullscreen panels
+  - Added specific overrides for each panel container
+  - Improved safe area handling for modern devices
+  - Better viewport unit support across browsers
+
 ### Fixed
 - **Audit Log Export** - Restored complete export functionality
   - Fixed missing delete button in audit log panel
@@ -165,6 +212,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Seamless switching between hosts and appliances view
   - Prevents confusing overlay where hosts view blocks category filtering
   - Applies to all categories: All, Favorites, Recent, and custom categories
+
+- **iPad/Tablet Panel Resize** - Fixed non-functional resize on touch devices
+  - Safari width update issues resolved with direct style attributes
+  - Touch events properly handled with all three event types (mouse/touch/pointer)
+  - Force DOM updates for Safari compatibility
+  - Main view no longer blocked when panels are open on tablets
+  - 20px touch areas for easier grip on resize handles
+
+- **Mobile Panel Display** - Fixed panels not showing fullscreen on phones
+  - ServicePanel and all other panels now properly fill viewport
+  - Multiple viewport units for maximum compatibility
+  - Safe area insets properly handled for modern iPhones
+  - Fixed partial panel display with visible background
+
+- **Dropdown z-index on Tablets** - Fixed dropdowns appearing behind panels
+  - MUI Select/Menu components now have z-index 2100 (above panels)
+  - Global solution applied via mui-dropdown-fix.css
+  - Affects all dropdowns consistently without component changes
+  - Proper z-index hierarchy established for all UI layers
+
+### Removed
+- **Deprecated Documentation** - Cleaned up obsolete files
+  - Deleted `PANEL_MIGRATION_GUIDE.md` as all panels are now migrated
+  - Migration to unified resize system is complete
 
 ### Improved
 - **Audit Log Action Badges** - Enhanced visual consistency
