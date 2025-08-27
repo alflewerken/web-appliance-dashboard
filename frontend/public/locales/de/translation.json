@@ -53,7 +53,9 @@
     "unknown": "Unbekannt",
     "locale": "de-DE",
     "retry": "Erneut versuchen",
-    "refresh": "Aktualisieren"
+    "refresh": "Aktualisieren",
+    "noData": "Keine Daten vorhanden",
+    "addFirstService": "Fügen Sie Ihren ersten Service hinzu"
   },
   "auth": {
     "login": "Anmelden",

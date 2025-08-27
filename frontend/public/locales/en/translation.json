@@ -53,7 +53,9 @@
     "unknown": "Unknown",
     "locale": "en-US",
     "retry": "Retry",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "noData": "No data available",
+    "addFirstService": "Add your first service"
   },
   "auth": {
     "login": "Sign in",
