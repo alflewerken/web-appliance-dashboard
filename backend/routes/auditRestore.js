@@ -70,14 +70,15 @@ router.get('/:id', requireAdmin, async (req, res) => {
     }
 
     // Handle update actions (including reverts)
+    // WICHTIG: host_update speichert oldValues, andere actions nutzen original_data
     if (['category_updated', 'user_updated', 'service_updated', 'appliance_update',
-         'appliance_updated', 'appliance_reverted', 'host_updated'].includes(log.action) && 
-         details.original_data) {
+         'appliance_updated', 'appliance_reverted', 'host_updated', 'host_update'].includes(log.action) && 
+         (details.original_data || details.oldValues)) {
       canRestore = true;
       restoreInfo = {
         type: log.resource_type,
-        original_data: details.original_data,
-        new_data: details.new_data,
+        original_data: details.original_data || details.oldValues,  // Fallback für host_update
+        new_data: details.new_data || details.newValues || details.changes,
         canRevertToOriginal: true,
       };
     }
@@ -1020,6 +1021,8 @@ router.post('/revert/host/:logId', requireAdmin, async (req, res) => {
       }
 
       // Build update data from original data
+      // WICHTIG: Die Daten in oldValues sind bereits in camelCase (vom QueryBuilder beim Speichern)
+      // Daher direkt camelCase verwenden, kein Mapping nötig!
       const updateData = {};
       
       if (originalData.name !== undefined) updateData.name = originalData.name;
@@ -1028,18 +1031,21 @@ router.post('/revert/host/:logId', requireAdmin, async (req, res) => {
       if (originalData.port !== undefined) updateData.port = originalData.port;
       if (originalData.username !== undefined) updateData.username = originalData.username;
       if (originalData.password !== undefined) updateData.password = originalData.password;
-      if (originalData.private_key !== undefined) updateData.privateKey = originalData.private_key;
+      if (originalData.privateKey !== undefined) updateData.privateKey = originalData.privateKey;
       if (originalData.sshKeyName !== undefined) updateData.sshKeyName = originalData.sshKeyName;
       if (originalData.icon !== undefined) updateData.icon = originalData.icon;
       if (originalData.color !== undefined) updateData.color = originalData.color;
       if (originalData.transparency !== undefined) updateData.transparency = originalData.transparency;
       if (originalData.blur !== undefined) updateData.blur = originalData.blur;
-      if (originalData.remote_desktop_enabled !== undefined) updateData.remoteDesktopEnabled = originalData.remote_desktop_enabled;
-      if (originalData.remote_desktop_type !== undefined) updateData.remoteDesktopType = originalData.remote_desktop_type;
-      if (originalData.remote_protocol !== undefined) updateData.remoteProtocol = originalData.remote_protocol;
-      if (originalData.remote_port !== undefined) updateData.remotePort = originalData.remote_port;
-      if (originalData.remote_username !== undefined) updateData.remoteUsername = originalData.remote_username;
-      if (originalData.remote_password !== undefined) updateData.remotePassword = originalData.remote_password;
+      if (originalData.remoteDesktopEnabled !== undefined) updateData.remoteDesktopEnabled = originalData.remoteDesktopEnabled;
+      if (originalData.remoteDesktopType !== undefined) updateData.remoteDesktopType = originalData.remoteDesktopType;
+      if (originalData.remoteProtocol !== undefined) updateData.remoteProtocol = originalData.remoteProtocol;
+      if (originalData.remotePort !== undefined) updateData.remotePort = originalData.remotePort;
+      if (originalData.remoteUsername !== undefined) updateData.remoteUsername = originalData.remoteUsername;
+      if (originalData.remotePassword !== undefined) updateData.remotePassword = originalData.remotePassword;
+      if (originalData.guacamolePerformanceMode !== undefined) updateData.guacamolePerformanceMode = originalData.guacamolePerformanceMode;
+      if (originalData.rustdeskId !== undefined) updateData.rustdeskId = originalData.rustdeskId;
+      if (originalData.rustdeskPassword !== undefined) updateData.rustdeskPassword = originalData.rustdeskPassword;
 
       if (Object.keys(updateData).length === 0) {
         throw new Error('No fields to revert');
