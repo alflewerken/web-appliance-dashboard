@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Complete Frontend Internationalization (i18n)** - Full multi-language support
+  - Implemented React i18next with automatic browser language detection
+  - Complete German (DE) and English (EN) translations (~22KB each)
+  - Language switcher in app header with flag icons
+  - Persistent language preference in localStorage
+  - Lazy loading of translation files for optimal performance
+  - Fallback to English for unsupported languages
+  - All UI components fully internationalized including:
+    - Authentication (login, logout, password reset)
+    - Navigation and sidebar
+    - Appliance cards and management
+    - Service panel
+    - User management
+    - Host panel
+    - Settings (all tabs)
+    - Icon selector
+    - SSH key management
+    - Backup/restore functionality
+    - Audit log filters and details
+
+### Fixed
+- **Missing Translations in Production Deployment** - nginx Docker image missing locales
+  - Added locales directory to nginx Dockerfile COPY instructions
+  - Ensures translation files are included in production builds
+  - Fixes blank/placeholder text issues in deployed instances
+- **Missing Translation Keys** - Added missing common.noData translations
+  - German: "Keine Daten vorhanden"
+  - English: "No data available"
+  - Eliminates placeholder text in empty states
+
+### Changed
+- **Node.js Version Requirement** - Upgraded to Node.js 20+
+  - Required for react-router-dom 7.8.2 compatibility
+  - Updated .nvmrc and documentation
+  - Ensures GitHub Actions compatibility
+- **Dependencies Updated** - Security and compatibility updates
+  - ESLint 9.33.0 → 9.34.0 (frontend & backend)
+  - @testing-library/jest-dom 6.7.0 → 6.8.0
+  - react-router-dom 7.8.1 → 7.8.2
+- **README Badges** - Updated to reflect current project state
+  - Node.js requirement badge: 18+ → 20+
+  - Version badge: 1.1.3 → 1.1.6
+  - Added Express 4.21 badge
+  - Added i18n DE|EN badge
+  - Added dynamic GitHub badges (issues, PRs, last commit, build status)
+
 ## [1.1.6] - 2025-08-27
 
 ### Added

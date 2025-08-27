@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/React-19.1-61dafb.svg)](https://reactjs.org/)
 [![Express](https://img.shields.io/badge/Express-4.21-lightgrey.svg)](https://expressjs.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.3-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.6-brightgreen.svg)](package.json)
 [![i18n](https://img.shields.io/badge/i18n-DE%20%7C%20EN-orange.svg)](frontend/public/locales)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
@@ -31,7 +31,7 @@ If you find this project useful, please consider giving it a star! It helps othe
 
 > **"From a homelab enthusiast for homelab enthusiasts"**
 
-An elegant, self-hosted dashboard for centralized management of VMs, Docker containers, and services. No cloud dependencies, no subscriptions - just a solid tool for your homelab.
+No more tab chaos! A single dashboard for all your servers, services, and containers. Access your systems via web terminal, use remote desktop directly in your browser, monitor health status in real-time. Everything self-hosted, encrypted, and under your control - the way a homelab should be.
 
 ![Web Appliance Dashboard](docs/user-guide-v2/images/dashboard-overview.png)
 
