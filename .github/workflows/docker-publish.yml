@@ -51,10 +51,11 @@ jobs:
     - name: Copy Frontend Build to Nginx
       run: |
         echo "Copying frontend build to nginx directory..."
-        # Remove old static files
-        rm -rf nginx/static
+        # Remove old static files and locales
+        rm -rf nginx/static nginx/locales
         # Copy new build files
         cp -r frontend/build/static nginx/
+        cp -r frontend/build/locales nginx/ 2>/dev/null || true
         cp frontend/build/*.* nginx/ 2>/dev/null || true
         echo "Frontend files copied to nginx directory"
 
