@@ -96,6 +96,7 @@ class SSEService {
           'service_status_changed', // This is our important event
           'service_started',
           'service_stopped',
+          'host_ping_status', // New event for host ping status
           'user_created',
           'user_updated',
           'user_deleted',

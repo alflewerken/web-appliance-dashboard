@@ -5,6 +5,7 @@ const pool = require('../utils/database');
 const QueryBuilder = require('../utils/QueryBuilder');
 const { broadcast } = require('./sse');
 const { createAuditLog } = require('../utils/auditLogger');
+const statusChecker = require('../utils/statusChecker');
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
@@ -116,6 +117,12 @@ router.post('/', async (req, res) => {
 
     // Broadcast setting change to all connected clients
     broadcast('setting_update', { key, value });
+    
+    // Check if service interval was updated and reload statusChecker if needed
+    if (key === 'service_status_refresh_interval' || key === 'service_poll_interval') {
+      console.log('📊 Service interval setting changed - reloading status checker...');
+      await statusChecker.reloadSettings();
+    }
   } catch (error) {
     console.error('Error updating setting:', error);
     res.status(500).json({ error: 'Failed to update setting' });
@@ -193,6 +200,12 @@ router.put('/', async (req, res) => {
 
       // Broadcast all settings updates
       broadcast('settings_bulk_update', settings);
+      
+      // Check if service interval was updated and reload statusChecker if needed
+      if (settings['service_status_refresh_interval'] || settings['service_poll_interval']) {
+        console.log('📊 Service interval setting changed - reloading status checker...');
+        await statusChecker.reloadSettings();
+      }
     } catch (error) {
       await connection.rollback();
       throw error;

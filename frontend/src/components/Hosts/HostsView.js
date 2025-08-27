@@ -88,6 +88,22 @@ const HostsView = ({
       loadHosts();
     };
     
+    // Handle ping status updates
+    const handleHostPingStatus = (data) => {
+      setHosts(prevHosts => 
+        prevHosts.map(host => 
+          host.id === data.id 
+            ? { 
+                ...host, 
+                pingStatus: data.status, 
+                pingResponseTime: data.responseTime,
+                statusColor: data.statusColor 
+              }
+            : host
+        )
+      );
+    };
+    
     // Connect to SSE and add event listeners
     sseService.connect().then(() => {
       sseService.addEventListener('host_created', handleHostCreated);
@@ -95,6 +111,7 @@ const HostsView = ({
       sseService.addEventListener('host_deleted', handleHostDeleted);
       sseService.addEventListener('host_restored', handleHostRestored);
       sseService.addEventListener('host_reverted', handleHostReverted);
+      sseService.addEventListener('host_ping_status', handleHostPingStatus);
     });
     
     // Cleanup listeners on unmount
@@ -104,6 +121,7 @@ const HostsView = ({
       sseService.removeEventListener('host_deleted', handleHostDeleted);
       sseService.removeEventListener('host_restored', handleHostRestored);
       sseService.removeEventListener('host_reverted', handleHostReverted);
+      sseService.removeEventListener('host_ping_status', handleHostPingStatus);
     };
   }, [propsHosts]);
 

@@ -20,6 +20,11 @@ class ServiceStatusChecker {
     this.hostAvailability = new Map(); // Track host availability
     this.lastHostCheck = new Map(); // Track when we last checked each host
     this.hostCheckInterval = 300000; // Check host availability every 5 minutes
+    
+    // Host ping monitoring
+    this.hostPingInterval = null;
+    this.hostPingCheckInterval = 30000; // Check hosts every 30 seconds
+    this.hostResponseTimes = new Map(); // Track response times for hosts
   }
 
   async start() {
@@ -40,7 +45,9 @@ class ServiceStatusChecker {
 
       if (settings.length > 0) {
         this.checkInterval = parseInt(settings[0].setting_value) * 1000;
-        console.log(`📊 Service check interval set to ${settings[0].setting_value} seconds`);
+        // Use the same interval for host ping checks
+        this.hostPingCheckInterval = this.checkInterval;
+        console.log(`📊 Service and Host check interval set to ${settings[0].setting_value} seconds`);
       }
     } catch (error) {
       console.error('Error loading status check interval:', error);
@@ -48,8 +55,11 @@ class ServiceStatusChecker {
 
     // Initial status check
     await this.checkAllServices();
+    
+    // Initial host ping check
+    await this.checkAllHostsPing();
 
-    // Set up periodic checks
+    // Set up periodic checks for services
     this.interval = setInterval(async () => {
       try {
         await this.checkAllServices();
@@ -57,12 +67,25 @@ class ServiceStatusChecker {
         console.error('Error in periodic status check:', error);
       }
     }, this.checkInterval);
+    
+    // Set up periodic checks for host pings
+    this.hostPingInterval = setInterval(async () => {
+      try {
+        await this.checkAllHostsPing();
+      } catch (error) {
+        console.error('Error in periodic host ping check:', error);
+      }
+    }, this.hostPingCheckInterval);
   }
 
   stop() {
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
+    }
+    if (this.hostPingInterval) {
+      clearInterval(this.hostPingInterval);
+      this.hostPingInterval = null;
     }
     this.isRunning = false;
     console.log('🛑 Status checker stopped');
@@ -608,6 +631,185 @@ class ServiceStatusChecker {
     this.hostAvailability.clear();
     this.lastHostCheck.clear();
     console.log('🗑️  Host availability cache cleared');
+  }
+  
+  /**
+   * Check all hosts ping status
+   */
+  async checkAllHostsPing() {
+    try {
+      const [hosts] = await pool.execute(
+        'SELECT id, name, hostname FROM hosts'
+      );
+
+      if (!hosts || hosts.length === 0) {
+        return;
+      }
+
+      console.log(`🏓 Checking ping for ${hosts.length} hosts...`);
+
+      // Check all hosts in parallel with limited concurrency
+      const maxConcurrent = 10;
+      for (let i = 0; i < hosts.length; i += maxConcurrent) {
+        const batch = hosts.slice(i, i + maxConcurrent);
+        await Promise.all(
+          batch.map(host => this.checkHostPing(host))
+        );
+      }
+    } catch (error) {
+      console.error('Error checking all hosts ping:', error);
+    }
+  }
+
+  /**
+   * Check ping status for a single host
+   * @param {Object} host - Host object with id, name, hostname
+   */
+  async checkHostPing(host) {
+    try {
+      const startTime = Date.now();
+      
+      // Use system ping command
+      const pingCommand = process.platform === 'win32' 
+        ? `ping -n 1 -w 1000 ${host.hostname}`
+        : `ping -c 1 -W 1 ${host.hostname}`;
+      
+      try {
+        const result = await execAsync(pingCommand, { timeout: 5000 });
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+        
+        // Parse ping output to get actual response time
+        let actualResponseTime = responseTime;
+        
+        if (process.platform !== 'win32') {
+          // Linux/Mac: Extract time from ping output
+          const timeMatch = result.stdout.match(/time=(\d+\.?\d*)/);
+          if (timeMatch) {
+            actualResponseTime = parseFloat(timeMatch[1]);
+          }
+        } else {
+          // Windows: Extract time from ping output
+          const timeMatch = result.stdout.match(/time[<=](\d+)ms/);
+          if (timeMatch) {
+            actualResponseTime = parseInt(timeMatch[1]);
+          }
+        }
+        
+        // Store response time
+        this.hostResponseTimes.set(host.id, actualResponseTime);
+        
+        // Determine status based on response time
+        let status = 'online';
+        let statusColor = 'green';
+        
+        if (actualResponseTime < 50) {
+          status = 'excellent';
+          statusColor = 'green';
+        } else if (actualResponseTime < 150) {
+          status = 'good';
+          statusColor = 'yellow';
+        } else if (actualResponseTime < 500) {
+          status = 'fair';
+          statusColor = 'orange';
+        } else {
+          status = 'poor';
+          statusColor = 'red';
+        }
+        
+        // Update database
+        await pool.execute(
+          'UPDATE hosts SET ping_status = ?, ping_response_time = ?, last_ping_check = NOW() WHERE id = ?',
+          [status, actualResponseTime, host.id]
+        );
+        
+        // Broadcast ping status via SSE
+        broadcast('host_ping_status', {
+          id: host.id,
+          name: host.name,
+          hostname: host.hostname,
+          status,
+          statusColor,
+          responseTime: actualResponseTime,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`✅ Host "${host.name}" ping: ${actualResponseTime}ms (${status})`);
+        
+      } catch (error) {
+        // Ping failed - host is offline
+        this.hostResponseTimes.set(host.id, -1);
+        
+        await pool.execute(
+          'UPDATE hosts SET ping_status = ?, ping_response_time = ?, last_ping_check = NOW() WHERE id = ?',
+          ['offline', null, host.id]
+        );
+        
+        // Broadcast offline status
+        broadcast('host_ping_status', {
+          id: host.id,
+          name: host.name,
+          hostname: host.hostname,
+          status: 'offline',
+          statusColor: 'red',
+          responseTime: -1,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`❌ Host "${host.name}" is offline`);
+      }
+      
+    } catch (error) {
+      console.error(`Error checking ping for host "${host.name}":`, error);
+    }
+  }
+  
+  /**
+   * Force check all hosts ping immediately
+   */
+  async forceCheckHostsPing() {
+    console.log('🔄 Force checking all hosts ping...');
+    await this.checkAllHostsPing();
+  }
+
+  /**
+   * Reload settings and restart intervals if needed
+   */
+  async reloadSettings() {
+    try {
+      const [settings] = await pool.execute(
+        'SELECT setting_value FROM user_settings WHERE setting_key = ? OR setting_key = ?',
+        ['service_status_refresh_interval', 'service_poll_interval']
+      );
+
+      if (settings.length > 0) {
+        const newInterval = parseInt(settings[0].setting_value) * 1000;
+        
+        // Check if interval has changed
+        if (newInterval !== this.checkInterval) {
+          console.log(`🔄 Interval changed from ${this.checkInterval/1000}s to ${newInterval/1000}s - restarting status checker...`);
+          
+          // Store running state
+          const wasRunning = this.isRunning;
+          
+          // Stop current intervals
+          if (wasRunning) {
+            this.stop();
+          }
+          
+          // Update intervals
+          this.checkInterval = newInterval;
+          this.hostPingCheckInterval = newInterval;
+          
+          // Restart with new interval if it was running
+          if (wasRunning) {
+            await this.start();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error reloading settings:', error);
+    }
   }
 }
 

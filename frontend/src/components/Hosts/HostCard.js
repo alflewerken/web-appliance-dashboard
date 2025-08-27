@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Settings, Monitor, Terminal, Upload } from 'lucide-react';
 import { IconButton, Tooltip } from '@mui/material';
 import SimpleIcon from '../SimpleIcon';
+import sseService from '../../services/sseService';
 import '../Appliances/ApplianceCard.css';
 import './HostCard.css';
 
@@ -19,6 +20,29 @@ const HostCard = ({
 }) => {
   // Touch detection state
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  
+  // Ping status state
+  const [pingStatus, setPingStatus] = useState(host.pingStatus || 'unknown');
+  const [responseTime, setResponseTime] = useState(host.pingResponseTime || null);
+
+  // Subscribe to SSE events for this host
+  useEffect(() => {
+    const handlePingStatus = (data) => {
+      if (data.id === host.id) {
+        setPingStatus(data.status);
+        setResponseTime(data.responseTime);
+      }
+    };
+
+    // Connect and subscribe to ping status events
+    sseService.connect().then(() => {
+      sseService.addEventListener('host_ping_status', handlePingStatus);
+    });
+
+    return () => {
+      sseService.removeEventListener('host_ping_status', handlePingStatus);
+    };
+  }, [host.id]);
 
   useEffect(() => {
     // Detect if device supports touch
@@ -235,6 +259,32 @@ const HostCard = ({
               </p>
             )}
           </div>
+          
+          {/* Ping Status Bar */}
+          {(pingStatus !== 'unknown' || responseTime !== null) && (
+            <div
+              className="host-ping-status-bar"
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                backgroundColor: (() => {
+                  if (pingStatus === 'offline') return '#FF3B30'; // Rot - Host offline
+                  if (responseTime === null) return '#8E8E93'; // Grau - Unbekannt
+                  if (responseTime < 50) return '#34C759'; // Grün - Exzellent
+                  if (responseTime < 150) return '#FFCC00'; // Gelb - Gut
+                  if (responseTime < 500) return '#FF9500'; // Orange - Fair
+                  return '#FF3B30'; // Rot - Schlecht
+                })(),
+                borderRadius: '0 0 16px 16px',
+                transition: 'background-color 0.3s ease',
+                zIndex: 10,
+              }}
+              title={responseTime !== null ? `Ping: ${responseTime}ms` : 'Host offline'}
+            />
+          )}
         </div>
       </div>
     </div>
