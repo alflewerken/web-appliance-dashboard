@@ -1,127 +1,123 @@
-# Release Notes - Version 1.1.5
+# Release Notes - Version 1.1.6
 
-**Release Date:** August 20, 2025  
-**Type:** Minor Release - Major Frontend Refactoring
+**Release Date:** August 27, 2025  
+**Type:** Minor Release - Host Monitoring & Audit Log Enhancements
 
 ## 🎉 Highlights
 
-This release represents a massive improvement in code quality, maintainability, and user experience. We've reduced the codebase by over 7,600 lines while improving functionality and fixing critical bugs.
+This release introduces real-time host monitoring capabilities and significant improvements to the audit log system. The new ping monitoring feature provides instant visibility into host availability, while the enhanced audit log offers better filtering and visual feedback for improved user experience.
 
 ### Key Achievements
-- **83% code reduction** in AuditLog components through modularization
-- **~2,000 lines of dead code** eliminated
-- **16 unused components** removed
-- **Better organized** component structure with logical folders
+- **Real-time host monitoring** with color-coded status indicators
+- **Interactive audit log statistics** with visual glow effects
+- **Improved date filtering** for precise log analysis
+- **Enhanced data visualization** with organized chip layouts
 
 ## 🚀 What's New
 
-### Complete AuditLog Modularization
-The monolithic AuditLog component (2,800+ lines) has been split into 8 focused, maintainable modules:
-- `AuditLogActions.js` - Action icons and formatting utilities
-- `AuditLogFilters.js` - Advanced filtering interface
-- `AuditLogRestore.js` - Restore functionality logic
-- `AuditLogDetailRenderer.js` - Detail view rendering
-- `AuditLogStats.js` - Statistics display cards
-- `AuditLogExport.js` - Export functionality
-- `AuditLogPanel.js` - Main orchestrator (reduced by 64%)
-- `AuditLogTableMUI.js` - Table component (reduced by 83%)
+### Real-time Host Ping Monitoring
+A comprehensive host availability tracking system that provides instant feedback on connection quality:
+- **Automatic ping checks** at user-configurable intervals (synchronized with service status checks)
+- **Color-coded status bars** on host cards:
+  - 🟢 Green (<50ms) - Excellent connection
+  - 🟡 Yellow (50-150ms) - Good connection
+  - 🟠 Orange (150-500ms) - Fair connection
+  - 🔴 Red (>500ms or offline) - Poor/No connection
+- **Cross-platform support** - Works on Windows, macOS, and Linux
+- **Parallel execution** with intelligent concurrency limiting (max 10 simultaneous pings)
+- **Real-time updates** via Server-Sent Events to all connected clients
+- **Database persistence** of ping status and response times
+- **Hover tooltips** showing exact response time in milliseconds
 
-### Frontend Component Organization
-All components are now organized into logical folders with proper separation of concerns:
-- `components/Appliances/` - 19 appliance-related components
-- `components/SettingsPanel/` - 11 settings-related components
-- `components/Hosts/` - Host management components
-- Named exports via index.js for cleaner imports
+### Enhanced Audit Log Statistics
+Interactive filter cards with professional visual feedback:
+- **Active filter glow effects** - Prominent visual indicators with pulsing animation
+- **Multi-layered shadows** (30px, 60px, 90px) for depth perception
+- **Clickable "Active Users" card** - Instantly filter all user-related actions
+- **Dynamic statistics** - Numbers update based on active filter combinations
+- **Smart counting** - Total/Today cards show unfiltered counts, User/Critical show filtered
+- **Scale effect** - Active cards slightly enlarge (1.02x) for better feedback
+- **Faster animations** - 1.5s pulse cycle for improved responsiveness
+
+### Improved Audit Log Filtering
+Enhanced date range and user action detection:
+- **Full-day coverage** - Custom date ranges now include complete days (00:00:00 to 23:59:59)
+- **Yesterday filter fixed** - Correctly covers the entire 24-hour period
+- **Extended user actions** - Better detection including login/logout/session events
+- **Multiple detection patterns** - Comprehensive filtering for user-related activities
+- **Base statistics preservation** - Total counts remain constant while filtered stats update
+
+### Host Restoration Detail View
+User-friendly display of restored host data:
+- **Organized chip layouts** - Replaced JSON strings with intuitive pill displays
+- **Grouped information** by category:
+  - Basic Information (ID, Name, Description, Status)
+  - Connection Details (Hostname, Port, Username, SSH Keys)
+  - Visual Settings (Icon, Color, Transparency)
+  - Remote Desktop Configuration (Type, Protocol, Performance Mode)
+- **Color-coded indicators** - Visual status representation
+- **Property previews** - Actual colors displayed in chips
+- **Meta information** - Shows restoration source and user
 
 ## 🐛 Bug Fixes
 
 ### Critical Fixes
-- **Panel Resize Bug** - Fixed issue where AuditLog panel could only be moved 2-3 pixels
-- **Dark Mode Tables** - Text now properly visible in modal/dialog contexts
-- **Restore Buttons** - Now appear correctly for all restorable actions
-- **Docker Volume** - Changed from read-only to writable for proper frontend updates
+- **Host Revert Error** - Fixed "No fields to revert" when reverting host changes via audit log
+  - Corrected action name mismatch (host_update vs host_updated)
+  - Added support for both variants for backwards compatibility
+  - Fixed camelCase field handling from QueryBuilder
 
-### UI/UX Improvements
-- Smooth panel resizing between 400-1200px width
-- LocalStorage persistence for panel positions
-- Consistent camelCase naming throughout frontend
-- Better dark mode support with increased CSS specificity
+- **Date Filter Issues** - Resolved missing logs for single-day selections
+  - End date now correctly set to 23:59:59.999
+  - Single date selection (e.g., August 26, 2025) shows all logs from that day
+  - Date range filtering now inclusive of entire selected period
 
-## 🧹 Code Cleanup
+- **SQL Query Error** - Fixed host ping monitoring database queries
+  - Removed non-existent 'status' column reference
+  - All hosts now properly checked for ping status
+  - SSE event handling corrected in HostCard component
 
-### Removed Components
-- Eliminated 16 unused components and CSS files
-- Removed obsolete backend routes (backupEnhanced, browser, roles, statusCheck)
-- Cleaned up never-used dialog code from AuditLogTableMUI
-- Deleted redundant CSS files and duplicate styles
+- **Statistics Display** - Fixed dynamic update issues
+  - Statistics correctly update based on active filters
+  - User action count properly calculated from filtered results
+  - Critical action count reflects current filter state
 
-### Structure Improvements
-- Components now colocated with their CSS files
-- Clear separation of concerns with single responsibility
-- Better maintainability with ~200 line focused modules (down from 1400+)
-- Improved testing possibilities with isolated modules
+## 📊 Technical Improvements
 
-## 📊 Statistics
+### Performance Optimizations
+- Parallel ping execution with concurrency limiting prevents system overload
+- SSE events efficiently broadcast status updates to all clients
+- Optimized database queries for ping status persistence
 
-- **Total files changed:** 120
-- **Lines added:** 5,079
-- **Lines removed:** 12,730
-- **Net reduction:** 7,651 lines
-- **Code quality:** Significantly improved
-- **Maintainability:** Drastically enhanced
+### Code Quality
+- Consistent error handling across ping monitoring system
+- Improved separation of concerns in audit log components
+- Better TypeScript-like patterns in JavaScript code
 
-## 📚 Documentation Updates
+## 🔧 Configuration
 
-- Updated README with version 1.1.5 features
-- Removed outdated Configuration and Performance sections
-- Added RustDesk to acknowledgments
-- Updated CHANGELOG with complete release details
-- Cleaned up documentation for better clarity
+### New Settings
+- Host ping intervals now synchronized with service status check intervals
+- Configurable via Settings → System → Service Status Refresh Interval
+- Live reload of intervals without server restart
 
-## 🔧 Technical Improvements
+## 📈 Statistics
 
-- Better code-splitting possibilities with modular structure
-- Improved build configuration
-- Added utility scripts for code analysis
-- Enhanced development workflow with writable Docker volumes
-
-## 💡 Migration Notes
-
-This release contains significant structural changes but maintains full backward compatibility. No migration steps are required. Simply pull the latest version and restart your containers:
-
-```bash
-git pull
-docker compose down
-docker compose up -d
-```
+- **4 major features** added
+- **4 critical bugs** fixed
+- **1,516 lines** of changes documented
+- **Cross-platform** compatibility maintained
 
 ## 🙏 Acknowledgments
 
-Special thanks to all the open-source projects that make this possible:
-- React.js for the UI framework
-- Express.js for the backend
-- Apache Guacamole for remote desktop functionality
-- RustDesk for remote access capabilities
-- ttyd for web terminal support
+Thanks to all users who reported issues and provided feedback for this release. Your input helps make Web Appliance Dashboard better with each update.
 
-## 📝 Commit History
+## 📝 Notes
 
-- `4f92147` - refactor: Complete AuditLog modularization and panel resize fix
-- `410734d` - refactor: Major frontend reorganization and dead code removal
-- `4f55dc7` - fix: Dark mode text visibility and CSS improvements
-- `2948e78` - docs: Update documentation for v1.1.5
-- `0153d14` - chore: Update build configurations and scripts
-- `c4de5f0` - cleanup: Remove relocated component files
-
-## 🚀 What's Next
-
-- Further performance optimizations
-- Additional component modularization
-- Enhanced testing coverage
-- Improved documentation
+- The CI/CD pipeline will automatically build and deploy Docker images
+- Existing installations can be updated using the standard update procedure
+- No database migrations required for existing 1.1.5 installations
 
 ---
 
-**Full Changelog:** https://github.com/alflewerken/web-appliance-dashboard/compare/v1.1.4...v1.1.5
-
-**Download:** https://github.com/alflewerken/web-appliance-dashboard/releases/tag/v1.1.5
+For complete details, see the [CHANGELOG](CHANGELOG.md) and [documentation](docs/).
