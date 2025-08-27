@@ -32,7 +32,6 @@ const formatFileSize = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
-
 // Export filtered logs as CSV
 export const exportAuditLogs = async (filters) => {
   const {
@@ -61,8 +60,7 @@ export const exportAuditLogs = async (filters) => {
   if (dateRange === 'custom' && customStartDate && customEndDate) {
     params.append('start_date', customStartDate);
     params.append('end_date', customEndDate);
-  } else if (dateRange !== 'all') {
-    const now = new Date();
+  } else if (dateRange !== 'all') {    const now = new Date();
     let startDate;
     
     switch (dateRange) {
@@ -102,7 +100,126 @@ export const exportAuditLogs = async (filters) => {
   window.URL.revokeObjectURL(url);
 };
 
-// Export logs for printing/PDF
+// Helper function to parse and format details into pills
+const formatDetailsAsPills = (details) => {
+  let detailsObj = {};
+  
+  // Parse details if it's a string
+  try {
+    if (typeof details === 'string') {
+      // Try to parse as JSON
+      detailsObj = JSON.parse(details);
+    } else if (typeof details === 'object' && details !== null) {
+      detailsObj = details;
+    }
+  } catch (e) {
+    // If parsing fails, treat as plain string
+    if (details) {
+      detailsObj = { details: details };
+    }
+  }
+  
+  return detailsObj;
+};
+// Helper function to render a detail object as pills
+const renderDetailPills = (key, value, indent = false) => {
+  const pillStyles = `
+    display: inline-block;
+    padding: 4px 12px;
+    margin: 2px 4px 2px 0;
+    border-radius: 16px;
+    font-size: 0.85em;
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    color: #1565c0;
+  `;
+  
+  const labelStyles = `
+    display: inline-block;
+    padding: 4px 10px;
+    margin: 2px 4px 2px 0;
+    border-radius: 16px;
+    font-size: 0.85em;
+    background-color: #f5f5f5;
+    border: 1px solid #bdbdbd;
+    color: #424242;
+    font-weight: 600;
+  `;
+  
+  // Format the key name
+  const formattedKey = key
+    .replace(/_/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, str => str.toUpperCase())
+    .trim();  
+  // Handle different value types
+  if (value === null || value === undefined) {
+    return `<span style="${labelStyles}">${formattedKey}</span><span style="${pillStyles}">-</span>`;
+  }
+  
+  if (typeof value === 'boolean') {
+    const boolStyles = value ? 
+      pillStyles.replace('#e3f2fd', '#e8f5e9').replace('#90caf9', '#81c784').replace('#1565c0', '#2e7d32') :
+      pillStyles.replace('#e3f2fd', '#ffebee').replace('#90caf9', '#ef9a9a').replace('#1565c0', '#c62828');
+    return `<span style="${labelStyles}">${formattedKey}</span><span style="${boolStyles}">${value ? '✓ Ja' : '✗ Nein'}</span>`;
+  }
+  
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    // For nested objects, render each property as a pill
+    let html = `<div style="margin: 4px 0;"><span style="${labelStyles}">${formattedKey}:</span>`;
+    html += '<div style="margin-left: 20px; margin-top: 4px;">';
+    Object.entries(value).forEach(([subKey, subValue]) => {
+      html += renderDetailPills(subKey, subValue, true) + '<br>';
+    });
+    html += '</div></div>';
+    return html;
+  }
+  
+  if (Array.isArray(value)) {
+    let html = `<span style="${labelStyles}">${formattedKey}:</span>`;
+    value.forEach((item, index) => {
+      if (typeof item === 'object') {
+        // For complex array items
+        html += '<div style="margin-left: 20px; margin-top: 4px;">';
+        Object.entries(item).forEach(([subKey, subValue]) => {
+          html += renderDetailPills(subKey, subValue, true) + '<br>';
+        });
+        html += '</div>';
+      } else {
+        html += `<span style="${pillStyles}">${item}</span>`;
+      }
+    });
+    return html;
+  }
+  
+  // Special formatting for certain keys
+  if (key.includes('date') || key.includes('created') || key.includes('updated') || key.includes('time')) {
+    try {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        value = date.toLocaleString('de-DE');
+      }
+    } catch (e) {
+      // Keep original value if not a valid date
+    }
+  }
+  
+  if (key.includes('size') || key === 'bytes') {
+    const size = parseInt(value);
+    if (!isNaN(size)) {
+      value = formatFileSize(size);
+    }
+  }
+  
+  // Color pills for color values
+  if (key === 'color' || key.includes('color')) {
+    const colorStyles = pillStyles + `background-color: ${value}; color: #fff; border-color: ${value};`;
+    return `<span style="${labelStyles}">${formattedKey}</span><span style="${colorStyles}">${value}</span>`;
+  }
+  
+  return `<span style="${labelStyles}">${formattedKey}</span><span style="${pillStyles}">${value}</span>`;
+};
+// Export logs for printing/PDF with pill-based formatting
 export const exportForPrint = (logs) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
@@ -129,8 +246,7 @@ export const exportForPrint = (logs) => {
           padding: 20px;
           line-height: 1.6;
           color: #333;
-        }
-        h1 {
+        }        h1 {
           color: #333;
           border-bottom: 3px solid #4caf50;
           padding-bottom: 10px;
@@ -138,59 +254,103 @@ export const exportForPrint = (logs) => {
         }
         .info-header {
           background-color: #f0f0f0;
-          padding: 10px;
-          border-radius: 4px;
+          padding: 15px;
+          border-radius: 8px;
           margin-bottom: 20px;
         }
         .info-header p {
           margin: 5px 0;
         }
         .log-entry {
-          margin-bottom: 20px;
+          margin-bottom: 15px;
           border: 1px solid #ddd;
-          border-radius: 4px;
+          border-radius: 8px;
           overflow: hidden;
           page-break-inside: avoid;
+          background-color: #fff;
         }
         .log-header {
-          display: grid;
-          grid-template-columns: 180px 120px 150px 200px 120px;
-          background-color: #f9f9f9;
-          padding: 10px;
-          border-bottom: 1px solid #ddd;
+          background: linear-gradient(to right, #f5f5f5, #fafafa);
+          padding: 12px 15px;
+          border-bottom: 2px solid #e0e0e0;
         }
-        .log-header strong {
-          font-weight: 600;
-          color: #555;
+        .log-header-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        }        .header-pill {
+          display: inline-block;
+          padding: 4px 12px;
+          border-radius: 16px;
+          font-size: 0.9em;
+          font-weight: 500;
+          white-space: nowrap;
+        }
+        .pill-date {
+          background-color: #fff3e0;
+          border: 1px solid #ffb74d;
+          color: #e65100;
+        }
+        .pill-user {
+          background-color: #e8eaf6;
+          border: 1px solid #7986cb;
+          color: #283593;
+        }
+        .pill-action-success {
+          background-color: #e8f5e9;
+          border: 1px solid #81c784;
+          color: #1b5e20;
+        }
+        .pill-action-error {
+          background-color: #ffebee;
+          border: 1px solid #e57373;
+          color: #b71c1c;
+        }
+        .pill-action-warning {
+          background-color: #fff8e1;
+          border: 1px solid #ffd54f;
+          color: #f57c00;
+        }        .pill-action-info {
+          background-color: #e3f2fd;
+          border: 1px solid #64b5f6;
+          color: #0d47a1;
+        }
+        .pill-resource {
+          background-color: #f3e5f5;
+          border: 1px solid #ba68c8;
+          color: #4a148c;
+        }
+        .pill-ip {
+          background-color: #f1f8e9;
+          border: 1px solid #aed581;
+          color: #33691e;
+          font-family: monospace;
+          font-size: 0.85em;
         }
         .log-details {
-          padding: 10px 10px 10px 30px;
+          padding: 15px;
           background-color: #fafafa;
-          font-size: 0.9em;
         }
-        .detail-row {
+        .detail-pills {
           display: flex;
-          margin-bottom: 5px;
+          flex-wrap: wrap;
+          gap: 4px;
+          line-height: 2;
         }
-        .detail-label {
-          font-weight: 500;
-          color: #666;
-          width: 120px;
-          flex-shrink: 0;
-        }
-        .detail-value {
-          color: #333;
-          word-break: break-word;
-        }
-        .action-success { color: #4caf50; font-weight: 600; }
-        .action-error { color: #f44336; font-weight: 600; }
-        .action-warning { color: #ff9800; font-weight: 600; }
-        .action-info { color: #2196f3; font-weight: 600; }
-        .metadata-section {
-          background-color: #f5f5f5;
-          padding: 5px 10px;
-          border-radius: 4px;
+        .detail-section {
+          margin-bottom: 12px;
+          padding: 10px;
+          background-color: #fff;
+          border-radius: 6px;
+          border: 1px solid #e0e0e0;
+        }        .section-title {
+          font-weight: 600;
+          color: #424242;
           margin-bottom: 8px;
+          font-size: 0.95em;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         @media print {
           .no-print { 
@@ -210,12 +370,6 @@ export const exportForPrint = (logs) => {
           size: A4;
           margin: 15mm;
         }
-        .header-title {
-          font-weight: bold;
-          background-color: #e0e0e0;
-          padding: 8px;
-          margin-bottom: 0;
-        }
         .print-instructions {
           background-color: #e3f2fd;
           border: 2px solid #2196f3;
@@ -223,8 +377,7 @@ export const exportForPrint = (logs) => {
           padding: 15px;
           margin-bottom: 20px;
           font-size: 14px;
-        }
-        .print-instructions h3 {
+        }        .print-instructions h3 {
           color: #1976d2;
           margin-bottom: 10px;
         }
@@ -252,8 +405,7 @@ export const exportForPrint = (logs) => {
         <ul>
           <li>1. Klicken Sie auf <strong>"Als PDF drucken"</strong> oder drücken Sie <kbd>Strg+P</kbd> (Windows) bzw. <kbd>Cmd+P</kbd> (Mac)</li>
           <li>2. Wählen Sie als Ziel: <strong>"Als PDF speichern"</strong> oder <strong>"Microsoft Print to PDF"</strong></li>
-          <li>3. Empfohlene Einstellungen:
-            <ul>
+          <li>3. Empfohlene Einstellungen:            <ul>
               <li>• Layout: Hochformat</li>
               <li>• Papierformat: A4</li>
               <li>• Ränder: Standard</li>
@@ -265,19 +417,11 @@ export const exportForPrint = (logs) => {
       </div>
       
       <hr style="margin: 20px 0;" class="no-print">
-      
-      <!-- Header Row -->
-      <div class="log-header header-title">
-        <div><strong>Datum/Zeit</strong></div>
-        <div><strong>Benutzer</strong></div>
-        <div><strong>Aktion</strong></div>
-        <div><strong>Ressource</strong></div>
-        <div><strong>IP-Adresse</strong></div>
-      </div>
   `);
 
+  // Process each log entry
   logs.forEach((log, index) => {
-    // Use resourceName if available, otherwise construct from type and ID
+    // Determine resource display
     let resourceDisplay = log.resourceName;
     if (!resourceDisplay) {
       if (log.resourceType && log.resourceId) {
@@ -289,296 +433,234 @@ export const exportForPrint = (logs) => {
       }
     }
     
-    const actionClass = getActionColor(log.action).replace('error', 'action-error')
-      .replace('success', 'action-success')
-      .replace('warning', 'action-warning')
-      .replace('info', 'action-info');
-    
+    // Determine action color class
+    const actionColorClass = getActionColor(log.action);
+    let pillActionClass = 'pill-action-info';
+    if (actionColorClass.includes('error')) pillActionClass = 'pill-action-error';
+    else if (actionColorClass.includes('success')) pillActionClass = 'pill-action-success';
+    else if (actionColorClass.includes('warning')) pillActionClass = 'pill-action-warning';    
     printWindow.document.write(`
       <div class="log-entry">
         <div class="log-header">
-          <div>${new Date(log.createdAt).toLocaleString('de-DE')}</div>
-          <div>${log.username || 'System'}</div>
-          <div class="${actionClass}">${translateAction(log.action)}</div>
-          <div>${resourceDisplay}</div>
-          <div>${log.ipAddress || '-'}</div>
+          <div class="log-header-pills">
+            <span class="header-pill pill-date">📅 ${new Date(log.createdAt).toLocaleString('de-DE')}</span>
+            <span class="header-pill pill-user">👤 ${log.username || 'System'}</span>
+            <span class="header-pill ${pillActionClass}">⚡ ${translateAction(log.action)}</span>
+            ${resourceDisplay !== '-' ? `<span class="header-pill pill-resource">📁 ${resourceDisplay}</span>` : ''}
+            ${log.ipAddress ? `<span class="header-pill pill-ip">🌐 ${log.ipAddress}</span>` : ''}
+            ${log.id ? `<span class="header-pill" style="background-color: #f5f5f5; border: 1px solid #bdbdbd; color: #616161;">#${log.id}</span>` : ''}
+          </div>
         </div>
-        <div class="log-details">
     `);
     
-    // Add detailed information
-    if (log.id) {
-      printWindow.document.write(`
-        <div class="detail-row">
-          <span class="detail-label">Log ID:</span>
-          <span class="detail-value">#${log.id}</span>
-        </div>
-      `);
-    }
-    
-    if (log.userId) {
-      printWindow.document.write(`
-        <div class="detail-row">
-          <span class="detail-label">User ID:</span>
-          <span class="detail-value">${log.userId}</span>
-        </div>
-      `);
-    }
-    
-    if (log.resourceType && log.resourceId) {
-      printWindow.document.write(`
-        <div class="detail-row">
-          <span class="detail-label">Resource:</span>
-          <span class="detail-value">${log.resourceType} (ID: ${log.resourceId})</span>
-        </div>
-      `);
-    }
-    
-    if (log.userAgent) {
-      printWindow.document.write(`
-        <div class="detail-row">
-          <span class="detail-label">User Agent:</span>
-          <span class="detail-value">${log.userAgent}</span>
-        </div>
-      `);
-    }
-    
-    if (log.details) {
-      let detailsObj = {};
-      try {
-        detailsObj = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
-      } catch {
-        detailsObj = { raw: log.details };
-      }
+    // Add details section if available
+    if (log.details || log.metadata || log.oldValue || log.newValue) {
+      printWindow.document.write(`<div class="log-details">`);
       
-      printWindow.document.write(`
-        <div class="detail-row">
-          <span class="detail-label">Details:</span>
-          <span class="detail-value">
-            <div style="margin-left: 10px;">
-      `);
-      
-      // Format details as readable key-value pairs
-      Object.entries(detailsObj).forEach(([key, value]) => {
-        // Special handling for specific keys
-        if (key === 'files' && Array.isArray(value)) {
-          // Handle file uploads/downloads
-          value.forEach(file => {
-            printWindow.document.write(`
-              <div style="margin-bottom: 4px;">
-                <strong style="color: #555; display: inline-block; min-width: 150px;">Datei:</strong>
-                <span style="color: #333;">${file.name}</span>
-              </div>
-              <div style="margin-bottom: 8px;">
-                <strong style="color: #555; display: inline-block; min-width: 150px;">Dateigröße:</strong>
-                <span style="color: #333;">${formatFileSize(file.bytes || file.size || 0)}</span>
-              </div>
-            `);
-          });
-        } else if (key === 'restored_items' && typeof value === 'object') {
-          // Handle backup restore items as a table
+      // Process main details/metadata
+      const details = log.details || log.metadata;
+      if (details) {
+        const detailsObj = formatDetailsAsPills(details);
+        
+        if (Object.keys(detailsObj).length > 0) {
           printWindow.document.write(`
-            <div style="margin-bottom: 8px;">
-              <strong style="color: #555;">Wiederhergestellte Elemente:</strong>
-              <table style="margin-top: 5px; margin-left: 10px; border-collapse: collapse;">
-                <thead>
-                  <tr style="background-color: #f0f0f0;">
-                    <th style="padding: 4px 8px; text-align: left; border: 1px solid #ddd; font-size: 0.9em;">Typ</th>
-                    <th style="padding: 4px 8px; text-align: right; border: 1px solid #ddd; font-size: 0.9em;">Anzahl</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div class="detail-section">
+              <div class="section-title">Details</div>
+              <div class="detail-pills">
           `);
           
-          Object.entries(value).forEach(([itemKey, itemCount]) => {
-            if (itemCount > 0) {
-              const itemName = itemKey
-                .replace(/_/g, ' ')
-                .replace(/^./, str => str.toUpperCase());
-              printWindow.document.write(`
-                <tr>
-                  <td style="padding: 2px 8px; border: 1px solid #ddd; font-size: 0.85em;">${itemName}</td>
-                  <td style="padding: 2px 8px; text-align: right; border: 1px solid #ddd; font-size: 0.85em;">${itemCount}</td>
-                </tr>
-              `);
+          // Special handling for specific action types
+          if (log.action === 'host_restored' || log.action === 'hostRestored') {            // Parse restored host data if it's a JSON string
+            let restoredData = detailsObj.restoredHostData || detailsObj.restored_host_data || detailsObj;
+            if (typeof restoredData === 'string') {
+              try {
+                restoredData = JSON.parse(restoredData);
+              } catch (e) {
+                restoredData = detailsObj;
+              }
             }
+            
+            // Group host data by categories
+            const basicInfo = {};
+            const connectionInfo = {};
+            const visualInfo = {};
+            const remoteInfo = {};
+            const timestamps = {};
+            
+            Object.entries(restoredData).forEach(([key, value]) => {
+              if (['id', 'name', 'description', 'isActive', 'is_active'].includes(key)) {
+                basicInfo[key] = value;
+              } else if (['hostname', 'port', 'username', 'sshKeyName', 'ssh_key_name', 'privateKey', 'private_key', 'password'].includes(key)) {
+                connectionInfo[key] = value;
+              } else if (['icon', 'color', 'transparency', 'blur'].includes(key)) {
+                visualInfo[key] = value;
+              } else if (key.includes('remote') || key.includes('guacamole') || key.includes('rustdesk')) {
+                remoteInfo[key] = value;
+              } else if (key.includes('created') || key.includes('updated') || key.includes('tested')) {
+                timestamps[key] = value;
+              }
+            });
+            
+            // Render grouped pills
+            if (Object.keys(basicInfo).length > 0) {              printWindow.document.write('<div style="margin-bottom: 8px;"><strong style="color: #666; font-size: 0.9em;">Basis-Informationen:</strong><br>');
+              Object.entries(basicInfo).forEach(([key, value]) => {
+                printWindow.document.write(renderDetailPills(key, value));
+              });
+              printWindow.document.write('</div>');
+            }
+            
+            if (Object.keys(connectionInfo).length > 0) {
+              printWindow.document.write('<div style="margin-bottom: 8px;"><strong style="color: #666; font-size: 0.9em;">Verbindung:</strong><br>');
+              Object.entries(connectionInfo).forEach(([key, value]) => {
+                // Hide password values
+                if (key.includes('password') || key.includes('Password')) {
+                  value = '••••••••';
+                }
+                printWindow.document.write(renderDetailPills(key, value));
+              });
+              printWindow.document.write('</div>');
+            }
+            
+            if (Object.keys(visualInfo).length > 0) {
+              printWindow.document.write('<div style="margin-bottom: 8px;"><strong style="color: #666; font-size: 0.9em;">Visuell:</strong><br>');
+              Object.entries(visualInfo).forEach(([key, value]) => {
+                printWindow.document.write(renderDetailPills(key, value));
+              });
+              printWindow.document.write('</div>');
+            }
+            
+            if (Object.keys(remoteInfo).length > 0) {
+              printWindow.document.write('<div style="margin-bottom: 8px;"><strong style="color: #666; font-size: 0.9em;">Remote Desktop:</strong><br>');
+              Object.entries(remoteInfo).forEach(([key, value]) => {                // Hide password values
+                if (key.includes('password') || key.includes('Password')) {
+                  value = '••••••••';
+                }
+                printWindow.document.write(renderDetailPills(key, value));
+              });
+              printWindow.document.write('</div>');
+            }
+            
+            if (Object.keys(timestamps).length > 0) {
+              printWindow.document.write('<div style="margin-bottom: 8px;"><strong style="color: #666; font-size: 0.9em;">Zeitstempel:</strong><br>');
+              Object.entries(timestamps).forEach(([key, value]) => {
+                printWindow.document.write(renderDetailPills(key, value));
+              });
+              printWindow.document.write('</div>');
+            }
+          } else if (log.action.includes('backup')) {
+            // Special handling for backup actions
+            Object.entries(detailsObj).forEach(([key, value]) => {
+              if (key === 'restored_items' && typeof value === 'object') {
+                printWindow.document.write('<div style="margin-bottom: 8px;"><strong style="color: #666; font-size: 0.9em;">Wiederhergestellte Elemente:</strong><br>');
+                Object.entries(value).forEach(([itemKey, itemCount]) => {
+                  if (itemCount > 0) {
+                    printWindow.document.write(renderDetailPills(itemKey, `${itemCount} Elemente`));
+                  }
+                });
+                printWindow.document.write('</div>');
+              } else {
+                printWindow.document.write(renderDetailPills(key, value));
+              }
+            });
+          } else {            // Default rendering for all other actions
+            Object.entries(detailsObj).forEach(([key, value]) => {
+              // Skip password fields
+              if (key.includes('password') || key.includes('Password') || key.includes('secret')) {
+                value = '••••••••';
+              }
+              
+              // Parse nested JSON strings
+              if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+                try {
+                  const parsed = JSON.parse(value);
+                  printWindow.document.write(renderDetailPills(key, parsed));
+                } catch (e) {
+                  printWindow.document.write(renderDetailPills(key, value));
+                }
+              } else {
+                printWindow.document.write(renderDetailPills(key, value));
+              }
+            });
+          }
+          
+          printWindow.document.write(`
+              </div>
+            </div>
+          `);
+        }
+      }
+      
+      // Process old/new values for updates
+      if (log.oldValue || log.newValue) {
+        printWindow.document.write(`
+          <div class="detail-section">
+            <div class="section-title">Änderungen</div>
+        `);        
+        if (log.oldValue) {
+          const oldValueObj = formatDetailsAsPills(log.oldValue);
+          printWindow.document.write(`
+            <div style="margin-bottom: 10px; padding: 8px; background-color: #ffebee; border-radius: 6px; border: 1px solid #ffcdd2;">
+              <strong style="color: #c62828; font-size: 0.9em;">↩ Vorheriger Wert:</strong>
+              <div class="detail-pills" style="margin-top: 6px;">
+          `);
+          
+          Object.entries(oldValueObj).forEach(([key, value]) => {
+            if (key.includes('password') || key.includes('Password')) {
+              value = '••••••••';
+            }
+            const pillHtml = renderDetailPills(key, value);
+            // Modify pill colors for old values
+            const modifiedPillHtml = pillHtml
+              .replace('#e3f2fd', '#ffebee')
+              .replace('#90caf9', '#ef9a9a')
+              .replace('#1565c0', '#c62828');
+            printWindow.document.write(modifiedPillHtml);
           });
           
           printWindow.document.write(`
-                </tbody>
-              </table>
-            </div>
-          `);
-        } else if (key === 'backup_created_at' || key === 'created_at' || key === 'updated_at') {
-          // Format dates
-          const formattedKey = key === 'backup_created_at' ? 'Backup erstellt am' : 
-                              key === 'created_at' ? 'Erstellt am' : 'Aktualisiert am';
-          const dateValue = new Date(value).toLocaleString('de-DE');
-          printWindow.document.write(`
-            <div style="margin-bottom: 4px;">
-              <strong style="color: #555; display: inline-block; min-width: 150px;">${formattedKey}:</strong>
-              <span style="color: #333;">${dateValue}</span>
-            </div>
-          `);
-        } else if (key === 'backup_version') {
-          printWindow.document.write(`
-            <div style="margin-bottom: 4px;">
-              <strong style="color: #555; display: inline-block; min-width: 150px;">Backup Version:</strong>
-              <span style="color: #333;">${value}</span>
-            </div>
-          `);
-        } else if (key === 'restored_by') {
-          printWindow.document.write(`
-            <div style="margin-bottom: 4px;">
-              <strong style="color: #555; display: inline-block; min-width: 150px;">Wiederhergestellt von:</strong>
-              <span style="color: #333;">${value}</span>
-            </div>
-          `);
-        } else {
-          // Default formatting for other keys
-          const formattedKey = key
-            .replace(/_/g, ' ')
-            .replace(/([A-Z])/g, ' $1')
-            .toLowerCase()
-            .replace(/^./, str => str.toUpperCase())
-            .trim();
-          
-          let formattedValue = value;
-          if (typeof value === 'boolean') {
-            formattedValue = value ? '✓ Ja' : '✗ Nein';
-          } else if (value === null) {
-            formattedValue = '-';
-          } else if (typeof value === 'object') {
-            formattedValue = JSON.stringify(value, null, 2);
-          }
-          
-          printWindow.document.write(`
-            <div style="margin-bottom: 4px;">
-              <strong style="color: #555; display: inline-block; min-width: 150px;">${formattedKey}:</strong>
-              <span style="color: #333;">${formattedValue}</span>
+              </div>
             </div>
           `);
         }
-      });
-      
-      printWindow.document.write(`
-            </div>
-          </span>
-        </div>
-      `);
-    }
-    
-    if (log.oldValue || log.newValue) {
-      printWindow.document.write(`
-        <div class="detail-row">
-          <span class="detail-label">Änderungen:</span>
-          <span class="detail-value">
-      `);
-      
-      if (log.oldValue) {
-        let oldValueObj = {};
-        try {
-          oldValueObj = typeof log.oldValue === 'string' ? JSON.parse(log.oldValue) : log.oldValue;
-        } catch {
-          oldValueObj = { value: log.oldValue };
-        }
         
-        printWindow.document.write(`
-          <div style="margin-bottom: 10px; padding: 8px; background-color: #ffe6e6; border-left: 3px solid #ff4444; margin-left: 10px;">
-            <strong style="color: #cc0000;">Vorheriger Wert:</strong>
-            <div style="margin-top: 5px;">
-        `);
-        
-        Object.entries(oldValueObj).forEach(([key, value]) => {
-          const formattedKey = key
-            .replace(/_/g, ' ')
-            .replace(/([A-Z])/g, ' $1')
-            .toLowerCase()
-            .replace(/^./, str => str.toUpperCase())
-            .trim();
+        if (log.newValue) {
+          const newValueObj = formatDetailsAsPills(log.newValue);
+          printWindow.document.write(`
+            <div style="padding: 8px; background-color: #e8f5e9; border-radius: 6px; border: 1px solid #c8e6c9;">
+              <strong style="color: #2e7d32; font-size: 0.9em;">↪ Neuer Wert:</strong>
+              <div class="detail-pills" style="margin-top: 6px;">
+          `);
           
-          let formattedValue = value;
-          if (typeof value === 'boolean') {
-            formattedValue = value ? '✓ Ja' : '✗ Nein';
-          } else if (value === null || value === undefined) {
-            formattedValue = '-';
-          } else if (typeof value === 'object') {
-            formattedValue = JSON.stringify(value, null, 2);
-          }
+          Object.entries(newValueObj).forEach(([key, value]) => {
+            if (key.includes('password') || key.includes('Password')) {
+              value = '••••••••';
+            }
+            const pillHtml = renderDetailPills(key, value);
+            // Modify pill colors for new values
+            const modifiedPillHtml = pillHtml
+              .replace('#e3f2fd', '#e8f5e9')
+              .replace('#90caf9', '#81c784')
+              .replace('#1565c0', '#2e7d32');
+            printWindow.document.write(modifiedPillHtml);
+          });
           
           printWindow.document.write(`
-            <div style="margin-bottom: 2px;">
-              <span style="color: #666; display: inline-block; min-width: 120px;">${formattedKey}:</span>
-              <span style="color: #333;">${formattedValue}</span>
+              </div>
             </div>
           `);
-        });
+        }
         
-        printWindow.document.write(`
-            </div>
-          </div>
-        `);
+        printWindow.document.write(`</div>`);
       }
       
-      if (log.newValue) {
-        let newValueObj = {};
-        try {
-          newValueObj = typeof log.newValue === 'string' ? JSON.parse(log.newValue) : log.newValue;
-        } catch {
-          newValueObj = { value: log.newValue };
-        }
-        
-        printWindow.document.write(`
-          <div style="padding: 8px; background-color: #e6ffe6; border-left: 3px solid #44ff44; margin-left: 10px;">
-            <strong style="color: #008800;">Neuer Wert:</strong>
-            <div style="margin-top: 5px;">
-        `);
-        
-        Object.entries(newValueObj).forEach(([key, value]) => {
-          const formattedKey = key
-            .replace(/_/g, ' ')
-            .replace(/([A-Z])/g, ' $1')
-            .toLowerCase()
-            .replace(/^./, str => str.toUpperCase())
-            .trim();
-          
-          let formattedValue = value;
-          if (typeof value === 'boolean') {
-            formattedValue = value ? '✓ Ja' : '✗ Nein';
-          } else if (value === null || value === undefined) {
-            formattedValue = '-';
-          } else if (typeof value === 'object') {
-            formattedValue = JSON.stringify(value, null, 2);
-          }
-          
-          printWindow.document.write(`
-            <div style="margin-bottom: 2px;">
-              <span style="color: #666; display: inline-block; min-width: 120px;">${formattedKey}:</span>
-              <span style="color: #333;">${formattedValue}</span>
-            </div>
-          `);
-        });
-        
-        printWindow.document.write(`
-            </div>
-          </div>
-        `);
-      }
-      
-      printWindow.document.write(`
-          </span>
-        </div>
-      `);
+      printWindow.document.write(`</div>`); // Close log-details
     }
     
-    printWindow.document.write(`
-        </div>
-      </div>
-    `);
+    printWindow.document.write(`</div>`); // Close log-entry
   });
 
-  printWindow.document.write(`
-      <div style="margin-top: 30px;" class="no-print">
+  // Add footer with print buttons
+  printWindow.document.write(`      <div style="margin-top: 30px;" class="no-print">
         <button onclick="window.print()" style="padding: 10px 20px; margin-right: 10px; background-color: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">📄 Als PDF drucken</button>
         <button onclick="window.close()" style="padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">❌ Schließen</button>
       </div>
@@ -612,7 +694,6 @@ export const deleteOldAuditLogs = async (days) => {
   
   return response.data;
 };
-
 // Delete filtered audit logs
 export const deleteFilteredAuditLogs = async (logIds) => {
   const response = await axios.delete('/api/audit-logs/delete-filtered', {
