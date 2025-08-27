@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Plus,
   Sliders,
@@ -33,6 +34,7 @@ const AppSidebar = ({
   isMobile = false,
   isCollapsed = false,
 }) => {
+  const { t } = useTranslation();
   const { user, isAdmin, logout } = useAuth();
   const authEnabled = true; // Auth ist immer aktiviert in dieser Version
   
@@ -188,19 +190,19 @@ const AppSidebar = ({
         >
           <div className="sidebar-header">
             <div className="library-header">
-              <h2>Meine Services</h2>
+              <h2>{t('sidebar.myServices')}</h2>
               <div className="header-actions">
                 <button
                   className="add-btn"
                   onClick={handleAddService}
-                  title="Service hinzufügen"
+                  title={t('services.addService')}
                 >
                   <Plus size={20} />
                 </button>
                 <button
                   className="close-btn"
                   onClick={onClose}
-                  title="Sidebar schließen"
+                  title={t('common.close')}
                 >
                   <X size={20} />
                 </button>
@@ -235,7 +237,12 @@ const AppSidebar = ({
                       key={category.id}
                       className={`nav-item ${selectedCategory === category.id ? 'active' : ''}`}
                       data-category={category.id}
-                      data-tooltip={category.name}
+                      data-tooltip={
+                      category.id === 'all' ? t('categories.all') :
+                      category.id === 'recent' ? t('categories.recent') :
+                      category.id === 'favorites' ? t('categories.favorites') :
+                      category.name
+                    }
                       onClick={() => handleCategorySelect(category.id)}
                     >
                       {selectedCategory === category.id && (
@@ -248,7 +255,12 @@ const AppSidebar = ({
                       >
                         <IconComponent size={20} />
                       </div>
-                      <span className="nav-text">{category.name}</span>
+                      <span className="nav-text">
+                        {category.id === 'all' ? t('categories.all') :
+                         category.id === 'recent' ? t('categories.recent') :
+                         category.id === 'favorites' ? t('categories.favorites') :
+                         category.name}
+                      </span>
                       <span className="nav-count">{count}</span>
                     </div>
                   );
@@ -269,57 +281,57 @@ const AppSidebar = ({
               <div
                 className={`nav-item ${showHostsView ? 'active' : ''}`}
                 onClick={handleHostsViewOpen}
-                title="Hosts verwalten"
-                data-tooltip="Hosts"
+                title={t('hosts.title')}
+                data-tooltip={t('hosts.title')}
                 data-category="hosts"
               >
                 {showHostsView && <div className="nav-item-indicator" />}
                 <div className="nav-icon-container" data-category="hosts">
                   <Monitor size={20} />
                 </div>
-                <span className="nav-text">Hosts</span>
+                <span className="nav-text">{t('hosts.title')}</span>
               </div>
               {authEnabled && (
                 <div
                   className={`nav-item ${showUserManagement ? 'active' : ''}`}
                   onClick={handleUserManagementOpen}
-                  title="Benutzerverwaltung"
-                  data-tooltip="Benutzer"
+                  title={t('users.title')}
+                  data-tooltip={t('users.title')}
                   data-category="users"
                 >
                   {showUserManagement && <div className="nav-item-indicator" />}
                   <div className="nav-icon-container" data-category="users">
                     <Users size={20} />
                   </div>
-                  <span className="nav-text">Benutzer</span>
+                  <span className="nav-text">{t('users.title')}</span>
                 </div>
               )}
               <div
                 className={`nav-item ${showSettingsModal ? 'active' : ''}`}
                 onClick={handleSettingsOpen}
-                title="Einstellungen"
-                data-tooltip="Einstellungen"
+                title={t('sidebar.settings')}
+                data-tooltip={t('sidebar.settings')}
                 data-category="settings"
               >
                 {showSettingsModal && <div className="nav-item-indicator" />}
                 <div className="nav-icon-container" data-category="settings">
                   <Sliders size={20} />
                 </div>
-                <span className="nav-text">Einstellungen</span>
+                <span className="nav-text">{t('sidebar.settings')}</span>
               </div>
               {authEnabled && isAdmin && (
                 <div
                   className={`nav-item ${showAuditLog ? 'active' : ''}`}
                   onClick={handleAuditLogOpen}
-                  title="Audit Log"
-                  data-tooltip="Audit Log"
+                  title={t('auditLog.title')}
+                  data-tooltip={t('auditLog.title')}
                   data-category="audit"
                 >
                   {showAuditLog && <div className="nav-item-indicator" />}
                   <div className="nav-icon-container" data-category="audit">
                     <FileText size={20} />
                   </div>
-                  <span className="nav-text">Audit Log</span>
+                  <span className="nav-text">{t('auditLog.title')}</span>
                 </div>
               )}
 
@@ -328,13 +340,13 @@ const AppSidebar = ({
                 <div
                   className="nav-item logout-item"
                   onClick={logout}
-                  title="Abmelden"
-                  data-tooltip="Abmelden"
+                  title={t('auth.logout')}
+                  data-tooltip={t('auth.logout')}
                 >
                   <div className="nav-icon-container" data-category="logout">
                     <LogOut size={20} />
                   </div>
-                  <span className="nav-text">Abmelden</span>
+                  <span className="nav-text">{t('auth.logout')}</span>
                   <span className="nav-user">{user.username}</span>
                 </div>
               )}
@@ -357,12 +369,12 @@ const AppSidebar = ({
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="library-header">
-            <h2>Meine Services</h2>
+            <h2>{t('sidebar.myServices')}</h2>
             <div className="header-actions">
               <button
                 className="add-btn"
                 onClick={handleAddService}
-                title="Service hinzufügen"
+                title={t('services.addService')}
               >
                 <Plus size={20} />
               </button>
@@ -395,7 +407,12 @@ const AppSidebar = ({
                     key={category.id}
                     className={`nav-item ${selectedCategory === category.id ? 'active' : ''}`}
                     data-category={category.id}
-                    data-tooltip={category.name}
+                    data-tooltip={
+                      category.id === 'all' ? t('categories.all') :
+                      category.id === 'recent' ? t('categories.recent') :
+                      category.id === 'favorites' ? t('categories.favorites') :
+                      category.name
+                    }
                     onClick={() => handleCategorySelect(category.id)}
                   >
                     {selectedCategory === category.id && (
@@ -408,7 +425,12 @@ const AppSidebar = ({
                     >
                       <IconComponent size={20} />
                     </div>
-                    <span className="nav-text">{category.name}</span>
+                    <span className="nav-text">
+                      {category.id === 'all' ? t('categories.all') :
+                       category.id === 'recent' ? t('categories.recent') :
+                       category.id === 'favorites' ? t('categories.favorites') :
+                       category.name}
+                    </span>
                     <span className="nav-count">{count}</span>
                   </div>
                 );
@@ -428,57 +450,57 @@ const AppSidebar = ({
             <div
               className={`nav-item ${showHostsView ? 'active' : ''}`}
               onClick={handleHostsViewOpen}
-              title="Hosts verwalten"
-              data-tooltip="Hosts"
+              title={t('hosts.title')}
+              data-tooltip={t('hosts.title')}
               data-category="hosts"
             >
               {showHostsView && <div className="nav-item-indicator" />}
               <div className="nav-icon-container" data-category="hosts">
                 <Monitor size={20} />
               </div>
-              <span className="nav-text">Hosts</span>
+              <span className="nav-text">{t('hosts.title')}</span>
             </div>
             {authEnabled && (
               <div
                 className={`nav-item ${showUserManagement ? 'active' : ''}`}
                 onClick={handleUserManagementOpen}
-                title="Benutzerverwaltung"
-                data-tooltip="Benutzer"
+                title={t('users.title')}
+                data-tooltip={t('users.title')}
                 data-category="users"
               >
                 {showUserManagement && <div className="nav-item-indicator" />}
                 <div className="nav-icon-container" data-category="users">
                   <Users size={20} />
                 </div>
-                <span className="nav-text">Benutzer</span>
+                <span className="nav-text">{t('users.title')}</span>
               </div>
             )}
             <div
               className={`nav-item ${showSettingsModal ? 'active' : ''}`}
               onClick={handleSettingsOpen}
-              title="Einstellungen"
-              data-tooltip="Einstellungen"
+              title={t('sidebar.settings')}
+              data-tooltip={t('sidebar.settings')}
               data-category="settings"
             >
               {showSettingsModal && <div className="nav-item-indicator" />}
               <div className="nav-icon-container" data-category="settings">
                 <Sliders size={20} />
               </div>
-              <span className="nav-text">Einstellungen</span>
+              <span className="nav-text">{t('sidebar.settings')}</span>
             </div>
             {authEnabled && isAdmin && (
               <div
                 className={`nav-item ${showAuditLog ? 'active' : ''}`}
                 onClick={handleAuditLogOpen}
-                title="Audit Log"
-                data-tooltip="Audit Log"
+                title={t('auditLog.title')}
+                data-tooltip={t('auditLog.title')}
                 data-category="audit"
               >
                 {showAuditLog && <div className="nav-item-indicator" />}
                 <div className="nav-icon-container" data-category="audit">
                   <FileText size={20} />
                 </div>
-                <span className="nav-text">Audit Log</span>
+                <span className="nav-text">{t('auditLog.title')}</span>
               </div>
             )}
 
@@ -487,13 +509,13 @@ const AppSidebar = ({
               <div
                 className="nav-item logout-item"
                 onClick={logout}
-                title="Abmelden"
-                data-tooltip="Abmelden"
+                title={t('auth.logout')}
+                data-tooltip={t('auth.logout')}
               >
                 <div className="nav-icon-container" data-category="logout">
                   <LogOut size={20} />
                 </div>
-                <span className="nav-text">Abmelden</span>
+                <span className="nav-text">{t('auth.logout')}</span>
                 <span className="nav-user">{user.username}</span>
               </div>
             )}

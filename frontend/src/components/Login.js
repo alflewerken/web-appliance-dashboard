@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Lock, AlertCircle } from 'lucide-react';
 import '../styles/Login.css';
 
 const Login = () => {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,19 +30,17 @@ const Login = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError(
-        'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.'
-      );
+      setError(t('auth.loginError'));
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="login-container">
       <div className="login-box">
         <div className="login-header">
-          <h1>Web Appliance Dashboard</h1> <p>Bitte melden Sie sich an</p>
+          <h1>{t('auth.loginTitle')}</h1>
+          <p>{t('auth.login')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -54,7 +54,7 @@ const Login = () => {
           <div className="form-group">
             <label htmlFor="username">
               <User size={20} />
-              <span>Benutzername</span>
+              <span>{t('auth.username')}</span>
             </label>
             <input
               type="text"
@@ -64,8 +64,7 @@ const Login = () => {
               autoCapitalize="off"
               autoCorrect="off"
               value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Benutzername oder E-Mail"
+              onChange={e => setUsername(e.target.value)}              placeholder={t('auth.username')}
               required
               autoFocus={window.innerWidth > 768}
             />
@@ -74,7 +73,7 @@ const Login = () => {
           <div className="form-group">
             <label htmlFor="password">
               <Lock size={20} />
-              <span>Passwort</span>{' '}
+              <span>{t('auth.password')}</span>
             </label>
             <input
               type="password"
@@ -83,13 +82,13 @@ const Login = () => {
               autoComplete="current-password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="Passwort"
+              placeholder={t('auth.password')}
               required
             />
           </div>
 
           <button type="submit" className="login-button" disabled={loading}>
-            {loading ? 'Anmelden...' : 'Anmelden'}
+            {loading ? `${t('auth.login')}...` : t('auth.login')}
           </button>
         </form>
       </div>

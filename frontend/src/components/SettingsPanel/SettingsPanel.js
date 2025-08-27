@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import {
@@ -94,16 +95,17 @@ const SettingsPanel = ({
   isAdmin,
   onWidthChange,
 }) => {
+  const { t, i18n } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   // All tabs - some are admin only
   const tabs = [
-    { icon: Home, label: 'Allgemein', key: 'general', adminOnly: false },
-    { icon: Image, label: 'UI-Config', key: 'background', adminOnly: false },
-    { icon: FolderOpen, label: 'Kategorien', key: 'categories', adminOnly: true },
-    { icon: Archive, label: 'Backup', key: 'backup', adminOnly: true },
-    { icon: RefreshCw, label: 'System', key: 'system', adminOnly: true },
+    { icon: Home, label: t('settings.general'), key: 'general', adminOnly: false },
+    { icon: Image, label: t('settings.uiConfig'), key: 'background', adminOnly: false },
+    { icon: FolderOpen, label: t('categories.categories'), key: 'categories', adminOnly: true },
+    { icon: Archive, label: t('settings.backup'), key: 'backup', adminOnly: true },
+    { icon: RefreshCw, label: t('settings.system'), key: 'system', adminOnly: true },
   ];
 
   // Filter tabs based on admin status
@@ -702,7 +704,30 @@ const SettingsPanel = ({
               <Box>
                 <FormControl fullWidth margin="normal">
                   <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                    Standard-Startseite
+                    {t('settings.language')}
+                  </InputLabel>
+                  <Select
+                    value={i18n.language}
+                    onChange={e => {
+                      i18n.changeLanguage(e.target.value);
+                      localStorage.setItem('language', e.target.value);
+                    }}
+                    label={t('settings.language')}
+                    sx={{
+                      color: 'var(--text-primary)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                      },
+                    }}
+                  >
+                    <MenuItem value="de">Deutsch</MenuItem>
+                    <MenuItem value="en">English</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth margin="normal">
+                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                    {t('settings.defaultCategory')}
                   </InputLabel>
                   <Select
                     value={generalSettings.default_category}
@@ -712,7 +737,7 @@ const SettingsPanel = ({
                         e.target.value
                       )
                     }
-                    label="Standard-Startseite"
+                    label={t('settings.defaultCategory')}
                     sx={{
                       color: 'var(--text-primary)',
                       '& .MuiOutlinedInput-notchedOutline': {
@@ -720,9 +745,9 @@ const SettingsPanel = ({
                       },
                     }}
                   >
-                    <MenuItem value="all">Alle Services</MenuItem>
-                    <MenuItem value="recent">Zuletzt verwendet</MenuItem>
-                    <MenuItem value="favorites">Favoriten</MenuItem>
+                    <MenuItem value="all">{t('categories.all')}</MenuItem>
+                    <MenuItem value="recent">{t('categories.recent')}</MenuItem>
+                    <MenuItem value="favorites">{t('categories.favorites')}</MenuItem>
                     {localCategories.map(category => (
                       <MenuItem key={category.name} value={category.name}>
                         {category.name}
@@ -733,14 +758,14 @@ const SettingsPanel = ({
 
                 <FormControl fullWidth margin="normal">
                   <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                    Design-Modus
+                    {t('settings.theme')}
                   </InputLabel>
                   <Select
                     value={generalSettings.theme_mode}
                     onChange={e =>
                       handleGeneralSettingChange('theme_mode', e.target.value)
                     }
-                    label="Design-Modus"
+                    label={t('settings.theme')}
                     sx={{
                       color: 'var(--text-primary)',
                       '& .MuiOutlinedInput-notchedOutline': {
@@ -748,9 +773,9 @@ const SettingsPanel = ({
                       },
                     }}
                   >
-                    <MenuItem value="dark">Dunkler Modus</MenuItem>
-                    <MenuItem value="light">Heller Modus</MenuItem>
-                    <MenuItem value="auto">Automatisch (System)</MenuItem>
+                    <MenuItem value="dark">{t('settings.themeDark')}</MenuItem>
+                    <MenuItem value="light">{t('settings.themeLight')}</MenuItem>
+                    <MenuItem value="auto">{t('settings.themeAuto')}</MenuItem>
                   </Select>
                 </FormControl>
 
@@ -759,7 +784,7 @@ const SettingsPanel = ({
                     size={16}
                     style={{ marginRight: 8, verticalAlign: 'middle' }}
                   />
-                  Alle Änderungen werden automatisch gespeichert
+                  {t('settings.settingsSaved')}
                 </Alert>
               </Box>
             )}
@@ -796,7 +821,7 @@ const SettingsPanel = ({
                   setShowCategoryModal(true);
                 }}
               >
-                Neue Kategorie
+                {t('categories.newCategory')}
               </Button>
               
               {/* Mobile Reorder Button - only show on small screens */}
@@ -813,7 +838,7 @@ const SettingsPanel = ({
                   }
                 }}
               >
-                {reorderMode ? 'Fertig' : 'Sortieren'}
+                {reorderMode ? t('common.done') : t('categories.sort')}
               </Button>
             </Box>
 
@@ -1095,7 +1120,7 @@ const SettingsPanel = ({
                 ) : (
                   <Box sx={{ textAlign: 'center', py: 4 }}>
                     <Typography color="text.secondary">
-                      Keine Kategorien vorhanden
+                      {t('categories.noCategoriesAvailable')}
                     </Typography>
                   </Box>
                 )}
@@ -1122,7 +1147,7 @@ const SettingsPanel = ({
               <Box>
                 <FormControl fullWidth margin="normal">
                   <TextField
-                    label="Service Abfrage Intervall (Sekunden)"
+                    label={t('settings.serviceCheckInterval')}
                     type="number"
                     value={systemSettings.service_poll_interval}
                     onChange={e =>
@@ -1149,7 +1174,7 @@ const SettingsPanel = ({
                 </FormControl>
 
                 <Alert severity="info" sx={{ mt: 3 }}>
-                  Definiert, wie oft der Status der Services abgefragt wird
+                  {t('settings.serviceCheckIntervalDescription')}
                 </Alert>
               </Box>
             )}
@@ -1177,7 +1202,7 @@ const SettingsPanel = ({
 
       {/* Header */}
       <UnifiedPanelHeader 
-        title={visibleTabs[tabValue]?.label || 'Einstellungen'} 
+        title={visibleTabs[tabValue]?.label || t('settings.title')} 
         icon={visibleTabs[tabValue]?.icon || Settings} 
         onClose={onClose} 
       />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Card,
@@ -30,6 +31,8 @@ const BackgroundSettingsMUI = ({
   SettingsService,
   backgroundSyncManager,
 }) => {
+  const { t } = useTranslation();
+  
   // State für transparente Panels
   const [transparentPanels, setTransparentPanels] = useState(() => {
     const saved = localStorage.getItem('transparentPanels');
@@ -131,14 +134,13 @@ const BackgroundSettingsMUI = ({
                   <Layers size={20} />
                   <Box>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      Transparente Panels
+                      {t('settings.transparentPanels')}
                     </Typography>
                     <Typography
                       variant="caption"
                       sx={{ color: 'text.secondary', display: 'block' }}
                     >
-                      Panels werden transparent mit Glassmorphism-Effekt
-                      dargestellt
+                      {t('settings.transparentPanelsDescription')}
                     </Typography>
                   </Box>
                 </Box>
@@ -211,7 +213,7 @@ const BackgroundSettingsMUI = ({
               }}
             >
               <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white !important' }}>
-                Aktives Hintergrundbild {!backgroundSettings.enabled && '(Deaktiviert)'}
+                {t('settings.activeBackground')} {!backgroundSettings.enabled && `(${t('common.disabled')})`}
               </Typography>
               <Typography variant="body1" sx={{ opacity: 0.9, mb: 0.5, color: 'white !important' }}>
                 {currentBackground.filename}
@@ -243,7 +245,7 @@ const BackgroundSettingsMUI = ({
             }}
           />
           <Typography color="text.secondary">
-            Kein Hintergrundbild aktiv
+            {t('settings.noBackgroundActive')}
           </Typography>
         </Card>
       )}
@@ -302,13 +304,13 @@ const BackgroundSettingsMUI = ({
                   }}
                 />
               }
-              label="Hintergrundbild aktivieren"
+              label={t('settings.backgroundEnabled')}
               sx={{ mb: 3 }}
             />
 
             <Box sx={{ mb: 3 }}>
               <Typography gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                Transparenz: {Math.round(backgroundSettings.opacity * 100)}%
+                {t('settings.transparency')}: {Math.round(backgroundSettings.opacity * 100)}%
               </Typography>
               <Slider
                 value={backgroundSettings.opacity}
@@ -342,7 +344,7 @@ const BackgroundSettingsMUI = ({
 
             <Box sx={{ mb: 3 }}>
               <Typography gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                Unschärfe: {backgroundSettings.blur}px
+                {t('settings.blur')}: {backgroundSettings.blur}px
               </Typography>
               <Slider
                 value={backgroundSettings.blur}
@@ -388,7 +390,7 @@ const BackgroundSettingsMUI = ({
             gutterBottom
             sx={{ color: 'var(--text-primary)', mb: 3 }}
           >
-            Bildausrichtung
+            {t('settings.imageAlignment')}
           </Typography>
           <div className="position-grid-wrapper">
             <div className="position-grid-container">
@@ -444,7 +446,7 @@ const BackgroundSettingsMUI = ({
             }}
           >
             <Typography variant="h6" sx={{ color: 'var(--text-primary)' }}>
-              Bildergalerie
+              {t('settings.imageGallery')}
             </Typography>
             <Button
               variant="contained"
@@ -463,7 +465,7 @@ const BackgroundSettingsMUI = ({
                 },
               }}
             >
-              Bild hochladen
+              {t('settings.uploadImage')}
             </Button>
           </Box>
 
@@ -485,10 +487,10 @@ const BackgroundSettingsMUI = ({
                 }}
               />
               <Typography color="text.secondary" gutterBottom>
-                Keine Bilder vorhanden
+                {t('settings.noImagesAvailable')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Laden Sie Bilder hoch, um sie als Hintergrund zu verwenden
+                {t('settings.uploadImagesHint')}
               </Typography>
             </Box>
           ) : (

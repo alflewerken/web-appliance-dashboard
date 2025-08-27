@@ -5,9 +5,11 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Upload } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import SSHFileUpload from './SSHFileUpload';
 
 const FileTransferButton = ({ appliance }) => {
+  const { t } = useTranslation();
   const [showUpload, setShowUpload] = useState(false);
   const [sshHost, setSSHHost] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -120,7 +122,7 @@ const FileTransferButton = ({ appliance }) => {
 
   return (
     <>
-      <Tooltip title="Datei-Upload">
+      <Tooltip title={t('services.fileUpload', 'File Upload')}>
         <IconButton
           onClick={handleClick}
           disabled={loading}

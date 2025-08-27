@@ -1,12 +1,15 @@
 import React from 'react';
 import { IconButton, Tooltip } from '@mui/material';
 import { Terminal } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Terminal Button Component
  * Opens a terminal for the appliance using the global terminal handler
  */
 const TerminalButton = ({ appliance, onClick }) => {
+  const { t } = useTranslation();
+  
   const handleClick = (e) => {
     // Prevent event bubbling
     if (e) {
@@ -25,7 +28,7 @@ const TerminalButton = ({ appliance, onClick }) => {
   };
   
   return (
-    <Tooltip title="Terminal öffnen">
+    <Tooltip title={t('services.openTerminal')}>
       <IconButton
         onClick={handleClick}
         size="small"

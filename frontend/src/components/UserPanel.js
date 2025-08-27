@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../hooks/usePanelResize';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -51,6 +52,7 @@ import './UserPanel.css';
 const UserPanel = ({ onClose, onWidthChange }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { t } = useTranslation();
   const { user, isAdmin } = useAuth();
   const { addEventListener } = useSSE();
   const [users, setUsers] = useState([]);
@@ -162,12 +164,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           }]);
         } else {
           const errorData = await response.text();
-          setError(`Fehler beim Laden der Benutzer: ${response.status} - ${errorData}`);
+          setError(`${t('users.errors.loadFailed')}: ${response.status} - ${errorData}`);
         }
       }
     } catch (error) {
       console.error('[UserPanel] Error fetching users:', error);
-      setError('Fehler beim Laden der Benutzer: ' + error.message);
+      setError(t('users.errors.loadFailed') + ': ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -186,27 +188,39 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     setRoles([
       {
         value: 'Administrator',
-        label: 'Administrator',
+        label: t('users.roles.administrator'),
         role: 'Administrator',
-        permissions: ['Alle Berechtigungen', 'Systemverwaltung', 'Benutzerverwaltung', 'Rollenverwaltung'],
+        permissions: [
+          t('users.permissions.allPermissions'),
+          t('users.permissions.systemManagement'),
+          t('users.permissions.userManagement'),
+          t('users.permissions.roleManagement')
+        ],
       },
       {
         value: 'Power User',
-        label: 'Power User',
+        label: t('users.roles.powerUser'),
         role: 'Power User',
-        permissions: ['Appliances erstellen/bearbeiten', 'Erweiterte Kontrolle', 'Benutzer anzeigen'],
+        permissions: [
+          t('users.permissions.createEditAppliances'),
+          t('users.permissions.advancedControl'),
+          t('users.permissions.viewUsers')
+        ],
       },
       {
         value: 'Benutzer',
-        label: 'Benutzer',
+        label: t('users.roles.user'),
         role: 'Benutzer',
-        permissions: ['Appliances anzeigen', 'Appliances steuern'],
+        permissions: [
+          t('users.permissions.viewAppliances'),
+          t('users.permissions.controlAppliances')
+        ],
       },
       {
         value: 'Gast',
-        label: 'Gast',
+        label: t('users.roles.guest'),
         role: 'Gast',
-        permissions: ['Nur Ansicht'],
+        permissions: [t('users.permissions.viewOnly')],
       },
     ]);
   };
@@ -256,16 +270,16 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       });
 
       if (response.ok) {
-        setSuccess('Benutzer erfolgreich erstellt');
+        setSuccess(t('users.success.userCreated'));
         setOpenDialog(false);
         fetchUsers();
         setFormData({ username: '', email: '', password: '', role: 'Benutzer' });
       } else {
         const data = await response.json();
-        setError(data.message || 'Fehler beim Erstellen des Benutzers');
+        setError(data.message || t('users.errors.createFailed'));
       }
     } catch (error) {
-      setError('Fehler beim Erstellen des Benutzers');
+      setError(t('users.errors.createFailed'));
     }
   };
 
@@ -276,7 +290,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       
       // Check if there are any changes
       if (Object.keys(changedFields).length === 0) {
-        setSuccess('Keine Änderungen vorhanden');
+        setSuccess(t('users.success.noChanges'));
         setEditDialog(false);
         return;
       }
@@ -302,20 +316,20 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       );
 
       if (response.ok) {
-        setSuccess('Benutzer erfolgreich aktualisiert');
+        setSuccess(t('users.success.userUpdated'));
         setEditDialog(false);
         fetchUsers();
       } else {
         const data = await response.json();
-        setError(data.message || 'Fehler beim Aktualisieren des Benutzers');
+        setError(data.message || t('users.errors.updateFailed'));
       }
     } catch (error) {
-      setError('Fehler beim Aktualisieren des Benutzers');
+      setError(t('users.errors.updateFailed'));
     }
   };
 
   const handleDeleteUser = async userId => {
-    if (window.confirm('Möchten Sie diesen Benutzer wirklich löschen?')) {
+    if (window.confirm(t('users.confirmDelete'))) {
       try {
         const response = await fetch(
           `/api/auth/users/${userId}`,
@@ -328,13 +342,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         );
 
         if (response.ok) {
-          setSuccess('Benutzer erfolgreich gelöscht');
+          setSuccess(t('users.success.userDeleted'));
           fetchUsers();
         } else {
-          setError('Fehler beim Löschen des Benutzers');
+          setError(t('users.errors.deleteFailed'));
         }
       } catch (error) {
-        setError('Fehler beim Löschen des Benutzers');
+        setError(t('users.errors.deleteFailed'));
       }
     }
   };
@@ -342,7 +356,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   const handleToggleActive = async (userId, currentStatus) => {
     // Verhindere, dass User sich selbst deaktivieren
     if (userId === user.id && currentStatus) {
-      setError('Sie können Ihren eigenen Account nicht deaktivieren!');
+      setError(t('users.errors.cannotDeactivateSelf'));
       return;
     }
     
@@ -359,15 +373,15 @@ const UserPanel = ({ onClose, onWidthChange }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setSuccess(data.message || `Benutzer ${currentStatus ? 'deaktiviert' : 'aktiviert'}`);
+        setSuccess(data.message || t(currentStatus ? 'users.success.userDeactivated' : 'users.success.userActivated'));
         fetchUsers();
       } else {
         const data = await response.json();
-        setError(data.error || 'Fehler beim Ändern des Benutzerstatus');
+        setError(data.error || t('users.errors.statusChangeFailed'));
       }
     } catch (error) {
       console.error('Error toggling user status:', error);
-      setError('Fehler beim Ändern des Benutzerstatus');
+      setError(t('users.errors.statusChangeFailed'));
     }
   };
 
@@ -383,10 +397,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
 
   const getRoleLabel = role => {
     switch (role) {
-      case 'Administrator': return 'Administrator';
-      case 'Power User': return 'Power User';
-      case 'Benutzer': return 'Benutzer';
-      case 'Gast': return 'Gast';
+      case 'Administrator': return t('users.roles.administrator');
+      case 'Power User': return t('users.roles.powerUser');
+      case 'Benutzer': return t('users.roles.user');
+      case 'Gast': return t('users.roles.guest');
       default: return role;
     }
   };
@@ -438,7 +452,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
               '&:hover': { backgroundColor: '#0051D5' },
             }}
           >
-            Erneut versuchen
+            {t('common.retry')}
           </Button>
         </Box>
       );
@@ -448,7 +462,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       return (
         <Box sx={{ textAlign: 'center', p: 4 }}>
           <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 2 }}>
-            Keine Benutzer gefunden
+            {t('users.noUsersFound')}
           </Typography>
           <Button
             variant="outlined"
@@ -465,7 +479,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
               },
             }}
           >
-            Aktualisieren
+            {t('common.refresh')}
           </Button>
         </Box>
       );
@@ -512,7 +526,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     </Typography>
                     {u.username === user.username && (
                       <Chip
-                        label="Du"
+                        label={t('users.you')}
                         size="small"
                         sx={{
                           height: 18,
@@ -528,7 +542,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                   </Typography>
                   {(isUserOnline(u) || u.username === user.username) && (
                     <Typography sx={{ color: '#34C759', fontSize: '0.75rem', mt: 0.5 }}>
-                      Online
+                      {t('users.status.online')}
                     </Typography>
                   )}
                 </Box>
@@ -545,7 +559,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                   }}
                 />
                 <Chip
-                  label={u.isActive ? 'Account aktiv' : 'Account gesperrt'}
+                  label={u.isActive ? t('users.status.accountActive') : t('users.status.accountLocked')}
                   size="small"
                   sx={{
                     backgroundColor: u.isActive ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 59, 48, 0.2)',
@@ -556,11 +570,11 @@ const UserPanel = ({ onClose, onWidthChange }) => {
               </Box>
 
               <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem', mb: 1 }}>
-                Letzte Anmeldung: {u.lastLogin ? new Date(u.lastLogin).toLocaleString('de-DE') : 'Nie'}
+                {t('users.fields.lastLogin')}: {u.lastLogin ? new Date(u.lastLogin).toLocaleString(t('common.locale')) : t('common.never')}
               </Typography>
 
               <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                <Tooltip title="Bearbeiten">
+                <Tooltip title={t('common.edit')}>
                   <IconButton
                     size="small"
                     onClick={() => {
@@ -593,8 +607,8 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                   <>
                     <Tooltip title={
                       u.id === user.id && u.isActive 
-                        ? 'Sie können sich nicht selbst deaktivieren' 
-                        : (u.isActive ? 'Deaktivieren' : 'Aktivieren')
+                        ? t('users.errors.cannotDeactivateSelf')
+                        : (u.isActive ? t('users.actions.deactivate') : t('users.actions.activate'))
                     }>
                       <span>
                         <IconButton
@@ -620,7 +634,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                       </span>
                     </Tooltip>
                     {u.username !== user.username && (
-                      <Tooltip title="Löschen">
+                      <Tooltip title={t('common.delete')}>
                         <IconButton
                           size="small"
                           onClick={() => handleDeleteUser(u.id)}
@@ -661,12 +675,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         <Table sx={{ minWidth: isCompactMode ? 500 : 650 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Benutzer</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>E-Mail</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Rolle</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Account-Status</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Letzte Anmeldung</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Aktionen</TableCell>
+              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.user')}</TableCell>
+              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.email')}</TableCell>
+              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.role')}</TableCell>
+              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.accountStatus')}</TableCell>
+              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.lastLogin')}</TableCell>
+              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -698,7 +712,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                         {u.username}
                         {u.username === user.username && (
                           <Chip
-                            label="Du"
+                            label={t('users.you')}
                             size="small"
                             sx={{
                               ml: 1,
@@ -712,7 +726,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                       </Typography>
                       {(isUserOnline(u) || u.username === user.username) && (
                         <Typography sx={{ color: '#34C759', fontSize: '0.75rem' }}>
-                          Online
+                          {t('users.status.online')}
                         </Typography>
                       )}
                     </Box>
@@ -736,7 +750,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={u.isActive ? 'Account aktiv' : 'Account gesperrt'}
+                    label={u.isActive ? t('users.status.accountActive') : t('users.status.accountLocked')}
                     size="small"
                     sx={{
                       backgroundColor: u.isActive ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 59, 48, 0.2)',
@@ -746,13 +760,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                   />
                 </TableCell>
                 <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                  <Tooltip title={u.lastLogin ? new Date(u.lastLogin).toLocaleString('de-DE') : 'Nie'}>
-                    <span>{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('de-DE') : 'Nie'}</span>
+                  <Tooltip title={u.lastLogin ? new Date(u.lastLogin).toLocaleString(t('common.locale')) : t('common.never')}>
+                    <span>{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString(t('common.locale')) : t('common.never')}</span>
                   </Tooltip>
                 </TableCell>
                 <TableCell sx={{ padding: '8px' }}>
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    <Tooltip title="Bearbeiten">
+                    <Tooltip title={t('common.edit')}>
                       <IconButton
                         size="small"
                         onClick={() => {
@@ -775,8 +789,8 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     </Tooltip>
                     <Tooltip title={
                       u.id === user.id && u.isActive 
-                        ? 'Sie können sich nicht selbst deaktivieren' 
-                        : (u.isActive ? 'Account sperren' : 'Account aktivieren')
+                        ? t('users.errors.cannotDeactivateSelf')
+                        : (u.isActive ? t('users.actions.lockAccount') : t('users.actions.unlockAccount'))
                     }>
                       <span>
                         <IconButton
@@ -802,7 +816,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                       </span>
                     </Tooltip>
                     {u.username !== user.username && (
-                      <Tooltip title="Löschen">
+                      <Tooltip title={t('common.delete')}>
                         <IconButton
                           size="small"
                           onClick={() => handleDeleteUser(u.id)}
@@ -846,7 +860,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
 
       {/* Header */}
       <UnifiedPanelHeader 
-        title="Benutzerverwaltung" 
+        title={t('users.title')} 
         icon={Users} 
         onClose={onClose} 
       />
@@ -868,9 +882,9 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             },
           }}
         >
-          <Tab label="Benutzer" />
-          <Tab label="Rollen & Berechtigungen" />
-          <Tab label="Statistiken" />
+          <Tab label={t('users.tabs.users')} />
+          <Tab label={t('users.tabs.rolesPermissions')} />
+          <Tab label={t('users.tabs.statistics')} />
         </Tabs>
       </Box>
 
@@ -904,12 +918,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     },
                   }}
                 >
-                  Benutzer hinzufügen
+                  {t('users.addUser')}
                 </Button>
               )}
               {!isAdmin() && (
                 <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                  Nur Administratoren können alle Benutzer sehen.
+                  {t('users.onlyAdminsCanSeeAllUsers')}
                 </Typography>
               )}
             </Box>
@@ -947,7 +961,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     </Box>
                     <Divider sx={{ my: 1, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
                     <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 1 }}>
-                      Berechtigungen:
+                      {t('users.fields.permissions')}:
                     </Typography>
                     <Box sx={{ pl: 1 }}>
                       {role.permissions.map((perm, index) => (
@@ -986,7 +1000,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     {users.length}
                   </Typography>
                   <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                    Gesamte Benutzer
+                    {t('users.statistics.totalUsers')}
                   </Typography>
                 </Paper>
               </Grid>
@@ -1005,7 +1019,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     {users.filter(u => Boolean(u.isActive)).length}
                   </Typography>
                   <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                    Aktive Benutzer
+                    {t('users.statistics.activeUsers')}
                   </Typography>
                 </Paper>
               </Grid>
@@ -1024,7 +1038,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     {users.filter(u => u.role === 'Administrator').length}
                   </Typography>
                   <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                    Administratoren
+                    {t('users.statistics.administrators')}
                   </Typography>
                 </Paper>
               </Grid>
@@ -1039,7 +1053,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                   }}
                 >
                   <Typography variant="h6" sx={{ color: '#fff', mb: 2 }}>
-                    Rollenverteilung
+                    {t('users.statistics.roleDistribution')}
                   </Typography>
                   {roles.map(role => {
                     const count = users.filter(u => u.role === role.role).length;
@@ -1096,13 +1110,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           },
         }}
       >
-        <DialogTitle>Neuen Benutzer erstellen</DialogTitle>
+        <DialogTitle>{t('users.dialogs.createUser')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Benutzername"
+                label={t('users.fields.username')}
                 value={formData.username}
                 onChange={e => setFormData({ ...formData, username: e.target.value })}
                 sx={{
@@ -1119,7 +1133,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="E-Mail"
+                label={t('users.fields.email')}
                 type="email"
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -1137,7 +1151,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Passwort"
+                label={t('users.fields.password')}
                 type="password"
                 value={formData.password}
                 onChange={e => setFormData({ ...formData, password: e.target.value })}
@@ -1154,11 +1168,11 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Rolle</InputLabel>
+                <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.role')}</InputLabel>
                 <Select
                   value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value })}
-                  label="Rolle"
+                  label={t('users.fields.role')}
                   sx={{
                     color: '#fff',
                     '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
@@ -1178,10 +1192,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)} sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleCreateUser} variant="contained" sx={{ backgroundColor: '#007AFF' }}>
-            Erstellen
+            {t('common.create')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1200,13 +1214,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           },
         }}
       >
-        <DialogTitle>Benutzer bearbeiten</DialogTitle>
+        <DialogTitle>{t('users.dialogs.editUser')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Benutzername"
+                label={t('users.fields.username')}
                 value={formData.username}
                 onChange={e => setFormData({ ...formData, username: e.target.value })}
                 sx={{
@@ -1223,7 +1237,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="E-Mail"
+                label={t('users.fields.email')}
                 type="email"
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -1241,11 +1255,11 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Neues Passwort (optional)"
+                label={t('users.fields.newPasswordOptional')}
                 type="password"
                 value={formData.password}
                 onChange={e => setFormData({ ...formData, password: e.target.value })}
-                helperText="Leer lassen, um das Passwort nicht zu ändern"
+                helperText={t('users.fields.passwordHelp')}
                 sx={{
                   '& .MuiInputBase-root': { color: '#fff' },
                   '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
@@ -1260,11 +1274,11 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Rolle</InputLabel>
+                <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.role')}</InputLabel>
                 <Select
                   value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value })}
-                  label="Rolle"
+                  label={t('users.fields.role')}
                   sx={{
                     color: '#fff',
                     '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
@@ -1284,10 +1298,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialog(false)} sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleUpdateUser} variant="contained" sx={{ backgroundColor: '#007AFF' }}>
-            Speichern
+            {t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>

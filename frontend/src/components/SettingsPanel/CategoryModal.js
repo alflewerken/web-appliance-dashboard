@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Edit, Plus } from 'lucide-react';
 import { iconMap } from '../../utils/iconMap';
 import { COLOR_PRESETS } from '../../utils/constants';
@@ -12,6 +13,7 @@ const CategoryModal = ({
   onSave,
   isLoading = false,
 }) => {
+  const { t } = useTranslation();
   const isEditing = !!category;
 
   const [formData, setFormData] = useState({
@@ -28,7 +30,7 @@ const CategoryModal = ({
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      setError('Name ist erforderlich');
+      setError(t('validation.nameRequired'));
       return;
     }
 
@@ -44,12 +46,12 @@ const CategoryModal = ({
             {isEditing ? (
               <>
                 <Edit size={24} style={{ marginRight: '12px' }} />
-                Kategorie bearbeiten
+                {t('categories.editCategory')}
               </>
             ) : (
               <>
                 <Plus size={24} style={{ marginRight: '12px' }} />
-                Neue Kategorie
+                {t('categories.newCategory')}
               </>
             )}
           </h2>
@@ -64,14 +66,14 @@ const CategoryModal = ({
           <form onSubmit={handleSubmit} className="category-form">
             <div className="form-row">
               <div className="form-group">
-                <label>Name *</label>
+                <label>{t('common.name')} *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={e =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  placeholder="z.B. Smart Home"
+                  placeholder={t('categories.namePlaceholder')}
                   required
                 />
               </div>
@@ -79,21 +81,21 @@ const CategoryModal = ({
 
             <div className="form-row">
               <div className="form-group">
-                <label>Beschreibung</label>
+                <label>{t('common.description')}</label>
                 <input
                   type="text"
                   value={formData.description}
                   onChange={e =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  placeholder="z.B. Home Automation Services"
+                  placeholder={t('categories.descriptionPlaceholder')}
                 />
               </div>
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Icon</label>
+                <label>{t('common.icon')}</label>
                 <div className="icon-selector-container">
                   <button
                     type="button"
@@ -107,7 +109,7 @@ const CategoryModal = ({
                       <span className="selected-icon-name">
                         {formData.icon}
                       </span>
-                      <small>Klicken zum Ändern</small>
+                      <small>{t('common.clickToChange')}</small>
                     </div>
                     <Edit size={16} className="edit-icon" />
                   </button>
@@ -117,7 +119,7 @@ const CategoryModal = ({
 
             <div className="form-row">
               <div className="form-group">
-                <label>Farbe</label>
+                <label>{t('common.color')}</label>
                 <div className="color-grid">
                   {COLOR_PRESETS.map(color => (
                     <button
@@ -135,7 +137,7 @@ const CategoryModal = ({
             {/* Preview */}
             <div className="form-row">
               <div className="form-group">
-                <label>Vorschau</label>
+                <label>{t('common.preview')}</label>
                 <div className="category-preview-box">
                   <div
                     className="category-icon-preview"
@@ -160,7 +162,7 @@ const CategoryModal = ({
             className="btn-secondary"
             disabled={isLoading}
           >
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
@@ -171,12 +173,12 @@ const CategoryModal = ({
             {isLoading ? (
               <>
                 <div className="spinner-small"></div>
-                {isEditing ? 'Speichern...' : 'Erstellen...'}
+                {isEditing ? t('common.saving') : t('common.creating')}
               </>
             ) : isEditing ? (
-              'Speichern'
+              t('common.save')
             ) : (
-              'Erstellen'
+              t('common.create')
             )}
           </button>
         </div>

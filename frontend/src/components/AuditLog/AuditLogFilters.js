@@ -1,6 +1,7 @@
 // Audit Log Filter Component - Responsive Version
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   TextField,
@@ -93,6 +94,7 @@ const AuditLogFilters = ({
   uniqueResourceTypes,
   cardStyles,
 }) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const isSmallScreen = useMediaQuery('(max-width:900px)');
   const isMediumScreen = useMediaQuery('(max-width:1200px)');
@@ -110,7 +112,7 @@ const AuditLogFilters = ({
             <TextField
               fullWidth
               size="small"
-              placeholder="Suchen..."
+              placeholder={t('auditLog.search')}
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               InputProps={{

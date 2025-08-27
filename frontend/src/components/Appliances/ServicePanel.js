@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import RustDeskInstaller from '../RemoteDesktop/RustDeskInstaller';
 import RustDeskSetupDialog from '../RemoteDesktop/RustDeskSetupDialog';
@@ -1030,11 +1031,13 @@ const ServicePanel = ({
     {}
   );
 
+  const { t } = useTranslation();
+
   // Tab components - Visual Tab entfernt
   const tabs = ['commands', 'service'];
   const tabLabels = {
-    commands: { icon: Command, label: 'Kommandos' },
-    service: { icon: Edit, label: 'Service-Einstellungen' },
+    commands: { icon: Command, label: t('services.commands') },
+    service: { icon: Edit, label: t('services.serviceSettings') },
   };
 
   // Debug logging
@@ -1059,7 +1062,7 @@ const ServicePanel = ({
       {/* Header */}
       {console.log('[ServicePanel Render] formData.name:', formData.name, 'appliance.name:', appliance?.name)}
       <UnifiedPanelHeader 
-        title={appliance?.isNew ? 'Neuer Service' : formData.name || appliance?.name || 'Service bearbeiten'}
+        title={appliance?.isNew ? t('services.newService') : formData.name || appliance?.name || t('services.editService')}
         icon={Edit}
         onClose={onClose}
       />
@@ -1869,7 +1872,7 @@ const ServicePanel = ({
                                       },
                                       transition: 'all 0.2s ease',
                                     }}
-                                    title="Ausführen"
+                                    title={t('common.execute')}
                                   >
                                     {executingCommandId === command.id ? (
                                       <CircularProgress size={20} sx={{ color: '#34C759' }} />
@@ -1889,7 +1892,7 @@ const ServicePanel = ({
                                       },
                                       transition: 'all 0.2s ease',
                                     }}
-                                    title="Terminal"
+                                    title={t('terminal.title')}
                                   >
                                     <Terminal size={20} />
                                   </IconButton>
@@ -1907,7 +1910,7 @@ const ServicePanel = ({
                                       },
                                       transition: 'all 0.2s ease',
                                     }}
-                                    title="Bearbeiten"
+                                    title={t('common.edit')}
                                   >
                                     <Edit2 size={20} />
                                   </IconButton>
@@ -1925,7 +1928,7 @@ const ServicePanel = ({
                                       },
                                       transition: 'all 0.2s ease',
                                     }}
-                                    title="Löschen"
+                                    title={t('common.delete')}
                                   >
                                     <Trash2 size={20} />
                                   </IconButton>

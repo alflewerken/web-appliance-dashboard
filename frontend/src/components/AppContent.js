@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Server, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ApplianceCard, ApplianceCardErrorBoundary } from './Appliances';
 import { useCategorySwipe } from '../hooks/useCategorySwipe';
 import { getFilteredAppliances, getTimeBasedSections } from '../utils';
@@ -31,6 +32,8 @@ const AppContent = ({
   swipeInfo,
   showOnlyWithStatus,
 }) => {
+  const { t } = useTranslation();
+  
   // Use swipe hook for mobile
   const {
     containerRef,
@@ -128,16 +131,16 @@ const AppContent = ({
           <div className="empty-icon">
             <Server size={64} />
           </div>
-          <h3>Keine Services gefunden</h3>
+          <h3>{t('common.noData')}</h3>
           <p>
             {searchTerm
-              ? `Keine Services gefunden für "${searchTerm}"`
-              : 'Fügen Sie Ihren ersten Service hinzu'}
+              ? t('messages.noServicesFoundFor', { searchTerm })
+              : t('messages.addFirstService')}
           </p>
           {!searchTerm && (
             <button onClick={onAddService} className="btn-primary">
               <Plus size={20} />
-              Service hinzufügen
+              {t('common.add')}
             </button>
           )}
         </div>
@@ -150,7 +153,7 @@ const AppContent = ({
         <>
           {catSections.lastHour.length > 0 && (
             <section className="content-section recent-section">
-              <h2>Letzte Stunde</h2>
+              <h2>{t('recent.lastHour')}</h2>
               <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastHour.map(renderApplianceCard)}
               </div>
@@ -159,7 +162,7 @@ const AppContent = ({
 
           {catSections.lastTwoHours.length > 0 && (
             <section className="content-section recent-section">
-              <h2>Letzte 2 Stunden</h2>
+              <h2>{t('recent.lastTwoHours')}</h2>
               <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastTwoHours.map(renderApplianceCard)}
               </div>
@@ -168,7 +171,7 @@ const AppContent = ({
 
           {catSections.lastFiveHours.length > 0 && (
             <section className="content-section recent-section">
-              <h2>Letzte 5 Stunden</h2>
+              <h2>{t('recent.lastFiveHours')}</h2>
               <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastFiveHours.map(renderApplianceCard)}
               </div>
@@ -177,7 +180,7 @@ const AppContent = ({
 
           {catSections.lastTwentyFourHours.length > 0 && (
             <section className="content-section recent-section">
-              <h2>Letzte 24 Stunden</h2>
+              <h2>{t('recent.lastTwentyFourHours')}</h2>
               <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastTwentyFourHours.map(renderApplianceCard)}
               </div>
@@ -186,7 +189,7 @@ const AppContent = ({
 
           {catSections.lastWeek.length > 0 && (
             <section className="content-section recent-section">
-              <h2>Letzte Woche</h2>
+              <h2>{t('recent.lastWeek')}</h2>
               <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
                 {catSections.lastWeek.map(renderApplianceCard)}
               </div>
@@ -199,7 +202,12 @@ const AppContent = ({
     // Standard Grid-Ansicht
     return (
       <section className="content-section">
-        <h2>{category?.name || 'Alle Services'}</h2>
+        <h2>
+          {category?.id === 'all' ? t('categories.all') :
+           category?.id === 'recent' ? t('categories.recent') :
+           category?.id === 'favorites' ? t('categories.favorites') :
+           category?.name || t('categories.allServices')}
+        </h2>
         <div className="appliances-grid" style={{ '--card-size': `${cardSize}px` }}>
           {catAppliances.map(renderApplianceCard)}
         </div>

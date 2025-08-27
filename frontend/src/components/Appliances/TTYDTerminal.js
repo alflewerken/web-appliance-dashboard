@@ -2,12 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { X, Maximize2, Minimize2, RefreshCw, ExternalLink } from 'lucide-react';
 import TerminalIcon from '@mui/icons-material/Terminal';
+import { useTranslation } from 'react-i18next';
 import './TTYDTerminal.css';
 import { moveTerminalToNewWindow } from '../../utils/terminalWindow';
 import axios from '../../utils/axiosConfig';
 import '../../utils/terminalErrorSuppressor';
 
 const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = null, title = 'Terminal' }) => {
+  const { t } = useTranslation();
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
   if (!show) return null;
@@ -181,28 +183,28 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
             <button
               className="control-btn new-window"
               onClick={handleOpenInNewWindow}
-              title="In neuem Fenster öffnen"
+              title={t('services.openInNewWindow')}
             >
               <ExternalLink size={16} />
             </button>
             <button
               className="control-btn refresh"
               onClick={handleRefresh}
-              title="Refresh"
+              title={t('services.refresh')}
             >
               <RefreshCw size={16} />
             </button>
             <button
               className="control-btn maximize"
               onClick={toggleFullscreen}
-              title={isFullscreen ? 'Restore' : 'Maximize'}
+              title={isFullscreen ? t('terminal.restore') : t('terminal.maximize')}
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
             <button
               className="control-btn close"
               onClick={onHide}
-              title="Close"
+              title={t('common.close')}
             >
               <X size={16} />
             </button>

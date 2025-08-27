@@ -3,11 +3,11 @@ import { Grid, Clock, Heart } from 'lucide-react';
 // Konstanten für die Anwendung
 
 export const constants = {
-  // Statische Kategorien für Sidebar
+  // Statische Kategorien für Sidebar - mit translationKey für i18n
   staticCategories: [
-    { id: 'all', name: 'Alle Services', icon: Grid, color: '#8E8E93' },
-    { id: 'recent', name: 'Zuletzt verwendet', icon: Clock, color: '#FF9500' },
-    { id: 'favorites', name: 'Favoriten', icon: Heart, color: '#FF3B30' },
+    { id: 'all', name: 'All Services', translationKey: 'categories.all', icon: Grid, color: '#8E8E93' },
+    { id: 'recent', name: 'Recently Used', translationKey: 'categories.recent', icon: Clock, color: '#FF9500' },
+    { id: 'favorites', name: 'Favorites', translationKey: 'categories.favorites', icon: Heart, color: '#FF3B30' },
   ],
   // Farbpalette
   colorPresets: [

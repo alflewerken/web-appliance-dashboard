@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, X, Grid, Activity } from 'lucide-react';
 
 const MobileSearchHeader = ({
@@ -9,6 +10,7 @@ const MobileSearchHeader = ({
   showOnlyWithStatus,
   setShowOnlyWithStatus,
 }) => {
+  const { t } = useTranslation();
   const [showSizeSlider, setShowSizeSlider] = React.useState(false);
   const sliderRef = React.useRef(null);
 
@@ -47,7 +49,7 @@ const MobileSearchHeader = ({
         />
         <input
           type="text"
-          placeholder="Suchen"
+          placeholder={t('common.search')}
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="mobile-search-input"
@@ -93,8 +95,8 @@ const MobileSearchHeader = ({
         className={`mobile-status-toggle-btn ${showOnlyWithStatus ? 'active' : ''}`}
         title={
           showOnlyWithStatus
-            ? 'Alle Services anzeigen'
-            : 'Nur Services mit Status anzeigen'
+            ? t('common.showAllServices')
+            : t('common.showOnlyServicesWithStatus')
         }
       >
         <Activity size={20} />
@@ -123,7 +125,7 @@ const MobileSearchHeader = ({
                 fontWeight: '600',
               }}
             >
-              Kachelgröße: {cardSize}px
+              {t('common.tileSize')}: {cardSize}px
             </div>
             <input
               type="range"
@@ -144,9 +146,9 @@ const MobileSearchHeader = ({
                 color: 'rgba(255, 255, 255, 0.6)',
               }}
             >
-              <span>Klein</span>
-              <span>Mittel</span>
-              <span>Groß</span>
+              <span>{t('common.small')}</span>
+              <span>{t('common.medium')}</span>
+              <span>{t('common.large')}</span>
             </div>
           </div>
         </>

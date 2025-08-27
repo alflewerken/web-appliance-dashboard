@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getIconNames } from '../utils/lucideIconsLoader';
 import SimpleIcon from './SimpleIcon';
 import './IconSelector.css';
 
-// Icon-Kategorien für bessere Organisation
+// Icon-Kategorien für bessere Organisation - mit Keys die zu den Übersetzungen passen
 const ICON_CATEGORIES = {
-  Basis: [
+  basics: [
     'Home',
     'Server',
     'Cloud',
@@ -22,7 +23,7 @@ const ICON_CATEGORIES = {
     'Star',
     'Settings',
   ],
-  Geräte: [
+  devices: [
     'Smartphone',
     'Tv',
     'Camera',
@@ -34,7 +35,7 @@ const ICON_CATEGORIES = {
     'Cpu',
     'HardDrive',
   ],
-  Kommunikation: [
+  communication: [
     'Mail',
     'MessageCircle',
     'MessageSquare',
@@ -44,7 +45,7 @@ const ICON_CATEGORIES = {
     'Share',
     'Link',
   ],
-  Dateien: [
+  files: [
     'FileText',
     'Archive',
     'Folder',
@@ -56,9 +57,9 @@ const ICON_CATEGORIES = {
     'Save',
     'Copy',
   ],
-  Bücher: ['BookOpen', 'Bookmark'],
-  Medien: ['Music', 'Video', 'Image', 'Film', 'Youtube'],
-  Produktivität: [
+  books: ['BookOpen', 'Bookmark'],
+  media: ['Music', 'Video', 'Image', 'Film', 'Youtube'],
+  productivity: [
     'Calendar',
     'Timer',
     'Bell',
@@ -67,8 +68,8 @@ const ICON_CATEGORIES = {
     'Filter',
     'Edit',
   ],
-  'Smart Home': ['Thermometer', 'Lightbulb', 'Fan', 'Plug', 'Battery', 'Power'],
-  Benutzerverwaltung: [
+  smartHome: ['Thermometer', 'Lightbulb', 'Fan', 'Plug', 'Battery', 'Power'],
+  userManagement: [
     'Users',
     'User',
     'UserPlus',
@@ -78,14 +79,14 @@ const ICON_CATEGORIES = {
     'Lock',
     'Key',
   ],
-  'Charts & Trends': [
+  chartsAndTrends: [
     'TrendingUp',
     'TrendingDown',
     'BarChart',
     'PieChart',
     'Target',
   ],
-  Navigation: [
+  navigation: [
     'MapPin',
     'Map',
     'Compass',
@@ -94,16 +95,16 @@ const ICON_CATEGORIES = {
     'Plane',
     'Train',
   ],
-  'Shopping & Finanzen': [
+  shoppingFinance: [
     'ShoppingCart',
     'CreditCard',
     'Wallet',
     'DollarSign',
     'Euro',
   ],
-  Werkzeuge: ['Wrench', 'Hammer', 'Paintbrush', 'Palette'],
-  'Essen & Trinken': ['Coffee', 'Pizza', 'Utensils', 'Wine'],
-  Wetter: [
+  tools: ['Wrench', 'Hammer', 'Paintbrush', 'Palette'],
+  foodDrink: ['Coffee', 'Pizza', 'Utensils', 'Wine'],
+  weather: [
     'Sun',
     'Moon',
     'CloudRain',
@@ -113,8 +114,8 @@ const ICON_CATEGORIES = {
     'Droplets',
     'Snowflake',
   ],
-  Natur: ['TreePine', 'Flower', 'Leaf', 'Fish', 'Bird'],
-  Aktionen: [
+  nature: ['TreePine', 'Flower', 'Leaf', 'Fish', 'Bird'],
+  actions: [
     'Plus',
     'Minus',
     'X',
@@ -124,8 +125,8 @@ const ICON_CATEGORIES = {
     'Eye',
     'EyeOff',
   ],
-  Warnungen: ['AlertTriangle', 'AlertCircle', 'Info', 'HelpCircle'],
-  Symbole: [
+  warnings: ['AlertTriangle', 'AlertCircle', 'Info', 'HelpCircle'],
+  symbols: [
     'Hash',
     'AtSign',
     'Percent',
@@ -138,8 +139,9 @@ const ICON_CATEGORIES = {
 };
 
 const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClose }) => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Alle');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [tempSelectedIcon, setTempSelectedIcon] = useState(currentIcon || selectedIcon);
 
   const allIcons = getIconNames();
@@ -149,7 +151,7 @@ const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClo
     let icons = allIcons;
 
     // Kategorie-Filter - versuche beide Varianten (mit und ohne "Icon" suffix)
-    if (selectedCategory !== 'Alle') {
+    if (selectedCategory !== 'all') {
       icons = icons.filter(icon => {
         const baseIconName = icon.replace(/Icon$/, '');
         return (
@@ -169,13 +171,13 @@ const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClo
     return icons;
   }, [searchTerm, selectedCategory, allIcons]);
 
-  const categories = ['Alle', ...Object.keys(ICON_CATEGORIES)];
+  const categories = ['all', ...Object.keys(ICON_CATEGORIES)];
 
   return ReactDOM.createPortal(
     <div className="icon-selector-overlay" onClick={onClose}>
       <div className="icon-selector-modal" onClick={e => e.stopPropagation()}>
         <div className="icon-selector-header">
-          <h3>Icon auswählen</h3>
+          <h3>{t('iconSelector.title')}</h3>
           <button className="close-btn" onClick={onClose}>
             <X size={20} />
           </button>
@@ -187,7 +189,7 @@ const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClo
             <Search size={16} className="search-icon" />
             <input
               type="text"
-              placeholder="Icon suchen..."
+              placeholder={t('common.search') + '...'}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="search-input"
@@ -202,8 +204,8 @@ const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClo
                 className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
                 onClick={() => setSelectedCategory(category)}
               >
-                {category}
-                {category !== 'Alle' && (
+                {t(`iconCategories.${category}`)}
+                {category !== 'all' && (
                   <span className="category-count">
                     {ICON_CATEGORIES[category]?.length || 0}
                   </span>
@@ -216,10 +218,9 @@ const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClo
         <div className="icon-selector-content">
           {filteredIcons.length === 0 ? (
             <div className="no-icons-found">
-              <p>Keine Icons gefunden</p>
+              <p>{t('iconSelector.noIconsFound')}</p>
               <small>
-                Versuchen Sie einen anderen Suchbegriff oder eine andere
-                Kategorie
+                {t('iconSelector.tryDifferentSearch')}
               </small>
             </div>
           ) : (
@@ -243,12 +244,12 @@ const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClo
           <div className="footer-content">
             {tempSelectedIcon && (
               <div className="current-selection">
-                Ausgewählt: <strong>{tempSelectedIcon}</strong>
+                {t('iconSelector.selected')}: <strong>{tempSelectedIcon}</strong>
               </div>
             )}
             <div className="footer-buttons">
               <button className="cancel-btn" onClick={onClose}>
-                Abbrechen
+                {t('common.cancel')}
               </button>
               <button
                 className="select-btn"
@@ -264,7 +265,7 @@ const IconSelector = ({ currentIcon, selectedIcon, onSelect, onIconSelect, onClo
                 }}
                 disabled={!tempSelectedIcon}
               >
-                Auswählen
+                {t('common.select')}
               </button>
             </div>
           </div>

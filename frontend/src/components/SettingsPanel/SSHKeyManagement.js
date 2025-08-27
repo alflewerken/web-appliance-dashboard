@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -36,6 +37,7 @@ import axios from '../../utils/axiosConfig';
 import { copyToClipboard } from '../../utils/clipboard';
 
 const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyName }) => {
+  const { t } = useTranslation();
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -283,29 +285,28 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6">SSH-Schlüssel Verwaltung</Typography>
+        <Typography variant="h6">{t('sshKeys.title')}</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="contained"
             startIcon={<Plus size={20} />}
             onClick={() => setShowGenerateDialog(true)}
           >
-            Schlüssel generieren
+            {t('sshKeys.generateKey')}
           </Button>
           <Button
             variant="outlined"
             startIcon={<Upload size={20} />}
             onClick={() => setShowImportDialog(true)}
           >
-            Schlüssel importieren
+            {t('sshKeys.importKey')}
           </Button>
         </Box>
       </Box>
 
       {/* Info Alert */}
       <Alert severity="info" sx={{ mb: 3 }}>
-        SSH-Schlüssel werden sicher auf dem Server gespeichert und sind nur für Sie zugänglich. 
-        Sie können öffentliche und private Schlüssel in die Zwischenablage kopieren oder herunterladen.
+        {t('sshKeys.infoMessage')}
       </Alert>
 
       {/* Keys Cards */}
@@ -324,7 +325,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
           borderRadius: 2,
         }}>
           <Typography color="text.secondary">
-            Keine SSH-Schlüssel vorhanden. Klicken Sie auf "Schlüssel generieren" um einen neuen zu erstellen.
+            {t('sshKeys.noKeysMessage')}
           </Typography>
         </Paper>
       ) : (
@@ -365,7 +366,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                         </Typography>
                         {key.hostCount > 0 && (
                           <Chip 
-                            label={`${key.hostCount} ${key.hostCount === 1 ? 'Host' : 'Hosts'}`}
+                            label={`${key.hostCount} ${key.hostCount === 1 ? t('sshKeys.host') : t('sshKeys.hosts')}`}
                             size="small"
                             sx={{
                               backgroundColor: 'rgba(138, 43, 226, 0.2)',
@@ -386,7 +387,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                   
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    <Tooltip title="Bearbeiten">
+                    <Tooltip title={t('sshKeys.actions.edit')}>
                       <IconButton 
                         size="small" 
                         onClick={() => handleEditKey(key)}
@@ -401,7 +402,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                         <Edit2 size={18} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Öffentlichen Schlüssel kopieren">
+                    <Tooltip title={t('sshKeys.actions.copyPublic')}>
                       <IconButton 
                         size="small" 
                         onClick={() => handleCopyPublicKey(key.keyName)}
@@ -416,7 +417,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                         <Copy size={18} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Privaten Schlüssel kopieren">
+                    <Tooltip title={t('sshKeys.actions.copyPrivate')}>
                       <IconButton 
                         size="small" 
                         onClick={() => handleCopyPrivateKey(key.keyName)}
@@ -431,7 +432,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                         <Key size={18} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Herunterladen">
+                    <Tooltip title={t('sshKeys.actions.download')}>
                       <IconButton 
                         size="small" 
                         onClick={() => handleDownloadKey(key.keyName, 'public')}
@@ -446,7 +447,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                         <Download size={18} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title={key.hostCount > 0 ? `Kann nicht gelöscht werden - wird von ${key.hostCount} ${key.hostCount === 1 ? 'Host' : 'Hosts'} verwendet` : 'Löschen'}>
+                    <Tooltip title={key.hostCount > 0 ? t('sshKeys.cannotDelete', { count: key.hostCount, hosts: key.hostCount === 1 ? t('sshKeys.host') : t('sshKeys.hosts') }) : t('sshKeys.actions.delete')}>
                       <span>
                         <IconButton 
                           size="small" 
@@ -474,7 +475,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                 {/* Content */}
                 <Box sx={{ mb: 1 }}>
                   <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block', mb: 0.5 }}>
-                    Fingerprint
+                    {t('sshKeys.fingerprint')}
                   </Typography>
                   <Typography 
                     variant="body2" 
@@ -502,7 +503,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                   {key.comment && (
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block', mb: 0.5 }}>
-                        Kommentar
+                        {t('sshKeys.comment')}
                       </Typography>
                       <Typography variant="body2" sx={{ color: 'var(--text-primary)' }}>
                         {key.comment}
@@ -512,16 +513,16 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                   
                   <Box sx={{ textAlign: key.comment ? 'right' : 'left' }}>
                     <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block', mb: 0.5 }}>
-                      Erstellt am
+                      {t('sshKeys.createdAt')}
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'var(--text-primary)' }}>
-                      {key.createdAt ? new Date(key.createdAt).toLocaleDateString('de-DE', {
+                      {key.createdAt ? new Date(key.createdAt).toLocaleDateString(t('common.locale'), {
                         day: '2-digit',
                         month: '2-digit',
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
-                      }) : 'Unbekannt'}
+                      }) : t('common.unknown')}
                     </Typography>
                   </Box>
                 </Box>
@@ -537,26 +538,26 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>SSH-Schlüssel generieren</DialogTitle>
+        <DialogTitle>{t('sshKeys.dialogs.generate.title')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Schlüsselname"
+                label={t('sshKeys.keyName')}
                 value={generateForm.keyName}
                 onChange={(e) => setGenerateForm({ ...generateForm, keyName: e.target.value })}
                 required
-                helperText="Nur Buchstaben, Zahlen, Bindestriche und Unterstriche"
+                helperText={t('sshKeys.keyNameHelp')}
               />
             </Grid>
             <Grid item xs={6}>
               <FormControl fullWidth>
-                <InputLabel>Schlüsseltyp</InputLabel>
+                <InputLabel>{t('sshKeys.keyType')}</InputLabel>
                 <Select
                   value={generateForm.keyType}
                   onChange={(e) => setGenerateForm({ ...generateForm, keyType: e.target.value })}
-                  label="Schlüsseltyp"
+                  label={t('sshKeys.keyType')}
                 >
                   <MenuItem value="rsa">RSA</MenuItem>
                   <MenuItem value="ed25519">Ed25519</MenuItem>
@@ -566,11 +567,11 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
             </Grid>
             <Grid item xs={6}>
               <FormControl fullWidth disabled={generateForm.keyType === 'ed25519'}>
-                <InputLabel>Schlüsselgröße</InputLabel>
+                <InputLabel>{t('sshKeys.keySize')}</InputLabel>
                 <Select
                   value={generateForm.keySize}
                   onChange={(e) => setGenerateForm({ ...generateForm, keySize: e.target.value })}
-                  label="Schlüsselgröße"
+                  label={t('sshKeys.keySize')}
                 >
                   <MenuItem value={2048}>2048 bit</MenuItem>
                   <MenuItem value={3072}>3072 bit</MenuItem>
@@ -581,24 +582,24 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Kommentar (optional)"
+                label={t('sshKeys.comment')}
                 value={generateForm.comment}
                 onChange={(e) => setGenerateForm({ ...generateForm, comment: e.target.value })}
-                helperText="Z.B. 'Produktionsserver' oder 'Backup-System'"
+                helperText={t('sshKeys.commentHelp')}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowGenerateDialog(false)}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleGenerateKey} 
             variant="contained" 
             disabled={loading || !generateForm.keyName}
           >
-            Generieren
+            {t('sshKeys.generate')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -610,17 +611,17 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>SSH-Schlüssel importieren</DialogTitle>
+        <DialogTitle>{t('sshKeys.dialogs.import.title')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Schlüsselname"
+                label={t('sshKeys.keyName')}
                 value={importForm.keyName}
                 onChange={(e) => setImportForm({ ...importForm, keyName: e.target.value })}
                 required
-                helperText="Eindeutiger Name für diesen Schlüssel"
+                helperText={t('sshKeys.uniqueNameHelp')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -628,7 +629,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
                 fullWidth
                 multiline
                 rows={10}
-                label="Privater Schlüssel"
+                label={t('sshKeys.privateKey')}
                 value={importForm.privateKey}
                 onChange={(e) => setImportForm({ ...importForm, privateKey: e.target.value })}
                 required
@@ -640,24 +641,24 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
               <TextField
                 fullWidth
                 type="password"
-                label="Passphrase (falls verschlüsselt)"
+                label={t('sshKeys.passphrase')}
                 value={importForm.passphrase}
                 onChange={(e) => setImportForm({ ...importForm, passphrase: e.target.value })}
-                helperText="Leer lassen, wenn der Schlüssel nicht verschlüsselt ist"
+                helperText={t('sshKeys.passphraseHelp')}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowImportDialog(false)}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleImportKey} 
             variant="contained" 
             disabled={loading || !importForm.keyName || !importForm.privateKey}
           >
-            Importieren
+            {t('sshKeys.import')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -669,40 +670,40 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>SSH-Schlüssel bearbeiten</DialogTitle>
+        <DialogTitle>{t('sshKeys.dialogs.edit.title')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Schlüsselname"
+                label={t('sshKeys.keyName')}
                 value={editForm.keyName}
                 onChange={(e) => setEditForm({ ...editForm, keyName: e.target.value })}
                 disabled
-                helperText="Der Schlüsselname kann nicht geändert werden"
+                helperText={t('sshKeys.keyNameCannotBeChanged')}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Kommentar"
+                label={t('sshKeys.comment')}
                 value={editForm.comment}
                 onChange={(e) => setEditForm({ ...editForm, comment: e.target.value })}
-                helperText="Optionaler Kommentar oder Beschreibung"
+                helperText={t('sshKeys.optionalComment')}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowEditDialog(false)}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleUpdateKey} 
             variant="contained" 
             disabled={loading}
           >
-            Speichern
+            {t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -54,6 +55,7 @@ const floatAnimation = keyframes`
 `;
 
 const BackupTab = () => {
+  const { t } = useTranslation();
   const [createLoading, setCreateLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -80,7 +82,7 @@ const BackupTab = () => {
         setError(result.message);
       }
     } catch (error) {
-      setError('Fehler beim Erstellen des Backups: ' + error.message);
+      setError(t('backup.createError') + ': ' + error.message);
     } finally {
       setCreateLoading(false);
     }
@@ -96,7 +98,7 @@ const BackupTab = () => {
 
     const file = files[0];
     if (!file.name.endsWith('.json')) {
-      setError('Bitte wählen Sie eine JSON-Datei aus.');
+      setError(t('backup.selectJsonFile'));
       return;
     }
 
@@ -159,11 +161,10 @@ const BackupTab = () => {
           variant="h5"
           sx={{ mb: 1, fontWeight: 600, color: 'white' }}
         >
-          Backup & Wiederherstellung
+          {t('backup.title')}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Sichern Sie Ihre Einstellungen und stellen Sie sie bei Bedarf wieder
-          her
+          {t('backup.subtitle')}
         </Typography>
       </Box>
 
@@ -252,15 +253,14 @@ const BackupTab = () => {
                   }} />
                 </Box>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                  Backup erstellen
+                  {t('backup.createBackup')}
                 </Typography>
                 <Typography
                   variant="body2"
                   color="text.secondary"
                   sx={{ mb: 3 }}
                 >
-                  Sichert alle Services, Kategorien und Einstellungen in einer
-                  Datei
+                  {t('backup.createDescription')}
                 </Typography>
                 <Button
                   variant="contained"
@@ -286,8 +286,8 @@ const BackupTab = () => {
                   }}
                 >
                   {createLoading
-                    ? 'Erstelle Backup...'
-                    : 'Backup jetzt erstellen'}
+                    ? t('backup.creatingBackup')
+                    : t('backup.createBackupNow')}
                 </Button>
               </Box>
             </CardContent>
@@ -382,14 +382,14 @@ const BackupTab = () => {
                   }} />
                 </Box>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                  Backup wiederherstellen
+                  {t('backup.restoreBackup')}
                 </Typography>
                 <Typography
                   variant="body2"
                   color="text.secondary"
                   sx={{ mb: 3 }}
                 >
-                  Laden Sie eine Backup-Datei hoch oder ziehen Sie sie hierher
+                  {t('backup.restoreDescription')}
                 </Typography>
                 <input
                   type="file"
@@ -423,8 +423,8 @@ const BackupTab = () => {
                     }}
                   >
                     {restoreLoading
-                      ? 'Stelle wieder her...'
-                      : 'Datei auswählen'}
+                      ? t('backup.restoring')
+                      : t('backup.selectFile')}
                   </Button>
                 </label>
               </Box>
@@ -432,34 +432,6 @@ const BackupTab = () => {
           </Card>
         </Fade>
       </Box>
-
-      {/* Info Section */}
-      <Fade in timeout={1200}>
-        <Box sx={{ mt: 4 }}>
-          <Alert
-            severity="info"
-            icon={<Info />}
-            sx={{
-              background: 'rgba(33, 150, 243, 0.1)',
-              border: '1px solid rgba(33, 150, 243, 0.3)',
-              '& .MuiAlert-icon': {
-                color: 'info.main',
-              },
-            }}
-          >
-            <Typography variant="body2">
-              <strong>Tipp:</strong> Erstellen Sie regelmäßige Backups Ihrer
-              Konfiguration. Die Backup-Datei enthält alle Ihre Services,
-              Kategorien, SSH-Konfigurationen und Einstellungen.
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1, fontWeight: 600, color: '#ff9800' }}>
-              <strong>Wichtig:</strong> Remote Desktop Passwörter können nur wiederhergestellt werden, 
-              wenn der Verschlüsselungsschlüssel (SSH_KEY_ENCRYPTION_SECRET) übereinstimmt. 
-              Sichern Sie auch Ihre .env Datei!
-            </Typography>
-          </Alert>
-        </Box>
-      </Fade>
 
       {/* Snackbars */}
       <Snackbar

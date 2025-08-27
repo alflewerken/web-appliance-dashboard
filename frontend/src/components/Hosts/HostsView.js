@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import axios from '../../utils/axiosConfig';
 import HostCard from './HostCard';
 import sseService from '../../services/sseService';
@@ -18,6 +19,7 @@ const HostsView = ({
   isMobile,
   cardSize,
 }) => {
+  const { t } = useTranslation();
   const [hosts, setHosts] = useState(propsHosts || []);
   const [loading, setLoading] = useState(!propsHosts);
   const [error, setError] = useState(null);
@@ -185,7 +187,7 @@ const HostsView = ({
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
           }}
         >
-          Host hinzufügen
+          {t('hosts.addHost')}
         </Button>
       </div>
       
@@ -219,7 +221,7 @@ const HostsView = ({
             color: 'rgba(255, 255, 255, 0.6)',
             fontSize: '16px'
           }}>
-            Keine Hosts vorhanden. Klicken Sie auf "Host hinzufügen", um einen neuen Host zu erstellen.
+            {t('hosts.noHostsMessage')}
           </div>
         )}
       </div>

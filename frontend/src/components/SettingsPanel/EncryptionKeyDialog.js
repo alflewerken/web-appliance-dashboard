@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogTitle,
@@ -22,6 +23,7 @@ import {
 import { useState } from 'react';
 
 const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopyKey = () => {
@@ -53,7 +55,7 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
       >
         <Lock sx={{ color: '#FFD700' }} />
         <Typography variant="h6">
-          Wichtig: Verschlüsselungsschlüssel Ihres Backups
+          {t('encryptionDialog.title')}
         </Typography>
       </DialogTitle>
 
@@ -70,10 +72,7 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
           }}
         >
           <Typography variant="body2">
-            <strong>Achtung:</strong> Dieser Schlüssel wird benötigt, um die
-            verschlüsselten Passwörter der Remote-Hosts nach einer
-            Wiederherstellung zu entschlüsseln. Ohne diesen Schlüssel müssen
-            alle Remote-Host-Passwörter neu eingegeben werden!
+            <strong>{t('encryptionDialog.attention')}:</strong> {t('encryptionDialog.warning')}
           </Typography>
         </Alert>
 
@@ -83,7 +82,7 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
             sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
           >
             <VpnKey sx={{ fontSize: 20 }} />
-            <strong>Ihr Verschlüsselungsschlüssel:</strong>
+            <strong>{t('encryptionDialog.yourKey')}:</strong>
           </Typography>
 
           <Paper
@@ -108,7 +107,7 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
             >
               {encryptionKey}
             </Typography>
-            <Tooltip title={copied ? 'Kopiert!' : 'In Zwischenablage kopieren'}>
+            <Tooltip title={copied ? t('encryptionDialog.copied') : t('encryptionDialog.copyToClipboard')}>
               <IconButton
                 onClick={handleCopyKey}
                 size="small"
@@ -128,12 +127,12 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
         <Box sx={{ mb: 2 }}>
           <Typography variant="h6" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Security sx={{ fontSize: 20 }} />
-            Was wird verschlüsselt?
+            {t('encryptionDialog.whatIsEncrypted')}
           </Typography>
           <Typography variant="body2" sx={{ ml: 3 }}>
-            • Passwörter für SSH-Verbindungen zu Remote-Hosts<br />
-            • Passwörter für VNC/RDP-Verbindungen (Remote Desktop)<br />
-            • Andere sensitive Zugangsdaten
+            • {t('encryptionDialog.encryptedItem1')}<br />
+            • {t('encryptionDialog.encryptedItem2')}<br />
+            • {t('encryptionDialog.encryptedItem3')}
           </Typography>
         </Box>
 
@@ -147,13 +146,13 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
           }}
         >
           <Typography variant="body2">
-            <strong>Empfohlene Aufbewahrung:</strong>
+            <strong>{t('encryptionDialog.recommendedStorage')}:</strong>
           </Typography>
           <Typography variant="body2" sx={{ mt: 1, ml: 2 }}>
-            • Speichern Sie den Schlüssel in einem <strong>Passwort-Manager</strong> (z.B. KeePass, Bitwarden, 1Password)<br />
-            • Notieren Sie sich den Schlüssel an einem <strong>sicheren Ort</strong><br />
-            • Speichern Sie ihn <strong>NICHT</strong> zusammen mit dem Backup<br />
-            • Teilen Sie den Schlüssel <strong>NICHT</strong> mit unbefugten Personen
+            • {t('encryptionDialog.storageOption1')}<br />
+            • {t('encryptionDialog.storageOption2')}<br />
+            • {t('encryptionDialog.storageOption3')}<br />
+            • {t('encryptionDialog.storageOption4')}
           </Typography>
         </Alert>
       </DialogContent>
@@ -169,7 +168,7 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
             },
           }}
         >
-          Verstanden
+          {t('common.understood')}
         </Button>
       </DialogActions>
     </Dialog>

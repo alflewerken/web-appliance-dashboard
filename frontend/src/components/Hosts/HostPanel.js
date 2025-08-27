@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import SSHKeyManagement from '../SettingsPanel/SSHKeyManagement';
 import sseService from '../../services/sseService';
@@ -62,6 +63,7 @@ const HostPanel = ({
   onWidthChange,
   defaultWidth = 600
 }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -404,7 +406,7 @@ const HostPanel = ({
   // Register SSH key on host
   const registerSSHKeyOnHost = async () => {
     if (!selectedKey || !formData.password) {
-      setError('Bitte wählen Sie einen Schlüssel und geben Sie das Passwort ein');
+      setError(t('hosts.errors.selectKeyAndPassword'));
       return;
     }
 
@@ -420,13 +422,13 @@ const HostPanel = ({
       });
 
       if (response.data.success) {
-        setSuccess('SSH-Schlüssel erfolgreich auf dem Host registriert');
+        setSuccess(t('hosts.success.sshKeyRegistered'));
         // Clear password after successful registration
         handleInputChange('password', '');
       }
     } catch (error) {
       console.error('Error registering SSH key:', error);
-      setError(error.response?.data?.error || 'Fehler beim Registrieren des SSH-Schlüssels');
+      setError(error.response?.data?.error || t('hosts.errors.registerKeyFailed'));
     } finally {
       setRegisteringKey(false);
     }
@@ -435,7 +437,7 @@ const HostPanel = ({
   // Check RustDesk status and get ID
   const checkRustDeskStatus = async () => {
     if (!host || host.isNew) {
-      setError('Host muss zuerst gespeichert werden');
+      setError(t('hosts.errors.hostMustBeSaved'));
       return;
     }
 
@@ -713,8 +715,8 @@ const HostPanel = ({
             },
           }}
         >
-          <Tab label="Allgemein" />
-          <Tab label="SSH-Schlüssel" />
+          <Tab label={t('hosts.tabs.general')} />
+          <Tab label={t('hosts.tabs.sshKeys')} />
         </Tabs>
       </Box>
 
@@ -727,29 +729,29 @@ const HostPanel = ({
             <Card sx={cardStyles}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                  Grundinformationen
+                  {t('hosts.sections.basicInfo')}
                 </Typography>
 
                 <TextField
                   fullWidth
-                  label="Name"
+                  label={t('hosts.name')}
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   margin="normal"
                   required
-                  placeholder="z.B. Mein Server"
+                  placeholder={t('hosts.placeholders.name')}
                   sx={textFieldStyles}
                 />
 
                 <TextField
                   fullWidth
-                  label="Beschreibung"
+                  label={t('hosts.description')}
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   margin="normal"
                   multiline
                   rows={2}
-                  placeholder="Optionale Beschreibung des Hosts"
+                  placeholder={t('hosts.placeholders.description')}
                   sx={textFieldStyles}
                 />
               </CardContent>
@@ -759,23 +761,23 @@ const HostPanel = ({
             <Card sx={cardStyles}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                  Verbindungseinstellungen
+                  {t('hosts.sections.connectionSettings')}
                 </Typography>
 
                 <TextField
                   fullWidth
-                  label="Hostname / IP-Adresse"
+                  label={t('hosts.hostname')}
                   value={formData.hostname}
                   onChange={(e) => handleInputChange('hostname', e.target.value)}
                   margin="normal"
                   required
-                  placeholder="z.B. 192.168.1.100 oder server.local"
+                  placeholder={t('hosts.placeholders.hostname')}
                   sx={textFieldStyles}
                 />
 
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   <TextField
-                    label="Port"
+                    label={t('hosts.port')}
                     type="number"
                     value={formData.port}
                     onChange={(e) => handleInputChange('port', parseInt(e.target.value) || 22)}
@@ -786,12 +788,12 @@ const HostPanel = ({
 
                   <TextField
                     fullWidth
-                    label="Benutzername"
+                    label={t('hosts.username')}
                     value={formData.username}
                     onChange={(e) => handleInputChange('username', e.target.value)}
                     margin="normal"
                     required
-                    placeholder="z.B. root"
+                    placeholder={t('hosts.placeholders.username')}
                     sx={textFieldStyles}
                   />
                 </Box>
@@ -802,7 +804,7 @@ const HostPanel = ({
             <Card sx={cardStyles}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                  Authentifizierung
+                  {t('hosts.sections.authentication')}
                 </Typography>
 
                 <FormControl fullWidth margin="normal">
@@ -815,11 +817,11 @@ const HostPanel = ({
                       },
                     }}
                   >
-                    SSH-Schlüssel
+                    {t('hosts.sshKey')}
                   </InputLabel>
                   <Select
                     labelId="ssh-key-select-label"
-                    label="SSH-Schlüssel"
+                    label={t('hosts.sshKey')}
                     value={selectedKey || ''}
                     onChange={(e) => {
                       const keyName = e.target.value;
@@ -827,14 +829,14 @@ const HostPanel = ({
                       handleInputChange('sshKeyName', keyName);
                     }}
                     renderValue={(value) => {
-                      if (!value) return <em>Bitte wählen...</em>;
+                      if (!value) return <em>{t('common.pleaseSelect')}</em>;
                       const key = sshKeys.find(k => k.keyName === value);
                       return (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Key size={16} />
                           <span>{value}</span>
                           {key?.isDefault && (
-                            <Chip label="Standard" size="small" color="primary" sx={{ ml: 1, height: 20 }} />
+                            <Chip label={t('common.default')} size="small" color="primary" sx={{ ml: 1, height: 20 }} />
                           )}
                         </Box>
                       );
@@ -869,7 +871,7 @@ const HostPanel = ({
                           <span style={{ flexGrow: 1 }}>{key.keyName}</span>
                           {key.isDefault && (
                             <Chip 
-                              label="Standard" 
+                              label={t('common.default')}
                               size="small" 
                               color="primary" 
                               sx={{ ml: 'auto', height: 20 }} 
@@ -884,13 +886,13 @@ const HostPanel = ({
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                   <TextField
                     fullWidth
-                    label="Passwort"
+                    label={t('hosts.password')}
                     type="password"
                     value={formData.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
                     margin="normal"
-                    placeholder="Optional - für Passwort-Authentifizierung oder Schlüssel-Registrierung"
-                    helperText={selectedKey && formData.password ? "Klicken Sie auf 'Schlüssel registrieren' um den ausgewählten SSH-Schlüssel auf dem Host zu hinterlegen" : ""}
+                    placeholder={t('hosts.placeholders.passwordOptional')}
+                    helperText={selectedKey && formData.password ? t('hosts.registerKeyHint') : ""}
                     sx={textFieldStyles}
                   />
                   {formData.password && selectedKey && (
@@ -901,7 +903,7 @@ const HostPanel = ({
                       startIcon={registeringKey ? <CircularProgress size={16} /> : <Key size={16} />}
                       sx={{ mt: 2.5, minWidth: '150px' }}
                     >
-                      {registeringKey ? 'Registriere...' : 'Schlüssel registrieren'}
+                      {registeringKey ? t('common.registering') : t('hosts.buttons.registerKey')}
                     </Button>
                   )}
                 </Box>
@@ -916,7 +918,7 @@ const HostPanel = ({
                     }
                   }}
                 >
-                  Das Passwort wird nicht gespeichert. Es wird nur zur Authentifizierung für den Schlüsselaustausch benötigt.
+                  {t('hosts.passwordNotSaved')}
                 </Alert>
               </CardContent>
             </Card>
@@ -925,12 +927,12 @@ const HostPanel = ({
             <Card sx={cardStyles}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                  Visuelle Einstellungen
+                  {t('hosts.sections.appearance')}
                 </Typography>
 
                 <Box sx={{ mb: 2 }}>
                   <Typography gutterBottom sx={{ color: 'var(--text-secondary)' }}>
-                    Icon
+                    {t('common.icon')}
                   </Typography>
                   <Box 
                     onClick={() => setShowIconSelector(true)}
@@ -955,7 +957,7 @@ const HostPanel = ({
 
                 <Box sx={{ mb: 3 }}>
                   <Typography gutterBottom sx={{ color: 'var(--text-secondary)' }}>
-                    Farbe
+                    {t('common.color')}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     {COLOR_PRESETS.map((color) => (
@@ -978,7 +980,7 @@ const HostPanel = ({
 
                 <Box sx={{ mb: 2 }}>
                   <Typography gutterBottom sx={{ color: 'var(--text-secondary)' }}>
-                    Transparenz: {Math.round((1 - formData.transparency) * 100)}%
+                    {t('hosts.appearance.transparency')}: {Math.round((1 - formData.transparency) * 100)}%
                   </Typography>
                   <Slider
                     value={formData.transparency}
@@ -997,7 +999,7 @@ const HostPanel = ({
 
                 <Box>
                   <Typography gutterBottom sx={{ color: 'var(--text-secondary)' }}>
-                    Unschärfe: {formData.blur}px
+                    {t('hosts.appearance.blur')}: {formData.blur}px
                   </Typography>
                   <Slider
                     value={formData.blur}
@@ -1019,7 +1021,7 @@ const HostPanel = ({
             <Card sx={cardStyles}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                  Remote Desktop
+                  {t('hosts.sections.remoteDesktop')}
                 </Typography>
 
                 <FormControlLabel
@@ -1034,7 +1036,7 @@ const HostPanel = ({
                       }}
                     />
                   }
-                  label="Remote Desktop aktivieren"
+                  label={t('hosts.remoteDesktop.enable')}
                   sx={{ mb: 2, color: 'var(--text-primary)' }}
                 />
 
@@ -1042,7 +1044,7 @@ const HostPanel = ({
                   <>
                     <FormControl fullWidth margin="normal">
                       <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                        Remote Desktop Typ
+                        {t('hosts.remoteDesktop.type')}
                       </InputLabel>
                       <Select
                         value={formData.remoteDesktopType}
@@ -1061,7 +1063,7 @@ const HostPanel = ({
                       <>
                         <FormControl fullWidth margin="normal">
                           <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                            Protokoll
+                            {t('hosts.remoteDesktop.protocol')}
                           </InputLabel>
                           <Select
                             value={formData.remoteProtocol}
@@ -1078,17 +1080,17 @@ const HostPanel = ({
 
                         <TextField
                           fullWidth
-                          label="Remote Host"
+                          label={t('hosts.remoteDesktop.remoteHost')}
                           value={formData.hostname}
                           disabled
                           margin="normal"
-                          helperText="Verwendet den gleichen Host wie die SSH-Verbindung"
+                          helperText={t('hosts.remoteDesktop.useSameHost')}
                           sx={textFieldStyles}
                         />
 
                         <TextField
                           fullWidth
-                          label="Remote Port"
+                          label={t('hosts.remoteDesktop.remotePort')}
                           type="number"
                           value={formData.remotePort || (formData.remoteProtocol === 'rdp' ? 3389 : 5900)}
                           onChange={(e) => handleInputChange('remotePort', parseInt(e.target.value) || '')}
@@ -1099,22 +1101,22 @@ const HostPanel = ({
 
                         <TextField
                           fullWidth
-                          label="Remote Benutzername"
+                          label={t('hosts.remoteDesktop.remoteUsername')}
                           value={formData.remoteUsername}
                           onChange={(e) => handleInputChange('remoteUsername', e.target.value)}
                           margin="normal"
-                          helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC' : 'Erforderlich für RDP'}
+                          helperText={formData.remoteProtocol === 'vnc' ? t('hosts.remoteDesktop.optionalForVNC') : t('hosts.remoteDesktop.requiredForRDP')}
                           sx={textFieldStyles}
                         />
 
                         <TextField
                           fullWidth
-                          label="Remote Passwort"
+                          label={t('hosts.remoteDesktop.remotePassword')}
                           type="password"
                           value={formData.remotePassword}
                           onChange={(e) => handleInputChange('remotePassword', e.target.value)}
                           margin="normal"
-                          helperText="Wird verschlüsselt gespeichert"
+                          helperText={t('hosts.remoteDesktop.encryptedStorage')}
                           sx={textFieldStyles}
                         />
                       </>
@@ -1125,12 +1127,12 @@ const HostPanel = ({
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                           <TextField
                             fullWidth
-                            label="RustDesk ID"
+                            label={t('hosts.remoteDesktop.rustDeskId')}
                             value={formData.rustdeskId}
                             onChange={(e) => handleInputChange('rustdeskId', e.target.value)}
                             margin="normal"
-                            placeholder="z.B. 123456789"
-                            helperText="Die RustDesk ID des Remote-Geräts"
+                            placeholder={t('hosts.placeholders.rustdeskId')}
+                            helperText={t('hosts.remoteDesktop.rustDeskIdHelp')}
                             sx={textFieldStyles}
                           />
                           {!host?.isNew && (
@@ -1141,25 +1143,24 @@ const HostPanel = ({
                               startIcon={checkingRustDeskStatus ? <CircularProgress size={16} /> : <Monitor size={16} />}
                               sx={{ mt: 2.5, minWidth: '150px' }}
                             >
-                              {checkingRustDeskStatus ? 'Prüfe...' : 'RustDesk ID holen'}
+                              {checkingRustDeskStatus ? t('common.checking') : t('hosts.remoteDesktop.getRustDeskId')}
                             </Button>
                           )}
                         </Box>
 
                         <TextField
                           fullWidth
-                          label="RustDesk Passwort"
+                          label={t('hosts.remoteDesktop.rustDeskPassword')}
                           type="password"
                           value={formData.rustdeskPassword}
                           onChange={(e) => handleInputChange('rustdeskPassword', e.target.value)}
                           margin="normal"
-                          helperText="Wird verschlüsselt gespeichert"
+                          helperText={t('hosts.remoteDesktop.encryptedStorage')}
                           sx={textFieldStyles}
                         />
 
                         <Alert severity="info" sx={{ mt: 2 }}>
-                          RustDesk nutzt eine ID-basierte Verbindung. Falls noch nicht installiert, 
-                          wird RustDesk automatisch beim ersten Verbindungsversuch installiert.
+                          {t('hosts.remoteDesktop.rustDeskInfo')}
                         </Alert>
                       </>
                     )}
@@ -1183,7 +1184,7 @@ const HostPanel = ({
                   },
                 }}
               >
-                {loading ? 'Speichern...' : 'Speichern'}
+                {loading ? t('common.saving') : t('common.save')}
               </Button>
 
               {adminMode && !host?.isNew && (
@@ -1202,7 +1203,7 @@ const HostPanel = ({
                     },
                   }}
                 >
-                  Löschen
+                  {t('common.delete')}
                 </Button>
               )}
             </Box>
@@ -1262,16 +1263,15 @@ const HostPanel = ({
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
       >
-        <DialogTitle>Host löschen?</DialogTitle>
+        <DialogTitle>{t('hosts.confirmDelete.title')}</DialogTitle>
         <DialogContent>
           <Typography>
-            Möchten Sie den Host "{formData.name}" wirklich löschen?
-            Diese Aktion kann nicht rückgängig gemacht werden.
+            {t('hosts.confirmDelete.message', { name: formData.name })}
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowDeleteConfirm(false)}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleDelete}
@@ -1279,7 +1279,7 @@ const HostPanel = ({
             variant="contained"
             disabled={loading}
           >
-            Löschen
+            {t('common.delete')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1305,7 +1305,7 @@ const HostPanel = ({
           onSuccess={(rustdeskId) => {
             console.log('RustDesk installation successful, ID:', rustdeskId);
             handleInputChange('rustdeskId', rustdeskId);
-            setSuccess(`RustDesk erfolgreich installiert! ID: ${rustdeskId}`);
+            setSuccess(t('hosts.success.rustDeskInstalled', { id: rustdeskId }));
             setShowRustDeskInstaller(false);
           }}
         />

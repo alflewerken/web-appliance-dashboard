@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { IconButton, Tooltip } from '@mui/material';
 import { MoreVertical, Star, Play, XCircle, Terminal } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import SimpleIcon from '../SimpleIcon';
 import RemoteDesktopButton from './RemoteDesktopButton';
 import FileTransferButton from './FileTransferButton';
@@ -30,6 +31,7 @@ const ApplianceCard = ({
   adminMode,
   cardSize,
 }) => {
+  const { t } = useTranslation();
   // Stelle sicher, dass vncEnabled/rdpEnabled korrekt gesetzt sind
   const enhancedAppliance = {
     ...appliance,
@@ -388,10 +390,10 @@ const ApplianceCard = ({
     setConfirmDialog({
       isOpen: true,
       action: action,
-      title: action === 'start' ? 'Service starten?' : 'Service stoppen?',
+      title: action === 'start' ? t('services.startService') + '?' : t('services.stopService') + '?',
       message: action === 'start' 
-        ? `Möchten Sie den Service wirklich starten?`
-        : `Möchten Sie den Service wirklich stoppen? Dies kann laufende Prozesse unterbrechen.`
+        ? t('services.confirmStart')
+        : t('services.confirmStop')
     });
   };
 
@@ -552,7 +554,7 @@ const ApplianceCard = ({
                       }}
                     >
                       {/* Edit Button als Balken */}
-                      <Tooltip title="Service bearbeiten" placement="right" arrow enterDelay={0} disableInteractive={false}>
+                      <Tooltip title={t('services.editService')} placement="right" arrow enterDelay={0} disableInteractive={false}>
                         <div 
                           onClick={(e) => {
                             e.preventDefault();
@@ -581,7 +583,7 @@ const ApplianceCard = ({
                       
                       {/* Start Button als grüner Balken (wenn SSH vorhanden) */}
                       {appliance.sshConnection && appliance.startCommand && (
-                        <Tooltip title="Service starten" placement="right" arrow enterDelay={0} disableInteractive={false}>
+                        <Tooltip title={t('services.startService')} placement="right" arrow enterDelay={0} disableInteractive={false}>
                           <div 
                             onClick={(e) => {
                               e.preventDefault();
@@ -616,7 +618,7 @@ const ApplianceCard = ({
                       
                       {/* Stop Button als roter Balken (wenn SSH vorhanden) */}
                       {appliance.sshConnection && appliance.stopCommand && (
-                        <Tooltip title="Service stoppen" placement="right" arrow enterDelay={0} disableInteractive={false}>
+                        <Tooltip title={t('services.stopService')} placement="right" arrow enterDelay={0} disableInteractive={false}>
                           <div 
                             onClick={(e) => {
                               e.preventDefault();
@@ -669,7 +671,7 @@ const ApplianceCard = ({
                     }}
                   >
                     {/* Favorit Button als goldener Balken */}
-                    <Tooltip title={appliance.isFavorite ? 'Von Favoriten entfernen' : 'Zu Favoriten hinzufügen'} placement="left" arrow enterDelay={0} disableInteractive={false}>
+                    <Tooltip title={appliance.isFavorite ? t('services.removeFromFavorites') : t('services.addToFavorites')} placement="left" arrow enterDelay={0} disableInteractive={false}>
                       <div 
                         onClick={(e) => {
                           e.preventDefault();
@@ -698,7 +700,7 @@ const ApplianceCard = ({
                     
                     {/* Terminal Button als grauer Balken (wenn SSH vorhanden) */}
                     {adminMode && appliance.sshConnection && (
-                      <Tooltip title="Terminal öffnen" placement="left" arrow enterDelay={0} disableInteractive={false}>
+                      <Tooltip title={t('services.openTerminal')} placement="left" arrow enterDelay={0} disableInteractive={false}>
                         <div 
                           onClick={(e) => {
                             e.preventDefault();
@@ -730,7 +732,7 @@ const ApplianceCard = ({
                     
                     {/* Remote Desktop Button als blauer Balken */}
                     {appliance.remoteDesktopEnabled && (
-                      <Tooltip title="Remote Desktop öffnen" placement="left" arrow enterDelay={0} disableInteractive={false}>
+                      <Tooltip title={t('services.remoteDesktop')} placement="left" arrow enterDelay={0} disableInteractive={false}>
                         <div 
                           onClick={(e) => {
                             e.preventDefault();
@@ -761,7 +763,7 @@ const ApplianceCard = ({
                     
                     {/* File Transfer Button als lila Balken */}
                     {appliance.sshEnabled && appliance.targetPath && (
-                      <Tooltip title="File Transfer öffnen" placement="left" arrow enterDelay={0} disableInteractive={false}>
+                      <Tooltip title={t('services.fileTransfer')} placement="left" arrow enterDelay={0} disableInteractive={false}>
                         <div 
                           onClick={(e) => {
                             e.preventDefault();
@@ -796,7 +798,7 @@ const ApplianceCard = ({
               {/* Left Button Column - Service Controls */}
               {(isTouchDevice ? hasBeenTouched : true) && adminMode && (
                 <div className="card-buttons-left">
-                  <Tooltip title="Service bearbeiten">
+                  <Tooltip title={t('services.editService')}>
                     <IconButton
                       onClick={handleEditClick}
                       size="small"
@@ -817,7 +819,7 @@ const ApplianceCard = ({
                   </Tooltip>
                   {appliance.sshConnection && (
                     <>
-                      <Tooltip title="Service starten">
+                      <Tooltip title={t('services.startService')}>
                         <IconButton
                           onClick={e => {
                             e.preventDefault();
@@ -844,7 +846,7 @@ const ApplianceCard = ({
                           <Play size={16} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Service stoppen">
+                      <Tooltip title={t('services.stopService')}>
                         <IconButton
                           onClick={e => {
                             e.preventDefault();
@@ -879,7 +881,7 @@ const ApplianceCard = ({
               {/* Right Button Column - Other Functions */}
               {(isTouchDevice ? hasBeenTouched : true) && (
                 <div className="card-buttons-right">
-                  <Tooltip title={appliance.isFavorite ? 'Von Favoriten entfernen' : 'Zu Favoriten hinzufügen'}>
+                  <Tooltip title={appliance.isFavorite ? t('services.removeFromFavorites') : t('services.addToFavorites')}>
                     <IconButton
                       onClick={handleFavoriteClick}
                       size="small"
@@ -969,7 +971,7 @@ const ApplianceCard = ({
                   zIndex: 10,
                 }}
                 title={(() => {
-                  let statusText = 'unbekannt';
+                  let statusText = t('services.unknown');
                   switch (appliance.serviceStatus) {
                     case 'running':
                       statusText = 'Service läuft';

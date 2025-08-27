@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Activity } from 'lucide-react';
 import axios from './utils/axiosConfig';
 
@@ -77,6 +78,7 @@ import './styles/mui-dropdown-fix.css'; // Fix für Dropdown z-index auf Tablets
 
 // Dashboard Component - Only rendered when authenticated
 function Dashboard() {
+  const { t } = useTranslation();
   const { isAdmin } = useAuth();
 
   // Local State für UI-Komponenten
@@ -632,11 +634,11 @@ function Dashboard() {
       let categoryTitle = 'Dashboard';
 
       if (selectedCategory === 'all') {
-        categoryTitle = 'Alle Services';
+        categoryTitle = t('categories.all');
       } else if (selectedCategory === 'favorites') {
-        categoryTitle = 'Favoriten';
+        categoryTitle = t('categories.favorites');
       } else if (selectedCategory === 'recent') {
-        categoryTitle = 'Zuletzt verwendet';
+        categoryTitle = t('categories.recent');
       } else if (selectedCategory) {
         // For custom categories, find the category name
         const category = allCategories.find(cat => cat.id === selectedCategory);

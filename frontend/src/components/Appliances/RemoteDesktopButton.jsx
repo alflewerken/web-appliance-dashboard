@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { IconButton, Tooltip } from '@mui/material';
 import { Monitor } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import RustDeskSetupDialog from '../RemoteDesktop/RustDeskSetupDialog';
 import { 
@@ -12,6 +13,7 @@ import {
 import './RemoteDesktopButton.css';
 
 const RemoteDesktopButton = ({ appliance, onUpdate }) => {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [performanceMode] = useState(appliance.guacamolePerformanceMode || appliance.guacamole_performance_mode || 'balanced');
@@ -87,11 +89,11 @@ const RemoteDesktopButton = ({ appliance, onUpdate }) => {
   
   const getTooltipText = () => {
     if (isRustDesk) {
-      return rustDeskStatus.isReady ? 'RustDesk öffnen' : 'RustDesk einrichten';
+      return rustDeskStatus.isReady ? t('hosts.rustDeskOpen', 'Open RustDesk') : t('hosts.rustDeskSetup', 'Setup RustDesk');
     }
     
     const protocol = appliance.remoteProtocol || 'vnc';
-    return `Remote Desktop öffnen (${protocol.toUpperCase()})`;
+    return t('hosts.remoteDesktopOpenWithProtocol', { protocol: protocol.toUpperCase() }, `Open Remote Desktop (${protocol.toUpperCase()})`);
   };
   
   return (

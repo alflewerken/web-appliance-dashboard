@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/globals.css'; // Global CSS variables
 import './App.css';
+import './i18n'; // Initialize i18n
 import App from './App';
 import StandaloneServicePanel from './components/Appliances/StandaloneServicePanel';
 import './utils/axiosConfig'; // Import axios configuration

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Grid,
@@ -18,6 +19,7 @@ const AppHeader = ({
   sidebarCollapsed,
   onToggleSidebar,
 }) => {
+  const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
@@ -67,7 +69,7 @@ const AppHeader = ({
         <button
           onClick={onToggleSidebar}
           className="sidebar-toggle-button"
-          title={sidebarCollapsed ? 'Sidebar einblenden' : 'Sidebar ausblenden'}
+          title={sidebarCollapsed ? t('common.showSidebar') : t('common.hideSidebar')}
         >
           {sidebarCollapsed ? (
             <PanelLeft size={20} />
@@ -80,7 +82,7 @@ const AppHeader = ({
           <Search size={16} className="search-icon" />
           <input
             type="text"
-            placeholder="Suchen"
+            placeholder={t('common.search')}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="search-input"
@@ -89,7 +91,7 @@ const AppHeader = ({
             <button
               onClick={clearSearch}
               className="search-clear-button"
-              title="Suche löschen (oder ESC drücken)"
+              title={t('common.clearSearch')}
               type="button"
             >
               <X size={14} />
@@ -106,7 +108,7 @@ const AppHeader = ({
             value={cardSize}
             onChange={e => setCardSize(Number(e.target.value))}
             className="size-slider"
-            title="Kachel-Größe anpassen"
+            title={t('common.adjustTileSize')}
           />
         </div>
 
@@ -116,8 +118,8 @@ const AppHeader = ({
             className={`status-toggle-button ${showOnlyWithStatus ? 'active' : ''}`}
             title={
               showOnlyWithStatus
-                ? 'Alle Services anzeigen'
-                : 'Nur Services mit Status anzeigen'
+                ? t('common.showAllServices')
+                : t('common.showOnlyServicesWithStatus')
             }
           >
             <Activity size={18} />
