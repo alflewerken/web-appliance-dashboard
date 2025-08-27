@@ -135,6 +135,295 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
 
   // Render different views based on action type
   const renderContent = () => {
+    // For host restored actions - show formatted restored host details in pill format
+    if (log.action === 'host_restored' || log.action === 'hostRestored' || 
+        log.action === 'host_restore' || log.action === 'hostRestore') {
+      
+      // Parse restored data if it's a string
+      let restoredData = details.restoredHostData || details.restored_host_data || details;
+      if (typeof restoredData === 'string') {
+        try {
+          restoredData = JSON.parse(restoredData);
+        } catch (e) {
+          console.error('Error parsing restored host data:', e);
+          restoredData = details;
+        }
+      }
+      
+      // Extract all relevant fields
+      const id = restoredData.id || '-';
+      const name = restoredData.name || '-';
+      const description = restoredData.description || '-';
+      const hostname = restoredData.hostname || '-';
+      const port = restoredData.port || '-';
+      const username = restoredData.username || '-';
+      const icon = restoredData.icon || '-';
+      const color = restoredData.color || '#00C7BE';
+      const transparency = restoredData.transparency || restoredData.blur || '0.48';
+      const sshKeyName = restoredData.sshKeyName || restoredData.ssh_key_name || '-';
+      const privateKey = restoredData.privateKey || restoredData.private_key ? 'Vorhanden' : 'Nicht gesetzt';
+      const isActive = restoredData.isActive !== undefined ? (restoredData.isActive ? 'Aktiv' : 'Inaktiv') : 
+                      restoredData.is_active !== undefined ? (restoredData.is_active ? 'Aktiv' : 'Inaktiv') : 'Aktiv';
+      
+      // Remote Desktop Details
+      const remoteDesktopEnabled = restoredData.remoteDesktopEnabled || restoredData.remote_desktop_enabled ? 'Ja' : 'Nein';
+      const remoteDesktopType = restoredData.remoteDesktopType || restoredData.remote_desktop_type || '-';
+      const remoteProtocol = restoredData.remoteProtocol || restoredData.remote_protocol || '-';
+      const remotePort = restoredData.remotePort || restoredData.remote_port || '-';
+      const remoteUsername = restoredData.remoteUsername || restoredData.remote_username || '-';
+      const guacamolePerformanceMode = restoredData.guacamolePerformanceMode || restoredData.guacamole_performance_mode || '-';
+      
+      // RustDesk Details
+      const rustdeskId = restoredData.rustdeskId || restoredData.rustdesk_id || '-';
+      
+      // Timestamps
+      const createdAt = restoredData.createdAt || restoredData.created_at || '-';
+      const updatedAt = restoredData.updatedAt || restoredData.updated_at || '-';
+      const lastTested = restoredData.lastTested || restoredData.last_tested || null;
+      const testStatus = restoredData.testStatus || restoredData.test_status || 'unknown';
+      
+      // Meta Information
+      const restoredFromLogId = details.restoredFromLogId || details.restored_from_log_id || details.restoredLogId || '-';
+      const restoredBy = details.restoredBy || details.restored_by || log.username || '-';
+      
+      // Format dates
+      const formatDate = (date) => {
+        if (!date || date === '-' || date === null) return '-';
+        try {
+          return new Date(date).toLocaleString('de-DE');
+        } catch {
+          return date;
+        }
+      };
+      
+      return (
+        <Box>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Host wurde erfolgreich wiederhergestellt
+          </Alert>
+          
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Wiederherstellungs-Details:
+          </Typography>
+          
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              <Chip 
+                label={`Wiederhergestellt von Log ID: ${restoredFromLogId}`}
+                size="small"
+                color="info"
+                variant="outlined"
+              />
+              <Chip 
+                label={`Wiederhergestellt von: ${restoredBy}`}
+                size="small"
+                color="success"
+                variant="outlined"
+              />
+            </Stack>
+          </Box>
+          
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Host-Daten:
+          </Typography>
+          
+          <Stack spacing={2}>
+            {/* Basis-Informationen */}
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                Basis-Informationen
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                {id !== '-' && (
+                  <Chip label={`ID: ${id}`} size="small" />
+                )}
+                <Chip 
+                  label={`Name: ${name}`} 
+                  size="small" 
+                  sx={{ fontWeight: 600 }}
+                />
+                {description !== '-' && (
+                  <Chip label={`Beschreibung: ${description}`} size="small" />
+                )}
+                <Chip 
+                  label={`Status: ${isActive}`}
+                  size="small"
+                  color={isActive === 'Aktiv' ? 'success' : 'default'}
+                />
+              </Stack>
+            </Box>
+            
+            {/* Verbindungs-Details */}
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                Verbindungs-Details
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                <Chip 
+                  label={`Hostname: ${hostname}`}
+                  size="small"
+                  sx={{ fontFamily: 'monospace' }}
+                />
+                <Chip 
+                  label={`Port: ${port}`}
+                  size="small"
+                />
+                <Chip 
+                  label={`Benutzername: ${username}`}
+                  size="small"
+                />
+                {sshKeyName !== '-' && (
+                  <Chip 
+                    label={`SSH-Key: ${sshKeyName}`}
+                    size="small"
+                    color="secondary"
+                  />
+                )}
+                <Chip 
+                  label={`Private Key: ${privateKey}`}
+                  size="small"
+                  color={privateKey === 'Vorhanden' ? 'success' : 'default'}
+                  variant="outlined"
+                />
+              </Stack>
+            </Box>
+            
+            {/* Visuelle Einstellungen */}
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                Visuelle Einstellungen
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                <Chip 
+                  label={`Icon: ${icon}`}
+                  size="small"
+                />
+                <Chip 
+                  label={`Farbe: ${color}`}
+                  size="small"
+                  sx={{ 
+                    backgroundColor: color,
+                    color: '#fff',
+                    fontWeight: 500
+                  }}
+                />
+                <Chip 
+                  label={`Transparenz: ${transparency}`}
+                  size="small"
+                />
+              </Stack>
+            </Box>
+            
+            {/* Remote Desktop (wenn aktiviert) */}
+            {remoteDesktopEnabled === 'Ja' && (
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                  Remote Desktop
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                  <Chip 
+                    label="Remote Desktop aktiviert"
+                    size="small"
+                    color="primary"
+                  />
+                  {remoteDesktopType !== '-' && (
+                    <Chip 
+                      label={`Typ: ${remoteDesktopType}`}
+                      size="small"
+                    />
+                  )}
+                  {remoteProtocol !== '-' && (
+                    <Chip 
+                      label={`Protokoll: ${remoteProtocol}`}
+                      size="small"
+                    />
+                  )}
+                  {remotePort !== '-' && (
+                    <Chip 
+                      label={`Remote Port: ${remotePort}`}
+                      size="small"
+                    />
+                  )}
+                  {remoteUsername !== '-' && (
+                    <Chip 
+                      label={`Remote User: ${remoteUsername}`}
+                      size="small"
+                    />
+                  )}
+                  {guacamolePerformanceMode !== '-' && (
+                    <Chip 
+                      label={`Performance: ${guacamolePerformanceMode}`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Stack>
+              </Box>
+            )}
+            
+            {/* RustDesk (wenn vorhanden) */}
+            {rustdeskId !== '-' && (
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                  RustDesk
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                  <Chip 
+                    label={`RustDesk ID: ${rustdeskId}`}
+                    size="small"
+                    color="info"
+                    sx={{ fontFamily: 'monospace' }}
+                  />
+                </Stack>
+              </Box>
+            )}
+            
+            {/* Test-Status (wenn vorhanden) */}
+            {testStatus !== 'unknown' && (
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                  Test-Status
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                  <Chip 
+                    label={`Status: ${testStatus}`}
+                    size="small"
+                    color={testStatus === 'success' ? 'success' : testStatus === 'failed' ? 'error' : 'default'}
+                  />
+                  {lastTested && (
+                    <Chip 
+                      label={`Zuletzt getestet: ${formatDate(lastTested)}`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Stack>
+              </Box>
+            )}
+            
+            {/* Zeitstempel */}
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                Zeitstempel
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                <Chip 
+                  label={`Erstellt: ${formatDate(createdAt)}`}
+                  size="small"
+                  variant="outlined"
+                />
+                <Chip 
+                  label={`Aktualisiert: ${formatDate(updatedAt)}`}
+                  size="small"
+                  variant="outlined"
+                />
+              </Stack>
+            </Box>
+          </Stack>
+        </Box>
+      );
+    }
+
     // For user activated/deactivated actions - show formatted status change
     if (log.action === 'user_activated' || log.action === 'userActivated' || 
         log.action === 'user_deactivated' || log.action === 'userDeactivated') {
