@@ -3,11 +3,19 @@
 🇬🇧 English | [🇩🇪 Deutsch](README.de.md) | [📖 User Guide](docs/user-guide-v2/USER-GUIDE.en.md)
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19.1-61dafb.svg)](https://reactjs.org/)
+[![Express](https://img.shields.io/badge/Express-4.21-lightgrey.svg)](https://expressjs.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.5-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.3-brightgreen.svg)](package.json)
+[![i18n](https://img.shields.io/badge/i18n-DE%20%7C%20EN-orange.svg)](frontend/public/locales)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
+
+<!-- Dynamic GitHub Badges -->
+[![GitHub issues](https://img.shields.io/github/issues/alflewerken/web-appliance-dashboard)](https://github.com/alflewerken/web-appliance-dashboard/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/alflewerken/web-appliance-dashboard)](https://github.com/alflewerken/web-appliance-dashboard/pulls)
+[![GitHub last commit](https://img.shields.io/github/last-commit/alflewerken/web-appliance-dashboard)](https://github.com/alflewerken/web-appliance-dashboard/commits/main)
+[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/alflewerken/web-appliance-dashboard/docker-publish.yml?label=build)](https://github.com/alflewerken/web-appliance-dashboard/actions)
 
 ## ⭐ Support the Project
 
