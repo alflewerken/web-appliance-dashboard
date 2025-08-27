@@ -24,6 +24,7 @@ const AuditLogStats = ({
   onStatClick,  // Neue Prop für Click-Handler
   showCriticalOnly = false,  // Prop für aktiven Status
   dateRange = 'today',  // Prop für aktiven Zeitraum
+  activeUserFilter = false,  // NEU: Prop für Benutzer-Filter
 }) => {
   const theme = useTheme();
   
@@ -62,12 +63,16 @@ const AuditLogStats = ({
     {
       label: 'Benutzer',
       value: stats.uniqueUsers,
-      description: 'Aktive Benutzer',
+      description: activeUserFilter ? 'Filter aktiv' : 'Benutzer-Aktionen',
       icon: <Users size={14} />,
       color: theme.palette.success.main,
-      action: null,
-      isActive: false,
-      clickAction: null,
+      action: 'userActivity',
+      isActive: activeUserFilter,
+      clickAction: () => {
+        if (onStatClick) {
+          onStatClick('toggle', 'userFilter');
+        }
+      },
     },
     {
       label: 'Kritisch',
@@ -107,17 +112,50 @@ const AuditLogStats = ({
                   ...cardStyles,
                   flex: '0 0 auto',
                   cursor: item.clickAction ? 'pointer' : 'default',
-                  transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+                  transition: 'all 0.3s ease',
                   border: item.isActive 
                     ? `2px solid ${item.color}` 
                     : cardStyles.border || '1px solid rgba(255, 255, 255, 0.08)',
                   backgroundColor: item.isActive
-                    ? `${item.color}15`
+                    ? `${item.color}20`  // Verstärkt von 15 auf 20
                     : cardStyles.backgroundColor,
-                  '&:hover': item.clickAction ? {
-                    transform: 'translateY(-2px)',
-                    boxShadow: theme.shadows[4],
+                  // VERSTÄRKTER Glow-Effekt für aktive Karten
+                  boxShadow: item.isActive
+                    ? `0 0 30px ${item.color}90, 0 0 60px ${item.color}50, 0 0 90px ${item.color}30, inset 0 0 30px ${item.color}20`
+                    : cardStyles.boxShadow || 'none',
+                  position: 'relative',
+                  overflow: 'visible',
+                  transform: item.isActive ? 'scale(1.02)' : 'scale(1)',
+                  '&::before': item.isActive ? {
+                    content: '""',
+                    position: 'absolute',
+                    top: -4,
+                    left: -4,
+                    right: -4,
+                    bottom: -4,
+                    borderRadius: 'inherit',
+                    background: `linear-gradient(45deg, ${item.color}60, transparent, ${item.color}60)`,
+                    opacity: 0.8,
+                    animation: 'pulse-glow 1.5s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: -1,
                   } : {},
+                  '&:hover': item.clickAction ? {
+                    transform: item.isActive ? 'translateY(-2px) scale(1.03)' : 'translateY(-2px)',
+                    boxShadow: item.isActive 
+                      ? `0 0 40px ${item.color}, 0 0 80px ${item.color}70, 0 0 120px ${item.color}40, inset 0 0 40px ${item.color}30`
+                      : theme.shadows[4],
+                  } : {},
+                  '@keyframes pulse-glow': {
+                    '0%, 100%': {
+                      opacity: 0.8,
+                      transform: 'scale(1)',
+                    },
+                    '50%': {
+                      opacity: 0.4,
+                      transform: 'scale(1.08)',
+                    },
+                  },
                 }}
                 onClick={item.clickAction}
               >
