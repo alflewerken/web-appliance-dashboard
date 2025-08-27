@@ -107,3 +107,78 @@ body.resizing-panel .resize-handle {
   background-color: var(--primary-color, #007AFF) !important;
   opacity: 0.5 !important;
 }
+/* ========================================
+   GLOW-EFFEKT FÜR AKTIVE STATISTIK-KARTEN
+   ======================================== */
+
+/* Globale Pulse-Glow Animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.05);
+  }
+}
+
+/* Zusätzliche Glow-Varianten für verschiedene Farben */
+@keyframes green-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.6), 
+                0 0 40px rgba(76, 175, 80, 0.3), 
+                inset 0 0 20px rgba(76, 175, 80, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(76, 175, 80, 0.8), 
+                0 0 60px rgba(76, 175, 80, 0.4), 
+                inset 0 0 30px rgba(76, 175, 80, 0.2);
+  }
+}
+
+@keyframes blue-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(33, 150, 243, 0.6), 
+                0 0 40px rgba(33, 150, 243, 0.3), 
+                inset 0 0 20px rgba(33, 150, 243, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(33, 150, 243, 0.8), 
+                0 0 60px rgba(33, 150, 243, 0.4), 
+                inset 0 0 30px rgba(33, 150, 243, 0.2);
+  }
+}
+
+@keyframes red-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(244, 67, 54, 0.6), 
+                0 0 40px rgba(244, 67, 54, 0.3), 
+                inset 0 0 20px rgba(244, 67, 54, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(244, 67, 54, 0.8), 
+                0 0 60px rgba(244, 67, 54, 0.4), 
+                inset 0 0 30px rgba(244, 67, 54, 0.2);
+  }
+}
+
+/* Verstärkter Glow-Effekt für aktive Karten */
+.audit-stat-card-active {
+  position: relative;
+  overflow: visible !important;
+}
+
+.audit-stat-card-active::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: inherit;
+  opacity: 0.6;
+  animation: pulse-glow 2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
