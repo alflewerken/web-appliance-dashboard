@@ -269,6 +269,40 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 
 ## 🆕 Neueste Updates
 
+### 🚀 Version 1.1.6 (27. August 2025) - Host-Monitoring & Audit-Log-Verbesserungen
+
+#### Echtzeit Host-Monitoring
+- ✅ **Host-Ping-Monitoring-System** - Live-Verfügbarkeitsverfolgung für alle Hosts
+  - Automatische Ping-Checks in benutzerdefinierten Intervallen
+  - Farbcodierte Statusbalken zeigen Verbindungsqualität (Grün/Gelb/Orange/Rot)
+  - Echtzeit-Updates via Server-Sent Events an alle verbundenen Clients
+  - Plattformübergreifende Unterstützung (Windows, macOS, Linux)
+  - Parallele Ausführung mit intelligenter Concurrency-Limitierung
+  - Synchronisiert mit Service-Status-Check-Intervallen aus den Einstellungen
+
+#### Audit-Log-Verbesserungen
+- ✅ **Interaktive Statistiken mit visuellem Feedback** - Erweiterte Filter-Karten
+  - Aktive Filter zeigen prominente Glow-Effekte mit pulsierender Animation
+  - "Aktive Benutzer"-Karte jetzt klickbar für benutzer-bezogene Aktionen
+  - Dynamische Statistik-Updates basierend auf aktiven Filter-Kombinationen
+  - Verbesserte visuelle Hierarchie mit mehrschichtigen Schatten
+
+- ✅ **Erweiterte Datumsfilterung** - Korrigierte Einzeltages- und benutzerdefinierte Bereiche
+  - Benutzerdefinierte Datumsbereiche umfassen jetzt vollständige Tage (00:00:00 bis 23:59:59)
+  - Gestern-Filter deckt korrekt 24-Stunden-Zeitraum ab
+  - Erweiterte Benutzer-Aktions-Erkennung für umfassende Filterung
+
+- ✅ **Host-Wiederherstellungs-Details** - Benutzerfreundliche Datenanzeige
+  - JSON-Strings durch organisierte Chip/Pillen-Layouts ersetzt
+  - Gruppierte Informationen nach Kategorie (Basis, Verbindung, Visuell, Remote)
+  - Farbcodierte Status-Indikatoren und visuelle Eigenschafts-Vorschauen
+
+#### Fehlerbehebungen
+- ✅ "No fields to revert"-Fehler beim Zurücksetzen von Host-Änderungen via Audit-Log behoben
+- ✅ Audit-Log-Statistiken aktualisieren sich jetzt korrekt dynamisch mit Filtern
+- ✅ Fehlende Logs bei Auswahl des gleichen Start-/End-Datums behoben
+- ✅ SQL-Fehler in Host-Ping-Monitoring-Abfragen korrigiert
+
 ### 🎨 Version 1.1.5 (20. August 2025) - Großes Frontend-Refactoring
 
 #### Komplette Komponenten-Modularisierung

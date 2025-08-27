@@ -269,6 +269,40 @@ That's it! The dashboard will automatically update to the latest version.
 
 ## 🆕 Latest Updates
 
+### 🚀 Version 1.1.6 (August 27, 2025) - Host Monitoring & Audit Log Enhancements
+
+#### Real-time Host Monitoring
+- ✅ **Host Ping Monitoring System** - Live availability tracking for all hosts
+  - Automatic ping checks at user-configurable intervals
+  - Color-coded status bars showing connection quality (Green/Yellow/Orange/Red)
+  - Real-time updates via Server-Sent Events to all connected clients
+  - Cross-platform support (Windows, macOS, Linux)
+  - Parallel execution with smart concurrency limiting
+  - Synchronized with service status check intervals from settings
+
+#### Audit Log Improvements
+- ✅ **Interactive Statistics with Visual Feedback** - Enhanced filter cards
+  - Active filters show prominent glow effects with pulsing animation
+  - "Active Users" card now clickable to filter user-related actions
+  - Dynamic statistics update based on active filter combinations
+  - Improved visual hierarchy with multi-layered shadows
+
+- ✅ **Enhanced Date Filtering** - Fixed single-day and custom ranges
+  - Custom date ranges now include full selected days (00:00:00 to 23:59:59)
+  - Yesterday filter correctly covers 24-hour period
+  - Extended user action detection for comprehensive filtering
+
+- ✅ **Host Restoration Details** - User-friendly data display
+  - Replaced JSON strings with organized chip/pill layouts
+  - Grouped information by category (Basic, Connection, Visual, Remote)
+  - Color-coded status indicators and visual property previews
+
+#### Bug Fixes
+- ✅ Fixed "No fields to revert" error when reverting host changes via audit log
+- ✅ Corrected audit log statistics not updating dynamically with filters
+- ✅ Resolved missing logs when selecting same start/end date
+- ✅ Fixed SQL error in host ping monitoring queries
+
 ### 🎨 Version 1.1.5 (August 20, 2025) - Major Frontend Refactoring
 
 #### Complete Component Modularization
