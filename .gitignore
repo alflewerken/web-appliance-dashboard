@@ -62,6 +62,7 @@ docker-compose.override.yml
 *.sql
 !init.sql
 !guacamole/initdb.sql
+!backend/migrations/*.sql
 *.db
 appliances.db
 
