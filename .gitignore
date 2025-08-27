@@ -115,3 +115,13 @@ electron-builder.yml
 customer-package/
 /scripts/create-customer-package-v2.sh
 /scripts/create-customer-package-v3.sh
+
+
+# nginx build artifacts (copied from frontend/build)
+nginx/static/
+nginx/locales/
+nginx/asset-manifest.json
+nginx/robots.txt
+nginx/service-worker.js
+nginx/precache-manifest.*.js
+nginx/manifest.json.backup
