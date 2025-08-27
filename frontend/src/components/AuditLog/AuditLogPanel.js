@@ -80,12 +80,17 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   const [customEndDate, setCustomEndDate] = useState('');
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [showCriticalOnly, setShowCriticalOnly] = useState(savedFilterSettings.showCriticalOnly);
+  const [activeUserFilter, setActiveUserFilter] = useState(false);  // NEU: State für Benutzer-Filter
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [stats, setStats] = useState({
+    totalLogs: 0,           // Immer ungefiltert
+    todayLogs: 0,           // Immer ungefiltert
+    uniqueUsers: 0,         // Gefilterte Benutzer-Aktionen
+    criticalActions: 0,     // Gefilterte kritische Aktionen
+  });
+  const [baseStats, setBaseStats] = useState({
     totalLogs: 0,
     todayLogs: 0,
-    uniqueUsers: 0,
-    criticalActions: 0,
   });
   const [filtersCollapsed, setFiltersCollapsed] = useState(savedFilterSettings.filtersCollapsed);
   
@@ -114,6 +119,12 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       const criticalLogs = logsArray.filter(log => 
         criticalActions.includes(log.action)
       );
+      
+      // Basis-Statistiken (ungefiltert) speichern
+      setBaseStats({
+        totalLogs: logsArray.length,
+        todayLogs: todayLogs.length,
+      });
       
       setStats({
         totalLogs: logsArray.length,
@@ -165,9 +176,18 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           startDate = new Date(now.setHours(0, 0, 0, 0));
           break;
         case 'yesterday':
-          const yesterday = new Date(now);
+          const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
-          startDate = new Date(yesterday.setHours(0, 0, 0, 0));
+          yesterday.setHours(0, 0, 0, 0);
+          
+          const yesterdayEnd = new Date();
+          yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+          yesterdayEnd.setHours(23, 59, 59, 999);
+          
+          filtered = filtered.filter(log => {
+            const logDate = new Date(log.createdAt);
+            return logDate >= yesterday && logDate <= yesterdayEnd;
+          });
           break;
         case 'week':
           startDate = new Date(now.setDate(now.getDate() - 7));
@@ -177,8 +197,14 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           break;
         case 'custom':
           if (customStartDate && customEndDate) {
+            // Startdatum auf 00:00:00 setzen
             startDate = new Date(customStartDate);
+            startDate.setHours(0, 0, 0, 0);
+            
+            // Enddatum auf 23:59:59 setzen für den ganzen Tag
             const endDate = new Date(customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+            
             filtered = filtered.filter(log => {
               const logDate = new Date(log.createdAt);
               return logDate >= startDate && logDate <= endDate;
@@ -202,9 +228,65 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       );
     }
 
+    // NEU: Filter für Benutzer-Aktionen
+    if (activeUserFilter) {
+      const userActions = [
+        'user_login', 
+        'user_logout', 
+        'user_created',
+        'user_updated',
+        'user_deleted',
+        'user_reverted',
+        'login_failed',
+        'service_accessed',
+        'password_changed',
+        'session_timeout',
+        'session_started',
+        'session_ended'
+      ];
+      filtered = filtered.filter(log =>
+        userActions.includes(log.action) || 
+        log.resourceType === 'users' ||
+        log.action.toLowerCase().includes('user') ||
+        log.action.toLowerCase().includes('login') ||
+        log.action.toLowerCase().includes('logout') ||
+        log.action.toLowerCase().includes('session')
+      );
+    }
+
     setFilteredLogs(filtered);
+    
+    // Statistiken: Erste beiden bleiben unverändert, letzte beiden basieren auf Filter
+    const criticalFilteredLogs = filtered.filter(log => 
+      criticalActions.includes(log.action)
+    );
+    
+    // Benutzer-bezogene Logs zählen (aus gefilterten Daten)
+    const userRelatedActions = [
+      'user_login', 'user_logout', 'user_created', 'user_updated', 'user_deleted',
+      'user_reverted', 'login_failed', 'service_accessed', 'password_changed',
+      'session_timeout', 'session_started', 'session_ended'
+    ];
+    const userActionLogs = filtered.filter(log =>
+      userRelatedActions.includes(log.action) || 
+      log.resourceType === 'users' ||
+      log.action.toLowerCase().includes('user') ||
+      log.action.toLowerCase().includes('login') ||
+      log.action.toLowerCase().includes('session')
+    );
+    
+    // WICHTIG: totalLogs und todayLogs bleiben IMMER die ungefilterten Werte
+    setStats({
+      totalLogs: baseStats.totalLogs || logs.length,  // Immer ungefiltert
+      todayLogs: baseStats.todayLogs || logs.filter(log => 
+        log.createdAt && log.createdAt.startsWith(new Date().toISOString().split('T')[0])
+      ).length,  // Immer ungefiltert
+      uniqueUsers: userActionLogs.length,  // Gefilterte Benutzer-Aktionen
+      criticalActions: criticalFilteredLogs.length,  // Gefilterte kritische Aktionen
+    });
+    
   }, [logs, searchTerm, selectedAction, selectedUser, selectedResourceType, 
-      dateRange, customStartDate, customEndDate, showCriticalOnly]);
+      dateRange, customStartDate, customEndDate, showCriticalOnly, activeUserFilter, baseStats]);
 
   // Initial load
   useEffect(() => {
@@ -364,6 +446,13 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         setShowCriticalOnly(value);
       }
       // Filter-Status bleibt unverändert (nicht mehr automatisch ausklappen)
+    } else if (type === 'userFilter') {
+      // NEU: Für "Aktive Benutzer" - Toggle-Funktion
+      if (value === 'toggle') {
+        setActiveUserFilter(prev => !prev);
+      } else {
+        setActiveUserFilter(value);
+      }
     }
   };
 
@@ -412,6 +501,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       if (selectedResourceType !== 'all') markdown += `- **Ressource:** ${selectedResourceType}\n`;
       if (dateRange !== 'all') markdown += `- **Zeitraum:** ${dateRange}\n`;
       if (showCriticalOnly) markdown += `- **Nur kritische Einträge**\n`;
+      if (activeUserFilter) markdown += `- **Nur Benutzer-Aktionen**\n`;
       markdown += '\n---\n\n';
       
       // Log-Einträge
@@ -494,6 +584,12 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         criticalActions.includes(log.action)
       );
       
+      // Update base stats
+      setBaseStats({
+        totalLogs: updatedLogs.length,
+        todayLogs: todayLogs.length,
+      });
+      
       setStats({
         totalLogs: updatedLogs.length,
         todayLogs: todayLogs.length,
@@ -568,6 +664,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
               onStatClick={handleStatClick}
               showCriticalOnly={showCriticalOnly}
               dateRange={dateRange}
+              activeUserFilter={activeUserFilter}
             />
             
             <Box sx={{ px: 1, py: 0.5, display: 'flex', justifyContent: 'center' }}>
