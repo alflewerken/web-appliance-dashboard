@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.6] - 2025-08-27
+
+### Added
+- **Host Ping Monitoring System** - Real-time host availability tracking
+  - Automatic ping checks for all hosts at user-defined intervals
+  - Color-coded status bars on host cards showing connection quality:
+    - Green (<50ms): Excellent connection
+    - Yellow (50-150ms): Good connection
+    - Orange (150-500ms): Fair connection
+    - Red (>500ms or offline): Poor/No connection
+  - Real-time updates via SSE events to all connected clients
+  - Cross-platform support (Windows, macOS, Linux) using native ping commands
+  - Parallel ping execution with concurrency limit (max 10 simultaneous)
+  - Database persistence of ping status and response times
+  - Hover tooltips showing exact response time in milliseconds
+  - Synchronized with service status check intervals from user settings
+
+- **Enhanced Audit Log Statistics with Visual Feedback** - Interactive filter cards with glow effects
+  - Active filter cards display prominent glow effect with pulsing animation
+  - Multi-layered box-shadow (30px, 60px, 90px) for depth perception
+  - "Active Users" card now clickable to filter user-related actions
+  - Dynamic statistics update based on active filters
+  - First two cards (Total/Today) always show unfiltered totals
+  - User and Critical cards show filtered counts
+  - Stronger visual feedback with scale effect (1.02x) on active cards
+  - Faster pulse animation (1.5s cycle) for better responsiveness
+
+- **Improved Audit Log Filtering** - Enhanced date range and user filters
+  - Fixed custom date range to include full day (00:00:00 to 23:59:59)
+  - Yesterday filter correctly shows all logs from previous day
+  - Extended user action detection including login/logout/session events
+  - Better handling of user-related actions with multiple detection patterns
+  - Base statistics remain constant while filtered stats update dynamically
+
+- **Host Restoration Detail View** - User-friendly display of restored host data
+  - Replaced JSON string display with organized chip/pill layout
+  - Grouped information by category (Basic, Connection, Visual, Remote Desktop)
+  - Color-coded status indicators for active/inactive states
+  - Proper display of SSH keys, passwords, and connection details
+  - Visual settings preview with actual color display
+  - RustDesk and Guacamole configuration visibility
+  - Test status and last tested timestamp formatting
+  - Meta information showing restoration source and user
+
 ### Added
 - **Unified Panel Resize System** - Consistent resize behavior across all panels
   - New `usePanelResize` hook replaces 5 different implementations
@@ -140,6 +184,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better viewport unit support across browsers
 
 ### Fixed
+- **Host Revert via Audit Log** - Fixed "No fields to revert" error
+  - Corrected action name mismatch (host_update vs host_updated)
+  - Added support for both action name variants for backwards compatibility
+  - Fixed camelCase field handling - data from QueryBuilder is already in camelCase
+  - Removed unnecessary double mapping that caused undefined fields
+  - Added fallback for oldValues/newValues in host update actions
+
+- **Audit Log Custom Date Filter** - Fixed missing logs for single-day ranges
+  - End date now correctly set to 23:59:59.999 instead of 00:00:00
+  - Single date selection (e.g., 26.08.2025) now shows all logs from that day
+  - Yesterday filter properly covers full 24-hour period
+  - Date range filtering now inclusive of entire selected period
+
+- **Host Ping Monitoring SQL Error** - Fixed query for active hosts
+  - Removed non-existent 'status' column reference from hosts table
+  - All hosts are now properly checked for ping status
+  - Fixed SSE event handling in HostCard component
+
+- **Audit Log Statistics Display** - Fixed dynamic update issues
+  - Statistics now correctly update based on active filters
+  - User action count properly calculated from filtered results
+  - Critical action count reflects current filter state
+  - Base statistics preserved for "Total" and "Today" cards
+
 - **Audit Log Export** - Restored complete export functionality
   - Fixed missing delete button in audit log panel
   - Restored all 4 export formats (JSON, CSV, PDF, Markdown)
