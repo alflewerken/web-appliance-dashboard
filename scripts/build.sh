@@ -873,8 +873,22 @@ quick_refresh() {
         cd frontend
         if [ -f "package.json" ]; then
             print_status "info" "Rebuilding frontend..."
-            npm run build >/dev/null 2>&1 || true
-            print_status "success" "Frontend rebuilt"
+            if npm run build >/dev/null 2>&1; then
+                print_status "success" "Frontend rebuilt"
+                
+                # Copy build artifacts to nginx directory
+                print_status "info" "Copying frontend build to nginx directory..."
+                cp -r build/* ../nginx/ 2>/dev/null || true
+                
+                # Also copy locales directory specifically to ensure translations are updated
+                if [ -d "build/locales" ]; then
+                    cp -r build/locales ../nginx/ 2>/dev/null || true
+                fi
+                
+                print_status "success" "Frontend build artifacts copied to nginx"
+            else
+                print_status "warning" "Frontend build failed, continuing with existing build"
+            fi
         fi
         cd ..
     fi
@@ -1116,16 +1130,49 @@ if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
         print_status "info" "Compiling frontend..."
         if npm run build >/dev/null 2>&1; then
             print_status "success" "Frontend built successfully"
+            
+            # Copy build artifacts to nginx directory
+            print_status "info" "Copying frontend build to nginx directory..."
+            cp -r build/* ../nginx/ 2>/dev/null || true
+            
+            # Also copy locales directory specifically to ensure translations are updated
+            if [ -d "build/locales" ]; then
+                cp -r build/locales ../nginx/ 2>/dev/null || true
+            fi
+            
+            print_status "success" "Frontend build artifacts copied to nginx"
         else
             print_status "warning" "Frontend build failed, checking for existing build..."
             if [ -d "build" ]; then
                 print_status "info" "Using existing frontend build"
+                
+                # Copy existing build artifacts to nginx directory
+                print_status "info" "Copying existing frontend build to nginx directory..."
+                cp -r build/* ../nginx/ 2>/dev/null || true
+                
+                # Also copy locales directory specifically
+                if [ -d "build/locales" ]; then
+                    cp -r build/locales ../nginx/ 2>/dev/null || true
+                fi
+                
+                print_status "success" "Existing frontend build artifacts copied to nginx"
             else
                 print_status "warning" "No frontend build available, dashboard may not work properly"
             fi
         fi
     elif [ -d "build" ]; then
         print_status "info" "Using pre-built frontend"
+        
+        # Copy pre-built artifacts to nginx directory
+        print_status "info" "Copying pre-built frontend to nginx directory..."
+        cp -r build/* ../nginx/ 2>/dev/null || true
+        
+        # Also copy locales directory specifically
+        if [ -d "build/locales" ]; then
+            cp -r build/locales ../nginx/ 2>/dev/null || true
+        fi
+        
+        print_status "success" "Pre-built frontend artifacts copied to nginx"
     else
         print_status "warning" "No frontend available, dashboard UI will not work"
     fi
@@ -1133,6 +1180,17 @@ if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
     cd ..
 elif [ -d "frontend/build" ]; then
     print_status "info" "Using pre-built frontend (no source code available)"
+    
+    # Copy pre-built artifacts to nginx directory
+    print_status "info" "Copying pre-built frontend to nginx directory..."
+    cp -r frontend/build/* nginx/ 2>/dev/null || true
+    
+    # Also copy locales directory specifically
+    if [ -d "frontend/build/locales" ]; then
+        cp -r frontend/build/locales nginx/ 2>/dev/null || true
+    fi
+    
+    print_status "success" "Pre-built frontend artifacts copied to nginx"
 else
     print_status "warning" "No frontend found - dashboard UI will not be available"
     print_status "info" "This is normal for production Docker images"
