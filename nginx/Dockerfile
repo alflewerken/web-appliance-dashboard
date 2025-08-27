@@ -19,11 +19,12 @@ COPY *.js /usr/share/nginx/html/
 COPY theme-handler.js /usr/share/nginx/html/
 
 # Create necessary directories
-RUN mkdir -p /var/log/nginx /usr/share/nginx/html/static /usr/share/nginx/html/js
+RUN mkdir -p /var/log/nginx /usr/share/nginx/html/static /usr/share/nginx/html/js /usr/share/nginx/html/locales
 
 # Copy directories if they exist
 COPY static/ /usr/share/nginx/html/static/
 COPY js/ /usr/share/nginx/html/js/
+COPY locales/ /usr/share/nginx/html/locales/
 
 # Set proper permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html
