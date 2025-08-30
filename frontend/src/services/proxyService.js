@@ -135,25 +135,17 @@ class ProxyService {
         // Prüfe ob wir uns im selben Netzwerk befinden
         const isLocalNetwork = this.isPrivateIP(window.location.hostname);
         const isApplianceLocal = appliance.ip_address && this.isPrivateIP(appliance.ip_address);
-        
-        console.log('Network Access Debug:', {
-            clientInLocalNetwork: isLocalNetwork,
-            applianceInLocalNetwork: isApplianceLocal,
-            clientHost: window.location.hostname,
-            applianceIP: appliance.ip_address,
-            willUseDirect: isLocalNetwork && isApplianceLocal
-        });
-        
+
         // Wenn BEIDE im lokalen Netzwerk sind, direkte Verbindung nutzen
         if (isLocalNetwork && isApplianceLocal) {
             // Direkter Zugriff auf die Appliance
             if (appliance.url) {
-                console.log('Using direct URL from appliance.url:', appliance.url);
+
                 return appliance.url + path;
             } else if (appliance.ip_address && appliance.port) {
                 const protocol = appliance.use_https ? 'https' : 'http';
                 const directUrl = `${protocol}://${appliance.ip_address}:${appliance.port}${path}`;
-                console.log('Using direct IP access:', directUrl);
+
                 return directUrl;
             }
         }
@@ -182,16 +174,14 @@ class ProxyService {
         
         // NUR wenn wir von außen zugreifen ODER die Appliance nicht direkt erreichbar ist,
         // dann Proxy verwenden
-        console.log('Using proxy because: client or appliance not in local network');
+
         const proxyPath = this.getProxyUrl(appliance.id, path);
         
         // IMMER absolute URLs für den Proxy verwenden
         const currentHost = window.location.host;
         const currentProtocol = window.location.protocol;
         const absoluteUrl = `${currentProtocol}//${currentHost}${proxyPath}`;
-        
-        console.log('Generated Proxy URL:', absoluteUrl);
-        
+
         return absoluteUrl;
     }
     

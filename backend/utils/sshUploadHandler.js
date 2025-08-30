@@ -12,10 +12,10 @@ const getSSHKeyPath = (userId = 1) => {
   const genericKeyPath = '/root/.ssh/id_rsa_dashboard';
   
   if (fsSync.existsSync(userSpecificKeyPath)) {
-    console.log(`DEBUG: Using user-specific dashboard SSH key for user ${userId}`);
+
     return userSpecificKeyPath;
   } else if (fsSync.existsSync(genericKeyPath)) {
-    console.log('DEBUG: Using generic dashboard SSH key');
+
     return genericKeyPath;
   }
   
@@ -24,8 +24,7 @@ const getSSHKeyPath = (userId = 1) => {
 };
 
 const handleSSHUpload = async (req, res) => {
-  console.log('DEBUG: SSH Upload Route Handler Called');
-  
+
   let tempFilePath = null;
   let tempKeyPath = null;
   
@@ -34,8 +33,6 @@ const handleSSHUpload = async (req, res) => {
     const file = req.file;
 
     // Debug: Log what we received
-    console.log('DEBUG: Request body:', req.body);
-    console.log('DEBUG: Target path received:', targetPath);
 
     // Validate inputs
     if (!file) {
@@ -52,17 +49,13 @@ const handleSSHUpload = async (req, res) => {
       });
     }
 
-    console.log('DEBUG: File uploaded:', file.originalname, 'Size:', file.size);
-    console.log('DEBUG: Target path:', targetPath);
-    
     tempFilePath = file.path;
 
     let host;
     
     // Check if we have a hostId or direct SSH connection details
     if (hostId) {
-      console.log('DEBUG: Host ID provided:', hostId);
-      
+
       // Get host details from database
       let [[dbHost]] = await pool.execute(
         'SELECT id, name, hostname, port, username, password, private_key, ssh_key_name FROM hosts WHERE id = ?',
@@ -82,8 +75,7 @@ const handleSSHUpload = async (req, res) => {
       host = dbHost;
     } else if (hostname && username) {
       // Use direct SSH connection details (for services without host entry)
-      console.log('DEBUG: Using direct SSH connection:', `${username}@${hostname}:${port || 22}`);
-      
+
       host = {
         id: null, // No database ID
         hostname: hostname,
@@ -100,8 +92,6 @@ const handleSSHUpload = async (req, res) => {
       });
     }
 
-    console.log('DEBUG: Found SSH host:', host.hostname, `${host.username}@${host.hostname}:${host.port}`);
-
     // Set SSE headers for progress streaming
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -113,16 +103,6 @@ const handleSSHUpload = async (req, res) => {
     // Send initial progress
     res.write(`data: ${JSON.stringify({ phase: 'preparing', progress: 0 })}\n\n`);
 
-    console.log('DEBUG: Host details:', {
-      id: host.id,
-      hostname: host.hostname,
-      username: host.username,
-      has_private_key: !!host.private_key,
-      private_key_length: host.private_key ? host.private_key.length : 0,
-      has_ssh_key_id: !!host.ssh_key_id,
-      has_password: !!host.password
-    });
-
     // Check if we need password authentication
     const authPassword = password || host.password;
     const hasPrivateKey = !!host.private_key; // Has key in database
@@ -131,25 +111,13 @@ const handleSSHUpload = async (req, res) => {
     
     // Use password only if NO SSH key is available (prefer SSH keys over passwords)
     const usePassword = hasPassword && !hasPrivateKey && !hasSSHKeyName;
-    
-    console.log('DEBUG: Authentication analysis:', {
-      hasPrivateKey,
-      hasSSHKeyName,
-      hasPassword,
-      usePassword
-    });
-    
-    console.log('DEBUG: Authentication method:', usePassword ? 'password' : 'key');
-    console.log('DEBUG: Has private_key:', !!host.private_key);
-    console.log('DEBUG: Has ssh_key_name:', !!host.ssh_key_name);
-    console.log('DEBUG: Has ssh_key_id:', !!host.ssh_key_id);
-    
+
     // Create temporary key file if private_key is in database
     if (host.private_key && !usePassword) {
       const crypto = require('crypto');
       tempKeyPath = `/tmp/ssh_key_${crypto.randomBytes(16).toString('hex')}`;
       await fs.writeFile(tempKeyPath, host.private_key, { mode: 0o600 });
-      console.log('DEBUG: Created temporary key file:', tempKeyPath);
+
     }
     
     // Prepare SSH command based on authentication method
@@ -200,9 +168,7 @@ const handleSSHUpload = async (req, res) => {
         return;
       }
     }
-    
-    console.log('DEBUG: Creating remote directory...');
-    console.log('DEBUG: mkdirCommand:', mkdirCommand.join(' '));
+
     const mkdirProcess = spawn(mkdirCommand[0], mkdirCommand.slice(1));
     
     // Capture mkdir output for debugging
@@ -213,12 +179,12 @@ const handleSSHUpload = async (req, res) => {
     });
     
     mkdirProcess.stdout.on('data', (data) => {
-      console.log('DEBUG: mkdir stdout:', data.toString());
+
     });
     
     await new Promise((resolve) => {
       mkdirProcess.on('close', (code) => {
-        console.log('DEBUG: mkdir exit code:', code);
+
         if (code !== 0) {
           console.error('DEBUG: mkdir failed with error:', mkdirError);
         }
@@ -227,7 +193,7 @@ const handleSSHUpload = async (req, res) => {
     });
 
     // Check if directory exists after mkdir
-    console.log('DEBUG: Checking if target directory exists...');
+
     let checkDirCommand;
     if (usePassword) {
       checkDirCommand = ['sshpass', '-p', authPassword, 'ssh',
@@ -312,24 +278,19 @@ const handleSSHUpload = async (req, res) => {
         `${targetPath}${file.originalname}` : 
         `${targetPath}/${file.originalname}`;
     }
-    console.log('DEBUG: Remote path:', remotePath);
-    
-    console.log('DEBUG: Starting file transfer...');
-    console.log('DEBUG: Use password:', usePassword);
-    console.log('DEBUG: Host has SSH key:', !!(host.ssh_key_id || host.key_name));
-    
+
     // Check if SSH config exists for key-based auth
     if (!usePassword) {
       const fs = require('fs');
       const configPath = '/root/.ssh/config';
       if (fs.existsSync(configPath)) {
-        console.log('DEBUG: SSH config exists');
+
         const configContent = fs.readFileSync(configPath, 'utf8');
         if (configContent.includes(`host_${host.id}`)) {
-          console.log('DEBUG: Host config found in SSH config');
+
         } else {
           console.error('DEBUG: Host config NOT found in SSH config!');
-          console.log('DEBUG: SSH config content:', configContent.substring(0, 200) + '...');
+
         }
       } else {
         console.error('DEBUG: SSH config does NOT exist!');
@@ -346,7 +307,7 @@ const handleSSHUpload = async (req, res) => {
                    `${host.username}@${host.hostname}:${remotePath}`];
       
       var transferProcess = spawn('sshpass', rsyncArgs);
-      console.log('DEBUG: Started sshpass rsync process');
+
     } else if (tempKeyPath) {
       // Use temporary key file
       rsyncArgs = ['-avz', '--progress', '-e',
@@ -355,8 +316,7 @@ const handleSSHUpload = async (req, res) => {
                    `${host.username}@${host.hostname}:${remotePath}`];
       
       var transferProcess = spawn('rsync', rsyncArgs);
-      console.log('DEBUG: Started rsync with temporary key');
-      console.log('DEBUG: rsync command:', 'rsync', rsyncArgs.join(' '));
+
     } else {
       // Use default dashboard key
       const userId = req.user && req.user.id ? req.user.id : 1;
@@ -372,8 +332,7 @@ const handleSSHUpload = async (req, res) => {
         `${host.username}@${host.hostname}:${remotePath}`];
       
       var transferProcess = spawn('rsync', rsyncArgs);
-      console.log('DEBUG: Started rsync with default dashboard key');
-      console.log('DEBUG: rsync command:', 'rsync', rsyncArgs.join(' '));
+
     }
     
     let lastProgress = 10;
@@ -381,8 +340,7 @@ const handleSSHUpload = async (req, res) => {
     
     transferProcess.stdout.on('data', (data) => {
       const output = data.toString();
-      console.log('DEBUG: rsync output:', output);
-      
+
       // Parse rsync progress output
       const progressMatch = output.match(/(\d+)%/);
       if (progressMatch) {
@@ -460,8 +418,6 @@ const handleSSHUpload = async (req, res) => {
     await new Promise((resolve) => {
       verifyProcess.on('close', () => resolve());
     });
-
-    console.log('DEBUG: File verified on remote host:', verifyOutput.trim());
 
     // Clean up temp files
     await fs.unlink(tempFilePath).catch(e => console.error('Failed to clean up temp file:', e));

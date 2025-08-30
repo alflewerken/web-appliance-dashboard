@@ -55,8 +55,7 @@ async function restoreSSHKeys() {
   let connection;
   
   try {
-    console.log('🔑 Restoring SSH keys from database...');
-    
+
     // Ensure SSH directory exists with correct permissions
     await fs.mkdir(SSH_DIR, { recursive: true, mode: 0o700 });
     
@@ -66,9 +65,9 @@ async function restoreSSHKeys() {
       const util = require('util');
       const execAsync = util.promisify(exec);
       await execAsync(`chown -R root:root ${SSH_DIR}`);
-      console.log('✅ Fixed SSH directory ownership');
+
     } catch (error) {
-      console.warn('⚠️ Could not fix ownership (might not be running as root)');
+
     }
     
     // Connect to database
@@ -83,9 +82,7 @@ async function restoreSSHKeys() {
     const [keys] = await connection.execute(
       'SELECT key_name, private_key, public_key FROM ssh_keys'
     );
-    
-    console.log(`Found ${keys.length} SSH keys in database`);
-    
+
     for (const key of keys) {
       try {
         // Check if key is encrypted (contains colons) or plain text
@@ -100,26 +97,22 @@ async function restoreSSHKeys() {
           }
         } else {
           // Key is already in plain text
-          console.log(`Key ${key.key_name} is not encrypted`);
+
         }
         
         // Write private key
         const privateKeyPath = path.join(SSH_DIR, `id_rsa_${key.key_name}`);
         await fs.writeFile(privateKeyPath, privateKey, { mode: 0o600 });
-        console.log(`✅ Restored private key: ${privateKeyPath}`);
-        
+
         // Write public key
         const publicKeyPath = path.join(SSH_DIR, `id_rsa_${key.key_name}.pub`);
         await fs.writeFile(publicKeyPath, key.public_key, { mode: 0o644 });
-        console.log(`✅ Restored public key: ${publicKeyPath}`);
-        
+
       } catch (error) {
         console.error(`Error restoring key ${key.key_name}:`, error.message);
       }
     }
-    
-    console.log('✅ SSH key restoration complete');
-    
+
   } catch (error) {
     console.error('❌ Error restoring SSH keys:', error);
     process.exit(1);

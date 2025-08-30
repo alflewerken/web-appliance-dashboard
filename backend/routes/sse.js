@@ -8,18 +8,12 @@ const clients = new Set();
 
 // SSE endpoint
 router.get('/stream', (req, res) => {
-  console.log('[SSE] Stream request received');
-  console.log('[SSE] Full URL:', req.url);
-  console.log('[SSE] Original URL:', req.originalUrl);
-  console.log('[SSE] Query params:', req.query);
-  console.log('[SSE] Query token:', req.query.token);
-  console.log('[SSE] Headers:', req.headers);
-  
+
   // Check authentication via query parameter
   const token = req.query.token;
   
   if (!token) {
-    console.log('[SSE] No token provided');
+
     // Return JSON error for missing token
     res.status(401).json({ error: "No token provided" });
     return;
@@ -55,12 +49,11 @@ router.get('/stream', (req, res) => {
 
   // Add client to active connections
   clients.add(res);
-  console.log(`✅ SSE client connected. Total clients: ${clients.size}`);
 
   // Handle client disconnect
   req.on('close', () => {
     clients.delete(res);
-    console.log(`❌ SSE client disconnected. Total clients: ${clients.size}`);
+
   });
 
   // Keep connection alive with periodic heartbeat
@@ -85,8 +78,6 @@ router.get('/stream', (req, res) => {
 const broadcast = (eventType, data) => {
   const message = JSON.stringify(data);
 
-  console.log(`📡 Broadcasting ${eventType} to ${clients.size} clients:`, data);
-
   let sentCount = 0;
   clients.forEach(client => {
     try {
@@ -100,18 +91,11 @@ const broadcast = (eventType, data) => {
     }
   });
 
-  console.log(
-    `✅ Successfully sent ${eventType} to ${sentCount}/${clients.size} clients`
-  );
 };
 
 // Debug endpoint to test token validation
 router.get('/test-token', (req, res) => {
-  console.log('[SSE] Test-token request');
-  console.log('[SSE] Full URL:', req.originalUrl);
-  console.log('[SSE] Query object:', req.query);
-  console.log('[SSE] Headers:', req.headers);
-  
+
   const token = req.query.token;
   
   if (!token) {

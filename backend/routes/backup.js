@@ -107,8 +107,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     // Generate a random backup encryption key
     const crypto = require('crypto');
     const backupKey = crypto.randomBytes(32).toString('hex');
-    console.log('🔐 Generated random backup encryption key');
-    
+
     // Function to re-encrypt password for backup
     // WICHTIG: Nutze crypto.js (GCM) für konsistente Verschlüsselung!
     // Die Datenbank nutzt crypto.js, also müssen wir das auch für Backup/Restore verwenden
@@ -159,8 +158,6 @@ router.get('/backup', verifyToken, async (req, res) => {
       remotePasswordEncrypted: reEncryptForBackup(appliance.remotePasswordEncrypted),
       rustdeskPasswordEncrypted: reEncryptForBackup(appliance.rustdeskPasswordEncrypted)
     }));
-    
-    console.log(`✅ Fetched ${appliances.length} appliances (passwords re-encrypted for backup)`);
 
     // Fetch all categories
     let categories = [];
@@ -193,7 +190,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     let rolePermissions = [];
     try {
       rolePermissions = await db.raw('SELECT * FROM role_permissions ORDER BY role, permission');
-      console.log(`✅ Fetched ${rolePermissions.length} role permissions`);
+
     } catch (error) {
       console.error(
         'Error fetching role permissions for backup:',
@@ -205,9 +202,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     let userAppliancePermissions = [];
     try {
       userAppliancePermissions = await db.raw('SELECT * FROM user_appliance_permissions ORDER BY user_id, appliance_id');
-      console.log(
-        `✅ Fetched ${userAppliancePermissions.length} user appliance permissions`
-      );
+
     } catch (error) {
       console.error(
         'Error fetching user appliance permissions for backup:',
@@ -232,7 +227,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         remotePassword: reEncryptForBackup(host.remotePassword),
         rustdeskPassword: reEncryptForBackup(host.rustdeskPassword)
       }));
-      console.log(`✅ Fetched ${hosts.length} terminal hosts (passwords re-encrypted for backup)`);
+
     } catch (error) {
       console.error('Error fetching hosts for backup:', error.message);
     }
@@ -243,8 +238,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     
     if (includeGuacamole) {
       try {
-        console.log('📦 Creating Guacamole database backup...');
-        
+
         // Use pg_dump to export Guacamole database
         const guacHost = process.env.GUACAMOLE_DB_HOST || 'appliance_guacamole_db';
         const guacPort = process.env.GUACAMOLE_DB_PORT || '5432';
@@ -262,7 +256,7 @@ router.get('/backup', verifyToken, async (req, res) => {
           });
           
           if (stderr && !stderr.includes('warning')) {
-            console.warn('⚠️ Guacamole backup warnings:', stderr);
+
           }
           
           // Compress the SQL dump using base64 encoding
@@ -279,12 +273,10 @@ router.get('/backup', verifyToken, async (req, res) => {
             size_bytes: stdout.length,
             size_compressed: compressedDump.length
           };
-          
-          console.log(`✅ Guacamole database backup created (${Math.round(stdout.length / 1024)} KB -> ${Math.round(compressedDump.length / 1024)} KB compressed)`);
+
         } catch (cmdError) {
           // Fallback: Try to connect directly if docker exec fails
-          console.warn('⚠️ Docker exec failed, trying direct connection...');
-          
+
           // For direct connection, we'd need pg_dump installed locally
           // This is a fallback that likely won't work in containerized environment
           const directCmd = `PGPASSWORD="${guacPass}" pg_dump -h ${guacHost} -p ${guacPort} -U ${guacUser} -d ${guacDb} --clean --if-exists --no-owner --no-acl`;
@@ -306,19 +298,18 @@ router.get('/backup', verifyToken, async (req, res) => {
               size_bytes: stdout.length,
               size_compressed: compressedDump.length
             };
-            
-            console.log(`✅ Guacamole backup via direct connection (${Math.round(stdout.length / 1024)} KB)`);
+
           } catch (directError) {
             console.error('❌ Could not create Guacamole backup:', directError.message);
-            console.log('ℹ️ Continuing without Guacamole backup...');
+
           }
         }
       } catch (error) {
         console.error('❌ Error creating Guacamole backup:', error.message);
-        console.log('ℹ️ Backup will continue without Guacamole data');
+
       }
     } else {
-      console.log('ℹ️ Guacamole not configured, skipping Guacamole backup');
+
     }
     
     // Fetch services table
@@ -332,7 +323,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         vncPassword: reEncryptForBackup(service.vncPassword),
         rdpPassword: reEncryptForBackup(service.rdpPassword)
       }));
-      console.log(`✅ Fetched ${services.length} proxy services (passwords re-encrypted for backup)`);
+
     } catch (error) {
       console.error('Error fetching services for backup:', error.message);
     }
@@ -345,7 +336,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         {}, 
         { orderBy: 'createdAt', orderDir: 'DESC', limit: 1000 }
       );
-      console.log(`✅ Fetched ${sshUploadLogs.length} SSH upload log entries`);
+
     } catch (error) {
       console.error('Error fetching SSH upload logs for backup:', error.message);
     }
@@ -372,10 +363,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         ...user,
         password_hash: passwordHashMap[user.id]
       }));
-      
-      console.log(
-        `✅ Fetched ${users.length} users (including password hashes for backup)`
-      );
+
     } catch (error) {
       console.error('Error fetching users for backup:', error.message);
     }
@@ -390,30 +378,22 @@ router.get('/backup', verifyToken, async (req, res) => {
       );
       // Reverse to have oldest first for correct restore order
       auditLogs = auditLogsResult.reverse();
-      console.log(`✅ Fetched ${auditLogs.length} audit log entries`);
+
     } catch (error) {
       console.error('Error fetching audit logs for backup:', error.message);
     }
 
     try {
-      console.log('🔍 Fetching SSH keys from database...');
+
       // ssh_hosts table removed - no longer backing up
       const keysResult = await db.select('ssh_keys', {}, { orderBy: 'keyName' });
       // ssh_config table removed
       sshHosts = []; // No longer used
       sshConfig = []; // No longer used
 
-      console.log(`📊 Found ${keysResult.length} SSH keys in database`);
-      
       // Debug: Log first key if exists
       if (keysResult.length > 0) {
-        console.log('First SSH key:', {
-          id: keysResult[0].id,
-          keyName: keysResult[0].keyName,
-          createdBy: keysResult[0].createdBy,
-          hasPrivateKey: !!keysResult[0].privateKey,
-          hasPublicKey: !!keysResult[0].publicKey
-        });
+
       }
 
       if (keysResult.length > 0) {
@@ -465,21 +445,14 @@ router.get('/backup', verifyToken, async (req, res) => {
               
               if (privateExists && !hasDbPrivateKey) {
                 privateKeyContent = await fs.readFile(actualPrivatePath, 'utf8');
-                console.log(
-                  `✅ Read private key from filesystem: ${actualPrivatePath}`
-                );
+
                 filesystemSynced = true;
               } else if (hasDbPrivateKey) {
-                console.log(
-                  `✅ Using private key from database for ${key.key_name || key.keyName}`
-                );
+
                 filesystemSynced = true;
               }
             } catch (readError) {
-              console.warn(
-                `⚠️ Could not read private key file:`,
-                readError.message
-              );
+
               filesystemError = readError.message;
             }
 
@@ -504,19 +477,12 @@ router.get('/backup', verifyToken, async (req, res) => {
               
               if (publicExists && !hasDbPublicKey) {
                 publicKeyContent = await fs.readFile(actualPublicPath, 'utf8');
-                console.log(
-                  `✅ Read public key from filesystem: ${actualPublicPath}`
-                );
+
               } else if (hasDbPublicKey) {
-                console.log(
-                  `✅ Using public key from database for ${key.key_name || key.keyName}`
-                );
+
               }
             } catch (readError) {
-              console.warn(
-                `⚠️ Could not read public key file:`,
-                readError.message
-              );
+
               if (!filesystemError) filesystemError = readError.message;
             }
 
@@ -555,10 +521,7 @@ router.get('/backup', verifyToken, async (req, res) => {
               key_name: key.key_name || key.keyName,  // Ensure consistent field name
             });
           } catch (keyError) {
-            console.warn(
-              `⚠️ Error processing SSH key ${key.key_name}:`,
-              keyError.message
-            );
+
             // Include the key anyway, even if filesystem read failed
             // SICHERHEITSKRITISCH: Auch hier private Keys mit Backup-Schlüssel verschlüsseln!
             let fallbackPrivateKey = key.private_key || key.privateKey || '';
@@ -601,11 +564,8 @@ router.get('/backup', verifyToken, async (req, res) => {
         );
         sshBackupSuccess = keysWithData.length > 0;
 
-        console.log(
-          `✅ Processed ${sshKeys.length} SSH keys, ${keysWithData.length} with complete data`
-        );
       } else {
-        console.log('ℹ️ No SSH keys found in database');
+
       }
     } catch (error) {
       console.error('Error fetching SSH data for backup:', error.message);
@@ -619,7 +579,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         {},
         { orderBy: 'applianceId' }
       );
-      console.log(`✅ Fetched ${customCommands.length} appliance commands`);
+
     } catch (error) {
       console.error(
         'Error fetching custom commands for backup:',
@@ -637,9 +597,7 @@ router.get('/backup', verifyToken, async (req, res) => {
       );
       // Reverse to have oldest first for correct restore order
       serviceCommandLogs = logsResult.reverse();
-      console.log(
-        `✅ Fetched ${serviceCommandLogs.length} service command log entries`
-      );
+
     } catch (error) {
       console.error(
         'Error fetching service command logs for backup:',
@@ -655,7 +613,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         {},
         { orderBy: 'createdAt', orderDir: 'DESC' }
       );
-      console.log(`✅ Fetched ${activeSessions.length} active sessions`);
+
     } catch (error) {
       console.error('Error fetching sessions for backup:', error.message);
     }
@@ -689,7 +647,7 @@ router.get('/backup', verifyToken, async (req, res) => {
             data_size: fileBuffer.length,
           });
           encodedImageCount++;
-          console.log(`✅ Encoded background image: ${bgImg.filename} (${fileBuffer.length} bytes -> ${base64Data.length} base64 chars)`);
+
         } else {
           // Include metadata without file data
           backgroundImagesWithData.push({
@@ -699,7 +657,7 @@ router.get('/backup', verifyToken, async (req, res) => {
             file_missing: true,
           });
           missingImageCount++;
-          console.warn(`⚠️ Background image file not found: ${filepath}`);
+
         }
       } catch (error) {
         console.error(
@@ -719,7 +677,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     
     // Log summary
     if (backgroundImages.length > 0) {
-      console.log(`📸 Background images backup summary: ${encodedImageCount} encoded, ${missingImageCount} missing/failed`);
+
     }
 
     // Create comprehensive backup object
@@ -877,16 +835,13 @@ router.get('/backup', verifyToken, async (req, res) => {
 
     // Log backup size information
     const backupSizeKB = Math.round(Buffer.byteLength(JSON.stringify(responseData), 'utf8') / 1024);
-    console.log(`📦 Sending backup response: ${backupSizeKB} KB total`);
-    console.log(`   - Background images with data: ${backgroundImagesWithData.filter(img => img.file_data).length}`);
-    console.log(`   - Total background image data: ${Math.round(backgroundImagesWithData.reduce((sum, img) => sum + (img.data_size || 0), 0) / 1024)} KB`);
 
     // Set appropriate headers for large responses
     res.setHeader('Content-Type', 'application/json');
     
     // Send response - for very large backups, consider streaming
     if (backupSizeKB > 10240) { // If backup is larger than 10MB
-      console.warn(`⚠️ Large backup detected (${backupSizeKB} KB). This may cause issues with some clients.`);
+
     }
     
     res.json(responseData);
@@ -912,13 +867,8 @@ router.post('/restore', verifyToken, async (req, res) => {
     const encryptionInfo = backupData.encryption_info;
     delete backupData.encryption_info; // Remove from backup data
 
-    console.log('Starting enhanced restore process...');
-    console.log('Backup version:', backupData.version);
-    console.log('Backup created:', backupData.created_at);
-    console.log('Backup decryption key provided:', !!backupDecryptionKey);
-    
     if (!backupDecryptionKey) {
-      console.warn('⚠️ No decryption key provided for backup restore');
+
     }
 
     // Validate backup structure
@@ -933,9 +883,7 @@ router.post('/restore', verifyToken, async (req, res) => {
     const isOldVersion = backupVersion.startsWith('1.');
 
     if (isOldVersion) {
-      console.log(
-        '⚠️ Detected older backup version. Using compatibility mode.'
-      );
+
     }
 
     // Function to decrypt data from backup and re-encrypt with system key
@@ -946,14 +894,7 @@ router.post('/restore', verifyToken, async (req, res) => {
       if (!encryptedData) {
         return null;
       }
-      
-      console.log('🔐 reEncryptFromBackup called with:', {
-        data: encryptedData ? encryptedData.substring(0, 50) + '...' : 'null',
-        hasBackupKey: !!backupDecryptionKey,
-        backupKeyLength: backupDecryptionKey ? backupDecryptionKey.length : 0,
-        parts: encryptedData ? encryptedData.split(':').length : 0
-      });
-      
+
       try {
         const parts = encryptedData.split(':');
         const crypto = require('crypto');
@@ -965,8 +906,7 @@ router.post('/restore', verifyToken, async (req, res) => {
           // Altes Format (vor 18.08.2025): iv:encryptedDataWithAuthTag
           // Für Backward Compatibility mit Backups die vor der Vereinheitlichung erstellt wurden
           // AuthTag ist in den letzten 16 Bytes enthalten
-          console.log('📦 Detected 2-part format (legacy backup from before 2025-08-18)');
-          
+
           const [ivHex, encryptedWithTag] = parts;
           const encryptedBuffer = Buffer.from(encryptedWithTag, 'hex');
           
@@ -985,8 +925,7 @@ router.post('/restore', verifyToken, async (req, res) => {
               
               decrypted = decipher.update(encrypted, null, 'utf8');
               decrypted += decipher.final('utf8');
-              
-              console.log('✅ Successfully decrypted 2-part format with backup key');
+
             } catch (err) {
               console.error('❌ Failed to decrypt 2-part format:', err.message);
               return encryptedData;
@@ -996,8 +935,7 @@ router.post('/restore', verifyToken, async (req, res) => {
         } else if (parts.length === 3) {
           // Neues vereinheitlichtes Format (ab 18.08.2025): iv:authTag:encrypted
           // Dies ist das aktuelle Standard-Format nach der Encryption-Vereinheitlichung
-          console.log('📦 Detected 3-part format (current standard since 2025-08-18)');
-          
+
           const [ivHex, authTagHex, encrypted] = parts;
           
           // Validate authTag length
@@ -1018,8 +956,7 @@ router.post('/restore', verifyToken, async (req, res) => {
               
               decrypted = decipher.update(encrypted, 'hex', 'utf8');
               decrypted += decipher.final('utf8');
-              
-              console.log('✅ Successfully decrypted 3-part format with backup key');
+
             } catch (err) {
               console.error('❌ Failed to decrypt 3-part format:', err.message);
               return encryptedData;
@@ -1033,12 +970,12 @@ router.post('/restore', verifyToken, async (req, res) => {
         
         // Re-encrypt with system key if decryption was successful
         if (decrypted && backupDecryptionKey) {
-          console.log('🔄 Re-encrypting with system key...');
+
           const reEncrypted = cryptoEncrypt(decrypted);
-          console.log('✅ Re-encrypted with system key');
+
           return reEncrypted;
         } else {
-          console.warn('⚠️ No decryption performed, returning original data');
+
           return encryptedData;
         }
       } catch (error) {
@@ -1081,9 +1018,6 @@ router.post('/restore', verifyToken, async (req, res) => {
     let legacySSHInitialized = false;
     if (isOldVersion && (!ssh_keys || ssh_keys.length === 0)) {
       try {
-        console.log(
-          '🔑 Legacy backup detected - pre-initializing SSH system...'
-        );
 
         // Use the SSH API to initialize the system
         const sshInitResponse = await fetch(
@@ -1097,15 +1031,12 @@ router.post('/restore', verifyToken, async (req, res) => {
         if (sshInitResponse.ok) {
           const sshInitResult = await sshInitResponse.json();
           if (sshInitResult.success) {
-            console.log('✅ SSH system pre-initialized for legacy backup');
+
             legacySSHInitialized = true;
           }
         }
       } catch (sshPreInitError) {
-        console.warn(
-          '⚠️ SSH pre-initialization failed, will try alternative method:',
-          sshPreInitError.message
-        );
+
       }
     }
 
@@ -1138,7 +1069,7 @@ router.post('/restore', verifyToken, async (req, res) => {
       // IMPORTANT: Restore categories FIRST (before appliances) to respect foreign key constraints
       if (categories && categories.length > 0) {
         try {
-          console.log(`Restoring ${categories.length} categories...`);
+
           // Delete ALL categories to ensure correct order restoration
           await connection.execute('DELETE FROM categories');
 
@@ -1160,33 +1091,28 @@ router.post('/restore', verifyToken, async (req, res) => {
             await connection.execute(sql, values);
             restoredCategories++;
           }
-          console.log(`✅ Restored ${restoredCategories} categories`);
+
         } catch (error) {
-          console.log('Error restoring categories:', error.message);
+
         }
       }
 
       // Before restoring appliances, ensure all required categories exist
       if (appliances && appliances.length > 0) {
-        console.log('Checking for missing categories...');
-        
+
         // Get all unique categories from appliances
         const uniqueCategories = [...new Set(appliances.map(app => app.category).filter(cat => cat))];
-        console.log('Categories used in appliances:', uniqueCategories);
-        
+
         // Get existing categories
         const [existingCats] = await connection.execute('SELECT name FROM categories');
         const existingCategoryNames = existingCats.map(cat => cat.name);
-        console.log('Existing categories in database:', existingCategoryNames);
-        
+
         // Find missing categories
         const missingCategories = uniqueCategories.filter(cat => !existingCategoryNames.includes(cat));
-        console.log('Missing categories:', missingCategories);
-        
+
         // Create missing categories
         if (missingCategories.length > 0) {
-          console.log(`Creating ${missingCategories.length} missing categories...`);
-          
+
           // Get the current max order_index
           const [maxOrderResult] = await connection.execute('SELECT MAX(order_index) as maxOrder FROM categories');
           let nextOrder = (maxOrderResult[0].maxOrder || 0) + 1;
@@ -1206,7 +1132,7 @@ router.post('/restore', verifyToken, async (req, res) => {
                   nextOrder++
                 ]
               );
-              console.log(`Created missing category: ${categoryName}`);
+
               restoredCategories++;
             } catch (catError) {
               console.error(`Error creating category ${categoryName}:`, catError.message);
@@ -1216,13 +1142,12 @@ router.post('/restore', verifyToken, async (req, res) => {
       }
 
       // Restore appliances (AFTER ensuring categories exist)
-      console.log('Clearing existing appliances...');
+
       await connection.execute('DELETE FROM appliances');
       await connection.execute('ALTER TABLE appliances AUTO_INCREMENT = 1');
 
       if (appliances && appliances.length > 0) {
-        console.log(`Restoring ${appliances.length} appliances...`);
-        
+
         // Process in batches to avoid overwhelming the database
         const BATCH_SIZE = 50;
         const totalBatches = Math.ceil(appliances.length / BATCH_SIZE);
@@ -1231,20 +1156,14 @@ router.post('/restore', verifyToken, async (req, res) => {
           const start = batchIndex * BATCH_SIZE;
           const end = Math.min(start + BATCH_SIZE, appliances.length);
           const batch = appliances.slice(start, end);
-          
-          console.log(`Processing appliance batch ${batchIndex + 1}/${totalBatches} (${batch.length} items)`);
 
         // Debug: Log first appliance to see structure
         if (batchIndex === 0 && batch[0]) {
-          console.log(
-            'First appliance data structure:',
-            JSON.stringify(batch[0], null, 2)
-          );
+
         }
 
         for (const appliance of batch) {
-          console.log(`Restoring appliance: ${appliance.name}`);
-          
+
           // CRITICAL FIX: Handle mixed camelCase/snake_case from backup
           // The backup may contain either format, so we need to normalize
           const dbAppliance = {};
@@ -1298,19 +1217,9 @@ router.post('/restore', verifyToken, async (req, res) => {
           
           // Re-encrypt remote password using the same function as hosts
           const remotePasswordEnc = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
-          console.log(`🔐 Appliance ${dbAppliance.name} - Remote password processing:`, {
-            hasPassword: !!remotePasswordEnc,
-            passwordFormat: remotePasswordEnc ? (remotePasswordEnc.split(':').length === 3 ? 'GCM' : 'CBC') : 'none',
-            passwordPreview: remotePasswordEnc ? remotePasswordEnc.substring(0, 50) + '...' : 'null',
-            hasBackupKey: !!backupDecryptionKey
-          });
+
           dbAppliance.remote_password_encrypted = reEncryptFromBackup(remotePasswordEnc);
-          console.log(`🔐 Appliance ${dbAppliance.name} - After re-encryption:`, {
-            encrypted: !!dbAppliance.remote_password_encrypted,
-            newFormat: dbAppliance.remote_password_encrypted ? (dbAppliance.remote_password_encrypted.split(':').length === 3 ? 'GCM' : 'CBC') : 'none',
-            preview: dbAppliance.remote_password_encrypted ? dbAppliance.remote_password_encrypted.substring(0, 50) + '...' : 'null'
-          });
-          
+
           dbAppliance.remote_desktop_type = appliance.remoteDesktopType || appliance.remote_desktop_type || 'guacamole';
           
           // RustDesk settings
@@ -1318,12 +1227,7 @@ router.post('/restore', verifyToken, async (req, res) => {
           
           // Re-encrypt RustDesk password using the same function as hosts
           const rustdeskPasswordEnc = appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted || null;
-          console.log(`🔐 Appliance ${dbAppliance.name} - RustDesk password processing:`, {
-            hasPassword: !!rustdeskPasswordEnc,
-            passwordFormat: rustdeskPasswordEnc ? (rustdeskPasswordEnc.split(':').length === 3 ? 'GCM' : 'CBC') : 'none',
-            passwordPreview: rustdeskPasswordEnc ? rustdeskPasswordEnc.substring(0, 50) + '...' : 'null',
-            hasBackupKey: !!backupDecryptionKey
-          });
+
           dbAppliance.rustdesk_password_encrypted = reEncryptFromBackup(rustdeskPasswordEnc);
           dbAppliance.rustdesk_installed = appliance.rustdeskInstalled !== undefined ?
             appliance.rustdeskInstalled :
@@ -1370,10 +1274,6 @@ router.post('/restore', verifyToken, async (req, res) => {
           const fields = Object.keys(dbAppliance);
           const values = Object.values(dbAppliance);
           const placeholders = fields.map(() => '?').join(', ');
-          
-          console.log(`Service commands - start: ${dbAppliance.start_command}, stop: ${dbAppliance.stop_command}, status: ${dbAppliance.status_command}`);
-          console.log(`SSH connection: ${dbAppliance.ssh_connection}`);
-          console.log(`Remote desktop: ${dbAppliance.remote_desktop_enabled}, Favorites: ${dbAppliance.is_favorite}`);
 
           await connection.execute(
             `INSERT INTO appliances (${fields.join(', ')}) VALUES (${placeholders})`,
@@ -1396,7 +1296,7 @@ router.post('/restore', verifyToken, async (req, res) => {
       // Restore settings
       if (actualSettings && actualSettings.length > 0) {
         try {
-          console.log(`Restoring ${actualSettings.length} settings...`);
+
           await connection.execute('DELETE FROM user_settings');
 
           for (const setting of actualSettings) {
@@ -1412,18 +1312,15 @@ router.post('/restore', verifyToken, async (req, res) => {
             await connection.execute(sql, values);
             restoredSettings++;
           }
-          console.log(`✅ Restored ${restoredSettings} settings`);
+
         } catch (error) {
-          console.log('Error restoring settings:', error.message);
+
         }
       }
 
       // Restore background images
       if (background_images && background_images.length > 0) {
         try {
-          console.log(
-            `Restoring ${background_images.length} background images...`
-          );
 
           // Clear existing background images
           await connection.execute('DELETE FROM background_images');
@@ -1445,16 +1342,11 @@ router.post('/restore', verifyToken, async (req, res) => {
               try {
                 await fs.unlink(path.join(backgroundsDir, file));
               } catch (unlinkError) {
-                console.warn(
-                  `Could not delete existing background file: ${file}`
-                );
+
               }
             }
           } catch (cleanupError) {
-            console.warn(
-              'Could not clean up existing background files:',
-              cleanupError.message
-            );
+
           }
 
           for (const bgImage of background_images) {
@@ -1479,9 +1371,7 @@ router.post('/restore', verifyToken, async (req, res) => {
                 await fs.mkdir(dir, { recursive: true });
 
                 await fs.writeFile(filepath, fileBuffer);
-                console.log(
-                  `✅ Restored background file: ${bgImage.filename} (${(fileBuffer.length / 1024).toFixed(1)} KB)`
-                );
+
               } catch (fileError) {
                 console.error(
                   `❌ Error restoring background file ${bgImage.filename}:`,
@@ -1490,9 +1380,7 @@ router.post('/restore', verifyToken, async (req, res) => {
                 // Continue with database record even if file restoration fails
               }
             } else {
-              console.warn(
-                `⚠️ Skipping file restoration for ${bgImage.filename} (no data or error)`
-              );
+
             }
 
             // Restore database record
@@ -1520,16 +1408,16 @@ router.post('/restore', verifyToken, async (req, res) => {
             await connection.execute(sql, values);
             restoredBackgrounds++;
           }
-          console.log(`✅ Restored ${restoredBackgrounds} background images`);
+
         } catch (error) {
-          console.log('Error restoring background images:', error.message);
+
         }
       }
 
       // Restore users FIRST - BEFORE hosts and other tables with foreign keys
       if (users && users.length > 0) {
         try {
-          console.log(`Restoring ${users.length} users...`);
+
           // Clear existing users and restore from backup
           await connection.execute('DELETE FROM users');
           await connection.execute('ALTER TABLE users AUTO_INCREMENT = 1');
@@ -1562,9 +1450,7 @@ router.post('/restore', verifyToken, async (req, res) => {
               // Only create default password if no hash exists in backup
               const bcrypt = require('bcryptjs');
               passwordHash = await bcrypt.hash('changeme123', 10);
-              console.log(
-                `⚠️ User ${user.username} has no password hash in backup, using default password`
-              );
+
             }
 
             await connection.execute(
@@ -1583,7 +1469,7 @@ router.post('/restore', verifyToken, async (req, res) => {
                 updatedAt,
               ]
             );
-            console.log(`✅ Restored user: ${user.username}`);
+
             restoredUsers++;
           }
 
@@ -1596,25 +1482,19 @@ router.post('/restore', verifyToken, async (req, res) => {
             `ALTER TABLE users AUTO_INCREMENT = ${maxId + 1}`
           );
 
-          console.log(
-            `✅ Restored ${restoredUsers} users with password hashes`
-          );
         } catch (error) {
-          console.log('Error restoring users:', error.message);
+
         }
       }
 
       // Restore hosts table (SSH Terminal hosts) - AFTER users due to foreign keys
       if (hosts && hosts.length > 0) {
         try {
-          console.log(`Restoring ${hosts.length} terminal hosts...`);
-          console.log('First host data:', JSON.stringify(hosts[0], null, 2));
-          
+
           await connection.execute('DELETE FROM hosts');
           await connection.execute('ALTER TABLE hosts AUTO_INCREMENT = 1');
 
           for (const host of hosts) {
-            console.log(`Restoring host: ${host.name} (${host.hostname})`);
 
             // Map user ID for createdBy field if users were restored
             let mappedCreatedBy = host.created_by || host.createdBy || null;
@@ -1627,7 +1507,7 @@ router.post('/restore', verifyToken, async (req, res) => {
                 );
                 if (userResult.length > 0) {
                   mappedCreatedBy = userResult[0].id;
-                  console.log(`Mapped createdBy from ${host.created_by || host.createdBy} to ${mappedCreatedBy} for host ${host.name}`);
+
                 }
               }
             }
@@ -1691,20 +1571,19 @@ router.post('/restore', verifyToken, async (req, res) => {
             `ALTER TABLE hosts AUTO_INCREMENT = ${maxId + 1}`
           );
 
-          console.log(`✅ Restored ${restoredHosts} terminal hosts`);
         } catch (error) {
           console.error('❌ Error restoring hosts:', error);
           console.error('Error details:', error.message);
           throw error; // Re-throw to rollback transaction
         }
       } else {
-        console.log('ℹ️ No hosts found in backup to restore');
+
       }
 
       // Restore services table
       if (services && services.length > 0) {
         try {
-          console.log(`Restoring ${services.length} proxy services...`);
+
           await connection.execute('DELETE FROM services');
           await connection.execute('ALTER TABLE services AUTO_INCREMENT = 1');
 
@@ -1746,9 +1625,8 @@ router.post('/restore', verifyToken, async (req, res) => {
             `ALTER TABLE services AUTO_INCREMENT = ${maxId + 1}`
           );
 
-          console.log(`✅ Restored ${restoredServices} proxy services`);
         } catch (error) {
-          console.log('Error restoring services:', error.message);
+
         }
       }
 
@@ -1757,19 +1635,16 @@ router.post('/restore', verifyToken, async (req, res) => {
       // Restore SSH keys first (before hosts) - only if present in backup
       if (ssh_keys && ssh_keys.length > 0) {
         try {
-          console.log(`Restoring ${ssh_keys.length} SSH keys...`);
+
           await connection.execute('DELETE FROM ssh_keys');
 
           // Ensure SSH directory exists
           const sshDir = '/root/.ssh';
           try {
             await fs.mkdir(sshDir, { recursive: true, mode: 0o700 });
-            console.log('✅ SSH directory created/verified:', sshDir);
+
           } catch (dirError) {
-            console.warn(
-              'Warning: Could not create SSH directory:',
-              dirError.message
-            );
+
           }
 
           for (const sshKey of ssh_keys) {
@@ -1818,23 +1693,20 @@ router.post('/restore', verifyToken, async (req, res) => {
               createdById = req.user?.id || 1;
             }
 
-            console.log(`Restoring SSH key: ${sshKey.key_name || sshKey.keyName} (created_by: ${createdById})`);
-
             // SICHERHEITSKRITISCH: Private Key mit Backup-Schlüssel entschlüsseln und mit System-Key neu verschlüsseln
             let restoredPrivateKey = sshKey.private_key || sshKey.privateKey || '';
             
             // Prüfen ob der Key verschlüsselt ist (Format: iv:encrypted)
             if (restoredPrivateKey && encryptionManager.isEncrypted(restoredPrivateKey)) {
-              console.log(`🔓 Decrypting private key for ${sshKey.key_name || sshKey.keyName}`);
-              
+
               // First try with backup key if provided
               if (backupDecryptionKey) {
                 const decrypted = encryptionManager.decrypt(restoredPrivateKey, backupDecryptionKey);
                 if (decrypted) {
                   restoredPrivateKey = decrypted;
-                  console.log(`✅ Successfully decrypted with backup key`);
+
                 } else {
-                  console.warn(`⚠️ Could not decrypt with backup key, trying system key`);
+
                   // Fallback to system key
                   const systemDecrypted = encryptionManager.decrypt(restoredPrivateKey);
                   if (systemDecrypted) {
@@ -1887,14 +1759,13 @@ router.post('/restore', verifyToken, async (req, res) => {
                 await fs.writeFile(privateKeyPath, restoredPrivateKey, {
                   mode: 0o600,
                 });
-                console.log(`✅ Restored private key file: ${privateKeyPath}`);
 
                 // Write public key (if available)
                 if (sshKey.public_key) {
                   await fs.writeFile(publicKeyPath, sshKey.public_key, {
                     mode: 0o644,
                   });
-                  console.log(`✅ Restored public key file: ${publicKeyPath}`);
+
                 }
 
                 // Set proper ownership (root:root)
@@ -1908,10 +1779,7 @@ router.post('/restore', verifyToken, async (req, res) => {
                     ]);
                   }
                 } catch (chownError) {
-                  console.warn(
-                    'Warning: Could not set key ownership:',
-                    chownError.message
-                  );
+
                 }
               } catch (keyFileError) {
                 console.error(
@@ -1949,17 +1817,11 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             await fs.writeFile(sshConfigPath, sshConfigContent, {
               mode: 0o600,
             });
-            console.log('✅ Created SSH config file:', sshConfigPath);
+
           } catch (configError) {
-            console.warn(
-              'Warning: Could not create SSH config file:',
-              configError.message
-            );
+
           }
 
-          console.log(
-            `✅ Restored ${restoredSSHKeys} SSH keys (database + filesystem)`
-          );
         } catch (error) {
           console.error('❌ Error restoring SSH keys:', error);
           console.error('Error details:', error.message);
@@ -1978,24 +1840,20 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               if (file.startsWith('id_rsa_')) {
                 const filePath = path.join(sshDir, file);
                 await fs.unlink(filePath);
-                console.log(`🗑️ Removed old SSH key file: ${filePath}`);
+
               }
             }
           } catch (cleanupError) {
-            console.warn(
-              'Warning: Could not clean up SSH key files:',
-              cleanupError.message
-            );
+
           }
 
-          console.log('✅ Cleared SSH keys (none in backup)');
         } catch (error) {
-          console.log('Note: Could not clear SSH keys table:', error.message);
+
         }
       } else {
         // Legacy backup without SSH keys - SSH was pre-initialized
         if (legacySSHInitialized) {
-          console.log('✅ Using pre-initialized SSH system for legacy backup');
+
           // Count the SSH keys that were created during pre-initialization
           try {
             const [keyCount] = await connection.execute(
@@ -2003,16 +1861,11 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             );
             restoredSSHKeys = keyCount[0].count;
           } catch (countError) {
-            console.warn(
-              'Could not count pre-initialized SSH keys:',
-              countError.message
-            );
+
             restoredSSHKeys = 1; // Assume at least one key was created
           }
         } else {
-          console.log(
-            '⚠️ Legacy backup detected but SSH pre-initialization failed'
-          );
+
         }
       }
 
@@ -2024,7 +1877,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       // Restore SSH upload logs
       if (ssh_upload_logs && ssh_upload_logs.length > 0) {
         try {
-          console.log(`Restoring ${ssh_upload_logs.length} SSH upload log entries...`);
+
           // Don't delete existing logs, just add the ones from backup
           
           for (const uploadLog of ssh_upload_logs) {
@@ -2093,9 +1946,9 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               restoredSSHUploadLogs++;
             }
           }
-          console.log(`✅ Restored ${restoredSSHUploadLogs} SSH upload log entries`);
+
         } catch (error) {
-          console.log('Error restoring SSH upload logs:', error.message);
+
         }
       }
 
@@ -2108,27 +1961,17 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       );
 
       if (actualCommands && actualCommands.length > 0) {
-        console.log(`Restoring ${actualCommands.length} appliance commands...`);
-        console.log(
-          'Commands to restore:',
-          JSON.stringify(actualCommands, null, 2)
-        );
 
         // First, let's check which appliances exist
         const [existingAppliances] = await connection.execute(
           'SELECT id, name FROM appliances ORDER BY id'
         );
-        console.log('Existing appliances after restore:', existingAppliances.map(a => `${a.id}: ${a.name}`).join(', '));
 
         for (const command of actualCommands) {
           try {
             // Handle both camelCase and snake_case field names from backup
             const applianceId = command.appliance_id || command.applianceId;
             const hostId = command.host_id || command.hostId || command.ssh_host_id || null;
-            
-            console.log(
-              `Restoring command for appliance ${applianceId}: ${command.description}`
-            );
 
             // Check if the appliance exists
             const [appliances] = await connection.execute(
@@ -2137,7 +1980,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             );
 
             if (appliances.length > 0) {
-              console.log(`✅ Found appliance: ${appliances[0].name} (ID: ${appliances[0].id})`);
+
               const createdAt = command.created_at || command.createdAt
                 ? new Date(command.created_at || command.createdAt)
                     .toISOString()
@@ -2171,13 +2014,9 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
                     );
                     if (matchingHosts.length > 0) {
                       newHostId = matchingHosts[0].id;
-                      console.log(
-                        `Mapped host ID ${hostId} to new ID ${newHostId}`
-                      );
+
                     } else {
-                      console.warn(
-                        `Could not find matching host for ${originalHost.username}@${originalHost.hostname || originalHost.host}:${originalHost.port || 22}`
-                      );
+
                     }
                   }
                 }
@@ -2196,9 +2035,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
                     );
                     if (matchingHosts.length > 0) {
                       newHostId = matchingHosts[0].id;
-                      console.log(
-                        `Mapped legacy SSH host ID ${hostId} to new host ID ${newHostId}`
-                      );
+
                     }
                   }
                 }
@@ -2217,30 +2054,22 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               const { sql, values } = prepareInsert('appliance_commands', commandData);
               await connection.execute(sql, values);
               restoredCustomCommands++;
-              console.log(
-                `✅ Successfully restored command "${command.description}" for appliance ${applianceId}`
-              );
+
             } else {
-              console.warn(
-                `⚠️ Skipping command "${command.description}" - appliance ${applianceId} not found in database!`
-              );
-              
+
               // Let's check if there's an appliance with a similar name in the backup
               const backupAppliances = backupData.data.appliances;
               if (backupAppliances && Array.isArray(backupAppliances)) {
                 const originalAppliance = backupAppliances.find(a => (a.id === applianceId));
                 if (originalAppliance) {
-                  console.log(`   Original appliance in backup: "${originalAppliance.name}"`);
-                  
+
                   // Try to find by name instead
                   const [appByName] = await connection.execute(
                     'SELECT id, name FROM appliances WHERE name = ?',
                     [originalAppliance.name]
                   );
                   if (appByName.length > 0) {
-                    console.log(`   ℹ️ Found appliance by name: ${appByName[0].name} with new ID ${appByName[0].id}`);
-                    console.log(`   Retrying command restore with new ID...`);
-                    
+
                     // Retry with the new ID
                     const newApplianceId = appByName[0].id;
                     const createdAt = command.created_at || command.createdAt
@@ -2290,9 +2119,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
                     const { sql, values } = prepareInsert('appliance_commands', commandData);
                     await connection.execute(sql, values);
                     restoredCustomCommands++;
-                    console.log(
-                      `✅ Successfully restored command "${command.description}" for appliance ${originalAppliance.name} (new ID: ${newApplianceId})`
-                    );
+
                   }
                 }
               }
@@ -2305,7 +2132,6 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             console.error('Full error:', error);
           }
         }
-        console.log(`✅ Restored ${restoredCustomCommands} custom commands`);
 
         // Set AUTO_INCREMENT for custom commands
         const [maxCmdIdResult] = await connection.execute(
@@ -2316,13 +2142,13 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
           `ALTER TABLE appliance_commands AUTO_INCREMENT = ${maxCmdId + 1}`
         );
       } else {
-        console.log('ℹ️ No custom commands to restore');
+
       }
 
       // Restore audit logs
       if (audit_logs && audit_logs.length > 0) {
         try {
-          console.log(`Restoring ${audit_logs.length} audit log entries...`);
+
           // Don't delete existing audit logs, just add the ones from backup
 
           for (const auditLog of audit_logs) {
@@ -2376,18 +2202,16 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             );
             restoredAuditLogs++;
           }
-          console.log(`✅ Restored ${restoredAuditLogs} audit log entries`);
+
         } catch (error) {
-          console.log('Error restoring audit logs:', error.message);
+
         }
       }
 
       // Restore role permissions
       if (role_permissions && role_permissions.length > 0) {
         try {
-          console.log(
-            `Restoring ${role_permissions.length} role permissions...`
-          );
+
           // Clear existing role permissions
           await connection.execute('DELETE FROM role_permissions');
 
@@ -2407,20 +2231,16 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             );
             restoredRolePermissions++;
           }
-          console.log(
-            `✅ Restored ${restoredRolePermissions} role permissions`
-          );
+
         } catch (error) {
-          console.log('Error restoring role permissions:', error.message);
+
         }
       }
 
       // Restore user appliance permissions
       if (user_appliance_permissions && user_appliance_permissions.length > 0) {
         try {
-          console.log(
-            `Restoring ${user_appliance_permissions.length} user appliance permissions...`
-          );
+
           // Clear existing user appliance permissions
           await connection.execute('DELETE FROM user_appliance_permissions');
 
@@ -2483,23 +2303,16 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               }
             }
           }
-          console.log(
-            `✅ Restored ${restoredUserAppliancePermissions} user appliance permissions`
-          );
+
         } catch (error) {
-          console.log(
-            'Error restoring user appliance permissions:',
-            error.message
-          );
+
         }
       }
 
       // Restore service command logs
       if (service_command_logs && service_command_logs.length > 0) {
         try {
-          console.log(
-            `Restoring ${service_command_logs.length} service command log entries...`
-          );
+
           // Don't delete existing logs, just add the ones from backup
 
           for (const logEntry of service_command_logs) {
@@ -2535,51 +2348,26 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               restoredServiceCommandLogs++;
             }
           }
-          console.log(
-            `✅ Restored ${restoredServiceCommandLogs} service command log entries`
-          );
+
         } catch (error) {
-          console.log('Error restoring service command logs:', error.message);
+
         }
       }
 
       // Restore sessions (Note: Only restore active sessions if needed)
       if (actualSessions && actualSessions.length > 0) {
         try {
-          console.log(`Found ${actualSessions.length} sessions in backup...`);
+
           // We don't restore sessions by default as they are temporary
           // and should be recreated on login
-          console.log('ℹ️ Sessions are not restored (temporary data)');
+
         } catch (error) {
-          console.log('Note: Sessions restoration skipped:', error.message);
+
         }
       }
 
       // Commit transaction
       await connection.commit();
-
-      console.log(`Enhanced restore completed:`);
-      console.log(`- ${restoredAppliances} appliances`);
-      console.log(`- ${restoredCategories} categories`);
-      console.log(`- ${restoredSettings} settings`);
-      console.log(`- ${restoredBackgrounds} background images`);
-      console.log(`- ${restoredHosts} terminal hosts`);
-      console.log(`- ${restoredServices} proxy services`);
-      console.log(`- ${restoredSSHKeys} SSH keys`);
-      console.log(`- ${restoredSSHHosts} SSH hosts`);
-      console.log(`- ${restoredSSHConfig} SSH config entries`);
-      console.log(`- ${restoredSSHUploadLogs} SSH upload logs`);
-      console.log(`- ${restoredCustomCommands} custom commands`);
-      console.log(`- ${restoredUsers} users (with password hashes)`);
-      console.log(`- ${restoredAuditLogs} audit log entries`);
-      console.log(`- ${restoredRolePermissions} role permissions`);
-      console.log(
-        `- ${restoredUserAppliancePermissions} user appliance permissions`
-      );
-      console.log(
-        `- ${restoredServiceCommandLogs} service command log entries`
-      );
-      console.log(`- ${restoredSessions} sessions (skipped - temporary data)`);
 
       let responseMessage;
       let sshAutoInitialized = false;
@@ -2599,8 +2387,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
 
       // Regenerate SSH config directly after restore - with timeout protection
       if (restoredSSHKeys > 0 || restoredSSHHosts > 0) {
-        console.log('🔧 Regenerating SSH configuration...');
-        
+
         // Use setTimeout to prevent hanging
         const sshRegenerationTimeout = setTimeout(() => {
           console.error('⚠️ SSH regeneration timed out after 30 seconds');
@@ -2611,35 +2398,33 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
           const sshManager = new SSHManager({});
 
           // First sync keys to filesystem
-          console.log('  📁 Syncing SSH keys to filesystem...');
+
           const syncPromise = sshManager.syncKeysToFilesystem();
           const syncedKeys = await Promise.race([
             syncPromise,
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
           ]);
-          console.log(`  ✅ Synced ${syncedKeys} SSH keys`);
-          
+
           // Also restore user-specific SSH keys
-          console.log('  🔑 Restoring user-specific SSH keys...');
+
           try {
             const { restoreSSHKeys } = require('../scripts/restore-ssh-keys');
             await restoreSSHKeys();
-            console.log('  ✅ User SSH keys restored');
+
           } catch (keyRestoreError) {
             console.error('  ⚠️ Failed to restore user SSH keys:', keyRestoreError.message);
           }
 
           // Then regenerate SSH config
-          console.log('  📝 Regenerating SSH config...');
+
           const configPromise = sshManager.regenerateSSHConfig();
           await Promise.race([
             configPromise,
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
           ]);
-          console.log('  ✅ SSH config regenerated');
 
           // Fix permissions - quick operation, no timeout needed
-          console.log('  🔒 Fixing SSH permissions...');
+
           const fs = require('fs').promises;
           const sshDir = '/root/.ssh';
           await fs.chmod(sshDir, 0o700).catch(() => {});
@@ -2655,8 +2440,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               await fs.chmod(filePath, 0o600).catch(() => {});
             }
           }
-          console.log('  ✅ SSH permissions fixed');
-          
+
           clearTimeout(sshRegenerationTimeout);
         } catch (sshError) {
           clearTimeout(sshRegenerationTimeout);
@@ -2666,7 +2450,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       }
 
       // ALWAYS regenerate SSH keys for all users after restore (regardless of SSH restore)
-      console.log('🔑 Regenerating SSH keys for all users after restore...');
+
       try {
         const [users] = await connection.execute('SELECT id, username FROM users');
         
@@ -2729,15 +2513,14 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
 
       // Restore Guacamole database if included in backup
       if (guacamole_backup) {
-        console.log('🥑 Restoring Guacamole database...');
+
         try {
           const guacBackup = guacamole_backup;
           
           if (guacBackup.encoding === 'base64' && guacBackup.data) {
             // Decode base64 SQL dump
             const sqlDump = Buffer.from(guacBackup.data, 'base64').toString('utf8');
-            console.log(`  📦 Decoded Guacamole backup: ${Math.round(sqlDump.length / 1024)} KB`);
-            
+
             // Write to temporary file
             const tempFile = `/tmp/guacamole_restore_${Date.now()}.sql`;
             await fs.writeFile(tempFile, sqlDump);
@@ -2755,24 +2538,21 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
                 maxBuffer: 50 * 1024 * 1024,
                 env: { ...process.env, PGPASSWORD: guacPass }
               });
-              
-              console.log('  ✅ Guacamole database restored successfully');
-              
+
               // Clean up temp file
               await fs.unlink(tempFile).catch(() => {});
               
               // Restart Guacamole to apply changes
-              console.log('  🔄 Restarting Guacamole service...');
+
               await execAsync('docker restart appliance_guacamole', { timeout: 30000 });
-              console.log('  ✅ Guacamole service restarted');
-              
+
             } catch (restoreError) {
               console.error('  ❌ Failed to restore Guacamole database:', restoreError.message);
               // Clean up temp file
               await fs.unlink(tempFile).catch(() => {});
               
               // Try alternative restore method
-              console.log('  🔄 Trying alternative restore method...');
+
               try {
                 // Write SQL to stdin of psql command
                 const { stdin } = require('child_process').spawn(
@@ -2785,14 +2565,14 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
                 
                 // Wait a bit for the restore to complete
                 await new Promise(resolve => setTimeout(resolve, 5000));
-                console.log('  ✅ Guacamole database restored via alternative method');
+
               } catch (altError) {
                 console.error('  ❌ Alternative restore also failed:', altError.message);
                 restorationSummary.warnings.push('Guacamole database restore failed');
               }
             }
           } else {
-            console.log('  ⚠️ Guacamole backup format not supported');
+
             restorationSummary.warnings.push('Guacamole backup format not supported');
           }
         } catch (guacError) {
@@ -2800,15 +2580,14 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
           restorationSummary.warnings.push(`Guacamole restore failed: ${guacError.message}`);
         }
       } else {
-        console.log('ℹ️ No Guacamole backup found in restore data');
+
       }
                 
                 keysGenerated++;
-                console.log(`  ✓ Generated and stored SSH key for user ${user.username} (ID: ${user.id})`);
+
               } else {
                 // Key exists in filesystem, but might not be in database - check and add if missing
-                console.log(`  ℹ️ SSH key file exists for user ${user.username} (ID: ${user.id}), checking database...`);
-                
+
                 // Check if key is in database
                 const [dbKeys] = await connection.execute(
                   'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by = ?',
@@ -2840,23 +2619,22 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
                       user.id
                     ]
                   );
-                  
-                  console.log(`  ✅ Added existing SSH key to database for user ${user.username} (ID: ${user.id})`);
+
                 } else {
-                  console.log(`  ✓ SSH key already in database for user ${user.username} (ID: ${user.id})`);
+
                 }
               }
             } catch (error) {
               keysFailed++;
-              console.log(`  ⚠️ Failed to generate SSH key for user ${user.username}: ${error.message}`);
+
             }
           }
           
           if (keysGenerated > 0) {
-            console.log(`✅ Generated ${keysGenerated} SSH keys`);
+
           }
           if (keysFailed > 0) {
-            console.log(`⚠️ Failed to generate ${keysFailed} SSH keys`);
+
           }
         }
       } catch (error) {
@@ -2864,14 +2642,13 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       }
 
       // Run post-restore hook with timeout - DISABLED to prevent hanging
-      console.log('🔧 Post-restore hook disabled to prevent hanging issues');
-      
+
       // WICHTIG: Recreate Guacamole connections nach Restore
-      console.log('🔄 Recreating Guacamole connections after restore...');
+
       try {
         const { recreateGuacamoleConnections } = require('../utils/recreateGuacamoleConnections');
         await recreateGuacamoleConnections();
-        console.log('✅ Guacamole connections recreated successfully');
+
       } catch (guacError) {
         console.error('⚠️ Failed to recreate Guacamole connections:', guacError.message);
         // Don't fail the restore if this fails
@@ -2892,7 +2669,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               cwd: path.dirname(hookPath),
               stdio: 'pipe', // Capture output instead of inherit
             });
-            console.log('✅ Post-restore hook completed');
+
             if (output) {
               console.log('Hook output:', output.substring(0, 500)); // Log first 500 chars
             }
@@ -2905,7 +2682,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             // Don't fail the restore if hook fails
           }
         } else {
-          console.warn('⚠️ Post-restore hook not found at:', hookPath);
+
         }
       } catch (hookError) {
         console.error('⚠️ Post-restore hook error:', hookError.message);

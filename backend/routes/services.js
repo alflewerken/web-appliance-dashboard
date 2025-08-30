@@ -59,8 +59,7 @@ router.post('/check-all', checkAllHandler); // Legacy route for old frontend ver
 
 async function checkAllHandler(req, res) {
   try {
-    console.log('🔄 Service check requested');
-    
+
     // Clear host cache to force fresh checks
     statusChecker.clearHostCache();
     
@@ -126,9 +125,7 @@ router.post('/:id/start', async (req, res) => {
     if (!appliance.startCommand) {
       return res.status(400).json({ error: 'No start command configured' });
     }
-    
-    console.log(`🚀 Starting service: ${appliance.name}`);
-    
+
     let commandToExecute = appliance.startCommand;
     
     // If we have SSH connection info, build the proper SSH command
@@ -163,8 +160,7 @@ router.post('/:id/start', async (req, res) => {
         // Build SSH command
         const keyPath = `-i ~/.ssh/id_rsa_${sshKeyName}`;
         commandToExecute = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
-        
-        console.log(`📡 Using SSH connection: ${username}@${host}:${port}`);
+
       }
     }
     
@@ -195,9 +191,7 @@ router.post('/:id/start', async (req, res) => {
       ipAddress,
       appliance.name
     );
-    
-    console.log(`✅ Service "${appliance.name}" started and logged to audit`);
-    
+
     // Trigger immediate status check after a short delay
     setTimeout(() => {
       statusChecker.forceCheck();
@@ -268,9 +262,7 @@ router.post('/:id/stop', async (req, res) => {
     if (!appliance.stopCommand) {
       return res.status(400).json({ error: 'No stop command configured' });
     }
-    
-    console.log(`🛑 Stopping service: ${appliance.name}`);
-    
+
     let commandToExecute = appliance.stopCommand;
     
     // If we have SSH connection info, build the proper SSH command
@@ -305,8 +297,7 @@ router.post('/:id/stop', async (req, res) => {
         // Build SSH command
         const keyPath = `-i ~/.ssh/id_rsa_${sshKeyName}`;
         commandToExecute = `ssh ${keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
-        
-        console.log(`📡 Using SSH connection: ${username}@${host}:${port}`);
+
       }
     }
     
@@ -337,9 +328,7 @@ router.post('/:id/stop', async (req, res) => {
       ipAddress,
       appliance.name
     );
-    
-    console.log(`✅ Service "${appliance.name}" stopped and logged to audit`);
-    
+
     // Trigger immediate status check after a short delay
     setTimeout(() => {
       statusChecker.forceCheck();

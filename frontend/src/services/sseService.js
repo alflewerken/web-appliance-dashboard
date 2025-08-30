@@ -1,6 +1,5 @@
 // Server-Sent Events Service for real-time updates
 
-
 class SSEService {
   constructor() {
     this.eventSource = null;
@@ -182,11 +181,11 @@ class SSEService {
       this.maxReconnectDelay
     );
     
-    // console.log(`[SSE] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+    // `);
     
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
-      // console.log(`[SSE] Reconnecting... (attempt ${this.reconnectAttempts})`);
+      // `);
       this.connect().catch(error => {
         // console.error('[SSE] Reconnect failed:', error);
       });

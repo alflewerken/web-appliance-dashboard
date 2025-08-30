@@ -84,7 +84,7 @@ class EncryptionManager {
             return decrypted;
           } catch (gcmError) {
             // If GCM fails, try CBC as fallback
-            console.log('GCM decryption failed, trying CBC:', gcmError.message);
+
           }
         }
         
@@ -142,7 +142,7 @@ class EncryptionManager {
       // CRITICAL: First check if data is already encrypted with the target key
       // This prevents double encryption when keys are the same
       if (this.canDecrypt(encryptedData, targetKey)) {
-        console.log('Data already encrypted with target key, skipping re-encryption');
+
         return encryptedData;
       }
       
@@ -153,22 +153,21 @@ class EncryptionManager {
         // Decryption failed - but let's check if it's because the data
         // is already encrypted with system key (common scenario)
         if (fromKey !== this.systemKey && this.canDecrypt(encryptedData, this.systemKey)) {
-          console.log('Data appears to be encrypted with system key already');
+
           return encryptedData;
         }
-        
-        console.warn('Could not decrypt data for re-encryption - returning original');
+
         return encryptedData;
       }
 
       // Check if decrypted data looks like it might be encrypted data
       // (this catches double-encrypted data)
       if (this.isEncrypted(decrypted)) {
-        console.warn('Decrypted data appears to be encrypted - possible double encryption detected');
+
         // Try to decrypt once more to get actual plaintext
         const doubleDecrypted = this.decrypt(decrypted, fromKey);
         if (doubleDecrypted) {
-          console.log('Successfully recovered from double encryption');
+
           return this.encrypt(doubleDecrypted, targetKey);
         }
       }
@@ -192,7 +191,7 @@ class EncryptionManager {
     
     // If the keys are the same, no need to re-encrypt
     if (fromKey === targetKey) {
-      console.log('Source and target keys are the same, no re-encryption needed');
+
       return encryptedData;
     }
     
@@ -203,8 +202,7 @@ class EncryptionManager {
     if (this.canDecrypt(result, targetKey)) {
       return result;
     }
-    
-    console.warn('Re-encryption result cannot be decrypted, returning original');
+
     return encryptedData;
   }
 
@@ -281,7 +279,7 @@ class EncryptionManager {
       
       if (!this.isEncrypted(decrypted)) {
         // We've reached plaintext
-        console.log(`Fixed ${decryptionLevels + 1} level(s) of encryption`);
+
         // Re-encrypt once with the correct key
         return this.encrypt(decrypted, workingKey);
       }

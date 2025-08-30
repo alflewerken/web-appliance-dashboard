@@ -29,9 +29,6 @@ const executeSSHCommand = async (command, timeout = 30000, progressCallback = nu
   // First check if it's a simple SSH command (not the ssh:// format)
   if (command.startsWith('ssh ')) {
     // Direct SSH command execution
-    console.log(
-      `🔗 Executing direct SSH command: ${command.substring(0, 100)}...`
-    );
 
     // If we have a progress callback, use spawn for real-time output
     if (progressCallback) {
@@ -123,8 +120,6 @@ const executeSSHCommand = async (command, timeout = 30000, progressCallback = nu
     // -t forces pseudo-TTY allocation which enables color output
     const sshCommand = `ssh -t -i ~/.ssh/id_rsa_dashboard -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${port} ${user}@${host} "${coloredCommand}"`;
 
-    console.log(`🔗 Executing SSH command on ${host}: ${coloredCommand}`);
-
     return await execAsync(sshCommand, {
       timeout,
       encoding: 'utf8',
@@ -167,9 +162,7 @@ const getSSHConnection = async (hostId) => {
       
       // Use -t flag for pseudo-TTY to preserve colors
       const sshCommand = `ssh -t -i ~/.ssh/id_rsa_${keyName} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${host.port} ${host.username}@${host.hostname} "${coloredCommand}"`;
-      
-      console.log(`🔗 Executing SSH command on ${host.name}: ${coloredCommand}`);
-      
+
       // Environment variables to force color output
       const colorEnv = {
         ...process.env,

@@ -4,12 +4,7 @@ const { logger } = require('../utils/logger');
 
 const authenticateToken = (req, res, next) => {
     // Debug logging
-    console.log('[AUTH] Checking authentication for:', req.method, req.url);
-    console.log('[AUTH] Full URL:', req.originalUrl);
-    console.log('[AUTH] Query params:', req.query);
-    console.log('[AUTH] Headers:', req.headers.authorization);
-    console.log('[AUTH] Token from query:', req.query.token);
-    
+
     // Token aus verschiedenen Quellen holen
     const authHeader = req.headers['authorization'];
     const headerToken = authHeader && authHeader.split(' ')[1];

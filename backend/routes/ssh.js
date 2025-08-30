@@ -33,7 +33,7 @@ const upload = multer({
 
 // Test route
 router.get('/test', (req, res) => {
-  console.log('SSH Test Route Hit');
+
   res.json({ message: 'SSH routes are working' });
 });
 

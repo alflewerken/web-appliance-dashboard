@@ -272,7 +272,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           });
           
           if (typeof unsubscribe !== 'function') {
-            console.warn(`Failed to subscribe to ${eventName}`);
+
             return null;
           }
           

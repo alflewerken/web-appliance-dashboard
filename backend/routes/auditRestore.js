@@ -616,9 +616,7 @@ router.post('/revert/appliance/:logId', requireAdmin, async (req, res) => {
 });
 // Restore deleted users (batch/duplicate route)
 router.post('/restore/users/:logId', requireAdmin, async (req, res) => {
-  console.log('[AuditRestore] User restore endpoint called for log ID:', req.params.logId);
-  console.log('[AuditRestore] Request body:', req.body);
-  
+
   try {
     const result = await db.transaction(async (trx) => {
       // Get the audit log
@@ -708,8 +706,6 @@ router.post('/restore/users/:logId', requireAdmin, async (req, res) => {
         newUsername  // Pass the new username as resourceName
       );
 
-      console.log('[AuditRestore] Broadcasting user_restored event for user:', newUsername);
-      
       // Broadcast the restoration
       broadcast('user_restored', {
         id: restoredUserId,
@@ -718,8 +714,6 @@ router.post('/restore/users/:logId', requireAdmin, async (req, res) => {
         role: userData.role,
         isActive: userData.is_active || userData.isActive
       });
-      
-      console.log('[AuditRestore] user_restored event broadcasted');
 
       return {
         success: true,
@@ -931,12 +925,10 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
             sshUsername: details.username,  // SSH username
             sshPassword: details.password   // SSH password (encrypted)
           };
-          
-          console.log(`Restoring Guacamole connection for host ${hostName} with protocol ${guacamoleData.remote_protocol}`);
-          
+
           // syncGuacamoleConnection will handle the decryption
           await syncGuacamoleConnection(guacamoleData);
-          console.log(`✅ Guacamole connection restored for host ${hostName}`);
+
         } catch (guacError) {
           console.error('Failed to restore Guacamole connection:', guacError);
           // Don't fail the entire restoration if Guacamole fails

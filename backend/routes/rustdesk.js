@@ -22,15 +22,15 @@ async function initializeRustDesk() {
     
     // Event Listeners für Logging
     rustDeskManager.on('install-start', (data) => {
-      console.log(`RustDesk installation started for host ${data.hostId}`);
+
     });
     
     rustDeskManager.on('install-progress', (data) => {
-      console.log(`RustDesk installation progress for ${data.hostId}: ${data.progress}%`);
+
     });
     
     rustDeskManager.on('install-complete', (data) => {
-      console.log(`RustDesk installed on ${data.hostId} with ID: ${data.rustdeskId}`);
+
     });
   }
   return rustDeskManager;
@@ -186,34 +186,25 @@ router.get('/install/:hostId/status', authenticateToken, async (req, res) => {
   const { hostId } = req.params;
   const userId = req.user?.id || req.userId || 1;
   const ipAddress = getClientIp(req);
-  
-  console.log('=== RustDesk status check ===');
-  console.log('Host ID:', hostId);
-  console.log('User ID:', userId);
-  console.log('IP:', ipAddress);
-  
+
   const status = rustDeskManager.getInstallationStatus(hostId);
-  
-  console.log('Installation status:', status);
-  
+
   if (!status) {
     return res.status(404).json({ error: 'No installation found' });
   }
   
   // If RustDesk is installed and ready, log the access
   if (status.status === 'installed' && status.rustdeskId) {
-    console.log('RustDesk is installed, creating audit log...');
+
     try {
       // Get appliance info for audit log
       const appliances = await db.select('appliances', 
         { id: hostId },
         { limit: 1 }
       );
-      
-      console.log('Found appliances:', appliances.length);
-      
+
       if (appliances.length > 0) {
-        console.log('Creating audit log for appliance:', appliances[0].name);
+
         await createAuditLog(
           userId,
           'rustdesk_access',
@@ -229,14 +220,14 @@ router.get('/install/:hostId/status', authenticateToken, async (req, res) => {
           ipAddress,
           appliances[0].name  // Add resource name here
         );
-        console.log('Audit log created successfully');
+
       }
     } catch (error) {
       console.error('Error creating audit log for RustDesk access:', error);
       // Don't fail the request if audit logging fails
     }
   } else {
-    console.log('RustDesk not installed or not ready, skipping audit log');
+
   }
   
   res.json(status);

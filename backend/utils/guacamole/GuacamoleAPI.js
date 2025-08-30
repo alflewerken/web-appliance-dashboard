@@ -73,7 +73,7 @@ class GuacamoleAPI {
         return existingConnection.identifier;
       }
     } catch (error) {
-      console.log('Could not list connections:', error.message);
+
     }
 
     // Erstelle neue Verbindung

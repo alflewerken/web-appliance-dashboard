@@ -18,7 +18,6 @@ class SSHSetupFallback {
     keyName = 'dashboard'
   ) {
     try {
-      console.log('🔄 Using fallback SSH setup method...');
 
       // 1. Stelle sicher, dass SSH-Keys existieren
       const keyPath = path.join(this.sshDir, `id_rsa_${keyName}`);
@@ -47,8 +46,6 @@ class SSHSetupFallback {
           `${username}@${host}`,
           `mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '${publicKey.trim()}' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && echo 'SSH key installed successfully'`,
         ];
-
-        console.log('📡 Installing SSH key via direct SSH connection...');
 
         const sshProcess = spawn('sshpass', [
           '-p',
@@ -185,7 +182,6 @@ class SSHSetupFallback {
   // Installiere SSH-Tools automatisch (wenn möglich)
   async installSSHTools() {
     return new Promise(resolve => {
-      console.log('📦 Attempting to install SSH tools...');
 
       // Versuche verschiedene Package Manager
       const installCommands = [

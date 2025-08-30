@@ -28,11 +28,6 @@ export class BackupService {
       const backupData = response.data;
 
       // Log backup details for debugging
-      console.log('Backup received:', {
-        size: JSON.stringify(backupData).length,
-        hasImages: backupData.data?.background_images?.length || 0,
-        imagesWithData: backupData.data?.background_images?.filter(img => img.file_data)?.length || 0
-      });
 
       // Extract encryption key if present
       const encryptionKey = backupData.encryption_key;
@@ -41,7 +36,6 @@ export class BackupService {
       // Verify background images are included
       const bgImages = backupData.data?.background_images || [];
       const imagesWithData = bgImages.filter(img => img.file_data && img.file_data.length > 0);
-      console.log(`Background images in backup: ${bgImages.length} total, ${imagesWithData.length} with base64 data`);
 
       // Create and download file
       const dataStr = JSON.stringify(backupData, null, 2);

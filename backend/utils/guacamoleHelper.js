@@ -19,7 +19,7 @@ async function syncGuacamoleConnection(data) {
   
   // Nur verarbeiten, wenn Remote Desktop aktiviert ist
   if (!isEnabled || !remoteHost) {
-    console.log(`Skipping Guacamole sync for entity ${entityId} - Remote Desktop not enabled or no host configured`);
+
     return;
   }
 
@@ -37,7 +37,7 @@ async function syncGuacamoleConnection(data) {
           // Try to decrypt if it appears to be encrypted
           finalPassword = decrypt(vncPassword);
           if (!finalPassword) {
-            console.log(`Warning: Failed to decrypt VNC/RDP password for entity ${entityId}`);
+
             finalPassword = '';
           }
         } catch (error) {
@@ -83,8 +83,7 @@ async function syncGuacamoleConnection(data) {
       
       // Erstelle oder aktualisiere die Verbindung
       await dbManager.createOrUpdateConnection(entityId, connectionConfig);
-      
-      console.log(`Successfully synced Guacamole connection for entity ${entityId}`);
+
     } finally {
       await dbManager.close();
     }
@@ -112,8 +111,7 @@ async function deleteGuacamoleConnection(applianceId) {
         'DELETE FROM guacamole_connection WHERE connection_name = $1',
         [connectionName]
       );
-      
-      console.log(`Deleted Guacamole connection for appliance ${applianceId}`);
+
     } finally {
       client.release();
     }

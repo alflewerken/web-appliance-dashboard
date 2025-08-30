@@ -51,15 +51,7 @@ export const usePanelResize = (storageKey, defaultWidth = 600, onWidthChange = n
     const clientX = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
     startXRef.current = clientX;
     startWidthRef.current = panelWidth;
-    
-    console.log(`[PanelResize] Started for ${storageKey}`, {
-      type: e.type,
-      startX: clientX,
-      startWidth: panelWidth,
-      windowWidth: window.innerWidth,
-      handlePosition: window.innerWidth - panelWidth
-    });
-    
+
     setIsResizing(true);
   }, [storageKey, panelWidth]);
 
@@ -116,7 +108,7 @@ export const usePanelResize = (storageKey, defaultWidth = 600, onWidthChange = n
       
       if (e.touches && e.touches[0]) {
         const touch = e.touches[0];
-        console.log(`[PanelResize Touch] Move at ${touch.clientX}`);
+
         handleMove(touch.clientX);
       }
     };
@@ -127,7 +119,7 @@ export const usePanelResize = (storageKey, defaultWidth = 600, onWidthChange = n
 
     // Einheitlicher End-Handler
     const handleEnd = () => {
-      console.log(`[PanelResize] Ended for ${storageKey}, final width:`, panelWidth);
+
       setIsResizing(false);
       localStorage.setItem(storageKey, panelWidth.toString());
       document.body.style.cursor = '';

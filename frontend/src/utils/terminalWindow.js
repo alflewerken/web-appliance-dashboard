@@ -146,7 +146,7 @@ export const moveTerminalToNewWindow = async (terminalData, onCloseModal) => {
   const newWindow = await openTerminalInNewWindow(terminalData);
   
   if (!newWindow) {
-    console.warn('Terminal window could not be opened, but modal was closed');
+
   }
   
   return newWindow;

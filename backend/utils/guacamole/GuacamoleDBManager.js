@@ -11,12 +11,7 @@ class GuacamoleDBManager {
       user: process.env.GUACAMOLE_DB_USER || 'guacamole_user',
       password: process.env.GUACAMOLE_DB_PASSWORD || 'guacamole_pass123'
     };
-    
-    console.log('[GuacamoleDBManager] Connecting with config:', {
-      ...config,
-      password: '***' // Hide password in logs
-    });
-    
+
     this.pool = new Pool(config);
   }
 
@@ -231,16 +226,6 @@ class GuacamoleDBManager {
     try {
       await client.query('BEGIN');
 
-      console.log(`[GuacamoleDB] Updating connection ${connectionId} with data:`, {
-        protocol: connectionData.protocol,
-        parameterCount: Object.keys(connectionData.parameters).length,
-        parameters: Object.keys(connectionData.parameters).map(key => ({
-          name: key,
-          hasValue: !!connectionData.parameters[key],
-          valueLength: connectionData.parameters[key]?.toString().length || 0
-        }))
-      });
-
       // Update Protokoll falls geändert
       if (connectionData.protocol) {
         await client.query(
@@ -257,7 +242,7 @@ class GuacamoleDBManager {
 
       // Setze neue Parameter
       for (const [key, value] of Object.entries(connectionData.parameters)) {
-        console.log(`[GuacamoleDB] Setting parameter ${key} = ${key === 'password' ? '[HIDDEN]' : value}`);
+
         await client.query(
           'INSERT INTO guacamole_connection_parameter (connection_id, parameter_name, parameter_value) VALUES ($1, $2, $3)',
           [connectionId, key, value]
@@ -265,7 +250,7 @@ class GuacamoleDBManager {
       }
 
       await client.query('COMMIT');
-      console.log(`[GuacamoleDB] Successfully updated connection ${connectionId}`);
+
     } catch (error) {
       await client.query('ROLLBACK');
       console.error(`[GuacamoleDB] Error updating connection ${connectionId}:`, error);
@@ -365,7 +350,7 @@ class GuacamoleDBManager {
       client.release();
       return true;
     } catch (error) {
-      console.warn('Guacamole database not available:', error.message);
+
       return false;
     }
   }

@@ -14,11 +14,9 @@ class SimpleTerminalManager extends EventEmitter {
 
   createSession(sessionId, applianceId, options = {}) {
     if (this.sessions.has(sessionId)) {
-      console.log(`📋 Session ${sessionId} already exists`);
+
       return this.sessions.get(sessionId);
     }
-
-    console.log(`🚀 Creating simple terminal session: ${sessionId}`);
 
     const session = {
       id: sessionId,
@@ -60,7 +58,7 @@ class SimpleTerminalManager extends EventEmitter {
 
     // Handle exit
     session.process.on('exit', code => {
-      console.log(`💀 Session ${sessionId} exited with code ${code}`);
+
       this.destroySession(sessionId);
     });
 
@@ -90,14 +88,13 @@ class SimpleTerminalManager extends EventEmitter {
       sshCommand = `ssh -o StrictHostKeyChecking=no -p ${port} ${username}@${host}\n`;
     }
 
-    console.log(`🔗 Connecting to SSH: ${sshCommand.trim()}`);
     this.writeToSession(sessionId, sshCommand);
   }
 
   writeToSession(sessionId, data) {
     const session = this.sessions.get(sessionId);
     if (!session || !session.process) {
-      console.warn(`⚠️ Session ${sessionId} not found`);
+
       return false;
     }
 
@@ -113,7 +110,7 @@ class SimpleTerminalManager extends EventEmitter {
 
   resizeSession(sessionId, cols, rows) {
     // Not supported in simple mode
-    console.log(`📐 Resize not supported in simple mode`);
+
     return true;
   }
 
@@ -130,7 +127,7 @@ class SimpleTerminalManager extends EventEmitter {
         session.process.kill();
       }
       this.sessions.delete(sessionId);
-      console.log(`🗑️ Destroyed session ${sessionId}`);
+
     } catch (error) {
       console.error(`❌ Error destroying session: ${error.message}`);
     }
@@ -158,7 +155,7 @@ class SimpleTerminalManager extends EventEmitter {
     for (const [id, session] of this.sessions) {
       const inactivityTime = now - session.lastActivity;
       if (inactivityTime > maxInactivity) {
-        console.log(`🧹 Cleaning up inactive session ${id}`);
+
         this.destroySession(id);
       }
     }

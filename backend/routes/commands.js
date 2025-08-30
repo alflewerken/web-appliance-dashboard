@@ -38,8 +38,7 @@ async function getSSHKeyFromDatabase(keyName, userId = null) {
     }
     
     const sshKey = sshKeys[0];
-    console.log(`Found SSH key '${sshKey.key_name}' (ID: ${sshKey.id}) in database`);
-    
+
     // Check if key is encrypted or plain text
     let privateKey;
     if (sshKey.private_key.startsWith('-----BEGIN')) {
@@ -67,7 +66,7 @@ async function getSSHKeyFromDatabase(keyName, userId = null) {
         try {
           await fs.unlink(tempKeyPath);
         } catch (error) {
-          console.warn(`Could not cleanup temp key file: ${error.message}`);
+
         }
       }
     };
@@ -274,10 +273,7 @@ router.delete('/:applianceId/:commandId', async (req, res) => {
 
 // Execute a command (keeping original logic as it's complex)
 router.post('/:applianceId/:commandId/execute', async (req, res) => {
-  console.log('=== Command Execute Request ===');
-  console.log('Params:', req.params);
-  console.log('User:', req.user);
-  
+
   try {
     const { applianceId, commandId } = req.params;
 
@@ -358,8 +354,6 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
         const escapedCommand = command.replace(/"/g, '\\"');
         // Use the temporary key file from database
         const sshCommand = `ssh -t -i ${sshKeyInfo.keyPath} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${sshConnection.port} ${sshConnection.username}@${sshConnection.host} "${escapedCommand}"`;
-
-        console.log('Executing SSH command with key from database:', sshCommand);
 
         const { execSync: execSyncNode } = require('child_process');
         try {

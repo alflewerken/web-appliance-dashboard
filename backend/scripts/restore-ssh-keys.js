@@ -11,23 +11,20 @@ const path = require('path');
 
 async function restoreSSHKeys() {
   try {
-    console.log('🔑 Restoring SSH keys from database to filesystem...');
-    
+
     // Get all SSH keys from database
     const [keys] = await pool.execute(`
       SELECT id, key_name, private_key, public_key, created_by
       FROM ssh_keys
       WHERE private_key IS NOT NULL
     `);
-    
-    console.log(`Found ${keys.length} SSH keys in database`);
-    
+
     const sshDir = '/root/.ssh';
     
     // Ensure SSH directory exists with correct permissions
     if (!fs.existsSync(sshDir)) {
       fs.mkdirSync(sshDir, { mode: 0o700, recursive: true });
-      console.log(`Created SSH directory: ${sshDir}`);
+
     }
     
     let restoredCount = 0;
@@ -49,12 +46,11 @@ async function restoreSSHKeys() {
         
         // Write private key
         fs.writeFileSync(privateKeyPath, key.private_key, { mode: 0o600 });
-        console.log(`  ✅ Written private key: ${privateKeyPath}`);
-        
+
         // Write public key if available
         if (key.public_key) {
           fs.writeFileSync(publicKeyPath, key.public_key, { mode: 0o644 });
-          console.log(`  ✅ Written public key: ${publicKeyPath}`);
+
         }
         
         restoredCount++;
@@ -73,8 +69,7 @@ async function restoreSSHKeys() {
       const userKeyPath = path.join(sshDir, `id_rsa_${userKeyName}`);
       
       if (!fs.existsSync(userKeyPath)) {
-        console.log(`  ⚠️  Missing key for user ${user.id}: ${userKeyPath}`);
-        
+
         // Check if we have a dashboard key to copy
         const dashboardKeyPath = path.join(sshDir, 'id_rsa_dashboard');
         if (fs.existsSync(dashboardKeyPath)) {
@@ -84,21 +79,18 @@ async function restoreSSHKeys() {
           
           fs.writeFileSync(userKeyPath, dashboardPrivate, { mode: 0o600 });
           fs.writeFileSync(`${userKeyPath}.pub`, dashboardPublic, { mode: 0o644 });
-          
-          console.log(`  ✅ Created user key from dashboard key: ${userKeyPath}`);
+
           restoredCount++;
         }
       }
     }
-    
-    console.log(`\n✅ Restored ${restoredCount} SSH keys`);
-    
+
     // List all SSH keys in filesystem
-    console.log('\nSSH keys in filesystem:');
+
     const files = fs.readdirSync(sshDir);
     files.filter(f => f.startsWith('id_rsa')).forEach(file => {
       const stat = fs.statSync(path.join(sshDir, file));
-      console.log(`  ${file} (${stat.mode.toString(8).slice(-3)})`);
+
     });
     
     return restoredCount;
@@ -112,7 +104,7 @@ async function restoreSSHKeys() {
 if (require.main === module) {
   restoreSSHKeys()
     .then(count => {
-      console.log(`\n✅ SSH key restoration completed`);
+
       process.exit(0);
     })
     .catch(error => {

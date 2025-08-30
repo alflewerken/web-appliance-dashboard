@@ -47,8 +47,7 @@ async function createAuditLog(
     }
     
     // Debug log
-    console.log(`📝 Creating audit log - Action: ${action}, Resource: ${resourceType} #${resourceId}, Name: "${resourceName}", IP: ${finalIpAddress}`);
-    
+
     // Insert audit log entry
     const [result] = await pool.execute(
       `
@@ -64,10 +63,6 @@ async function createAuditLog(
         JSON.stringify(details),
         finalIpAddress,
       ]
-    );
-
-    console.log(
-      `📝 Audit log created: ${action} on ${resourceType} #${resourceId}${resourceName ? ` (${resourceName})` : ''} by user ${userId} from IP ${finalIpAddress}`
     );
 
     // Broadcast SSE event for audit log creation

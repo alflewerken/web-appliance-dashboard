@@ -6,7 +6,7 @@ const getEncryptionKey = () => {
   let key = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET;
 
   if (!key) {
-    console.warn('Warning: Using default encryption key. Set SSH_KEY_ENCRYPTION_SECRET in production!');
+
     key = 'default-insecure-key-change-this-in-production!!';
   }
 

@@ -316,7 +316,7 @@ router.delete('/:id', async (req, res) => {
     try {
       await fs.unlink(filepath);
     } catch (fileError) {
-      console.warn('Could not delete file:', filepath, fileError.message);
+
     }
 
     // Delete from database

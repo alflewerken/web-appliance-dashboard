@@ -54,16 +54,7 @@ router.get('/', verifyToken, async (req, res) => {
     // Debug: Verify mapping from QueryBuilder
     if (mappedAppliances.length > 0) {
       const first = mappedAppliances[0];
-      console.log('[GET /appliances] QueryBuilder output (already in camelCase):', {
-        id: first.id,
-        name: first.name,
-        isFavorite: first.isFavorite,
-        sshConnection: first.sshConnection,
-        remoteDesktopEnabled: first.remoteDesktopEnabled
-      });
-      console.log('[GET /appliances] Total favorites:', 
-        mappedAppliances.filter(a => a.isFavorite).length
-      );
+
     }
     
     // The data is already mapped by QueryBuilder, just ensure defaults
@@ -83,13 +74,7 @@ router.get('/', verifyToken, async (req, res) => {
     // Debug: Check specific appliance
     const debugApp = appliances.find(a => a.name === 'Nextcloud-Mac');
     if (debugApp) {
-      console.log('[GET /appliances] Nextcloud-Mac after processing:', {
-        isFavorite: debugApp.isFavorite,
-        sshConnection: debugApp.sshConnection,
-        remoteDesktopEnabled: debugApp.remoteDesktopEnabled,
-        startCommand: debugApp.startCommand,
-        stopCommand: debugApp.stopCommand,
-      });
+
     }
 
     res.json(appliances);
@@ -474,10 +459,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     // Calculate changed fields - compare using camelCase
     const changedFields = {};
     const oldValues = {};
-    
-    console.log('PUT Debug - Comparing fields for appliance', id);
-    console.log('PUT Debug - updateDataCamelCase keys:', Object.keys(updateDataCamelCase));
-    
+
     Object.keys(updateDataCamelCase).forEach(key => {
       // Skip updatedAt and password fields
       if (key === 'updatedAt' || key.includes('Password')) return;
@@ -485,9 +467,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       // Use mapped original data for consistent comparison
       const oldVal = originalMapped[key];
       const newVal = updateDataCamelCase[key];
-      
-      console.log(`PUT Debug - Field ${key}: old="${oldVal}" (${typeof oldVal}), new="${newVal}" (${typeof newVal})`);
-      
+
       // Normalize values for comparison
       let normalizedOld = oldVal;
       let normalizedNew = newVal;
@@ -519,21 +499,18 @@ router.put('/:id', verifyToken, async (req, res) => {
       const newStr = String(normalizedNew);
       
       if (oldStr !== newStr) {
-        console.log(`PUT Debug - Field ${key} CHANGED: "${oldStr}" -> "${newStr}"`);
+
         changedFields[key] = newVal;
         oldValues[key] = oldVal;
       } else {
-        console.log(`PUT Debug - Field ${key} unchanged`);
+
       }
     });
-    
-    console.log('PUT Debug - Total changed fields:', Object.keys(changedFields).length);
-    console.log('PUT Debug - Changed fields:', changedFields);
 
     // Create audit log
     if (req.user) {
       if (Object.keys(changedFields).length > 0) {
-        console.log('PUT Debug - Creating audit log for changes:', changedFields);
+
         await createAuditLog(
           req.user.id,
           'appliance_update',
@@ -551,7 +528,7 @@ router.put('/:id', verifyToken, async (req, res) => {
           updatedAppliance.name || originalData.name  // resourceName
         );
       } else {
-        console.log('PUT Debug - No changes detected, skipping audit log');
+
       }
     }
 
@@ -742,7 +719,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
             }
           }
         );
-        console.log('RustDesk password updated successfully for appliance', id);
+
       } catch (error) {
         console.error('Failed to update RustDesk password:', error.message);
         // Continue with the response even if RustDesk password update fails
@@ -764,13 +741,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
       const oldValues = {};
       
       // Debug logging
-      console.log('PATCH Debug - updateData keys:', Object.keys(updateData));
-      console.log('PATCH Debug - originalData sample:', {
-        color: originalData.color,
-        startCommand: originalData.startCommand,
-        stopCommand: originalData.stopCommand
-      });
-      
+
       Object.keys(updateData).forEach(key => {
         // Skip updatedAt and password fields in comparison
         if (key === 'updatedAt' || key.includes('Password')) return;
@@ -780,7 +751,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
         
         // Debug: Check if field exists in original data
         if (oldVal === undefined && newVal !== undefined) {
-          console.log(`PATCH Debug - Field ${key} not in originalData, newVal: ${newVal}`);
+
         }
         
         // Normalize values for comparison
@@ -815,7 +786,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
         
         // Only track if values are actually different
         if (oldStr !== newStr) {
-          console.log(`PATCH Debug - Field ${key} changed: "${oldStr}" -> "${newStr}"`);
+
           changedFields[key] = newVal;
           oldValues[key] = oldVal;
         }

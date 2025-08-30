@@ -248,25 +248,9 @@ const ServicePanel = ({
 
   // Initialize form data when appliance changes
   useEffect(() => {
-    console.log('[ServicePanel] useEffect triggered with appliance:', appliance);
+
     if (appliance) {
-      console.log('[ServicePanel] Appliance fields:', {
-        id: appliance.id,
-        name: appliance.name,
-        description: appliance.description,
-        url: appliance.url,
-        icon: appliance.icon,
-        color: appliance.color,
-        category: appliance.category,
-        isFavorite: appliance.isFavorite,
-        sshConnection: appliance.sshConnection,
-        statusCommand: appliance.statusCommand,
-        startCommand: appliance.startCommand,
-        stopCommand: appliance.stopCommand,
-        remoteDesktopEnabled: appliance.remoteDesktopEnabled,
-        rustdeskId: appliance.rustdeskId,
-      });
-      
+
       const initialData = {
         name: appliance.name || '',
         url: appliance.url || '',
@@ -296,8 +280,7 @@ const ServicePanel = ({
         transparency: appliance.transparency || 0.85,
         blur: appliance.blur || 8,
       };
-      
-      console.log('[ServicePanel] Initial form data set:', initialData);
+
       setFormData(initialData);
       
       // Store original data for comparison when saving
@@ -353,20 +336,12 @@ const ServicePanel = ({
   // Subscribe to SSE events for real-time updates
   useEffect(() => {
     if (!appliance || appliance.isNew) return; // Only for existing appliances
-    
-    console.log('Setting up SSE listeners for appliance:', appliance.id, appliance.name);
-    
+
     const handleApplianceUpdated = async (data) => {
-      console.log('SSE appliance_updated event received:', data);
-      
+
       // Check if this appliance was updated - compare IDs as strings for type safety
       if (data.id && String(data.id) === String(appliance.id)) {
-        console.log('This appliance was updated via SSE, reloading data...', { 
-          eventId: data.id, 
-          applianceId: appliance.id,
-          applianceName: data.name 
-        });
-        
+
         try {
           const response = await axios.get(`/api/appliances/${appliance.id}`);
           if (response.data) {
@@ -423,11 +398,10 @@ const ServicePanel = ({
     };
     
     const handleApplianceDeleted = (data) => {
-      console.log('SSE appliance_deleted event received:', data);
-      
+
       // Check if this appliance was deleted
       if (data.id && String(data.id) === String(appliance.id)) {
-        console.log('This appliance was deleted externally, closing panel...');
+
         setError('Appliance wurde extern gelöscht');
         setTimeout(() => {
           if (onClose) onClose();
@@ -439,7 +413,7 @@ const ServicePanel = ({
     
     // Connect to SSE and add event listeners
     sseService.connect().then(() => {
-      console.log('SSE connected, adding appliance listeners...');
+
       sseService.addEventListener('appliance_updated', handleApplianceUpdated);
       sseService.addEventListener('appliance_deleted', handleApplianceDeleted);
       sseService.addEventListener('appliance_restored', handleApplianceRestored);
@@ -450,7 +424,7 @@ const ServicePanel = ({
     
     // Cleanup listeners on unmount
     return () => {
-      console.log('Cleaning up SSE listeners for appliance:', appliance.id);
+
       sseService.removeEventListener('appliance_updated', handleApplianceUpdated);
       sseService.removeEventListener('appliance_deleted', handleApplianceDeleted);
       sseService.removeEventListener('appliance_restored', handleApplianceRestored);
@@ -536,8 +510,6 @@ const ServicePanel = ({
       }
       
       // Debug logging to see what fields are being sent
-      console.log('Saving appliance - changed fields:', Object.keys(dataToSave));
-      console.log('Changed data:', dataToSave);
 
       await onSave(appliance?.id, dataToSave);
       
@@ -608,7 +580,6 @@ const ServicePanel = ({
       return;
     }
 
-    
     // If we already have a RustDesk ID in the form, show it directly
     if (formData.rustdeskId) {
       alert(`${t('services.rustdeskAlreadyInstalled')}\nID: ${formData.rustdeskId}`);
@@ -637,8 +608,7 @@ const ServicePanel = ({
       }
 
       const response = await axios.get(`/api/rustdeskInstall/${appliance.id}/status`);
-      
-      
+
       if (response.data) {
         const status = response.data;
         
@@ -2085,7 +2055,7 @@ const ServicePanel = ({
                 fullWidth
                 label={t('services.serviceName')}
                 value={(() => {
-                  console.log('[ServicePanel TextField] formData.name value:', formData.name);
+
                   return formData.name;
                 })()}
                 onChange={e => handleFieldChange('name', e.target.value)}

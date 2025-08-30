@@ -16,7 +16,7 @@ let API_BASE_URL = getApiUrl();
 
 // Safety check - if somehow an IP got in there, clear it
 if (API_BASE_URL && API_BASE_URL.match(/\d+\.\d+\.\d+\.\d+/)) {
-  console.warn('IP address detected in API_BASE_URL, clearing it');
+
   API_BASE_URL = '';
 }
 

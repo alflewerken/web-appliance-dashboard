@@ -147,7 +147,7 @@ router.post('/', async (req, res) => {
     
     // Check if service interval was updated and reload statusChecker if needed
     if (key === 'service_status_refresh_interval' || key === 'service_poll_interval') {
-      console.log('📊 Service interval setting changed - reloading status checker...');
+
       await statusChecker.reloadSettings();
     }
   } catch (error) {
@@ -160,8 +160,6 @@ router.post('/', async (req, res) => {
 router.put('/', async (req, res) => {
   try {
     const settings = req.body;
-
-    console.log('Updating multiple settings:', settings);
 
     if (!settings || typeof settings !== 'object') {
       return res.status(400).json({ error: 'Settings object is required' });
@@ -200,8 +198,6 @@ router.put('/', async (req, res) => {
       }
 
       await connection.commit();
-
-      console.log(`Updated ${updatedCount} settings successfully`);
 
       res.json({
         message: `${updatedCount} settings updated successfully`,
@@ -244,7 +240,7 @@ router.put('/', async (req, res) => {
       
       // Check if service interval was updated and reload statusChecker if needed
       if (settings['service_status_refresh_interval'] || settings['service_poll_interval']) {
-        console.log('📊 Service interval setting changed - reloading status checker...');
+
         await statusChecker.reloadSettings();
       }
     } catch (error) {
@@ -264,15 +260,11 @@ router.delete('/:key', async (req, res) => {
   try {
     const { key } = req.params;
 
-    console.log('Deleting setting:', key);
-
     const result = await db.delete('user_settings', { settingKey: key });
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Setting not found' });
     }
-
-    console.log('Setting deleted successfully:', key);
 
     res.json({ message: 'Setting deleted successfully' });
   } catch (error) {

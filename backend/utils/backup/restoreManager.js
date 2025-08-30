@@ -186,9 +186,9 @@ class RestoreManager {
       details
     };
     this.restoreLog.push(entry);
-    console.log(`[${level.toUpperCase()}] ${message}`);
+
     if (details) {
-      console.log('  Details:', details);
+
     }
   }
 
@@ -733,7 +733,6 @@ Host ${host.hostname}
       // Don't throw - allow restore to continue even if SSH fix fails
     }
   }
-
 
   // Recreate Guacamole connections
   async recreateGuacamoleConnections() {

@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - SSH key management
     - Backup/restore functionality
     - Audit log filters and details
+- **Console.log Cleanup Tool** - Automated debug statement removal utility
+  - Created scripts/remove-console-simple.js for safe console.log removal
+  - Zero-dependency Node.js tool with multiple operation modes
+  - Statistics mode to analyze debug statement distribution
+  - Test mode for preview without modifications
+  - Automatic backup creation before file changes
+  - Comprehensive documentation in scripts/remove-console-simple.md
+  - Preserves console.error for error handling
 
 ### Fixed
 - **Missing Translations in Production Deployment** - nginx Docker image missing locales
@@ -53,6 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added Express 4.21 badge
   - Added i18n DE|EN badge
   - Added dynamic GitHub badges (issues, PRs, last commit, build status)
+- **Code Quality - Removed 663 Debug Console Statements** - Major performance improvement
+  - Backend: Removed 572 console.log statements from 61 files
+  - Frontend: Removed 91 console.log statements from 22 files
+  - Preserved console.error for critical error handling
+  - Created reusable cleanup tool (scripts/remove-console-simple.js)
+  - Significantly improved browser console readability
+  - Reduced memory usage and CPU overhead
+  - Eliminated SSE connection debug spam
+  - Most affected files cleaned: backup.js (203), statusChecker.js (40), HostPanel.js (22)
 
 ## [1.1.6] - 2025-08-27
 

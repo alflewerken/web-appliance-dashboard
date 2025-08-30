@@ -100,8 +100,7 @@ router.get('/export', requireAdmin, async (req, res) => {
 // Get all audit logs
 router.get('/', requireAdmin, async (req, res) => {
   try {
-    console.log('[AUDIT_LOGS] API called at:', new Date().toISOString());
-    
+
     const { since } = req.query;
     
     let query = `
@@ -127,17 +126,16 @@ router.get('/', requireAdmin, async (req, res) => {
     if (since) {
       query += ' WHERE al.created_at > ?';
       params.push(since);
-      console.log('[AUDIT_LOGS] Fetching logs since:', since);
+
     }
     
     query += ' ORDER BY al.created_at DESC LIMIT 500';
 
     const [logs] = await pool.execute(query, params);
-    console.log('[AUDIT_LOGS] Found', logs.length, 'logs from DB');
-    
+
     // Debug: Check first log for IP
     if (logs.length > 0) {
-      console.log('[AUDIT_LOGS] First DB log IP:', logs[0].ip_address);
+
     }
     
     // Map logs to camelCase format
@@ -150,10 +148,7 @@ router.get('/', requireAdmin, async (req, res) => {
       
       // Debug: Check action mapping for update events
       if (log.action && log.action.includes('update')) {
-        console.log('[AUDIT_LOGS] Update action mapping:');
-        console.log('  - Original DB action:', log.action);
-        console.log('  - Mapped action:', mapped.action);
-        console.log('  - Details preview:', JSON.stringify(mapped.details).substring(0, 100));
+
       }
       
       return mapped;
@@ -161,7 +156,7 @@ router.get('/', requireAdmin, async (req, res) => {
     
     // Debug: Check first mapped log for IP
     if (mappedLogs.length > 0) {
-      console.log('[AUDIT_LOGS] First mapped log IP:', mappedLogs[0].ipAddress);
+
     }
     
     // Berechne Statistiken direkt im Backend
@@ -169,11 +164,7 @@ router.get('/', requireAdmin, async (req, res) => {
     const todayCount = mappedLogs.filter(log => 
       log.createdAt && log.createdAt.startsWith(todayString)
     ).length;
-    
-    console.log('[AUDIT_LOGS] Today count:', todayCount);
-    console.log('[AUDIT_LOGS] First mapped log:', JSON.stringify(mappedLogs[0], null, 2));
-    console.log('[AUDIT_LOGS] Sending', mappedLogs.length, 'logs to frontend');
-    
+
     // Sende Logs UND Statistiken
     res.json({
       logs: mappedLogs,

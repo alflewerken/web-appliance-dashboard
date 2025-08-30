@@ -11,7 +11,6 @@ const createRequiredDirectories = async () => {
     await fs.mkdir(uploadsDir, { recursive: true });
     await fs.mkdir(backgroundsDir, { recursive: true });
 
-    console.log('✅ Required directories created/verified');
   } catch (error) {
     console.error('❌ Error creating directories:', error);
   }

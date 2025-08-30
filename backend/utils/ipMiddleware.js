@@ -28,16 +28,14 @@ const realIpMiddleware = (req, res, next) => {
 
       if (possibleRealIP && !dockerBridgeIPs.includes(possibleRealIP)) {
         req.clientIp = possibleRealIP;
-        console.log(`Docker Desktop detected - Using real IP: ${req.clientIp}`);
+
       }
     }
   }
 
   // Log the final IP for debugging
   if (process.env.DEBUG_IP === 'true') {
-    console.log(
-      `Final Client IP for ${req.method} ${req.path}: ${req.clientIp}`
-    );
+
   }
 
   next();

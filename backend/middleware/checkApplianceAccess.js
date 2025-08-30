@@ -6,9 +6,7 @@ const checkApplianceAccess = async (req, res, next) => {
     try {
         const applianceId = req.params.id;
         const userId = req.user.id;
-        
-        console.log('[checkApplianceAccess] Checking access for appliance:', applianceId);
-        
+
         // Appliance laden
         const [appliances] = await pool.execute(
             'SELECT * FROM appliances WHERE id = ?',
@@ -16,13 +14,12 @@ const checkApplianceAccess = async (req, res, next) => {
         );
         
         if (appliances.length === 0) {
-            console.log('[checkApplianceAccess] Appliance not found:', applianceId);
+
             return res.status(404).json({ error: 'Appliance not found' });
         }
         
         const appliance = appliances[0];
-        console.log('[checkApplianceAccess] Found appliance:', appliance.name);
-        
+
         // Parse URL to get hostname and port
         let hostname, port, protocol;
         if (appliance.url) {
@@ -32,7 +29,7 @@ const checkApplianceAccess = async (req, res, next) => {
                 port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
                 protocol = urlObj.protocol.replace(':', '');
             } catch (e) {
-                console.log('[checkApplianceAccess] Failed to parse URL:', appliance.url);
+
                 // Fallback to direct values
                 hostname = appliance.remoteHost;
                 port = appliance.remotePort || 80;
@@ -43,9 +40,7 @@ const checkApplianceAccess = async (req, res, next) => {
             port = appliance.remotePort || 80;
             protocol = 'http';
         }
-        
-        console.log('[checkApplianceAccess] Proxy config:', { hostname, port, protocol });
-        
+
         // Appliance-Config an Request anhängen
         req.applianceConfig = {
             id: appliance.id,

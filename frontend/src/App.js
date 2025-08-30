@@ -121,7 +121,7 @@ function Dashboard() {
         }
       }
     } catch (error) {
-      console.warn('Failed to load card size from localStorage:', error);
+
     }
     return 180;
   });
@@ -130,7 +130,7 @@ function Dashboard() {
       const savedStatusFilter = localStorage.getItem('dashboard-status-filter');
       return savedStatusFilter === 'true';
     } catch (error) {
-      console.warn('Failed to load status filter from localStorage:', error);
+
     }
     return false;
   });
@@ -230,14 +230,14 @@ function Dashboard() {
         // Load language from backend settings
         const settings = await SettingsService.fetchSettings();
         if (settings.language && settings.language !== i18n.language) {
-          console.log('Loading language from backend:', settings.language);
+
           await i18n.changeLanguage(settings.language);
           // Sync with localStorage for next app start
           localStorage.setItem('i18nextLng', settings.language);
         } else if (!settings.language) {
           // If no language in backend, save current language to backend
           const currentLang = i18n.language || 'en';
-          console.log('Saving current language to backend:', currentLang);
+
           await SettingsService.updateSetting('language', currentLang);
         }
       } catch (error) {
@@ -834,22 +834,7 @@ function Dashboard() {
   };
 
   const startEdit = (appliance, initialTab = 'commands') => {
-    console.log('[App.js] startEdit called with appliance:', appliance);
-    console.log('[App.js] appliance fields:', {
-      id: appliance?.id,
-      name: appliance?.name,
-      description: appliance?.description,
-      url: appliance?.url,
-      icon: appliance?.icon,
-      color: appliance?.color,
-      category: appliance?.category,
-      isFavorite: appliance?.isFavorite,
-      sshConnection: appliance?.sshConnection,
-      statusCommand: appliance?.statusCommand,
-      startCommand: appliance?.startCommand,
-      stopCommand: appliance?.stopCommand,
-    });
-    
+
     // Öffne das ServicePanel statt des Modals
     setSelectedServiceForPanel({ ...appliance, initialTab });
     setShowServicePanel(true);
@@ -1325,9 +1310,7 @@ function Dashboard() {
                           if (!guacamoleUrl) {
                             throw new Error('Guacamole URL nicht verfügbar');
                           }
-                          
-                          console.log('Original Guacamole URL:', guacamoleUrl);
-                          
+
                           // Fix URL if port is missing
                           // Check if URL contains the host but no port
                           if (!guacamoleUrl.includes(':9080') && !guacamoleUrl.includes(':9443')) {
@@ -1344,9 +1327,7 @@ function Dashboard() {
                               }
                             }
                           }
-                          
-                          console.log('Final Guacamole URL:', guacamoleUrl);
-                          
+
                           // Open in new window with specific dimensions
                           const width = 1280;
                           const height = 800;

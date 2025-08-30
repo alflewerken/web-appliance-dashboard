@@ -140,7 +140,7 @@ function mapDbToJs(row) {
 
   // Debug: Log the raw is_favorite value for first few rows
   if (row.id <= 5) {
-    console.log(`[mapDbToJs] ID ${row.id}: is_favorite raw =`, row.is_favorite, 'type =', typeof row.is_favorite, 'Boolean =', Boolean(row.is_favorite));
+
   }
 
   return {

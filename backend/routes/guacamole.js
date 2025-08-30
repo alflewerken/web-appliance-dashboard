@@ -51,8 +51,7 @@ async function getGuacamoleAuthToken(forceNew = false) {
       token: token,
       expires: Date.now() + 30 * 60 * 1000
     });
-    
-    console.log('Guacamole auth token obtained successfully');
+
     return token;
   } catch (error) {
     console.error('Failed to get Guacamole auth token:', error.message);
@@ -120,11 +119,7 @@ router.get('/test-connection/:applianceId', async (req, res) => {
  */
 router.post('/token/:applianceId', async (req, res) => {
   try {
-    console.log('[GUACAMOLE] /token/:applianceId called');
-    console.log('[GUACAMOLE] req.user:', req.user);
-    console.log('[GUACAMOLE] req.params:', req.params);
-    console.log('[GUACAMOLE] req.body:', req.body);
-    
+
     const { applianceId } = req.params;
     const { performanceMode = 'balanced' } = req.body; // Neu: Performance Mode
     
@@ -228,16 +223,7 @@ router.post('/token/:applianceId', async (req, res) => {
       
       // Fallback: Direkte Client-URL (nach manuellem Login)
       const directClientUrl = `${guacamoleUrl}/#/client/${encodedIdentifier}`;
-      
-      console.log('Generated Guacamole URLs:', {
-        connectionId,
-        identifier,
-        encodedIdentifier,
-        token: authToken.substring(0, 20) + '...',
-        connectionUrl,
-        directClientUrl
-      });
-      
+
       // Audit Log
       await createAuditLog(
         userId,
@@ -309,8 +295,7 @@ router.get('/auto-login/:applianceId', async (req, res) => {
     // Leite zur Guacamole-URL mit Token weiter
     // WICHTIG: Token muss VOR dem Hash sein!
     const redirectUrl = `${baseUrl}/guacamole/?token=${encodeURIComponent(authToken)}#/client/${encodedIdentifier}`;
-    
-    console.log('Auto-login redirect to:', redirectUrl);
+
     res.redirect(redirectUrl);
     
   } catch (error) {

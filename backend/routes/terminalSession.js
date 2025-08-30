@@ -66,13 +66,7 @@ router.post('/session', verifyToken, async (req, res) => {
       const host = hosts[0];
       
       // Debug logging
-      console.log('Host data from database:', {
-        id: host.id,
-        name: host.name,
-        hostname: host.hostname,
-        username: host.username
-      });
-      
+
       sessionData = {
         host: host.hostname,
         port: host.port || 22,

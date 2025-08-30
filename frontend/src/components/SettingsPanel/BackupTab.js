@@ -103,10 +103,10 @@ const BackupTab = () => {
     }
 
     // Show key dialog for restore
-    console.log('handleDrop: Setting file and showing dialog', file.name);
+
     setPendingRestoreFile(file);
     setShowRestoreKeyDialog(true);
-    console.log('handleDrop: Dialog should be shown now');
+
   };
 
   const handleFileInputChange = async event => {
@@ -149,8 +149,7 @@ const BackupTab = () => {
 
   // Debug output
   useEffect(() => {
-    console.log('showRestoreKeyDialog state:', showRestoreKeyDialog);
-    console.log('pendingRestoreFile:', pendingRestoreFile);
+
   }, [showRestoreKeyDialog, pendingRestoreFile]);
 
   return (

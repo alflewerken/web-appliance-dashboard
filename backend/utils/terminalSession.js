@@ -23,7 +23,7 @@ function setupTerminalWebSocket(server) {
 
   // Handle WebSocket upgrade
   server.on('upgrade', (request, socket, head) => {
-    console.log('WebSocket upgrade request:', request.url);
+
     if (
       request.url === '/api/terminalSession' ||
       request.url.startsWith('/api/terminalSession')
@@ -46,10 +46,6 @@ function setupTerminalWebSocket(server) {
 
         switch (data.type) {
           case 'init':
-            console.log(
-              'Terminal init received:',
-              JSON.stringify(data, null, 2)
-            );
 
             // Verify auth token
             try {
@@ -81,7 +77,7 @@ function setupTerminalWebSocket(server) {
             if (applianceId && applianceId.toString().startsWith('ssh_host_')) {
               isSSHHost = true;
               sshHostId = applianceId.toString().replace('ssh_host_', '');
-              console.log('SSH Host Terminal detected, host ID:', sshHostId);
+
             } else if (data.sshConnection && data.sshConnection.id) {
               sshConnectionId = data.sshConnection.id;
             }

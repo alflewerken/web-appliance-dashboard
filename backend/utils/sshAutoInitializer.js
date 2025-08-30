@@ -14,7 +14,7 @@ class SSHAutoInitializer {
   async ensureSSHDirectory() {
     try {
       await fs.mkdir(this.sshDir, { recursive: true, mode: 0o700 });
-      console.log('✅ SSH directory ensured:', this.sshDir);
+
     } catch (error) {
       console.error('❌ Error creating SSH directory:', error.message);
     }
@@ -22,7 +22,6 @@ class SSHAutoInitializer {
 
   async restoreSSHKeysFromDatabase() {
     try {
-      console.log('🔑 Restoring SSH keys from database to filesystem...');
 
       // Get all SSH keys from database
       const [keys] = await pool.execute(
@@ -30,7 +29,7 @@ class SSHAutoInitializer {
       );
 
       if (keys.length === 0) {
-        console.log('ℹ️ No SSH keys found in database');
+
         return false;
       }
 
@@ -57,10 +56,10 @@ class SSHAutoInitializer {
           );
 
           if (testPublicKey) {
-            console.log(`✅ Restored and validated key: ${key.key_name}`);
+
             restoredCount++;
           } else {
-            console.log(`⚠️ Key ${key.key_name} validation failed, skipping`);
+
           }
         } catch (keyError) {
           console.error(
@@ -70,7 +69,6 @@ class SSHAutoInitializer {
         }
       }
 
-      console.log(`✅ Restored ${restoredCount} SSH keys from database`);
       return restoredCount > 0;
     } catch (error) {
       console.error(
@@ -115,9 +113,7 @@ class SSHAutoInitializer {
           }
         } else {
           // Private key is invalid, try to regenerate using OpenSSL
-          console.log(
-            `⚠️ Invalid SSH key detected for ${keyData.key_name}, regenerating...`
-          );
+
           this.regenerateSSHKey(privateKeyPath, publicKeyPath, keyData).then(
             resolve
           );
@@ -140,9 +136,6 @@ class SSHAutoInitializer {
   // Neue Methode: SSH-Key mit OpenSSL neu generieren
   async regenerateSSHKey(privateKeyPath, publicKeyPath, keyData) {
     return new Promise(resolve => {
-      console.log(
-        `🔧 Regenerating SSH key with OpenSSL for ${keyData.key_name}...`
-      );
 
       const keyGen = spawn('openssl', [
         'genrsa',
@@ -189,9 +182,6 @@ class SSHAutoInitializer {
                     [newPrivateKey.trim(), publicKey.trim(), keyData.key_name]
                   );
 
-                  console.log(
-                    `✅ Successfully regenerated SSH key for ${keyData.key_name}`
-                  );
                   resolve(true);
                 } catch (error) {
                   console.error(
@@ -227,7 +217,6 @@ class SSHAutoInitializer {
 
   async generateDefaultSSHKey() {
     try {
-      console.log('🔑 Generating default SSH key...');
 
       const keyPath = path.join(this.sshDir, 'id_rsa_dashboard');
       const pubKeyPath = `${keyPath}.pub`;
@@ -235,7 +224,7 @@ class SSHAutoInitializer {
       // Check if key already exists
       try {
         await fs.access(keyPath);
-        console.log('ℹ️ Default SSH key already exists');
+
         return true;
       } catch (error) {
         // Key doesn't exist, generate it
@@ -324,7 +313,6 @@ class SSHAutoInitializer {
                       );
                     }
 
-                    console.log('✅ Generated and stored default SSH key');
                     resolve(true);
                   } catch (dbError) {
                     console.error(
@@ -376,7 +364,7 @@ Host *
 `;
 
       await fs.writeFile(configPath, configContent, { mode: 0o600 });
-      console.log('✅ Created SSH config file');
+
     } catch (error) {
       console.error('❌ Error creating SSH config:', error.message);
     }
@@ -398,7 +386,6 @@ Host *
 
   async initialize() {
     try {
-      console.log('🚀 SSH Auto-Initializer starting...');
 
       // Wait for database to be ready
       let dbReady = false;
@@ -407,16 +394,16 @@ Host *
         try {
           await pool.execute('SELECT 1');
           dbReady = true;
-          console.log('✅ Database is ready');
+
         } catch (error) {
           attempts++;
-          console.log(`⏳ Waiting for database... (${attempts}/30)`);
+
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
       if (!dbReady) {
-        console.log('❌ Database not ready, skipping SSH initialization');
+
         return false;
       }
 
@@ -426,7 +413,7 @@ Host *
       // Check if SSH system is already working
       const sshSystemWorking = await this.checkSSHSystem();
       if (sshSystemWorking) {
-        console.log('✅ SSH system already working');
+
         return true;
       }
 
@@ -434,7 +421,7 @@ Host *
       const restored = await this.restoreSSHKeysFromDatabase();
       if (restored) {
         await this.createSSHConfig();
-        console.log('✅ SSH system restored from database');
+
         return true;
       }
 
@@ -442,11 +429,10 @@ Host *
       const generated = await this.generateDefaultSSHKey();
       if (generated) {
         await this.createSSHConfig();
-        console.log('✅ SSH system initialized with new key');
+
         return true;
       }
 
-      console.log('❌ SSH system initialization failed');
       return false;
     } catch (error) {
       console.error('❌ SSH Auto-Initializer error:', error.message);

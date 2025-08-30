@@ -105,7 +105,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
           setKeys(keysData);
         }
       } catch (hostError) {
-        console.warn('Could not fetch host counts:', hostError);
+
         setKeys(keysData);
       }
     } catch (error) {

@@ -11,7 +11,6 @@ class SSHDiagnostic {
 
   // Run comprehensive SSH system diagnostic
   async runDiagnostic() {
-    console.log('🔍 Starting SSH system diagnostic...');
 
     this.diagnosticResults = {
       timestamp: new Date().toISOString(),

@@ -109,9 +109,9 @@ const migrateUnencryptedKeys = async pool => {
     }
 
     if (migratedCount > 0) {
-      console.info(`Migrated ${migratedCount} SSH keys to encrypted format`);
+
     } else {
-      console.info('No unencrypted SSH keys found to migrate');
+
     }
   } catch (error) {
     console.error('Error during SSH key migration:', error);

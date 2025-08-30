@@ -99,8 +99,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     const handleUserEvent = (eventType) => (data) => {
       // Nur bei restore/revert Events zur Fehlersuche loggen
       // if (eventType.includes('restore') || eventType.includes('revert')) {
-      //   console.log(`[UserPanel] Received ${eventType} event:`, data);
-      // }
+      //   // }
       debouncedFetchUsers();
     };
 
@@ -119,12 +118,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   }, [addEventListener, debouncedFetchUsers]);
 
   const fetchUsers = useCallback(async () => {
-    console.log('[UserPanel] fetchUsers called');
+
     try {
       const token = localStorage.getItem('token');
       
       if (!isAdmin()) {
-        console.log('[UserPanel] Not admin, showing only current user');
+
         setUsers([{
           id: user.id,
           username: user.username,
@@ -137,8 +136,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         setLoading(false);
         return;
       }
-      
-      console.log('[UserPanel] Fetching users from API');
+
       const response = await fetch(`/api/auth/users`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -148,7 +146,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log(`[UserPanel] Received ${data.length} users from API`);
+
         setUsers(data);
       } else {
         console.error(`[UserPanel] Failed to fetch users: ${response.status}`);
@@ -299,9 +297,6 @@ const UserPanel = ({ onClose, onWidthChange }) => {
       if (changedFields.password === '') {
         delete changedFields.password;
       }
-      
-      console.log('Updating user - changed fields:', Object.keys(changedFields));
-      console.log('Changed data:', changedFields);
 
       const response = await fetch(
         `/api/auth/users/${selectedUser.id}`,

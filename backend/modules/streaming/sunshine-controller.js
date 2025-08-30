@@ -66,7 +66,7 @@ class SunshineController extends EventEmitter {
     });
 
     this.sunshineProcess.stdout.on('data', (data) => {
-      console.log(`Sunshine: ${data}`);
+
       this.emit('log', data.toString());
     });
 
@@ -76,7 +76,7 @@ class SunshineController extends EventEmitter {
     });
 
     this.sunshineProcess.on('close', (code) => {
-      console.log(`Sunshine process exited with code ${code}`);
+
       this.emit('close', code);
       this.sunshineProcess = null;
     });

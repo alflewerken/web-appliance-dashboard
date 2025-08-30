@@ -238,9 +238,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
     const hostId = req.params.id;
     
     // Debug logging
-    console.log('PATCH /api/hosts/' + hostId);
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    
+
     // Check if host exists and user owns it
     const existingHost = await db.findOne('hosts', {
       id: hostId,
@@ -335,12 +333,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
       changedFields.push('remotePort');
     }
     if (remoteUsername !== undefined && remoteUsername !== existingHost.remoteUsername) {
-      console.log('Remote username changed from', existingHost.remoteUsername, 'to', remoteUsername);
+
       updateData.remoteUsername = remoteUsername;
       changedFields.push('remoteUsername');
     }
     if (remotePassword !== undefined) {
-      console.log('Remote password provided:', remotePassword ? 'yes (length: ' + remotePassword.length + ')' : 'empty/null');
+
       // For passwords, we can't compare hashed values directly
       // So we check if a new password is provided
       if (remotePassword !== '') {
@@ -397,16 +395,13 @@ router.patch('/:id', verifyToken, async (req, res) => {
 
     // If no actual changes (besides updatedAt/updatedBy), return early
     if (changedFields.length === 0) {
-      console.log('No changes detected');
+
       return res.json({
         success: true,
         message: 'No changes detected',
         host: existingHost
       });
     }
-    
-    console.log('Changed fields:', changedFields);
-    console.log('Update data:', updateData);
 
     // Apply the updates
     await db.update('hosts', updateData, { id: hostId });
@@ -685,10 +680,7 @@ router.put('/:id', verifyToken, async (req, res) => {
 // Get remote desktop token for host
 router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
   try {
-    console.log('[HOSTS] /remoteDesktopToken called');
-    console.log('[HOSTS] req.user:', req.user);
-    console.log('[HOSTS] req.params:', req.params);
-    console.log('[HOSTS] req.body:', req.body);
+
     const hostId = req.params.id;
     const { performanceMode = 'balanced' } = req.body;
     
@@ -777,14 +769,7 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
           sshUsername: host.username,
           sshPassword: host.password  // SSH password (encrypted)
         };
-        
-        console.log('[HOSTS] Syncing Guacamole connection for host:', hostId);
-        console.log('[HOSTS] Guacamole data:', {
-          ...guacamoleData,
-          remote_password_encrypted: guacamoleData.remote_password_encrypted ? '[ENCRYPTED]' : null,
-          sshPassword: guacamoleData.sshPassword ? '[ENCRYPTED]' : null
-        });
-        
+
         const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
         await syncGuacamoleConnection(guacamoleData);
         
@@ -810,14 +795,7 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
         // WICHTIG: Der Token muss VOR dem Hash-Fragment sein!
         const baseUrl = getGuacamoleUrl(req);
         const guacamoleUrl = `${baseUrl}/guacamole/?token=${encodeURIComponent(authToken)}#/client/${encodedIdentifier}`;
-        
-        console.log(`[HOSTS] Generated Guacamole URL for host ${hostId}:`, {
-          connectionId: connectionId,
-          identifier: identifier,
-          baseUrl: baseUrl,
-          tokenLength: authToken.length
-        });
-        
+
         // Create audit log
         await createAuditLog(
           req.user.id,
@@ -977,9 +955,7 @@ router.post('/:id/rustdeskAccess', verifyToken, async (req, res) => {
     const hostId = req.params.id;
     const userId = req.user?.id || req.userId || 1;
     const ipAddress = getClientIp(req);
-    
-    console.log(`📝 Logging RustDesk access for host ${hostId} by user ${userId}`);
-    
+
     // Get host details
     const host = await db.findOne('hosts', {
       id: hostId,
@@ -1010,9 +986,7 @@ router.post('/:id/rustdeskAccess', verifyToken, async (req, res) => {
       ipAddress,
       host.name
     );
-    
-    console.log(`✅ RustDesk access logged for host: ${host.name}`);
-    
+
     res.json({
       success: true,
       message: 'RustDesk access logged'

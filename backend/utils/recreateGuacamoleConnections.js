@@ -4,8 +4,7 @@ const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
 const { decrypt } = require('../utils/crypto');
 
 async function recreateGuacamoleConnections() {
-  console.log('🔄 Recreating Guacamole connections after restore...');
-  
+
   const dbManager = new GuacamoleDBManager();
   let recreatedCount = 0;
   let errorCount = 0;
@@ -14,7 +13,7 @@ async function recreateGuacamoleConnections() {
     // Check if Guacamole is available
     const isAvailable = await dbManager.isAvailable();
     if (!isAvailable) {
-      console.log('⚠️ Guacamole database not available, skipping connection recreation');
+
       return { recreated: 0, errors: 0, skipped: true };
     }
 
@@ -22,8 +21,6 @@ async function recreateGuacamoleConnections() {
     const [appliances] = await pool.execute(
       'SELECT * FROM appliances WHERE remote_desktop_enabled = 1'
     );
-
-    console.log(`Found ${appliances.length} appliances with remote desktop enabled`);
 
     // Recreate connection for each appliance
     for (const appliance of appliances) {
@@ -33,13 +30,13 @@ async function recreateGuacamoleConnections() {
         if (appliance.remote_password_encrypted) {
           try {
             decryptedPassword = decrypt(appliance.remote_password_encrypted);
-            console.log(`✅ Decrypted password for appliance ${appliance.id}: [${decryptedPassword ? 'SUCCESS' : 'EMPTY'}]`);
+
           } catch (error) {
-            console.warn(`⚠️ Could not decrypt password for appliance ${appliance.id}:`, error.message);
-            console.warn(`  Encrypted value was: ${appliance.remote_password_encrypted?.substring(0, 20)}...`); // Nur ersten Teil zeigen
+
+            // Nur ersten Teil zeigen
           }
         } else {
-          console.log(`⚠️ No encrypted password found for appliance ${appliance.id}`);
+
         }
 
         // Create or update the connection - NUR mit entschlüsseltem Passwort
@@ -53,9 +50,9 @@ async function recreateGuacamoleConnections() {
         // NUR wenn wir ein Passwort haben, fügen wir es hinzu
         if (decryptedPassword) {
           connectionConfig.password = decryptedPassword;
-          console.log(`🔑 Setting password for appliance ${appliance.id} (${appliance.name})`);
+
         } else {
-          console.warn(`⚠️ No password available for appliance ${appliance.id} (${appliance.name}) - connection will require manual password entry`);
+
         }
 
         await dbManager.createOrUpdateConnection(appliance.id, connectionConfig);remote_protocol === 'vnc' ? 5900 : 3389),
@@ -64,7 +61,7 @@ async function recreateGuacamoleConnections() {
         });
 
         recreatedCount++;
-        console.log(`✅ Recreated Guacamole connection for appliance: ${appliance.name} (ID: ${appliance.id})`);
+
       } catch (error) {
         errorCount++;
         console.error(`❌ Failed to recreate connection for appliance ${appliance.name}:`, error.message);
@@ -78,7 +75,6 @@ async function recreateGuacamoleConnections() {
     await dbManager.close();
   }
 
-  console.log(`✅ Recreated ${recreatedCount} Guacamole connections, ${errorCount} errors`);
   return { recreated: recreatedCount, errors: errorCount, skipped: false };
 }
 
@@ -89,7 +85,7 @@ module.exports = { recreateGuacamoleConnections };
 if (require.main === module) {
   recreateGuacamoleConnections()
     .then(result => {
-      console.log('Done!', result);
+
       process.exit(0);
     })
     .catch(error => {

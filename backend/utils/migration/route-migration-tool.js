@@ -133,9 +133,7 @@ async function generateMigrationGuide(routePath) {
 async function analyzeMigration() {
   const routesDir = path.join(__dirname, '../../routes');
   const files = await fs.readdir(routesDir);
-  
-  console.log('=== Route Migration Analysis ===\n');
-  
+
   const allGuides = [];
   
   for (const file of files) {
@@ -151,12 +149,9 @@ async function analyzeMigration() {
   }
   
   // Generate report
-  console.log(`Found ${allGuides.length} routes that need migration:\n`);
-  
+
   allGuides.forEach(guide => {
-    console.log(`\n📁 ${guide.file}`);
-    console.log(`   Changes needed: ${guide.changes.length}`);
-    
+
     // Group by operation type
     const byType = guide.changes.reduce((acc, change) => {
       acc[change.type] = (acc[change.type] || 0) + 1;
@@ -164,13 +159,13 @@ async function analyzeMigration() {
     }, {});
     
     Object.entries(byType).forEach(([type, count]) => {
-      console.log(`   - ${type}: ${count} occurrences`);
+
     });
     
     if (guide.warnings.length > 0) {
-      console.log(`   ⚠️  Warnings:`);
+
       guide.warnings.forEach(warning => {
-        console.log(`      - ${warning}`);
+
       });
     }
   });
@@ -189,8 +184,7 @@ async function analyzeMigration() {
     path.join(__dirname, 'migration-report.json'),
     JSON.stringify(report, null, 2)
   );
-  
-  console.log('\n✅ Detailed report saved to migration-report.json');
+
 }
 
 // Run if called directly

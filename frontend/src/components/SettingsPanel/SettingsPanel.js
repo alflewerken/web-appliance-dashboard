@@ -134,7 +134,7 @@ const SettingsPanel = ({
   
   // Update local categories when prop changes - ALWAYS sync with parent
   useEffect(() => {
-    console.log('[SettingsPanel] apiCategories changed, updating localCategories');
+
     setLocalCategories(apiCategories || []);
   }, [apiCategories]);
   // Load current background when background tab is opened
@@ -228,8 +228,7 @@ const SettingsPanel = ({
       const unsubscribers = [
         // Handle category creation
         addEventListener('category_created', (data) => {
-          console.log('[SettingsPanel] SSE category_created received:', data);
-          
+
           // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
@@ -238,8 +237,7 @@ const SettingsPanel = ({
         
         // Handle category updates
         addEventListener('category_updated', (data) => {
-          console.log('[SettingsPanel] SSE category_updated received:', data);
-          
+
           // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
@@ -248,8 +246,7 @@ const SettingsPanel = ({
         
         // Handle category deletion
         addEventListener('category_deleted', (data) => {
-          console.log('[SettingsPanel] SSE category_deleted received:', data);
-          
+
           // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
@@ -258,8 +255,7 @@ const SettingsPanel = ({
         
         // Handle category restoration
         addEventListener('category_restored', (data) => {
-          console.log('[SettingsPanel] SSE category_restored received:', data);
-          
+
           // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
@@ -268,8 +264,7 @@ const SettingsPanel = ({
         
         // Handle category revert
         addEventListener('category_reverted', (data) => {
-          console.log('[SettingsPanel] SSE category_reverted received:', data);
-          
+
           // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
@@ -278,9 +273,7 @@ const SettingsPanel = ({
         
         // Handle categories reordering
         addEventListener('categories_reordered', (data) => {
-          console.log('[SettingsPanel] SSE categories_reordered received:', data);
-          console.log('[SettingsPanel] Categories data:', data.categories);
-          
+
           // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
@@ -392,7 +385,7 @@ const SettingsPanel = ({
         await i18n.changeLanguage(value);
         // Also update localStorage for i18next
         localStorage.setItem('i18nextLng', value);
-        console.log('Language changed successfully to:', value);
+
         // NO RELOAD NEEDED - React i18next handles the UI update automatically
       } catch (error) {
         console.error('Failed to change language:', error);

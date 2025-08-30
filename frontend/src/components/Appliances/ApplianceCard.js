@@ -738,7 +738,7 @@ const ApplianceCard = ({
                             e.preventDefault();
                             e.stopPropagation();
                             // Remote Desktop Logik hier
-                            console.log('Remote Desktop für', appliance.name);
+
                           }}
                           style={{
                             width: '4px',
@@ -769,7 +769,7 @@ const ApplianceCard = ({
                             e.preventDefault();
                             e.stopPropagation();
                             // File Transfer Logik hier
-                            console.log('File Transfer für', appliance.name);
+
                           }}
                           style={{
                             width: '4px',

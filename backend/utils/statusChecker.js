@@ -29,12 +29,11 @@ class ServiceStatusChecker {
 
   async start() {
     if (this.isRunning) {
-      console.log('⚠️  Status checker is already running');
+
       return;
     }
 
     this.isRunning = true;
-    console.log('✅ Enhanced status checker started');
 
     // Load interval from settings
     try {
@@ -47,7 +46,7 @@ class ServiceStatusChecker {
         this.checkInterval = parseInt(settings[0].setting_value) * 1000;
         // Use the same interval for host ping checks
         this.hostPingCheckInterval = this.checkInterval;
-        console.log(`📊 Service and Host check interval set to ${settings[0].setting_value} seconds`);
+
       }
     } catch (error) {
       console.error('Error loading status check interval:', error);
@@ -88,7 +87,7 @@ class ServiceStatusChecker {
       this.hostPingInterval = null;
     }
     this.isRunning = false;
-    console.log('🛑 Status checker stopped');
+
   }
 
   /**
@@ -105,7 +104,7 @@ class ServiceStatusChecker {
       );
 
       if (!hosts || hosts.length === 0) {
-        console.log(`❌ Host with ID ${hostId} not found`);
+
         return null;
       }
 
@@ -113,17 +112,16 @@ class ServiceStatusChecker {
       
       // First check if private_key exists directly in hosts table (legacy)
       if (host.private_key) {
-        console.log(`🔑 Using private key from hosts table for ${host.name}`);
-        
+
         // Check if key is encrypted or plain text
         let decryptedKey;
         if (host.private_key.startsWith('-----BEGIN')) {
           // Key is already in plain text
-          console.log(`📝 Private key is stored in plain text`);
+
           decryptedKey = host.private_key;
         } else {
           // Try to decrypt the key
-          console.log(`🔐 Attempting to decrypt private key`);
+
           decryptedKey = decrypt(host.private_key);
           
           if (!decryptedKey) {
@@ -146,7 +144,7 @@ class ServiceStatusChecker {
             try {
               await fs.unlink(tempKeyPath);
             } catch (error) {
-              console.warn(`Could not cleanup temp key file: ${error.message}`);
+
             }
           }
         };
@@ -154,8 +152,7 @@ class ServiceStatusChecker {
       
       // If no direct private_key, check ssh_keys table using ssh_key_name
       if (host.ssh_key_name) {
-        console.log(`🔍 Looking for SSH key '${host.ssh_key_name}' in ssh_keys table for host ${host.name}`);
-        
+
         // Get the SSH key from ssh_keys table
         // Priority: 1. User-specific key, 2. Any key with that name
         const [sshKeys] = await pool.execute(
@@ -169,17 +166,16 @@ class ServiceStatusChecker {
         
         if (sshKeys && sshKeys.length > 0) {
           const sshKey = sshKeys[0];
-          console.log(`🔑 Found SSH key '${sshKey.key_name}' (ID: ${sshKey.id}) in ssh_keys table`);
-          
+
           // Check if key is encrypted or plain text
           let decryptedKey;
           if (sshKey.private_key.startsWith('-----BEGIN')) {
             // Key is already in plain text
-            console.log(`📝 SSH key is stored in plain text`);
+
             decryptedKey = sshKey.private_key;
           } else {
             // Try to decrypt the key
-            console.log(`🔐 Attempting to decrypt SSH key`);
+
             decryptedKey = decrypt(sshKey.private_key);
             
             if (!decryptedKey) {
@@ -194,9 +190,7 @@ class ServiceStatusChecker {
           
           const tempKeyPath = path.join(tempDir, `temp_key_${hostId}_${Date.now()}`);
           await fs.writeFile(tempKeyPath, decryptedKey, { mode: 0o600 });
-          
-          console.log(`✅ Successfully created temp SSH key for host ${host.name}`);
-          
+
           return {
             key: decryptedKey,
             keyPath: tempKeyPath,
@@ -204,12 +198,12 @@ class ServiceStatusChecker {
               try {
                 await fs.unlink(tempKeyPath);
               } catch (error) {
-                console.warn(`Could not cleanup temp key file: ${error.message}`);
+
               }
             }
           };
         } else {
-          console.log(`⚠️ No SSH key found in ssh_keys table with name '${host.ssh_key_name}'`);
+
         }
       }
       
@@ -218,18 +212,17 @@ class ServiceStatusChecker {
         const fsKeyPath = `/root/.ssh/id_rsa_${host.ssh_key_name}`;
         try {
           await fs.access(fsKeyPath);
-          console.log(`📁 Using filesystem key for host ${host.name} (backward compatibility)`);
+
           return {
             key: null,
             keyPath: fsKeyPath,
             cleanup: async () => {} // No cleanup needed for filesystem keys
           };
         } catch (error) {
-          console.log(`❌ Filesystem key not found: ${fsKeyPath}`);
+
         }
       }
 
-      console.log(`❌ No SSH key available for host ${host.name}`);
       return null;
     } catch (error) {
       console.error(`❌ Error getting SSH key from database: ${error.message}`);
@@ -251,18 +244,17 @@ class ServiceStatusChecker {
     this.lastHostCheck.set(hostKey, now);
 
     try {
-      console.log(`🔍 Checking host availability: ${hostname} (${hostKey})`);
 
       // Get SSH key from database
       if (!hostId) {
-        console.log(`⚠️ No host ID provided for ${hostname} - cannot get SSH key`);
+
         this.hostAvailability.set(hostKey, false);
         return false;
       }
 
       const sshKeyInfo = await this.getSSHKeyFromDatabase(hostId);
       if (!sshKeyInfo) {
-        console.log(`❌ No SSH key available for host ${hostname}`);
+
         this.hostAvailability.set(hostKey, false);
         return false;
       }
@@ -273,11 +265,11 @@ class ServiceStatusChecker {
         const result = await execAsync(testCommand, { timeout: 5000 });
 
         if (result.stdout.includes('OK')) {
-          console.log(`✅ Host ${hostname} is available`);
+
           this.hostAvailability.set(hostKey, true);
           return true;
         } else {
-          console.log(`❌ Host ${hostname} is not responding correctly`);
+
           this.hostAvailability.set(hostKey, false);
           return false;
         }
@@ -292,16 +284,12 @@ class ServiceStatusChecker {
       const errorMsg = error.message.toLowerCase();
       if (errorMsg.includes('too many authentication failures') || 
           errorMsg.includes('permission denied')) {
-        console.log(
-          `⚠️  Host ${hostname} has authentication issues: ${error.message.split('\n')[0]}`
-        );
+
         // Return true to allow status check with potentially different command
         this.hostAvailability.set(hostKey, true);
         return true;
       } else {
-        console.log(
-          `❌ Host ${hostname} is unavailable: ${error.message.split('\n')[0]}`
-        );
+
         this.hostAvailability.set(hostKey, false);
         return false;
       }
@@ -325,8 +313,6 @@ class ServiceStatusChecker {
       if (services.length === 0) {
         return;
       }
-
-      console.log(`\n🔄 Checking ${services.length} services...`);
 
       // Group services by host for efficient checking
       const servicesByHost = new Map();
@@ -461,9 +447,6 @@ class ServiceStatusChecker {
 
   async checkServiceStatus(service) {
     try {
-      console.log(
-        `🔍 Checking status for "${service.name}" (current: ${service.service_status})`
-      );
 
       let newStatus = 'unknown';
       let output = '';
@@ -487,20 +470,19 @@ class ServiceStatusChecker {
           
           // Get SSH key from database
           if (!hostId) {
-            console.log(`❌ No host ID for service "${service.name}" - cannot get SSH key`);
+
             newStatus = 'error';
             errorOutput = 'No host ID configured';
           } else {
             sshKeyInfo = await this.getSSHKeyFromDatabase(hostId);
             
             if (!sshKeyInfo) {
-              console.log(`❌ No SSH key available for service "${service.name}"`);
+
               newStatus = 'error';
               errorOutput = 'No SSH key available for host';
             } else {
               commandToExecute = `ssh -i ${sshKeyInfo.keyPath} -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@${host} -p ${port} "${baseCommand}"`;
-              
-              console.log(`📡 Using SSH connection from database: ${username}@${host}:${port} (host_id: ${hostId})`);
+
             }
           }
         }
@@ -510,10 +492,6 @@ class ServiceStatusChecker {
           const result = await executeSSHCommand(commandToExecute, 15000);
           output = result.stdout || '';
           errorOutput = result.stderr || '';
-
-          console.log(
-            `📋 Command output for "${service.name}": ${output.substring(0, 100).trim()}`
-          );
 
           // Parse the output to determine status
           const outputLower = output.toLowerCase();
@@ -602,10 +580,6 @@ class ServiceStatusChecker {
         [status, serviceId]
       );
 
-      console.log(
-        `📊 Updated "${serviceName}": ${previousStatus} → ${status}${error ? ` (${error})` : ''}`
-      );
-
       // Broadcast status change
       broadcast('service_status_changed', {
         id: serviceId,
@@ -622,7 +596,7 @@ class ServiceStatusChecker {
 
   // Force check all services immediately
   async forceCheck() {
-    console.log('🔄 Force checking all services...');
+
     await this.checkAllServices();
   }
 
@@ -630,7 +604,7 @@ class ServiceStatusChecker {
   clearHostCache() {
     this.hostAvailability.clear();
     this.lastHostCheck.clear();
-    console.log('🗑️  Host availability cache cleared');
+
   }
   
   /**
@@ -645,8 +619,6 @@ class ServiceStatusChecker {
       if (!hosts || hosts.length === 0) {
         return;
       }
-
-      console.log(`🏓 Checking ping for ${hosts.length} hosts...`);
 
       // Check all hosts in parallel with limited concurrency
       const maxConcurrent = 10;
@@ -733,9 +705,7 @@ class ServiceStatusChecker {
           responseTime: actualResponseTime,
           timestamp: new Date().toISOString()
         });
-        
-        console.log(`✅ Host "${host.name}" ping: ${actualResponseTime}ms (${status})`);
-        
+
       } catch (error) {
         // Ping failed - host is offline
         this.hostResponseTimes.set(host.id, -1);
@@ -755,8 +725,7 @@ class ServiceStatusChecker {
           responseTime: -1,
           timestamp: new Date().toISOString()
         });
-        
-        console.log(`❌ Host "${host.name}" is offline`);
+
       }
       
     } catch (error) {
@@ -768,7 +737,7 @@ class ServiceStatusChecker {
    * Force check all hosts ping immediately
    */
   async forceCheckHostsPing() {
-    console.log('🔄 Force checking all hosts ping...');
+
     await this.checkAllHostsPing();
   }
 
@@ -787,8 +756,7 @@ class ServiceStatusChecker {
         
         // Check if interval has changed
         if (newInterval !== this.checkInterval) {
-          console.log(`🔄 Interval changed from ${this.checkInterval/1000}s to ${newInterval/1000}s - restarting status checker...`);
-          
+
           // Store running state
           const wasRunning = this.isRunning;
           

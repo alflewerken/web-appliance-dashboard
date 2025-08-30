@@ -12,7 +12,7 @@ class ProxyTokenManager {
 
             return true;
         }
-        console.warn('[ProxyTokenManager] Kein Token im localStorage gefunden');
+
         return false;
     }
     

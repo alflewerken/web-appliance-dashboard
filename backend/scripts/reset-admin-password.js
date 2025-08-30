@@ -17,10 +17,7 @@ async function resetAdminPassword() {
             'UPDATE users SET password_hash = ? WHERE username = ?',
             [passwordHash, 'admin']
         );
-        
-        console.log('✅ Admin password reset to:', newPassword);
-        console.log('Username: admin');
-        
+
         process.exit(0);
     } catch (error) {
         console.error('❌ Error:', error);

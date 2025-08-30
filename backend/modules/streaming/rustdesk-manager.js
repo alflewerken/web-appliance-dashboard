@@ -51,7 +51,7 @@ class RustDeskManager extends EventEmitter {
       const serverRunning = await this.checkServerStatus();
       
       if (!serverRunning) {
-        console.log('Starting RustDesk server containers...');
+
         await execAsync('docker-compose -f docker-compose.rustdesk.yml up -d');
         
         // Warte bis Server bereit ist
@@ -469,7 +469,7 @@ EOFSCRIPT`, sshConfig);
       this.config.publicKey = await fs.readFile(keyPath, 'utf8');
       this.config.publicKey = this.config.publicKey.trim();
     } catch (error) {
-      console.log('Generating new server keys...');
+
       // Keys werden automatisch beim ersten Start generiert
     }
   }

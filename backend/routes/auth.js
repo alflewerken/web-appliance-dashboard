@@ -168,10 +168,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const user = users[0]; // Behalte snake_case für Passwort-Vergleich
     
     // Debug: Log user object to check password_hash
-    console.log('Login Debug - User object keys:', Object.keys(user));
-    console.log('Login Debug - password_hash exists:', !!user.password_hash);
-    console.log('Login Debug - passwordHash exists:', !!user.passwordHash);
-    
+
     // Handle both possible field names (password_hash or passwordHash)
     const passwordHash = user.password_hash || user.passwordHash;
     
@@ -285,7 +282,7 @@ router.post('/logout', verifyToken, async (req, res) => {
       try {
         await db.delete('active_sessions', { sessionToken: tokenHash });
       } catch (deleteError) {
-        console.log('Session delete warning:', deleteError.message);
+
         // Continue anyway - session might already be deleted or never existed
       }
     }
@@ -339,8 +336,7 @@ router.get('/me', verifyToken, async (req, res) => {
 // Get all users (admin only)
 router.get('/users', verifyToken, requireAdmin, async (req, res) => {
   try {
-    console.log('GET /users - User:', req.user.username, 'Role:', req.user.role);
-    
+
     // Get users with their last activity from sessions - Complex query requires raw
     const rawUsers = await db.raw(`
             SELECT 
@@ -365,8 +361,6 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
             ORDER BY u.created_at DESC
         `);
 
-    console.log('Found users:', rawUsers.length);
-    
     // Manual mapping needed for raw queries - QueryBuilder doesn't auto-map raw results
     const users = rawUsers.map(u => ({
       id: u.id,
@@ -380,8 +374,6 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
       lastActivity: u.last_activity,  // already in correct format
       isOnline: u.is_online  // snake_case to camelCase
     }));
-    
-    console.log('User list:', users.map(u => ({ id: u.id, username: u.username, role: u.role, isActive: u.isActive })));
 
     res.json(users);
   } catch (error) {
@@ -784,12 +776,6 @@ router.put(
       });
 
       // Debug logging
-      console.log(
-        `[SSE] Broadcasting user_status_changed for user ${user.username} (ID: ${userId})`
-      );
-      console.log(
-        `[SSE] New status: ${newStatus ? 'activated' : 'deactivated'}`
-      );
 
       // Broadcast user status update
       broadcast('user_status_changed', {
@@ -801,7 +787,7 @@ router.put(
 
       // Broadcast specific activation/deactivation event
       const statusEvent = newStatus ? 'user_activated' : 'user_deactivated';
-      console.log(`[SSE] Broadcasting ${statusEvent} event`);
+
       broadcast(statusEvent, {
         id: userId,
         username: user.username,
@@ -810,7 +796,7 @@ router.put(
       });
 
       // Broadcast audit log update
-      console.log(`[SSE] Broadcasting audit_log_created event`);
+
       broadcast('audit_log_created', {
         action: newStatus ? 'user_activated' : 'user_deactivated',
         resource_type: 'users',

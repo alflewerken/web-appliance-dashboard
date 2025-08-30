@@ -66,13 +66,7 @@ app.use((req, res, next) => {
 // Debug middleware for SSH upload
 app.use((req, res, next) => {
   if (req.path.includes('/ssh/upload') || req.url.includes('/ssh/upload')) {
-    console.log('DEBUG: SSH Upload Request:', {
-      method: req.method,
-      path: req.path,
-      url: req.url,
-      originalUrl: req.originalUrl,
-      baseUrl: req.baseUrl
-    });
+
   }
   next();
 });
@@ -131,12 +125,12 @@ app.use('/api/auth', authGuacamoleRouter);
 
 // Appliance Proxy Routes MUST come BEFORE basic routes to handle /proxy/* paths
 const nativeProxyRouter = require('./routes/nativeProxy'); // Native HTTP Proxy
-console.log('[SERVER] Mounting nativeProxyRouter on /api/appliances');
+
 app.use('/api/appliances', nativeProxyRouter);
 
 // Basic appliance routes after proxy routes - use conditional verifyToken
 const skipVerifyTokenForProxy = require('./middleware/skipVerifyTokenForProxy');
-console.log('[SERVER] Mounting appliancesRouter with conditional verifyToken on /api/appliances');
+
 app.use('/api/appliances', skipVerifyTokenForProxy, appliancesRouter);
 app.use('/api/categories', verifyToken, categoriesRouter);
 app.use('/api/settings', verifyToken, settingsRouter);

@@ -59,24 +59,21 @@ async function findRustDeskIdMacOS(sshCommand) {
     }
   ];
 
-  console.log('[RUSTDESK ID FINDER] Trying to find RustDesk ID on macOS...');
-  
   for (const method of methods) {
     try {
-      console.log(`[RUSTDESK ID FINDER] Trying ${method.name}...`);
+
       const result = await executeSSHCommand(method.command, 10000);
       const output = (result.stdout || result || '').toString().trim();
       
       if (output && /^\d{9}$/.test(output)) {
-        console.log(`[RUSTDESK ID FINDER] Success with ${method.name}: ${output}`);
+
         return output;
       }
     } catch (error) {
-      console.log(`[RUSTDESK ID FINDER] ${method.name} failed:`, error.message);
+
     }
   }
-  
-  console.log('[RUSTDESK ID FINDER] All methods failed to find ID');
+
   return null;
 }
 
@@ -116,24 +113,21 @@ async function findRustDeskIdLinux(sshCommand) {
     }
   ];
 
-  console.log('[RUSTDESK ID FINDER] Trying to find RustDesk ID on Linux...');
-  
   for (const method of methods) {
     try {
-      console.log(`[RUSTDESK ID FINDER] Trying ${method.name}...`);
+
       const result = await executeSSHCommand(method.command, 10000);
       const output = (result.stdout || result || '').toString().trim();
       
       if (output && /^\d{9}$/.test(output)) {
-        console.log(`[RUSTDESK ID FINDER] Success with ${method.name}: ${output}`);
+
         return output;
       }
     } catch (error) {
-      console.log(`[RUSTDESK ID FINDER] ${method.name} failed:`, error.message);
+
     }
   }
-  
-  console.log('[RUSTDESK ID FINDER] All methods failed to find ID');
+
   return null;
 }
 
@@ -146,7 +140,7 @@ async function findRustDeskId(sshCommand, platform) {
   } else if (platform === 'linux') {
     return await findRustDeskIdLinux(sshCommand);
   } else {
-    console.log(`[RUSTDESK ID FINDER] Unsupported platform: ${platform}`);
+
     return null;
   }
 }

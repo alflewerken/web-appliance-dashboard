@@ -39,7 +39,7 @@ const AuditLogTableMUI = ({
   onDeleteLog,
   cardStyles = {}, // Add default value
 }) => {
-  console.log('AuditLogTableMUI rendered with onDeleteLog:', typeof onDeleteLog);
+
   const theme = useTheme();
   const { t } = useTranslation();
   const [containerWidth, setContainerWidth] = useState(0);
@@ -93,14 +93,7 @@ const AuditLogTableMUI = ({
           
           // Debug logging
           if (logs.length > 0 && logs.indexOf(log) === 0) {
-            console.log('[AuditLogTable] First log check:', {
-              logId: log.id,
-              logIdStr: logIdStr,
-              expandedRows: expandedRows,
-              isSet: expandedRows instanceof Set,
-              hasMethod: typeof expandedRows.has,
-              isExpanded: isExpanded
-            });
+
           }
           
           return (

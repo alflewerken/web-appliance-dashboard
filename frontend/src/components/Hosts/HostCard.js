@@ -203,7 +203,7 @@ const HostCard = ({
                     <IconButton
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log('[HostCard] Remote Desktop clicked for host:', host);
+
                         if (onRemoteDesktop) {
                           onRemoteDesktop(host);
                         } else {

@@ -18,8 +18,6 @@ class BackupManager {
   async createFullBackup(userId = null, username = 'system') {
     const startTime = Date.now();
     const backupId = crypto.randomBytes(16).toString('hex');
-    
-    console.log(`🔄 Starting comprehensive backup ${backupId}...`);
 
     try {
       // Ensure backup directory exists
@@ -67,11 +65,7 @@ class BackupManager {
       report.filepath = filepath;
       report.size_mb = (JSON.stringify(backupData).length / 1024 / 1024).toFixed(2);
       report.duration_ms = Date.now() - startTime;
-      
-      console.log(`✅ Backup completed in ${report.duration_ms}ms`);
-      console.log(`📁 Saved to: ${filepath}`);
-      console.log(`📊 Size: ${report.size_mb} MB`);
-      
+
       return {
         success: true,
         backup_id: backupId,
@@ -108,10 +102,10 @@ class BackupManager {
     // Collect data from each table
     for (const table of tables) {
       try {
-        console.log(`📊 Backing up table: ${table}`);
+
         const [rows] = await this.pool.execute(`SELECT * FROM ${table}`);
         data[table] = rows;
-        console.log(`  ✓ ${rows.length} records`);
+
       } catch (error) {
         console.error(`  ✗ Error backing up ${table}:`, error.message);
         data[table] = [];
@@ -127,13 +121,13 @@ class BackupManager {
     if (await this.guacamoleBackup.isAvailable()) {
       try {
         data.guacamole_connections = await this.guacamoleBackup.exportConnections();
-        console.log(`✅ Backed up ${data.guacamole_connections.length} Guacamole connections`);
+
       } catch (error) {
-        console.warn('⚠️ Could not backup Guacamole connections:', error.message);
+
         data.guacamole_connections = [];
       }
     } else {
-      console.log('ℹ️ Guacamole database not available, skipping connection backup');
+
       data.guacamole_connections = [];
     }
     
@@ -349,7 +343,7 @@ class BackupManager {
       try {
         await fs.unlink(backup.filepath);
         deleted++;
-        console.log(`🗑️ Deleted old backup: ${backup.filename}`);
+
       } catch (e) {
         console.error(`Error deleting backup ${backup.filename}:`, e);
       }

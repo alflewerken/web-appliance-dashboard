@@ -94,8 +94,7 @@ export class BackgroundService {
         blur: parseInt(data.background_blur || '5'),
         position: data.background_position || 'center',
       };
-      
-      console.log('Loaded background settings from backend:', settings);
+
       return settings;
     } catch (error) {
       console.error('Error loading background settings:', error);

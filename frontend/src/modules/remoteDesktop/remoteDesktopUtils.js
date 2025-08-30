@@ -82,8 +82,7 @@ export const openRustDeskConnection = async (appliance, token) => {
   }
   
   try {
-    console.log('RustDesk connect - sending audit log for appliance:', appliance.id);
-    
+
     // Log the access - ensure this is sent before opening RustDesk
     const auditResponse = await axios.post(
       `/api/rustdesk/access/${appliance.id}`,
@@ -97,17 +96,13 @@ export const openRustDeskConnection = async (appliance, token) => {
         }
       }
     );
-    
-    console.log('Audit log response:', auditResponse.data);
-    
+
     // Create RustDesk URL
     let rustdeskUrl = `rustdesk://${rustdeskId}`;
     if (rustdeskPassword) {
       rustdeskUrl += `?password=${encodeURIComponent(rustdeskPassword)}`;
     }
-    
-    console.log('Opening RustDesk with URL:', rustdeskUrl);
-    
+
     // Open RustDesk
     window.location.href = rustdeskUrl;
     

@@ -71,7 +71,6 @@ class GuacamoleBackupManager {
         });
       }
 
-      console.log(`✅ Exported ${connectionData.length} Guacamole connections`);
       return connectionData;
 
     } catch (error) {
@@ -87,7 +86,7 @@ class GuacamoleBackupManager {
    */
   async importConnections(connections) {
     if (!connections || connections.length === 0) {
-      console.log('No Guacamole connections to import');
+
       return { imported: 0, errors: 0 };
     }
 
@@ -159,7 +158,7 @@ class GuacamoleBackupManager {
           }
 
           imported++;
-          console.log(`✅ Imported Guacamole connection: ${conn.connection_name}`);
+
         } catch (error) {
           errors++;
           console.error(`❌ Error importing connection ${conn.connection_name}:`, error.message);
@@ -167,7 +166,6 @@ class GuacamoleBackupManager {
       }
 
       await client.query('COMMIT');
-      console.log(`✅ Imported ${imported} Guacamole connections, ${errors} errors`);
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -190,7 +188,7 @@ class GuacamoleBackupManager {
       client.release();
       return true;
     } catch (error) {
-      console.warn('Guacamole database not available:', error.message);
+
       return false;
     }
   }

@@ -67,10 +67,6 @@ function handleTerminalWebSocket(ws, req) {
   const userId = req.user?.id || null;
   const ipAddress = req.clientIp;
 
-  console.log(
-    `🔌 New terminal WebSocket connection for appliance ${applianceId}, session ${sessionId}`
-  );
-
   let session = null;
   let applianceData = null;
 
@@ -180,7 +176,7 @@ function handleTerminalWebSocket(ws, req) {
           break;
 
         default:
-          console.warn('Unknown message type:', msg.type);
+
       }
     } catch (error) {
       console.error('Error handling WebSocket message:', error);
@@ -189,7 +185,6 @@ function handleTerminalWebSocket(ws, req) {
 
   // WebSocket close handler
   ws.on('close', async () => {
-    console.log(`🔌 WebSocket disconnected for session ${sessionId}`);
 
     if (session) {
       // Create audit log for terminal session end

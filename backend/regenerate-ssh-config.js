@@ -52,8 +52,6 @@ Host *
       ORDER BY name
     `);
 
-    console.log(`Found ${hosts.length} hosts with SSH keys`);
-
     // Generate config for each host
     for (const host of hosts) {
       const hostConfig = `
@@ -76,7 +74,7 @@ Host ${host.hostname}
       const hasHost = hosts.some(h => h.ssh_key_name === keyName);
       
       if (!hasHost) {
-        console.log(`Found orphaned key: ${keyName}`);
+
         // Add generic config for orphaned keys
         const orphanConfig = `
 # Orphaned key: ${keyName}
@@ -97,44 +95,38 @@ async function regenerateSSHConfig() {
   let connection;
 
   try {
-    console.log('🔑 Regenerating SSH config...');
-    console.log(`📁 SSH directory: ${SSH_DIR}`);
-    console.log(`📄 Config file: ${SSH_CONFIG_PATH}`);
 
     // Ensure SSH directory exists
     try {
       await fs.access(SSH_DIR);
     } catch {
-      console.log('Creating SSH directory...');
+
       await fs.mkdir(SSH_DIR, { recursive: true, mode: 0o700 });
     }
 
     // Connect to database
     connection = await mysql.createConnection(dbConfig);
-    console.log('✅ Connected to database');
 
     // Generate new config
     const configContent = await generateSSHConfig(connection);
 
     // Write config file
     await fs.writeFile(SSH_CONFIG_PATH, configContent, { mode: 0o600 });
-    console.log('✅ SSH config written successfully');
-    
+
     // Fix ownership (important when running in Docker with shared volumes)
     try {
       const { exec } = require('child_process');
       const util = require('util');
       const execAsync = util.promisify(exec);
       await execAsync(`chown root:root ${SSH_CONFIG_PATH}`);
-      console.log('✅ Fixed config file ownership');
+
     } catch (error) {
-      console.warn('⚠️ Could not fix ownership (might not be running as root)');
+
     }
 
     // Verify the config was written
     const writtenContent = await fs.readFile(SSH_CONFIG_PATH, 'utf8');
     const lineCount = writtenContent.split('\n').length;
-    console.log(`📊 Config file has ${lineCount} lines`);
 
   } catch (error) {
     console.error('❌ Error regenerating SSH config:', error);
@@ -142,7 +134,7 @@ async function regenerateSSHConfig() {
   } finally {
     if (connection) {
       await connection.end();
-      console.log('🔌 Database connection closed');
+
     }
   }
 }
@@ -151,7 +143,7 @@ async function regenerateSSHConfig() {
 if (require.main === module) {
   regenerateSSHConfig()
     .then(() => {
-      console.log('✅ SSH config regeneration completed');
+
       process.exit(0);
     })
     .catch(error => {

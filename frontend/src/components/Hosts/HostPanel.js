@@ -145,10 +145,10 @@ const HostPanel = ({
       // Set selected key if host has one - wird in fetchSSHKeys nochmal validiert
       if (host.sshKeyName) {
         setSelectedKey(host.sshKeyName);
-        console.log('Setting selectedKey from host:', host.sshKeyName);
+
       } else {
         setSelectedKey(null);
-        console.log('No SSH key configured for this host');
+
       }
     } else if (host?.isNew) {
       // Bei neuen Hosts: Default-Werte setzen
@@ -186,20 +186,13 @@ const HostPanel = ({
   // Subscribe to SSE events for real-time updates
   useEffect(() => {
     if (!host || host.isNew) return; // Nur für existierende Hosts
-    
-    console.log('Setting up SSE listeners for host:', host.id, host.name);
-    
+
     const handleHostUpdated = async (data) => {
-      console.log('SSE host_updated event received:', data);
-      
+
       // Wenn dieser Host aktualisiert wurde, lade die neuen Daten
       // Vergleiche IDs als Strings für Typ-Sicherheit
       if (data.id && String(data.id) === String(host.id)) {
-        console.log('Host was updated via SSE, reloading data...', { 
-          eventId: data.id, 
-          hostId: host.id,
-          eventName: data.name 
-        });
+
         try {
           const response = await axios.get(`/api/hosts/${host.id}`);
           if (response.data.host) {
@@ -241,11 +234,10 @@ const HostPanel = ({
     const handleHostReverted = handleHostUpdated; // Gleiche Behandlung für revert
     
     const handleHostDeleted = (data) => {
-      console.log('SSE host_deleted event received:', data);
-      
+
       // Wenn dieser Host gelöscht wurde, schließe das Panel
       if (data.id && String(data.id) === String(host.id)) {
-        console.log('This host was deleted externally, closing panel...');
+
         setError(t('hosts.errors.hostDeletedExternally'));
         setTimeout(() => {
           if (onClose) onClose();
@@ -255,7 +247,7 @@ const HostPanel = ({
     
     // Connect to SSE and add event listeners
     sseService.connect().then(() => {
-      console.log('SSE connected, adding listeners...');
+
       sseService.addEventListener('host_updated', handleHostUpdated);
       sseService.addEventListener('host_reverted', handleHostReverted);
       sseService.addEventListener('host_deleted', handleHostDeleted);
@@ -265,7 +257,7 @@ const HostPanel = ({
     
     // Cleanup listeners on unmount
     return () => {
-      console.log('Cleaning up SSE listeners for host:', host.id);
+
       sseService.removeEventListener('host_updated', handleHostUpdated);
       sseService.removeEventListener('host_reverted', handleHostReverted);
       sseService.removeEventListener('host_deleted', handleHostDeleted);
@@ -284,7 +276,7 @@ const HostPanel = ({
         if (keys.length === 0) {
           const token = localStorage.getItem('token');
           if (token) {
-            console.log('No SSH keys found, creating dashboard key...');
+
             await createDashboardKey();
             return; // Nach Erstellung wird fetchSSHKeys erneut aufgerufen
           }
@@ -311,10 +303,10 @@ const HostPanel = ({
             const existingKey = keys.find(k => k.keyName === hostKeyName);
             if (existingKey) {
               setSelectedKey(hostKeyName);
-              console.log('Selected existing key for host:', hostKeyName);
+
             } else {
               // Key existiert nicht mehr - ersten verfügbaren Key auswählen
-              console.warn(`SSH key "${hostKeyName}" not found, selecting first available key`);
+
               if (keys.length > 0) {
                 setSelectedKey(keys[0].keyName);
                 handleInputChange('sshKeyName', keys[0].keyName);
@@ -322,7 +314,7 @@ const HostPanel = ({
             }
           } else if (keys.length > 0) {
             // Kein Key gespeichert aber Keys vorhanden - ersten auswählen
-            console.log('No key configured for host, selecting first available');
+
             setSelectedKey(keys[0].keyName);
             handleInputChange('sshKeyName', keys[0].keyName);
           }
@@ -358,7 +350,7 @@ const HostPanel = ({
       // Detaillierte Fehlerbehandlung
       if (error.response?.status === 400) {
         // Wahrscheinlich existiert der Schlüssel bereits
-        console.log('Dashboard key might already exist, refreshing keys...');
+
         // Versuche die Keys neu zu laden
         try {
           const keysResponse = await axios.get('/api/sshKeys');
@@ -458,7 +450,7 @@ const HostPanel = ({
           setError('RustDesk ist installiert, aber keine ID gefunden. Bitte prüfen Sie die Installation.');
         } else {
           // Not installed - open installer dialog
-          console.log('RustDesk not installed, opening installer dialog');
+
           setShowRustDeskInstaller(true);
         }
       }
@@ -466,7 +458,7 @@ const HostPanel = ({
       console.error('Error checking RustDesk status:', error);
       // If we get a 404 or similar error, also open the installer
       if (error.response?.status === 404 || error.response?.data?.message?.includes('not installed')) {
-        console.log('RustDesk not found, opening installer dialog');
+
         setShowRustDeskInstaller(true);
       } else {
         setError(error.response?.data?.error || 'Fehler beim Abrufen der RustDesk ID');
@@ -566,10 +558,7 @@ const HostPanel = ({
         const changedFields = getChangedFields(originalFormData, formData);
         
         // Debug: Log what getChangedFields returns
-        console.log('getChangedFields result:', changedFields);
-        console.log('Original remotePassword:', originalFormData?.remotePassword);
-        console.log('Current remotePassword:', formData.remotePassword);
-        
+
         // Check if there are any changes
         if (Object.keys(changedFields).length === 0) {
           setSuccess(true);
@@ -600,9 +589,7 @@ const HostPanel = ({
         if (selectedKey !== originalFormData.sshKeyName) {
           dataToSave.sshKeyName = selectedKey || null;
         }
-        
-        console.log('Saving host - changed fields:', Object.keys(dataToSave));
-        console.log('Changed data:', dataToSave);
+
       }
 
       if (host?.isNew) {
@@ -1303,7 +1290,7 @@ const HostPanel = ({
           onClose={() => setShowRustDeskInstaller(false)}
           appliance={host}
           onSuccess={(rustdeskId) => {
-            console.log('RustDesk installation successful, ID:', rustdeskId);
+
             handleInputChange('rustdeskId', rustdeskId);
             setSuccess(t('hosts.success.rustDeskInstalled', { id: rustdeskId }));
             setShowRustDeskInstaller(false);

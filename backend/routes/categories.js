@@ -148,14 +148,10 @@ router.post('/', verifyToken, async (req, res) => {
     );
     
     // Debug: Test if broadcast works at all
-    console.log('🔥 TEST: About to broadcast category_created');
-    console.log('🔥 TEST: New category data:', categoryWithCount);
-    
+
     // Broadcast update
     broadcast('category_created', categoryWithCount);
-    
-    console.log('🔥 TEST: Broadcast completed');
-    
+
     res.status(201).json(categoryWithCount);
   } catch (error) {
     console.error('Error creating category:', error);
@@ -191,15 +187,11 @@ router.put('/reorder', verifyToken, async (req, res) => {
     
     // Fetch complete category data with appliance counts
     const updatedCategories = await getAllCategoriesWithCounts();
-    
-    console.log('📝 Categories after reorder:', updatedCategories.length, 'categories');
-    console.log('📝 First category:', updatedCategories[0]);
-    
+
     // Broadcast update with complete data
-    console.log('📡 About to broadcast categories_reordered event...');
+
     broadcast('categories_reordered', { categories: updatedCategories });
-    console.log('✅ Broadcast completed');
-    
+
     res.json({ 
       message: 'Categories reordered successfully',
       categories: updatedCategories 
@@ -267,14 +259,10 @@ router.put('/:id', verifyToken, async (req, res) => {
     );
     
     // Debug: Test if broadcast works
-    console.log('🔥 TEST: About to broadcast category_updated');
-    console.log('🔥 TEST: Updated category data:', updatedCategory);
-    
+
     // Broadcast update
     broadcast('category_updated', updatedCategory);
-    
-    console.log('🔥 TEST: Broadcast completed');
-    
+
     res.json(updatedCategory);
   } catch (error) {
     console.error('Error updating category:', error);

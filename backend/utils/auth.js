@@ -9,21 +9,15 @@ const JWT_SECRET =
 
 // Middleware für Token-Verifikation
 const verifyToken = async (req, res, next) => {
-  console.log('[VERIFY_TOKEN] Called for:', req.method, req.url);
-  console.log('[VERIFY_TOKEN] Headers authorization:', req.headers.authorization);
-  console.log('[VERIFY_TOKEN] Full headers:', Object.keys(req.headers));
-  console.log('[VERIFY_TOKEN] Query:', req.query);
-  
+
   try {
     const authHeader = req.headers.authorization || req.headers.Authorization;
     const token = authHeader?.split(' ')[1];
 
     if (!token) {
-      console.log('[VERIFY_TOKEN] No token found in request');
+
       return res.status(401).json({ error: 'No token provided' });
     }
-
-    console.log('[VERIFY_TOKEN] Token found, verifying...');
 
     // Verify JWT token
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -66,9 +60,7 @@ const verifyToken = async (req, res, next) => {
 
 // Middleware für Admin-Rechte
 const requireAdmin = (req, res, next) => {
-  console.log('[requireAdmin] User role:', req.user?.role);
-  console.log('[requireAdmin] User:', req.user);
-  
+
   // Akzeptiere sowohl 'Administrator' als auch 'admin'
   if (req.user?.role !== 'Administrator' && req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
@@ -182,9 +174,7 @@ const createAuditLog_DEPRECATED = async (
   ipAddress = null,
   req = null
 ) => {
-  console.log('=== createAuditLog_DEPRECATED called - SHOULD NOT BE USED ===');
-  console.log('Params:', { userId, action, resourceType, resourceId, details, ipAddress });
-  
+
   try {
     // If no IP address is provided but request object is available, extract it
     if (!ipAddress && req) {
@@ -202,8 +192,6 @@ const createAuditLog_DEPRECATED = async (
         ipAddress,
       ]
     );
-    
-    console.log('Audit log INSERT result:', result);
 
     // Get username for the audit log
     let username = 'System';
