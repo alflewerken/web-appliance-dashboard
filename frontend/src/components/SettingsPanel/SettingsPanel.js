@@ -333,7 +333,7 @@ const SettingsPanel = ({
         onApplyTheme(data.theme_mode);
       }
     } catch (error) {
-      setError('Fehler beim Laden der Einstellungen');
+      setError(t('settings.errors.loadFailed'));
     } finally {
       setGeneralLoading(false);
     }
@@ -348,14 +348,14 @@ const SettingsPanel = ({
 
     try {
       await SettingsService.updateSetting(key, value);
-      setSuccess(`Einstellung gespeichert`);
+      setSuccess(t('settings.success.settingSaved'));
       setTimeout(() => setSuccess(''), 2000);
 
       if (onCategoriesUpdate) {
         await onCategoriesUpdate();
       }
     } catch (error) {
-      setError(`Fehler beim Speichern`);
+      setError(t('settings.errors.saveFailed'));
       setTimeout(() => setError(''), 3000);
     }
   };
@@ -369,7 +369,7 @@ const SettingsPanel = ({
         service_poll_interval: data.service_poll_interval || '60',
       });
     } catch (error) {
-      setError('Fehler beim Laden der System-Einstellungen');
+      setError(t('settings.errors.loadSystemFailed'));
     } finally {
       setSystemLoading(false);
     }
@@ -380,10 +380,10 @@ const SettingsPanel = ({
 
     try {
       await SettingsService.updateSetting(key, value);
-      setSuccess(`Einstellung gespeichert`);
+      setSuccess(t('settings.success.settingSaved'));
       setTimeout(() => setSuccess(''), 2000);
     } catch (error) {
-      setError(`Fehler beim Speichern`);
+      setError(t('settings.errors.saveFailed'));
       setTimeout(() => setError(''), 3000);
     }
   };
@@ -411,7 +411,7 @@ const SettingsPanel = ({
 
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      setError(error.message || 'Fehler beim Speichern der Kategorie');
+      setError(error.message || t('settings.errors.saveCategoryFailed'));
     } finally {
       setLoading(false);
     }
@@ -420,7 +420,7 @@ const SettingsPanel = ({
   const deleteCategory = async category => {
     if (
       !window.confirm(
-        `Möchten Sie die Kategorie "${category.name}" wirklich löschen?`
+        t('settings.confirmDeleteCategory', { categoryName: category.name })
       )
     ) {
       return;
@@ -428,7 +428,7 @@ const SettingsPanel = ({
 
     try {
       await CategoryService.deleteCategory(category.id);
-      setSuccess('Kategorie erfolgreich gelöscht');
+      setSuccess(t('settings.success.categoryDeleted'));
 
       // Update categories after delete
       if (onCategoriesUpdate) {
@@ -437,7 +437,7 @@ const SettingsPanel = ({
 
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      setError(error.message || 'Fehler beim Löschen der Kategorie');
+      setError(error.message || t('settings.errors.deleteCategoryFailed'));
     }
   };
 

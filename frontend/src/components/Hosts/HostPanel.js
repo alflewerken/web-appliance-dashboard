@@ -229,11 +229,11 @@ const HostPanel = ({
             };
             setFormData(updatedData);
             setOriginalFormData(updatedData);
-            setSuccess('Host wurde extern aktualisiert und neu geladen');
+            setSuccess(t('hosts.success.hostReloadedExternally'));
           }
         } catch (error) {
           console.error('Error reloading host data:', error);
-          setError('Fehler beim Neuladen der Host-Daten');
+          setError(t('hosts.errors.reloadFailed'));
         }
       }
     };
@@ -246,7 +246,7 @@ const HostPanel = ({
       // Wenn dieser Host gelöscht wurde, schließe das Panel
       if (data.id && String(data.id) === String(host.id)) {
         console.log('This host was deleted externally, closing panel...');
-        setError('Host wurde extern gelöscht');
+        setError(t('hosts.errors.hostDeletedExternally'));
         setTimeout(() => {
           if (onClose) onClose();
         }, 2000);
@@ -626,7 +626,7 @@ const HostPanel = ({
       }
     } catch (error) {
       console.error('Error saving host:', error);
-      setError(error.response?.data?.error || 'Fehler beim Speichern des Hosts');
+      setError(error.response?.data?.error || t('hosts.errors.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -643,7 +643,7 @@ const HostPanel = ({
       onClose();
     } catch (error) {
       console.error('Error deleting host:', error);
-      setError('Fehler beim Löschen des Hosts');
+      setError(t('hosts.errors.deleteFailed'));
       setLoading(false);
     }
   };

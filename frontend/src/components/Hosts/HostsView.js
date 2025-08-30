@@ -135,7 +135,7 @@ const HostsView = ({
       setError(null);
     } catch (err) {
       console.error('Error loading hosts:', err);
-      setError('Fehler beim Laden der Hosts');
+      setError(t('hosts.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -151,7 +151,7 @@ const HostsView = ({
   if (loading) {
     return (
       <div className="content-wrapper">
-        <div className="loading-message">Lade Hosts...</div>
+        <div className="loading-message">{t('hosts.loading')}</div>
       </div>
     );
   }

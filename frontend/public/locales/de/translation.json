@@ -343,7 +343,19 @@
     "imageGallery": "Bildergalerie",
     "uploadImage": "Bild hochladen",
     "noImagesAvailable": "Keine Bilder vorhanden",
-    "uploadImagesHint": "Laden Sie Bilder hoch, um sie als Hintergrund zu verwenden"
+    "uploadImagesHint": "Laden Sie Bilder hoch, um sie als Hintergrund zu verwenden",
+    "errors": {
+      "loadFailed": "Fehler beim Laden der Einstellungen",
+      "saveFailed": "Fehler beim Speichern",
+      "loadSystemFailed": "Fehler beim Laden der System-Einstellungen",
+      "saveCategoryFailed": "Fehler beim Speichern der Kategorie",
+      "deleteCategoryFailed": "Fehler beim Löschen der Kategorie"
+    },
+    "success": {
+      "settingSaved": "Einstellung gespeichert",
+      "categoryDeleted": "Kategorie erfolgreich gelöscht"
+    },
+    "confirmDeleteCategory": "Möchten Sie die Kategorie \"{{categoryName}}\" wirklich löschen?"
   },
   "backup": {
     "title": "Backup & Wiederherstellung",
@@ -628,14 +640,19 @@
       "registerKeyFailed": "Fehler beim Registrieren des SSH-Schlüssels",
       "hostMustBeSaved": "Host muss zuerst gespeichert werden",
       "saveFailed": "Fehler beim Speichern",
-      "deleteFailed": "Fehler beim Löschen"
+      "deleteFailed": "Fehler beim Löschen",
+      "loadFailed": "Fehler beim Laden der Hosts",
+      "reloadFailed": "Fehler beim Neuladen der Host-Daten",
+      "hostDeletedExternally": "Host wurde extern gelöscht"
     },
     "success": {
       "sshKeyRegistered": "SSH-Schlüssel erfolgreich auf dem Host registriert",
       "saved": "Host erfolgreich gespeichert",
       "deleted": "Host erfolgreich gelöscht",
-      "rustDeskInstalled": "RustDesk erfolgreich installiert! ID: {{id}}"
+      "rustDeskInstalled": "RustDesk erfolgreich installiert! ID: {{id}}",
+      "hostReloadedExternally": "Host wurde extern aktualisiert und neu geladen"
     },
+    "loading": "Lade Hosts...",
     "confirmDelete": {
       "title": "Host löschen?",
       "message": "Möchten Sie den Host \"{{name}}\" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
@@ -796,8 +813,25 @@
       "generateFailed": "Fehler beim Generieren des Schlüssels",
       "importFailed": "Fehler beim Importieren des Schlüssels",
       "deleteFailed": "Fehler beim Löschen des Schlüssels",
-      "loadFailed": "Fehler beim Laden der Schlüssel"
+      "loadFailed": "Fehler beim Laden der Schlüssel",
+      "copyPublicKeyFailed": "Fehler beim Kopieren des öffentlichen Schlüssels",
+      "copyPrivateKeyFailed": "Fehler beim Kopieren des privaten Schlüssels",
+      "clipboardFailed": "Kopieren in Zwischenablage fehlgeschlagen - bitte manuell kopieren",
+      "cannotDelete": "Schlüssel kann nicht gelöscht werden",
+      "editNotImplemented": "Schlüssel-Bearbeitung wird noch implementiert",
+      "updateFailed": "Fehler beim Aktualisieren des SSH-Schlüssels",
+      "downloadFailed": "Fehler beim Herunterladen des Schlüssels"
     },
+    "success": {
+      "keyGenerated": "SSH-Schlüssel erfolgreich generiert",
+      "keyGeneratedAndCopied": "SSH-Schlüssel generiert und öffentlicher Schlüssel in Zwischenablage kopiert",
+      "keyGeneratedCopyFailed": "SSH-Schlüssel generiert (Kopieren in Zwischenablage fehlgeschlagen)",
+      "keyImported": "SSH-Schlüssel erfolgreich importiert",
+      "publicKeyCopied": "Öffentlicher Schlüssel in Zwischenablage kopiert",
+      "privateKeyCopied": "Privater Schlüssel in Zwischenablage kopiert",
+      "keyDeleted": "SSH-Schlüssel erfolgreich gelöscht"
+    },
+    "confirmDelete": "Möchten Sie den SSH-Schlüssel \"{{keyName}}\" wirklich löschen?"
     "success": {
       "keyGenerated": "SSH-Schlüssel erfolgreich generiert",
       "keyImported": "SSH-Schlüssel erfolgreich importiert",

@@ -110,7 +110,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       }
     } catch (error) {
       console.error('Error fetching SSH keys:', error);
-      setError('Fehler beim Laden der SSH-Schlüssel');
+      setError(t('sshKeys.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       const response = await axios.post('/api/sshKeys/generate', generateForm);
       
       if (response.data.success) {
-        setSuccess('SSH-Schlüssel erfolgreich generiert');
+        setSuccess(t('sshKeys.success.keyGenerated'));
         setShowGenerateDialog(false);
         setGenerateForm({
           keyName: '',
@@ -136,9 +136,9 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
         if (response.data.publicKey) {
           const copied = await copyToClipboard(response.data.publicKey);
           if (copied) {
-            setSuccess('SSH-Schlüssel generiert und öffentlicher Schlüssel in Zwischenablage kopiert');
+            setSuccess(t('sshKeys.success.keyGeneratedAndCopied'));
           } else {
-            setSuccess('SSH-Schlüssel generiert (Kopieren in Zwischenablage fehlgeschlagen)');
+            setSuccess(t('sshKeys.success.keyGeneratedCopyFailed'));
           }
         }
         
@@ -149,7 +149,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       }
     } catch (error) {
       console.error('Error generating SSH key:', error);
-      setError(error.response?.data?.error || 'Fehler beim Generieren des SSH-Schlüssels');
+      setError(error.response?.data?.error || t('sshKeys.errors.generateFailed'));
     } finally {
       setLoading(false);
     }
@@ -161,7 +161,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       const response = await axios.post('/api/sshKeys/import', importForm);
       
       if (response.data.success) {
-        setSuccess('SSH-Schlüssel erfolgreich importiert');
+        setSuccess(t('sshKeys.success.keyImported'));
         setShowImportDialog(false);
         setImportForm({
           keyName: '',
@@ -177,7 +177,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       }
     } catch (error) {
       console.error('Error importing SSH key:', error);
-      setError(error.response?.data?.error || 'Fehler beim Importieren des SSH-Schlüssels');
+      setError(error.response?.data?.error || t('sshKeys.errors.importFailed'));
     } finally {
       setLoading(false);
     }
@@ -188,13 +188,13 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       const response = await axios.get(`/api/sshKeys/${keyName}/public`);
       const copied = await copyToClipboard(response.data.publicKey);
       if (copied) {
-        setSuccess('Öffentlicher Schlüssel in Zwischenablage kopiert');
+        setSuccess(t('sshKeys.success.publicKeyCopied'));
       } else {
-        setError('Kopieren in Zwischenablage fehlgeschlagen - bitte manuell kopieren');
+        setError(t('sshKeys.errors.clipboardFailed'));
       }
     } catch (error) {
       console.error('Error copying public key:', error);
-      setError('Fehler beim Kopieren des öffentlichen Schlüssels');
+      setError(t('sshKeys.errors.copyPublicKeyFailed'));
     }
   };
 
@@ -203,24 +203,24 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       const response = await axios.get(`/api/sshKeys/${keyName}/private`);
       const copied = await copyToClipboard(response.data.privateKey);
       if (copied) {
-        setSuccess('Privater Schlüssel in Zwischenablage kopiert');
+        setSuccess(t('sshKeys.success.privateKeyCopied'));
       } else {
-        setError('Kopieren in Zwischenablage fehlgeschlagen - bitte manuell kopieren');
+        setError(t('sshKeys.errors.clipboardFailed'));
       }
     } catch (error) {
       console.error('Error copying private key:', error);
-      setError('Fehler beim Kopieren des privaten Schlüssels');
+      setError(t('sshKeys.errors.copyPrivateKeyFailed'));
     }
   };
 
   const handleDeleteKey = async (keyId, keyName) => {
-    if (!window.confirm(`Möchten Sie den SSH-Schlüssel "${keyName}" wirklich löschen?`)) {
+    if (!window.confirm(t('sshKeys.confirmDelete', { keyName }))) {
       return;
     }
 
     try {
       await axios.delete(`/api/sshKeys/${keyId}`);
-      setSuccess('SSH-Schlüssel erfolgreich gelöscht');
+      setSuccess(t('sshKeys.success.keyDeleted'));
       fetchKeys();
       
       // Notify parent component
@@ -230,9 +230,9 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
     } catch (error) {
       console.error('Error deleting SSH key:', error);
       if (error.response?.status === 400) {
-        setError(error.response.data.error || 'Schlüssel kann nicht gelöscht werden');
+        setError(error.response.data.error || t('sshKeys.errors.cannotDelete'));
       } else {
-        setError('Fehler beim Löschen des SSH-Schlüssels');
+        setError(t('sshKeys.errors.deleteFailed'));
       }
     }
   };
@@ -251,11 +251,11 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       setLoading(true);
       // Da das Backend noch keine Update-Route hat, zeigen wir nur eine Meldung
       // TODO: Backend-Route für Update implementieren
-      setError('Schlüssel-Bearbeitung wird noch implementiert');
+      setError(t('sshKeys.errors.editNotImplemented'));
       setShowEditDialog(false);
     } catch (error) {
       console.error('Error updating SSH key:', error);
-      setError('Fehler beim Aktualisieren des SSH-Schlüssels');
+      setError(t('sshKeys.errors.updateFailed'));
     } finally {
       setLoading(false);
     }
@@ -277,7 +277,7 @@ const SSHKeyManagement = ({ onKeyCreated, onKeyDeleted, adminMode, selectedKeyNa
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading key:', error);
-      setError('Fehler beim Herunterladen des Schlüssels');
+      setError(t('sshKeys.errors.downloadFailed'));
     }
   };
 

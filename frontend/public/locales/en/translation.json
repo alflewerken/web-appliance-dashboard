@@ -343,7 +343,19 @@
     "imageGallery": "Image Gallery",
     "uploadImage": "Upload Image",
     "noImagesAvailable": "No images available",
-    "uploadImagesHint": "Upload images to use them as background"
+    "uploadImagesHint": "Upload images to use them as background",
+    "errors": {
+      "loadFailed": "Error loading settings",
+      "saveFailed": "Error saving",
+      "loadSystemFailed": "Error loading system settings",
+      "saveCategoryFailed": "Error saving category",
+      "deleteCategoryFailed": "Error deleting category"
+    },
+    "success": {
+      "settingSaved": "Setting saved",
+      "categoryDeleted": "Category deleted successfully"
+    },
+    "confirmDeleteCategory": "Do you really want to delete the category \"{{categoryName}}\"?"
   },
   "backup": {
     "title": "Backup & Restore",
@@ -547,14 +559,19 @@
       "registerKeyFailed": "Error registering SSH key",
       "hostMustBeSaved": "Host must be saved first",
       "saveFailed": "Error saving host",
-      "deleteFailed": "Error deleting host"
+      "deleteFailed": "Error deleting host",
+      "loadFailed": "Error loading hosts",
+      "reloadFailed": "Error reloading host data",
+      "hostDeletedExternally": "Host was deleted externally"
     },
     "success": {
       "sshKeyRegistered": "SSH key successfully registered on host",
       "saved": "Host saved successfully",
       "deleted": "Host deleted successfully",
-      "rustDeskInstalled": "RustDesk successfully installed! ID: {{id}}"
+      "rustDeskInstalled": "RustDesk successfully installed! ID: {{id}}",
+      "hostReloadedExternally": "Host was updated externally and reloaded"
     },
+    "loading": "Loading hosts...",
     "confirmDelete": {
       "title": "Delete Host?",
       "message": "Are you sure you want to delete the host \"{{name}}\"? This action cannot be undone."
@@ -715,15 +732,25 @@
       "generateFailed": "Error generating key",
       "importFailed": "Error importing key",
       "deleteFailed": "Error deleting key",
-      "loadFailed": "Error loading keys"
+      "loadFailed": "Error loading keys",
+      "copyPublicKeyFailed": "Error copying public key",
+      "copyPrivateKeyFailed": "Error copying private key",
+      "clipboardFailed": "Failed to copy to clipboard - please copy manually",
+      "cannotDelete": "Key cannot be deleted",
+      "editNotImplemented": "Key editing will be implemented soon",
+      "updateFailed": "Error updating SSH key",
+      "downloadFailed": "Error downloading key"
     },
     "success": {
       "keyGenerated": "SSH key generated successfully",
+      "keyGeneratedAndCopied": "SSH key generated and public key copied to clipboard",
+      "keyGeneratedCopyFailed": "SSH key generated (clipboard copy failed)",
       "keyImported": "SSH key imported successfully",
       "keyDeleted": "SSH key deleted successfully",
       "publicKeyCopied": "Public key copied to clipboard",
       "privateKeyCopied": "Private key copied to clipboard"
-    }
+    },
+    "confirmDelete": "Do you really want to delete the SSH key \"{{keyName}}\"?"
   },
   "users": {
     "title": "User Management",
