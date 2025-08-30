@@ -487,6 +487,7 @@ export const renderHostReverted = (log, details, isDarkMode) => {
 export const renderHostUpdate = (log, details, isDarkMode) => {
   const changes = details.changes || {};
   const oldValues = details.oldValues || {};
+  const hostname = details.hostname || details.host_name || details.name || '-';
   const changedFields = Object.keys(changes);
 
   if (changedFields.length === 0) {
@@ -499,96 +500,338 @@ export const renderHostUpdate = (log, details, isDarkMode) => {
 
   return (
     <Box>
-      <Typography variant="subtitle2" gutterBottom sx={{ 
-        mb: 2, 
-        color: isDarkMode 
-          ? 'rgba(255, 255, 255, 0.87)' 
-          : 'rgba(0, 0, 0, 0.87)' 
-      }}>
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Host wurde aktualisiert
+      </Alert>
+      
+      <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+        Host-Informationen:
+      </Typography>
+      
+      <Box sx={{ mb: 3 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+          <Chip 
+            label={`Host: ${hostname}`}
+            size="small"
+            color="primary"
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip 
+            label={`Anzahl Änderungen: ${changedFields.length}`}
+            size="small"
+            color="info"
+            variant="outlined"
+          />
+        </Stack>
+      </Box>
+      
+      <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
         Geänderte Felder:
       </Typography>
-      <Box sx={{
-        '& table': {
-          borderCollapse: 'collapse',
-          width: '100%',
-        },
-        '& td': {
-          padding: '8px 12px',
-          borderBottom: `1px solid ${isDarkMode 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(0, 0, 0, 0.08)'}`,
-        },
-        '& tr:last-child td': {
-          borderBottom: 'none',
-        },
-        '& td:first-of-type': {
-          fontWeight: 500,
-          color: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.6)' 
-            : 'rgba(0, 0, 0, 0.6)',
-          width: '25%',
-          minWidth: '100px',
-        },
-        '& td:last-of-type': {
-          color: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.87)' 
-            : 'rgba(0, 0, 0, 0.87)',
-        },
-      }}>
-        <table>
-          <tbody>
-            {changedFields.map(field => {
-              const formattedField = field
-                .replace(/_/g, ' ')
-                .replace(/([A-Z])/g, ' $1')
-                .trim()
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                .join(' ');
-                
-              return (
-                <tr key={field}>
-                  <td style={{
-                    fontWeight: 500,
-                    color: isDarkMode 
-                      ? 'rgba(255, 255, 255, 0.6)' 
-                      : 'rgba(0, 0, 0, 0.6)',
-                  }}>{formattedField}:</td>
-                  <td style={{
-                    color: isDarkMode 
-                      ? 'rgba(255, 255, 255, 0.87)' 
-                      : 'rgba(0, 0, 0, 0.87)',
-                  }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Chip 
-                        label={oldValues[field] || '-'} 
-                        size="small" 
-                        color="error"
-                        sx={{
-                          backgroundColor: '#f44336',
-                          color: '#ffffff',
-                          fontWeight: 500,
-                        }}
-                      />
-                      <Typography variant="caption">→</Typography>
-                      <Chip 
-                        label={changes[field] || '-'} 
-                        size="small" 
-                        color="success"
-                        sx={{
-                          backgroundColor: '#66bb6a',
-                          color: '#ffffff',
-                          fontWeight: 500,
-                        }}
-                      />
-                    </Stack>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      
+      <Stack spacing={2}>
+        {changedFields.map(field => {
+          const formattedField = field
+            .replace(/_/g, ' ')
+            .replace(/([A-Z])/g, ' $1')
+            .trim()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+            
+          const oldValue = oldValues[field];
+          const newValue = changes[field];
+          
+          // Format boolean values
+          const formatValue = (val) => {
+            if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
+            if (val === null || val === undefined) return '-';
+            return val.toString();
+          };
+          
+          return (
+            <Box key={field}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                {formattedField}
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip 
+                  label={formatValue(oldValue)}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#f44336',
+                    color: '#fff',
+                    textDecoration: 'line-through'
+                  }}
+                />
+                <Typography variant="caption">→</Typography>
+                <Chip 
+                  label={formatValue(newValue)}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#66bb6a',
+                    color: '#fff'
+                  }}
+                />
+              </Stack>
+            </Box>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+};
+
+
+// Renderer for host deleted actions
+export const renderHostDeleted = (log, details, isDarkMode) => {
+  // Parse deleted host data if it's a string
+  let hostData = details.deletedHostData || details.deleted_host_data || details;
+  if (typeof hostData === 'string') {
+    try {
+      hostData = JSON.parse(hostData);
+    } catch (e) {
+      console.error('Error parsing deleted host data:', e);
+      hostData = details;
+    }
+  }
+  
+  // Extract all relevant fields
+  const id = hostData.id || '-';
+  const name = hostData.name || '-';
+  const description = hostData.description || '-';
+  const hostname = hostData.hostname || '-';
+  const port = hostData.port || '-';
+  const username = hostData.username || '-';
+  const icon = hostData.icon || '-';
+  const color = hostData.color || '#00C7BE';
+  const transparency = hostData.transparency || hostData.blur || '0.48';
+  const sshKeyName = hostData.sshKeyName || hostData.ssh_key_name || '-';
+  const privateKey = hostData.privateKey || hostData.private_key ? 'Vorhanden' : 'Nicht gesetzt';
+  const isActive = hostData.isActive !== undefined ? (hostData.isActive ? 'Aktiv' : 'Inaktiv') : 
+                  hostData.is_active !== undefined ? (hostData.is_active ? 'Aktiv' : 'Inaktiv') : '-';
+  
+  // Remote Desktop Details
+  const remoteDesktopEnabled = hostData.remoteDesktopEnabled || hostData.remote_desktop_enabled ? 'Ja' : 'Nein';
+  const remoteDesktopType = hostData.remoteDesktopType || hostData.remote_desktop_type || '-';
+  const remoteProtocol = hostData.remoteProtocol || hostData.remote_protocol || '-';
+  const remotePort = hostData.remotePort || hostData.remote_port || '-';
+  const remoteUsername = hostData.remoteUsername || hostData.remote_username || '-';
+  
+  // RustDesk Details
+  const rustdeskId = hostData.rustdeskId || hostData.rustdesk_id || '-';
+  
+  // Timestamps
+  const createdAt = hostData.createdAt || hostData.created_at || '-';
+  const updatedAt = hostData.updatedAt || hostData.updated_at || '-';
+  const deletedBy = details.deletedBy || details.deleted_by || log.username || '-';
+  const deletedAt = details.deletedAt || details.deleted_at || log.timestamp || '-';
+  
+  // Format dates
+  const formatDate = (date) => {
+    if (!date || date === '-' || date === null) return '-';
+    try {
+      return new Date(date).toLocaleString('de-DE');
+    } catch {
+      return date;
+    }
+  };
+  
+  return (
+    <Box>
+      <Alert severity="error" sx={{ mb: 2 }}>
+        Host wurde gelöscht
+      </Alert>
+      
+      <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+        Löschungs-Details:
+      </Typography>
+      
+      <Box sx={{ mb: 3 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+          <Chip 
+            label={`Gelöscht von: ${deletedBy}`}
+            size="small"
+            color="error"
+            variant="outlined"
+          />
+          <Chip 
+            label={`Gelöscht am: ${formatDate(deletedAt)}`}
+            size="small"
+            color="error"
+            variant="outlined"
+          />
+        </Stack>
       </Box>
+      
+      <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+        Gelöschte Host-Daten:
+      </Typography>
+      
+      <Stack spacing={2}>
+        {/* Basis-Informationen */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Basis-Informationen
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            {id !== '-' && (
+              <Chip label={`ID: ${id}`} size="small" />
+            )}
+            <Chip 
+              label={`Name: ${name}`} 
+              size="small" 
+              sx={{ fontWeight: 600 }}
+            />
+            {description !== '-' && (
+              <Chip label={`Beschreibung: ${description}`} size="small" />
+            )}
+            <Chip 
+              label={`Status: ${isActive}`}
+              size="small"
+              color={isActive === 'Aktiv' ? 'success' : 'default'}
+              variant="outlined"
+            />
+          </Stack>
+        </Box>
+        
+        {/* Verbindungs-Details */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Verbindungs-Details
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            <Chip 
+              label={`Hostname: ${hostname}`}
+              size="small"
+              sx={{ fontFamily: 'monospace' }}
+            />
+            <Chip 
+              label={`Port: ${port}`}
+              size="small"
+            />
+            <Chip 
+              label={`Benutzername: ${username}`}
+              size="small"
+            />
+            {sshKeyName !== '-' && (
+              <Chip 
+                label={`SSH-Key: ${sshKeyName}`}
+                size="small"
+                color="secondary"
+              />
+            )}
+            <Chip 
+              label={`Private Key: ${privateKey}`}
+              size="small"
+              color={privateKey === 'Vorhanden' ? 'success' : 'default'}
+              variant="outlined"
+            />
+          </Stack>
+        </Box>
+        
+        {/* Visuelle Einstellungen */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Visuelle Einstellungen
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            <Chip 
+              label={`Icon: ${icon}`}
+              size="small"
+            />
+            <Chip 
+              label={`Farbe: ${color}`}
+              size="small"
+              sx={{ 
+                backgroundColor: color,
+                color: '#fff',
+                fontWeight: 500
+              }}
+            />
+            <Chip 
+              label={`Transparenz: ${transparency}`}
+              size="small"
+            />
+          </Stack>
+        </Box>
+        
+        {/* Remote Desktop (wenn aktiviert) */}
+        {remoteDesktopEnabled === 'Ja' && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              Remote Desktop
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              <Chip 
+                label="Remote Desktop aktiviert"
+                size="small"
+                color="primary"
+              />
+              {remoteDesktopType !== '-' && (
+                <Chip 
+                  label={`Typ: ${remoteDesktopType}`}
+                  size="small"
+                />
+              )}
+              {remoteProtocol !== '-' && (
+                <Chip 
+                  label={`Protokoll: ${remoteProtocol}`}
+                  size="small"
+                />
+              )}
+              {remotePort !== '-' && (
+                <Chip 
+                  label={`Remote Port: ${remotePort}`}
+                  size="small"
+                />
+              )}
+              {remoteUsername !== '-' && (
+                <Chip 
+                  label={`Remote User: ${remoteUsername}`}
+                  size="small"
+                />
+              )}
+            </Stack>
+          </Box>
+        )}
+        
+        {/* RustDesk (wenn vorhanden) */}
+        {rustdeskId !== '-' && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              RustDesk
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              <Chip 
+                label={`RustDesk ID: ${rustdeskId}`}
+                size="small"
+                color="info"
+                sx={{ fontFamily: 'monospace' }}
+              />
+            </Stack>
+          </Box>
+        )}
+        
+        {/* Zeitstempel */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Zeitstempel
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            <Chip 
+              label={`Erstellt: ${formatDate(createdAt)}`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip 
+              label={`Aktualisiert: ${formatDate(updatedAt)}`}
+              size="small"
+              variant="outlined"
+            />
+          </Stack>
+        </Box>
+      </Stack>
     </Box>
   );
 };

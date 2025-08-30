@@ -5,7 +5,7 @@ import { useTheme } from '@mui/material';
 
 // Import sub-components
 import ResponsiveChip from './ResponsiveChip';
-import { renderHostRestored, renderHostReverted, renderHostUpdate } from './HostRenderers';
+import { renderHostRestored, renderHostReverted, renderHostUpdate, renderHostDeleted } from './HostRenderers';
 import { renderUserStatusChange, renderUserRestored, renderUserReverted, renderUserDeleted, renderUserUpdate } from './UserRenderers';
 import { renderApplianceUpdate, renderApplianceDeleted, renderApplianceReverted, renderApplianceRestored } from './ApplianceRenderers';
 import { renderFileTransfer } from './FileTransferRenderer';
@@ -108,6 +108,11 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
     if (log.action === 'host_update' || log.action === 'host_updated' || 
         log.action === 'hostUpdate' || log.action === 'hostUpdated') {
       return renderHostUpdate(log, details, isDarkMode);
+    }
+
+    if (log.action === 'host_delete' || log.action === 'host_deleted' || 
+        log.action === 'hostDelete' || log.action === 'hostDeleted') {
+      return renderHostDeleted(log, details, isDarkMode);
     }
 
     // User actions

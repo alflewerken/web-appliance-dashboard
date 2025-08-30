@@ -1,4 +1,4 @@
-// User-related renderers for audit log details - COMPLETE VERSION
+// User-related renderers for audit log details - COMPLETE VERSION with Chip Layout
 import React from 'react';
 import {
   Box,
@@ -8,570 +8,533 @@ import {
   Alert,
 } from '@mui/material';
 
-// Helper function to format dates
-const formatDate = (date) => {
-  if (!date || date === '-' || date === null) return '-';
-  try {
-    return new Date(date).toLocaleString('de-DE');
-  } catch {
-    return date;
-  }
-};
-
-// Renderer for user activated/deactivated actions
+// Renderer for user status change actions
 export const renderUserStatusChange = (log, details, isDarkMode) => {
+  const action = log.action;
   const username = details.username || details.user_name || '-';
-  const originalStatus = details.originalStatus !== undefined ? details.originalStatus : 
-                       details.original_status !== undefined ? details.original_status : null;
-  const newStatus = details.newStatus !== undefined ? details.newStatus : 
-                   details.new_status !== undefined ? details.new_status : null;
-  const changedBy = details.changedBy || details.changed_by || '-';
-  const timestamp = log.createdAt || details.timestamp || log.timestamp || '-';
+  const email = details.email || '-';
+  const performedBy = details.performedBy || details.performed_by || '-';
+  const reason = details.reason || details.status_change_reason || null;
+  
+  const isActivation = action === 'user_activated' || action === 'userActivated';
+  const statusText = isActivation ? 'aktiviert' : 'deaktiviert';
+  const statusColor = isActivation ? 'success' : 'error';
   
   return (
     <Box>
+      <Alert severity={isActivation ? 'success' : 'warning'} sx={{ mb: 2 }}>
+        Benutzer wurde {statusText}
+      </Alert>
+      
       <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-        Status-Änderung:
+        Status-Änderung Details:
       </Typography>
       
-      <Box sx={{
-        '& table': {
-          borderCollapse: 'collapse',
-          width: '100%',
-        },
-        '& td': {
-          padding: '10px 12px',
-          borderBottom: `1px solid ${isDarkMode 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(0, 0, 0, 0.08)'}`,
-        },
-        '& tr:last-child td': {
-          borderBottom: 'none',
-        },
-        '& td:first-of-type': {
-          fontWeight: 500,
-          color: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.6)' 
-            : 'rgba(0, 0, 0, 0.6)',
-          width: '35%',
-        },
-      }}>
-        <table>
-          <tbody>
-            {originalStatus !== null && (
-              <tr>
-                <td>Original Status:</td>
-                <td>
-                  <Chip 
-                    label={originalStatus ? "Aktiv" : "Inaktiv"} 
-                    size="small"
-                    sx={{ 
-                      backgroundColor: originalStatus ? '#66bb6a' : '#f44336',
-                      color: '#fff',
-                      fontWeight: 500
-                    }}
-                  />
-                </td>
-              </tr>
+      <Stack spacing={2}>
+        {/* Benutzer-Informationen */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Benutzer-Informationen
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            <Chip 
+              label={`Benutzername: ${username}`}
+              size="small"
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip 
+              label={`E-Mail: ${email}`}
+              size="small"
+            />
+            <Chip 
+              label={`Status: ${statusText}`}
+              size="small"
+              color={statusColor}
+            />
+          </Stack>
+        </Box>
+        
+        {/* Durchgeführt von */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Aktion Details
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            <Chip 
+              label={`Durchgeführt von: ${performedBy}`}
+              size="small"
+              color="info"
+              variant="outlined"
+            />
+            {reason && (
+              <Chip 
+                label={`Grund: ${reason}`}
+                size="small"
+                variant="outlined"
+              />
             )}
-            {newStatus !== null && (
-              <tr>
-                <td>Neuer Status:</td>
-                <td>
-                  <Chip 
-                    label={newStatus ? "Aktiv" : "Inaktiv"} 
-                    size="small"
-                    sx={{ 
-                      backgroundColor: newStatus ? '#66bb6a' : '#f44336',
-                      color: '#fff',
-                      fontWeight: 500
-                    }}
-                  />
-                </td>
-              </tr>
-            )}
-            <tr><td>Benutzername:</td><td>{username}</td></tr>
-            <tr><td>Geändert von:</td><td>{changedBy}</td></tr>
-            <tr><td>Zeitstempel:</td><td>{formatDate(timestamp)}</td></tr>
-          </tbody>
-        </table>
-      </Box>
+          </Stack>
+        </Box>
+      </Stack>
     </Box>
   );
 };
 
 // Renderer for user deleted actions
 export const renderUserDeleted = (log, details, isDarkMode) => {
-  const userData = details.user || details.User || details;
+  // Parse deleted user data if it's a string
+  let userData = details.deletedUserData || details.deleted_user_data || details;
+  if (typeof userData === 'string') {
+    try {
+      userData = JSON.parse(userData);
+    } catch (e) {
+      console.error('Error parsing deleted user data:', e);
+      userData = details;
+    }
+  }
   
-  // Extract fields with proper handling for both camelCase and snake_case
+  // Extract all relevant fields
+  const id = userData.id || '-';
   const username = userData.username || userData.user_name || '-';
   const email = userData.email || '-';
   const role = userData.role || '-';
-  const isActive = userData.isActive !== undefined ? (userData.isActive ? 'Ja' : 'Nein') : 
-                  userData.is_active !== undefined ? (userData.is_active ? 'Ja' : 'Nein') : '-';
+  const isActive = userData.isActive !== undefined ? (userData.isActive ? 'Aktiv' : 'Inaktiv') :
+                  userData.is_active !== undefined ? (userData.is_active ? 'Aktiv' : 'Inaktiv') : '-';
   const createdAt = userData.createdAt || userData.created_at || '-';
   const updatedAt = userData.updatedAt || userData.updated_at || '-';
-  const lastLogin = userData.lastLogin || userData.last_login || 'Nie';
-  const lastActivity = userData.lastActivity || userData.last_activity || 'Keine';
-  const deletedBy = details.deleted_by || details.deletedBy || '-';
-
+  const lastLogin = userData.lastLogin || userData.last_login || null;
+  const lastActivity = userData.lastActivity || userData.last_activity || null;
+  const deletedBy = details.deletedBy || details.deleted_by || log.username || '-';
+  const deletedAt = details.deletedAt || details.deleted_at || log.timestamp || '-';
+  
+  // Format dates
+  const formatDate = (date) => {
+    if (!date || date === '-' || date === null) return '-';
+    try {
+      return new Date(date).toLocaleString('de-DE');
+    } catch {
+      return date;
+    }
+  };
+  
   return (
     <Box>
       <Alert severity="error" sx={{ mb: 2 }}>
-        Dieser Benutzer wurde gelöscht
+        Benutzer wurde gelöscht
       </Alert>
       
       <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-        Benutzer-Details:
+        Löschungs-Details:
       </Typography>
       
-      <Box sx={{
-        '& table': {
-          borderCollapse: 'collapse',
-          width: '100%',
-        },
-        '& td': {
-          padding: '10px 12px',
-          borderBottom: `1px solid ${isDarkMode 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(0, 0, 0, 0.08)'}`,
-        },
-        '& tr:last-child td': {
-          borderBottom: 'none',
-        },
-        '& td:first-of-type': {
-          fontWeight: 500,
-          color: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.6)' 
-            : 'rgba(0, 0, 0, 0.6)',
-          width: '35%',
-        },
-      }}>
-        <table>
-          <tbody>
-            <tr><td>Benutzername:</td><td>{username}</td></tr>
-            <tr><td>E-Mail:</td><td>{email}</td></tr>
-            <tr>
-              <td>Rolle:</td>
-              <td>
-                <Chip 
-                  label={role} 
-                  size="small"
-                  color={role === 'admin' ? 'error' : 'default'}
-                  sx={{ fontWeight: 500 }}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td>Aktiv:</td>
-              <td>
-                <Chip 
-                  label={isActive} 
-                  size="small"
-                  color={isActive === 'Ja' ? 'success' : 'default'}
-                />
-              </td>
-            </tr>
-            <tr><td>Erstellt am:</td><td>{formatDate(createdAt)}</td></tr>
-            <tr><td>Zuletzt geändert:</td><td>{formatDate(updatedAt)}</td></tr>
-            <tr><td>Letzter Login:</td><td>{formatDate(lastLogin)}</td></tr>
-            <tr><td>Letzte Aktivität:</td><td>{formatDate(lastActivity)}</td></tr>
-            <tr><td>Gelöscht von:</td><td style={{ fontWeight: 600 }}>{deletedBy}</td></tr>
-          </tbody>
-        </table>
+      <Box sx={{ mb: 3 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+          <Chip 
+            label={`Gelöscht von: ${deletedBy}`}
+            size="small"
+            color="error"
+            variant="outlined"
+          />
+          <Chip 
+            label={`Gelöscht am: ${formatDate(deletedAt)}`}
+            size="small"
+            color="error"
+            variant="outlined"
+          />
+        </Stack>
       </Box>
+      
+      <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+        Gelöschte Benutzer-Daten:
+      </Typography>
+      
+      <Stack spacing={2}>
+        {/* Basis-Informationen */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Basis-Informationen
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            {id !== '-' && (
+              <Chip label={`ID: ${id}`} size="small" />
+            )}
+            <Chip 
+              label={`Benutzername: ${username}`}
+              size="small"
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip 
+              label={`E-Mail: ${email}`}
+              size="small"
+            />
+            <Chip 
+              label={`Rolle: ${role}`}
+              size="small"
+              color="secondary"
+            />
+            <Chip 
+              label={`Status: ${isActive}`}
+              size="small"
+              color={isActive === 'Aktiv' ? 'success' : 'default'}
+              variant="outlined"
+            />
+          </Stack>
+        </Box>
+        
+        {/* Aktivitäts-Informationen */}
+        {(lastLogin || lastActivity) && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              Aktivitäts-Informationen
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              {lastLogin && (
+                <Chip 
+                  label={`Letzter Login: ${formatDate(lastLogin)}`}
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+              {lastActivity && (
+                <Chip 
+                  label={`Letzte Aktivität: ${formatDate(lastActivity)}`}
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+            </Stack>
+          </Box>
+        )}
+        
+        {/* Zeitstempel */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Zeitstempel
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            <Chip 
+              label={`Erstellt: ${formatDate(createdAt)}`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip 
+              label={`Aktualisiert: ${formatDate(updatedAt)}`}
+              size="small"
+              variant="outlined"
+            />
+          </Stack>
+        </Box>
+      </Stack>
     </Box>
   );
 };
 
-// Renderer for user update actions
+// Renderer for user update actions  
 export const renderUserUpdate = (log, details, isDarkMode) => {
-  const originalData = details.original_data || {};
-  const newData = details.new_data || {};
-  const fieldsUpdated = details.fields_updated || details.changedFields || details.changed_fields || [];
+  const changes = details.changes || {};
+  const oldValues = details.oldValues || details.old_values || {};
   const username = details.username || details.user_name || '-';
-  const updatedBy = details.updated_by || details.updatedBy || '-';
-  
+  const changedFields = Object.keys(changes);
+
+  if (changedFields.length === 0) {
+    return (
+      <Alert severity="warning">
+        Keine Änderungsdetails verfügbar
+      </Alert>
+    );
+  }
+
   return (
     <Box>
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Benutzer wurde aktualisiert
+      </Alert>
+      
       <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-        Benutzer-Änderungen:
+        Benutzer-Informationen:
       </Typography>
       
-      <Box sx={{
-        '& table': {
-          borderCollapse: 'collapse',
-          width: '100%',
-        },
-        '& td': {
-          padding: '10px 12px',
-          borderBottom: `1px solid ${isDarkMode 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(0, 0, 0, 0.08)'}`,
-        },
-      }}>
-        <table>
-          <tbody>
-            <tr>
-              <td style={{ width: '35%', fontWeight: 500 }}>Benutzer:</td>
-              <td>{username}</td>
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 500 }}>Geändert von:</td>
-              <td>{updatedBy}</td>
-            </tr>
-          </tbody>
-        </table>
+      <Box sx={{ mb: 3 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+          <Chip 
+            label={`Benutzername: ${username}`}
+            size="small"
+            color="primary"
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip 
+            label={`Anzahl Änderungen: ${changedFields.length}`}
+            size="small"
+            color="info"
+            variant="outlined"
+          />
+        </Stack>
       </Box>
       
-      {fieldsUpdated.length > 0 && (
-        <>
-          <Typography variant="subtitle2" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
-            Geänderte Felder:
-          </Typography>
-          <Box sx={{
-            '& table': {
-              borderCollapse: 'collapse',
-              width: '100%',
-            },
-            '& td': {
-              padding: '10px 12px',
-              borderBottom: `1px solid ${isDarkMode 
-                ? 'rgba(255, 255, 255, 0.08)' 
-                : 'rgba(0, 0, 0, 0.08)'}`,
-            }
-          }}>
-            <table>
-              <tbody>
-                {fieldsUpdated.map((fieldName, index) => {
-                  const oldValue = originalData[fieldName];
-                  const newValue = newData[fieldName];
-                  
-                  const fieldMap = {
-                    'username': 'Benutzername',
-                    'email': 'E-Mail',
-                    'role': 'Rolle',
-                    'isActive': 'Aktiv',
-                    'is_active': 'Aktiv',
-                    'password': 'Passwort',
-                    'passwordHash': 'Passwort',
-                    'password_hash': 'Passwort'
-                  };
-                  const formatFieldName = (field) => fieldMap[field] || field;
-                  
-                  const formatValue = (value, field) => {
-                    if (field === 'isActive' || field === 'is_active') {
-                      return value ? 'Ja' : 'Nein';
-                    }
-                    if (field === 'password' || field === 'passwordHash' || field === 'password_hash') {
-                      return '••••••••';
-                    }
-                    return value !== undefined && value !== null ? value : '-';
-                  };
-                  
-                  return (
-                    <tr key={index}>
-                      <td style={{ width: '35%', fontWeight: 500 }}>
-                        {formatFieldName(fieldName)}:
-                      </td>
-                      <td>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Chip 
-                            label={`Vorher: ${formatValue(oldValue, fieldName)}`} 
-                            size="small"
-                            color="error"
-                            sx={{ 
-                              backgroundColor: '#f44336',
-                              color: '#ffffff',
-                              fontSize: '0.75rem',
-                              fontWeight: 500
-                            }} 
-                          />
-                          <Typography variant="caption">→</Typography>
-                          <Chip 
-                            label={`Nachher: ${formatValue(newValue, fieldName)}`} 
-                            size="small"
-                            color="success"
-                            sx={{ 
-                              backgroundColor: '#66bb6a',
-                              color: '#ffffff',
-                              fontSize: '0.75rem',
-                              fontWeight: 500
-                            }} 
-                          />
-                        </Stack>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Box>
-        </>
-      )}
+      <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+        Geänderte Felder:
+      </Typography>
+      
+      <Stack spacing={2}>
+        {changedFields.map(field => {
+          const formattedField = field
+            .replace(/_/g, ' ')
+            .replace(/([A-Z])/g, ' $1')
+            .trim()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+            
+          const oldValue = oldValues[field];
+          const newValue = changes[field];
+          
+          // Format boolean values
+          const formatValue = (val) => {
+            if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
+            if (val === null || val === undefined) return '-';
+            return val.toString();
+          };
+          
+          return (
+            <Box key={field}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                {formattedField}
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip 
+                  label={formatValue(oldValue)}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#f44336',
+                    color: '#fff',
+                    textDecoration: 'line-through'
+                  }}
+                />
+                <Typography variant="caption">→</Typography>
+                <Chip 
+                  label={formatValue(newValue)}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#66bb6a',
+                    color: '#fff'
+                  }}
+                />
+              </Stack>
+            </Box>
+          );
+        })}
+      </Stack>
     </Box>
   );
 };
 
 // Renderer for user restored actions
 export const renderUserRestored = (log, details, isDarkMode) => {
-  const restoredFromLogId = details.restoredFromLogId || details.restored_from_log_id || '-';
-  const restoredBy = details.restoredBy || details.restored_by || '-';
-  const newName = details.newName || details.new_name || null;
-  const newEmail = details.newEmail || details.new_email || null;
-  
-  let userData = details.restoredUserData || details.restored_user_data || {};
+  // Parse restored data if it's a string
+  let userData = details.restoredUserData || details.restored_user_data || details;
   if (typeof userData === 'string') {
     try {
       userData = JSON.parse(userData);
     } catch (e) {
-      console.error('Error parsing userData:', e);
+      console.error('Error parsing restored user data:', e);
+      userData = details;
     }
   }
   
+  // Extract all relevant fields
+  const id = userData.id || '-';
   const username = userData.username || userData.user_name || '-';
   const email = userData.email || '-';
   const role = userData.role || '-';
-  const isActive = userData.isActive !== undefined ? (userData.isActive ? 'Ja' : 'Nein') : 
-                  userData.is_active !== undefined ? (userData.is_active ? 'Ja' : 'Nein') : '-';
+  const isActive = userData.isActive !== undefined ? (userData.isActive ? 'Aktiv' : 'Inaktiv') :
+                  userData.is_active !== undefined ? (userData.is_active ? 'Aktiv' : 'Inaktiv') : 'Aktiv';
   const createdAt = userData.createdAt || userData.created_at || '-';
   const updatedAt = userData.updatedAt || userData.updated_at || '-';
   const lastLogin = userData.lastLogin || userData.last_login || null;
   const lastActivity = userData.lastActivity || userData.last_activity || null;
-
+  
+  // Meta Information
+  const restoredFromLogId = details.restoredFromLogId || details.restored_from_log_id || '-';
+  const restoredBy = details.restoredBy || details.restored_by || log.username || '-';
+  const newName = details.newName || details.new_name || null;
+  const newEmail = details.newEmail || details.new_email || null;
+  
+  // Format dates
+  const formatDate = (date) => {
+    if (!date || date === '-' || date === null) return '-';
+    try {
+      return new Date(date).toLocaleString('de-DE');
+    } catch {
+      return date;
+    }
+  };
+  
   return (
     <Box>
       <Alert severity="success" sx={{ mb: 2 }}>
         Benutzer wurde erfolgreich wiederhergestellt
+        {(newName || newEmail) && ' (mit neuen Daten)'}
       </Alert>
       
       <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
         Wiederherstellungs-Details:
       </Typography>
       
-      <Box sx={{
-        '& table': {
-          borderCollapse: 'collapse',
-          width: '100%',
-        },
-        '& td': {
-          padding: '10px 12px',
-          borderBottom: `1px solid ${isDarkMode 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(0, 0, 0, 0.08)'}`,
-        },
-        '& tr:last-child td': {
-          borderBottom: 'none',
-        },
-        '& td:first-of-type': {
-          fontWeight: 500,
-          color: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.6)' 
-            : 'rgba(0, 0, 0, 0.6)',
-          width: '35%',
-        },
-      }}>
-        <table>
-          <tbody>
-            <tr><td>Wiederhergestellt von Log ID:</td><td>{restoredFromLogId}</td></tr>
-            {newName && (
-              <tr>
-                <td>Neuer Benutzername:</td>
-                <td>
-                  <Chip 
-                    label={newName} 
-                    size="small"
-                    color="success"
-                    sx={{ fontWeight: 500 }}
-                  />
-                </td>
-              </tr>
-            )}
-            {newEmail && (
-              <tr>
-                <td>Neue E-Mail-Adresse:</td>
-                <td>
-                  <Chip 
-                    label={newEmail} 
-                    size="small"
-                    color="success"
-                    sx={{ fontWeight: 500 }}
-                  />
-                </td>
-              </tr>
-            )}
-            <tr><td>Wiederhergestellt von:</td><td style={{ fontWeight: 600 }}>{restoredBy}</td></tr>
-          </tbody>
-        </table>
+      <Box sx={{ mb: 3 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+          <Chip 
+            label={`Wiederhergestellt von Log ID: ${restoredFromLogId}`}
+            size="small"
+            color="info"
+            variant="outlined"
+          />
+          <Chip 
+            label={`Wiederhergestellt von: ${restoredBy}`}
+            size="small"
+            color="success"
+            variant="outlined"
+          />
+        </Stack>
       </Box>
-
-      <Typography variant="subtitle2" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
-        Ursprüngliche Benutzerdaten:
+      
+      {(newName || newEmail) && (
+        <>
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Neue Benutzerdaten:
+          </Typography>
+          
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              {newName && (
+                <Chip 
+                  label={`Neuer Benutzername: ${newName}`}
+                  size="small"
+                  color="warning"
+                  sx={{ fontWeight: 600 }}
+                />
+              )}
+              {newEmail && (
+                <Chip 
+                  label={`Neue E-Mail: ${newEmail}`}
+                  size="small"
+                  color="warning"
+                />
+              )}
+            </Stack>
+          </Box>
+        </>
+      )}
+      
+      <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+        Benutzer-Daten:
       </Typography>
       
-      <Box sx={{
-        '& table': {
-          borderCollapse: 'collapse',
-          width: '100%',
-        },
-        '& td': {
-          padding: '10px 12px',
-          borderBottom: `1px solid ${isDarkMode 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(0, 0, 0, 0.08)'}`,
-        },
-        '& tr:last-child td': {
-          borderBottom: 'none',
-        },
-        '& td:first-of-type': {
-          fontWeight: 500,
-          color: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.6)' 
-            : 'rgba(0, 0, 0, 0.6)',
-          width: '35%',
-        },
-      }}>
-        <table>
-          <tbody>
-            <tr>
-              <td>Benutzername:</td>
-              <td>
-                {newName ? (
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography 
-                      sx={{ 
-                        textDecoration: 'line-through',
-                        color: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'
-                      }}
-                    >
-                      {username}
-                    </Typography>
-                    <Typography variant="caption">→</Typography>
-                    <Typography sx={{ fontWeight: 500 }}>{newName}</Typography>
-                  </Stack>
-                ) : username}
-              </td>
-            </tr>
-            <tr>
-              <td>E-Mail:</td>
-              <td>
-                {newEmail ? (
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography 
-                      sx={{ 
-                        textDecoration: 'line-through',
-                        color: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'
-                      }}
-                    >
-                      {email}
-                    </Typography>
-                    <Typography variant="caption">→</Typography>
-                    <Typography sx={{ fontWeight: 500 }}>{newEmail}</Typography>
-                  </Stack>
-                ) : email}
-              </td>
-            </tr>
-            <tr>
-              <td>Rolle:</td>
-              <td>
+      <Stack spacing={2}>
+        {/* Basis-Informationen */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Basis-Informationen
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            {id !== '-' && (
+              <Chip label={`ID: ${id}`} size="small" />
+            )}
+            <Chip 
+              label={`Benutzername: ${username}`}
+              size="small"
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip 
+              label={`E-Mail: ${email}`}
+              size="small"
+            />
+            <Chip 
+              label={`Rolle: ${role}`}
+              size="small"
+              color="secondary"
+            />
+            <Chip 
+              label={`Status: ${isActive}`}
+              size="small"
+              color={isActive === 'Aktiv' ? 'success' : 'default'}
+            />
+          </Stack>
+        </Box>
+        
+        {/* Aktivitäts-Informationen */}
+        {(lastLogin || lastActivity) && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              Aktivitäts-Informationen
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              {lastLogin && (
                 <Chip 
-                  label={role} 
+                  label={`Letzter Login: ${formatDate(lastLogin)}`}
                   size="small"
-                  color={role === 'admin' ? 'error' : 'default'}
-                  sx={{ fontWeight: 500 }}
+                  variant="outlined"
                 />
-              </td>
-            </tr>
-            <tr>
-              <td>Aktiv:</td>
-              <td>
+              )}
+              {lastActivity && (
                 <Chip 
-                  label={isActive} 
+                  label={`Letzte Aktivität: ${formatDate(lastActivity)}`}
                   size="small"
-                  color={isActive === 'Ja' ? 'success' : 'default'}
+                  variant="outlined"
                 />
-              </td>
-            </tr>
-            <tr><td>Erstellt am:</td><td>{formatDate(createdAt)}</td></tr>
-            <tr><td>Zuletzt geändert:</td><td>{formatDate(updatedAt)}</td></tr>
-            <tr><td>Letzter Login:</td><td>{formatDate(lastLogin)}</td></tr>
-            <tr><td>Letzte Aktivität:</td><td>{formatDate(lastActivity)}</td></tr>
-          </tbody>
-        </table>
-      </Box>
+              )}
+            </Stack>
+          </Box>
+        )}
+        
+        {/* Zeitstempel */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+            Zeitstempel
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+            <Chip 
+              label={`Erstellt: ${formatDate(createdAt)}`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip 
+              label={`Aktualisiert: ${formatDate(updatedAt)}`}
+              size="small"
+              variant="outlined"
+            />
+          </Stack>
+        </Box>
+      </Stack>
     </Box>
   );
 };
 
 // Renderer for user reverted actions
 export const renderUserReverted = (log, details, isDarkMode) => {
-  const revertedFromLogId = details.revertedFromLogId || details.reverted_from_log_id || '-';
-  const revertedBy = details.revertedBy || details.reverted_by || log.username || '-';
-  const revertedToData = details.revertedToData || details.reverted_to_data || {};
-  const revertedFromData = details.revertedFromData || details.reverted_from_data || {};
+  const name = details.username || details.user_name || '-';
+  const revertedLogId = details.reverted_audit_log_id || details.revertedAuditLogId || '-';
+  const revertedBy = details.reverted_by || details.revertedBy || '-';
   
-  let toData = revertedToData;
-  let fromData = revertedFromData;
+  // Parse reverted_changes and restored_values if they are strings
+  let revertedChanges = details.reverted_changes || details.revertedChanges || {};
+  let restoredValues = details.restored_values || details.restoredValues || {};
   
-  try {
-    if (typeof toData === 'string') {
-      toData = JSON.parse(toData);
+  if (typeof revertedChanges === 'string') {
+    try {
+      revertedChanges = JSON.parse(revertedChanges);
+    } catch (e) {
+      console.error('Error parsing reverted_changes:', e);
     }
-    if (typeof fromData === 'string') {
-      fromData = JSON.parse(fromData);
-    }
-  } catch (e) {
-    console.error('Error parsing reverted data:', e);
   }
   
-  const changedFields = [];
-  const allKeys = new Set([...Object.keys(toData), ...Object.keys(fromData)]);
-  
-  allKeys.forEach(key => {
-    if (key === 'id' || key === 'created_at' || key === 'updated_at' || 
-        key === 'createdAt' || key === 'updatedAt' || key === 'password') {
-      return;
+  if (typeof restoredValues === 'string') {
+    try {
+      restoredValues = JSON.parse(restoredValues);
+    } catch (e) {
+      console.error('Error parsing restored_values:', e);
     }
-    
-    const fromValue = fromData[key];
-    const toValue = toData[key];
-    
-    if (JSON.stringify(fromValue) !== JSON.stringify(toValue)) {
-      const fieldName = key
-        .replace(/_/g, ' ')
-        .replace(/([A-Z])/g, ' $1')
-        .trim()
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
-      
-      changedFields.push({
-        name: fieldName,
-        from: fromValue,
-        to: toValue,
-        key: key
-      });
-    }
-  });
-  
-  const formatValue = (value, key) => {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
-    if (key === 'role') {
-      const roleMap = {
-        'admin': 'Administrator',
-        'power_user': 'Power User',
-        'user': 'Benutzer'
-      };
-      return roleMap[value] || value;
-    }
-    if (key === 'is_active' || key === 'isActive') {
-      return value ? 'Aktiv' : 'Inaktiv';
-    }
-    return value.toString();
-  };
-  
+  }
+
   return (
     <Box>
       <Alert severity="info" sx={{ mb: 2 }}>
@@ -579,90 +542,87 @@ export const renderUserReverted = (log, details, isDarkMode) => {
       </Alert>
       
       <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-        Rückgängig-Details:
+        Wiederherstellungs-Details:
       </Typography>
       
-      <Box sx={{
-        '& table': {
-          borderCollapse: 'collapse',
-          width: '100%',
-        },
-        '& td': {
-          padding: '10px 12px',
-          borderBottom: `1px solid ${isDarkMode 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(0, 0, 0, 0.08)'}`,
-        },
-        '& tr:last-child td': {
-          borderBottom: 'none',
-        },
-        '& td:first-of-type': {
-          fontWeight: 500,
-          color: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.6)' 
-            : 'rgba(0, 0, 0, 0.6)',
-          width: '35%',
-        },
-      }}>
-        <table>
-          <tbody>
-            <tr>
-              <td>Reverted From Log Id:</td>
-              <td>{revertedFromLogId}</td>
-            </tr>
-            <tr>
-              <td>Reverted By:</td>
-              <td style={{ fontWeight: 600 }}>{revertedBy}</td>
-            </tr>
-          </tbody>
-        </table>
+      <Box sx={{ mb: 3 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+          <Chip 
+            label={`Benutzer: ${name}`}
+            size="small"
+            color="primary"
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip 
+            label={`Rückgängig von Log ID: ${revertedLogId}`}
+            size="small"
+            color="info"
+            variant="outlined"
+          />
+          <Chip 
+            label={`Durchgeführt von: ${revertedBy}`}
+            size="small"
+            color="success"
+            variant="outlined"
+          />
+        </Stack>
       </Box>
       
-      {changedFields.length > 0 && (
+      {Object.keys(revertedChanges).length > 0 && (
         <>
-          <Typography variant="subtitle2" sx={{ mt: 3, mb: 2, fontWeight: 600 }}>
-            Geänderte Felder:
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+            Rückgängig gemachte Änderungen:
           </Typography>
           
           <Stack spacing={2}>
-            {changedFields.map((field, index) => (
-              <Box key={index}>
-                <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                  {field.name}:
-                </Typography>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Chip
-                    label={`Vorher: ${formatValue(field.from, field.key)}`}
-                    size="small"
-                    color="error"
-                    sx={{
-                      backgroundColor: '#f44336',
-                      color: '#ffffff',
-                      fontWeight: 500,
-                    }}
-                  />
-                  <Typography variant="caption">→</Typography>
-                  <Chip
-                    label={`Nachher: ${formatValue(field.to, field.key)}`}
-                    size="small"
-                    color="success"
-                    sx={{
-                      backgroundColor: '#66bb6a',
-                      color: '#ffffff',
-                      fontWeight: 500,
-                    }}
-                  />
-                </Stack>
-              </Box>
-            ))}
+            {Object.entries(revertedChanges).map(([field, value]) => {
+              const formattedField = field
+                .replace(/_/g, ' ')
+                .replace(/([A-Z])/g, ' $1')
+                .trim()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+              
+              const oldValue = restoredValues[field];
+              
+              // Format values
+              const formatValue = (val) => {
+                if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
+                if (val === null || val === undefined) return '-';
+                return val.toString();
+              };
+              
+              return (
+                <Box key={field}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                    {formattedField}
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip 
+                      label={formatValue(value)}
+                      size="small"
+                      sx={{
+                        backgroundColor: '#f44336',
+                        color: '#fff',
+                        textDecoration: 'line-through'
+                      }}
+                    />
+                    <Typography variant="caption">→</Typography>
+                    <Chip 
+                      label={formatValue(oldValue)}
+                      size="small"
+                      sx={{
+                        backgroundColor: '#66bb6a',
+                        color: '#fff'
+                      }}
+                    />
+                  </Stack>
+                </Box>
+              );
+            })}
           </Stack>
         </>
-      )}
-      
-      {changedFields.length === 0 && (
-        <Alert severity="warning" sx={{ mt: 2 }}>
-          Keine Änderungen gefunden
-        </Alert>
       )}
     </Box>
   );
