@@ -143,12 +143,16 @@ export const useCategories = () => {
     const unsubscribeReordered = addEventListener(
       'categories_reordered',
       data => {
-        // Use the data directly as it contains all categories
-        if (Array.isArray(data)) {
+        // The event sends { categories: [...] }
+        if (data && data.categories && Array.isArray(data.categories)) {
+          setApiCategories(data.categories);
+          setCategoriesLastUpdated(Date.now());
+        } else if (Array.isArray(data)) {
+          // Fallback for direct array format
           setApiCategories(data);
           setCategoriesLastUpdated(Date.now());
         } else {
-          console.error('❌ categories_reordered data is not an array:', data);
+          console.error('❌ categories_reordered data is not in expected format:', data);
         }
       }
     );

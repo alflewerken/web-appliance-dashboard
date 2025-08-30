@@ -110,11 +110,14 @@ router.post('/', verifyToken, async (req, res) => {
       newCategory.name
     );
     
+    // Debug: Test if broadcast works at all
+    console.log('🔥 TEST: About to broadcast category_created');
+    console.log('🔥 TEST: New category data:', newCategory);
+    
     // Broadcast update
-    broadcast({
-      type: 'category_created',
-      data: newCategory
-    });
+    broadcast('category_created', newCategory);
+    
+    console.log('🔥 TEST: Broadcast completed');
     
     res.status(201).json(newCategory);
   } catch (error) {
@@ -149,13 +152,35 @@ router.put('/reorder', verifyToken, async (req, res) => {
     
     await connection.commit();
     
-    // Broadcast update
-    broadcast({
-      type: 'categories_reordered',
-      data: { categories }
-    });
+    // Fetch complete category data with new order using direct SQL
+    const [updatedCategories] = await connection.execute(
+      'SELECT * FROM categories ORDER BY order_index ASC'
+    );
     
-    res.json({ message: 'Categories reordered successfully' });
+    console.log('📝 Categories after reorder:', updatedCategories.length, 'categories');
+    console.log('📝 First category:', updatedCategories[0]);
+    
+    // Convert snake_case to camelCase for consistency
+    const camelCaseCategories = updatedCategories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+      description: cat.description,
+      orderIndex: cat.order_index,
+      createdAt: cat.created_at,
+      updatedAt: cat.updated_at
+    }));
+    
+    // Broadcast update with complete data
+    console.log('📡 About to broadcast categories_reordered event...');
+    broadcast('categories_reordered', { categories: camelCaseCategories });
+    console.log('✅ Broadcast completed');
+    
+    res.json({ 
+      message: 'Categories reordered successfully',
+      categories: camelCaseCategories 
+    });
   } catch (error) {
     await connection.rollback();
     console.error('Error reordering categories:', error);
@@ -218,11 +243,14 @@ router.put('/:id', verifyToken, async (req, res) => {
       updatedCategory.name
     );
     
+    // Debug: Test if broadcast works
+    console.log('🔥 TEST: About to broadcast category_updated');
+    console.log('🔥 TEST: Updated category data:', updatedCategory);
+    
     // Broadcast update
-    broadcast({
-      type: 'category_updated',
-      data: updatedCategory
-    });
+    broadcast('category_updated', updatedCategory);
+    
+    console.log('🔥 TEST: Broadcast completed');
     
     res.json(updatedCategory);
   } catch (error) {
@@ -279,10 +307,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     );
     
     // Broadcast update
-    broadcast({
-      type: 'category_deleted',
-      data: { id: categoryId }
-    });
+    broadcast('category_deleted', { id: categoryId });
     
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {

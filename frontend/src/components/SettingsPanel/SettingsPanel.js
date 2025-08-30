@@ -132,8 +132,9 @@ const SettingsPanel = ({
   // Local state for categories to enable immediate UI updates
   const [localCategories, setLocalCategories] = useState(apiCategories || []);
   
-  // Update local categories when prop changes
+  // Update local categories when prop changes - ALWAYS sync with parent
   useEffect(() => {
+    console.log('[SettingsPanel] apiCategories changed, updating localCategories');
     setLocalCategories(apiCategories || []);
   }, [apiCategories]);
   // Load current background when background tab is opened
@@ -226,22 +227,9 @@ const SettingsPanel = ({
       const unsubscribers = [
         // Handle category creation
         addEventListener('category_created', (data) => {
+          console.log('[SettingsPanel] SSE category_created received:', data);
           
-          // Update local categories immediately
-          setLocalCategories(prev => {
-            // Check if category already exists to avoid duplicates
-            const exists = prev.some(cat => cat.id === data.id);
-            if (exists) return prev;
-            
-            // Add new category at the end or at specified position
-            const newCategories = [...prev, data];
-            // Sort by order_index if present
-            return newCategories.sort((a, b) => 
-              (a.orderIndex || a.order_index || 0) - (b.orderIndex || b.order_index || 0)
-            );
-          });
-          
-          // Also trigger the callback for parent component
+          // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
@@ -249,13 +237,9 @@ const SettingsPanel = ({
         
         // Handle category updates
         addEventListener('category_updated', (data) => {
+          console.log('[SettingsPanel] SSE category_updated received:', data);
           
-          // Update the specific category in local state
-          setLocalCategories(prev => prev.map(cat => 
-            cat.id === data.id ? { ...cat, ...data } : cat
-          ));
-          
-          // Also trigger the callback for parent component
+          // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
@@ -263,13 +247,9 @@ const SettingsPanel = ({
         
         // Handle category deletion
         addEventListener('category_deleted', (data) => {
+          console.log('[SettingsPanel] SSE category_deleted received:', data);
           
-          // Remove category from local state
-          setLocalCategories(prev => prev.filter(cat => 
-            cat.id !== (data.id || data.categoryId)
-          ));
-          
-          // Also trigger the callback for parent component
+          // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
@@ -277,23 +257,9 @@ const SettingsPanel = ({
         
         // Handle category restoration
         addEventListener('category_restored', (data) => {
+          console.log('[SettingsPanel] SSE category_restored received:', data);
           
-          // Add restored category back to local state
-          setLocalCategories(prev => {
-            const exists = prev.some(cat => cat.id === data.id);
-            if (exists) {
-              // Update existing
-              return prev.map(cat => cat.id === data.id ? { ...cat, ...data } : cat);
-            } else {
-              // Add new
-              const newCategories = [...prev, data];
-              return newCategories.sort((a, b) => 
-                (a.orderIndex || a.order_index || 0) - (b.orderIndex || b.order_index || 0)
-              );
-            }
-          });
-          
-          // Also trigger the callback for parent component
+          // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
@@ -301,13 +267,9 @@ const SettingsPanel = ({
         
         // Handle category revert
         addEventListener('category_reverted', (data) => {
+          console.log('[SettingsPanel] SSE category_reverted received:', data);
           
-          // Update category with reverted data
-          setLocalCategories(prev => prev.map(cat => 
-            cat.id === data.id ? { ...cat, ...data } : cat
-          ));
-          
-          // Also trigger the callback for parent component
+          // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
@@ -315,13 +277,10 @@ const SettingsPanel = ({
         
         // Handle categories reordering
         addEventListener('categories_reordered', (data) => {
+          console.log('[SettingsPanel] SSE categories_reordered received:', data);
+          console.log('[SettingsPanel] Categories data:', data.categories);
           
-          // If we receive the full list, replace it
-          if (data.categories && Array.isArray(data.categories)) {
-            setLocalCategories(data.categories);
-          }
-          
-          // Also trigger the callback for parent component
+          // Trigger parent update which will update apiCategories prop
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
