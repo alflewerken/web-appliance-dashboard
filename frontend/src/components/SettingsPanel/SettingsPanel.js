@@ -449,6 +449,13 @@ const SettingsPanel = ({
   };
 
   const deleteCategory = async category => {
+    // Safety check - should not happen due to disabled button
+    if (category.applianceCount > 0) {
+      setError(`Cannot delete category "${category.name}" - it still has ${category.applianceCount} service(s) assigned`);
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+    
     if (
       !window.confirm(
         t('settings.confirmDeleteCategory', { categoryName: category.name })
@@ -1000,7 +1007,7 @@ const SettingsPanel = ({
                             </ListItemIcon>
                             <ListItemText
                               primary={category.name}
-                              secondary={`${category.appliances_count || 0} Services`}
+                              secondary={`${category.applianceCount || 0} Services`}
                               primaryTypographyProps={{
                                 sx: {
                                   color: 'var(--text-primary)',
@@ -1059,46 +1066,68 @@ const SettingsPanel = ({
                               ) : (
                                 <>
                                   {/* Normal edit/delete buttons */}
-                                  <IconButton
-                                    edge="end"
-                                    onClick={() => {
-                                      setEditingCategory(category);
-                                      setShowCategoryModal(true);
-                                    }}
-                                    sx={{
-                                      mr: 1,
-                                      width: 36,
-                                      height: 36,
-                                      backgroundColor: 'rgba(52, 199, 89, 0.15)',
-                                      color: '#34C759',
-                                      borderRadius: '8px',
-                                      '&:hover': {
-                                        backgroundColor:
-                                          'rgba(52, 199, 89, 0.25)',
+                                  <Tooltip title="Edit category" arrow>
+                                    <IconButton
+                                      edge="end"
+                                      onClick={() => {
+                                        setEditingCategory(category);
+                                        setShowCategoryModal(true);
+                                      }}
+                                      sx={{
+                                        mr: 1,
+                                        width: 36,
+                                        height: 36,
+                                        backgroundColor: 'rgba(52, 199, 89, 0.15)',
                                         color: '#34C759',
-                                      },
-                                    }}
+                                        borderRadius: '8px',
+                                        '&:hover': {
+                                          backgroundColor:
+                                            'rgba(52, 199, 89, 0.25)',
+                                          color: '#34C759',
+                                        },
+                                      }}
+                                    >
+                                      <Edit size={18} />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip 
+                                    title={category.applianceCount > 0 ? 'Category has services - remove them first' : 'Delete category'}
+                                    arrow
                                   >
-                                    <Edit size={18} />
-                                  </IconButton>
-                                  <IconButton
-                                    edge="end"
-                                    onClick={() => deleteCategory(category)}
-                                    sx={{
-                                      width: 36,
-                                      height: 36,
-                                      backgroundColor: 'rgba(255, 59, 48, 0.15)',
-                                      color: '#FF3B30',
-                                      borderRadius: '8px',
-                                      '&:hover': {
-                                        backgroundColor:
-                                          'rgba(255, 59, 48, 0.25)',
-                                        color: '#FF3B30',
-                                      },
-                                    }}
-                                  >
-                                    <Trash2 size={18} />
-                                  </IconButton>
+                                    <span>
+                                      <IconButton
+                                        edge="end"
+                                        onClick={() => deleteCategory(category)}
+                                        disabled={category.applianceCount > 0}
+                                        sx={{
+                                          width: 36,
+                                          height: 36,
+                                          backgroundColor: category.applianceCount > 0 
+                                            ? 'rgba(128, 128, 128, 0.1)' 
+                                            : 'rgba(255, 59, 48, 0.15)',
+                                          color: category.applianceCount > 0 
+                                            ? '#808080' 
+                                            : '#FF3B30',
+                                          borderRadius: '8px',
+                                          opacity: category.applianceCount > 0 ? 0.5 : 1,
+                                          cursor: category.applianceCount > 0 ? 'not-allowed' : 'pointer',
+                                          '&:hover': {
+                                            backgroundColor: category.applianceCount > 0
+                                              ? 'rgba(128, 128, 128, 0.1)'
+                                              : 'rgba(255, 59, 48, 0.25)',
+                                            color: category.applianceCount > 0
+                                              ? '#808080'
+                                              : '#FF3B30',
+                                          },
+                                          '&:disabled': {
+                                            opacity: 0.5,
+                                          },
+                                        }}
+                                      >
+                                        <Trash2 size={18} />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
                                 </>
                               )}
                             </ListItemSecondaryAction>

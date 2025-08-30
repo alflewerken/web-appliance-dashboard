@@ -11,6 +11,67 @@ const { verifyToken } = require('../utils/auth');
 const db = new QueryBuilder(pool);
 
 /**
+ * Helper function to get category with appliance count
+ */
+async function getCategoryWithCount(categoryId) {
+  const [result] = await pool.execute(`
+    SELECT 
+      c.*,
+      COUNT(DISTINCT a.id) as appliance_count
+    FROM categories c
+    LEFT JOIN appliances a ON c.name = a.category
+    WHERE c.id = ?
+    GROUP BY c.id
+  `, [categoryId]);
+  
+  if (!result || result.length === 0) {
+    return null;
+  }
+  
+  const cat = result[0];
+  return {
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon,
+    color: cat.color,
+    description: cat.description,
+    isSystem: Boolean(cat.is_system),
+    orderIndex: cat.order_index,
+    applianceCount: parseInt(cat.appliance_count) || 0,
+    createdAt: cat.created_at,
+    updatedAt: cat.updated_at
+  };
+}
+
+/**
+ * Helper function to get all categories with appliance counts
+ */
+async function getAllCategoriesWithCounts() {
+  const [categories] = await pool.execute(`
+    SELECT 
+      c.*,
+      COUNT(DISTINCT a.id) as appliance_count
+    FROM categories c
+    LEFT JOIN appliances a ON c.name = a.category
+    GROUP BY c.id
+    ORDER BY c.order_index ASC, c.name ASC
+  `);
+  
+  return categories.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon,
+    color: cat.color,
+    description: cat.description,
+    isSystem: Boolean(cat.is_system),
+    orderIndex: cat.order_index,
+    applianceCount: parseInt(cat.appliance_count) || 0,
+    createdAt: cat.created_at,
+    updatedAt: cat.updated_at
+  }));
+}
+
+/**
  * @swagger
  * tags:
  *   name: Categories
@@ -22,31 +83,7 @@ const db = new QueryBuilder(pool);
  */
 router.get('/', verifyToken, async (req, res) => {
   try {
-    // Get all categories with appliance count
-    const [categories] = await pool.execute(`
-      SELECT 
-        c.*,
-        COUNT(DISTINCT a.id) as appliance_count
-      FROM categories c
-      LEFT JOIN appliances a ON c.name = a.category
-      GROUP BY c.id
-      ORDER BY c.order_index ASC, c.name ASC
-    `);
-    
-    // Map to JS format
-    const mappedCategories = categories.map(cat => ({
-      id: cat.id,
-      name: cat.name,
-      icon: cat.icon,
-      color: cat.color,
-      description: cat.description,
-      isSystem: Boolean(cat.is_system),
-      orderIndex: cat.order_index,
-      applianceCount: cat.appliance_count,
-      createdAt: cat.created_at,
-      updatedAt: cat.updated_at
-    }));
-    
+    const mappedCategories = await getAllCategoriesWithCounts();
     res.json(mappedCategories);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -96,8 +133,8 @@ router.post('/', verifyToken, async (req, res) => {
       updatedAt: new Date()
     });
     
-    // Get the created category
-    const newCategory = await db.findOne('categories', { id: result.insertId });
+    // Get the created category with appliance count (will be 0 for new)
+    const categoryWithCount = await getCategoryWithCount(result.insertId);
     
     // Create audit log
     await createAuditLog(
@@ -105,21 +142,21 @@ router.post('/', verifyToken, async (req, res) => {
       'category_create',
       'categories',
       result.insertId,
-      newCategory,
+      categoryWithCount,
       req.clientIp || req.ip,
-      newCategory.name
+      categoryWithCount.name
     );
     
     // Debug: Test if broadcast works at all
     console.log('🔥 TEST: About to broadcast category_created');
-    console.log('🔥 TEST: New category data:', newCategory);
+    console.log('🔥 TEST: New category data:', categoryWithCount);
     
     // Broadcast update
-    broadcast('category_created', newCategory);
+    broadcast('category_created', categoryWithCount);
     
     console.log('🔥 TEST: Broadcast completed');
     
-    res.status(201).json(newCategory);
+    res.status(201).json(categoryWithCount);
   } catch (error) {
     console.error('Error creating category:', error);
     res.status(500).json({ error: 'Failed to create category' });
@@ -152,34 +189,20 @@ router.put('/reorder', verifyToken, async (req, res) => {
     
     await connection.commit();
     
-    // Fetch complete category data with new order using direct SQL
-    const [updatedCategories] = await connection.execute(
-      'SELECT * FROM categories ORDER BY order_index ASC'
-    );
+    // Fetch complete category data with appliance counts
+    const updatedCategories = await getAllCategoriesWithCounts();
     
     console.log('📝 Categories after reorder:', updatedCategories.length, 'categories');
     console.log('📝 First category:', updatedCategories[0]);
     
-    // Convert snake_case to camelCase for consistency
-    const camelCaseCategories = updatedCategories.map(cat => ({
-      id: cat.id,
-      name: cat.name,
-      icon: cat.icon,
-      color: cat.color,
-      description: cat.description,
-      orderIndex: cat.order_index,
-      createdAt: cat.created_at,
-      updatedAt: cat.updated_at
-    }));
-    
     // Broadcast update with complete data
     console.log('📡 About to broadcast categories_reordered event...');
-    broadcast('categories_reordered', { categories: camelCaseCategories });
+    broadcast('categories_reordered', { categories: updatedCategories });
     console.log('✅ Broadcast completed');
     
     res.json({ 
       message: 'Categories reordered successfully',
-      categories: camelCaseCategories 
+      categories: updatedCategories 
     });
   } catch (error) {
     await connection.rollback();
@@ -226,8 +249,8 @@ router.put('/:id', verifyToken, async (req, res) => {
     // Update category
     await db.update('categories', updateData, { id: categoryId });
     
-    // Get updated category
-    const updatedCategory = await db.findOne('categories', { id: categoryId });
+    // Get updated category with appliance count
+    const updatedCategory = await getCategoryWithCount(categoryId);
     
     // Create audit log
     await createAuditLog(
