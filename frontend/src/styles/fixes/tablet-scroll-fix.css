@@ -1,0 +1,119 @@
+/* ============================================
+   TABLET SCROLL FIX
+   Fixes scrolling issues in tablet view (769px - 1366px)
+   Created: 2025-08-30
+   ============================================ */
+
+/* Force proper scrolling structure for tablets */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Ensure body and html don't interfere */
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Main app container */
+  .music-app {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* Main content area - flex container */
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden; /* Container doesn't scroll */
+    position: relative;
+  }
+
+  /* Content header (search bar etc) - fixed height */
+  .content-header {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Content body - the actual scrollable area */
+  .content-body {
+    flex: 1;
+    overflow-y: auto !important; /* Force vertical scrolling */
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    position: relative;
+    padding: 24px;
+    min-height: 0; /* Critical for flexbox scrolling */
+    height: auto; /* Let flexbox handle height */
+  }
+
+  /* Ensure appliances grid doesn't interfere with scrolling */
+  .appliances-grid {
+    position: relative;
+    overflow: visible;
+  }
+
+  /* Content sections should not have their own scroll */
+  .content-section {
+    overflow: visible !important;
+    position: relative;
+  }
+
+  /* Category slides should not have scroll in tablet mode */
+  .category-slide {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Swipeable content adjustments */
+  .swipeable-content {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Custom scrollbar for better visibility */
+  .content-body::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .content-body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+  }
+
+  .content-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+  }
+
+  .content-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Specific override for when panels are open */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  .music-app.has-service-panel .main-content,
+  .music-app.has-user-panel .main-content,
+  .music-app.has-settings-panel .main-content,
+  .music-app.has-host-panel .main-content,
+  .music-app.has-audit-log-panel .main-content {
+    overflow: hidden; /* Maintain structure when panels are open */
+  }
+}
+
+/* Ensure mobile styles don't affect tablet */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Override any mobile-specific styles that might leak */
+  .content-body {
+    position: relative !important; /* Not fixed */
+    width: 100%;
+    display: block !important; /* Not flex unless needed */
+  }
+
+  /* Prevent mobile swipe styles from affecting tablet */
+  .swipe-track {
+    transform: none !important;
+  }
+}
