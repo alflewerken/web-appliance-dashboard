@@ -50,10 +50,17 @@ const HostCard = ({
       const hasTouch = (
         'ontouchstart' in window ||
         navigator.maxTouchPoints > 0 ||
-        navigator.msMaxTouchPoints > 0 ||
-        window.matchMedia('(hover: none)').matches
+        navigator.msMaxTouchPoints > 0
       );
-      setIsTouchDevice(hasTouch);
+      
+      // Check if device also has hover capability (tablets with stylus/mouse)
+      const hasHover = window.matchMedia('(hover: hover)').matches;
+      
+      // Only treat as touch device if it has touch AND no hover
+      // This excludes tablets with stylus/mouse support
+      const isTouchOnly = hasTouch && !hasHover;
+      
+      setIsTouchDevice(isTouchOnly);
     };
 
     checkTouch();
@@ -130,10 +137,14 @@ const HostCard = ({
             </div>
             
             {/* Left Button Column - Edit Button */}
-            {(!isTouchDevice || isActive) && (
-              <div 
-                className="card-buttons-left"
-              >
+            {/* Show buttons if: not touch-only device OR card is active */}
+            <div 
+              className="card-buttons-left"
+              style={{
+                opacity: (!isTouchDevice || isActive) ? undefined : 0,
+                pointerEvents: (!isTouchDevice || isActive) ? undefined : 'none'
+              }}
+            >
                 <Tooltip title="Host bearbeiten">
                   <IconButton
                     onClick={handleEdit}
@@ -154,13 +165,15 @@ const HostCard = ({
                   </IconButton>
                 </Tooltip>
               </div>
-            )}
             
             {/* Right Button Column - Action Buttons */}
-            {(!isTouchDevice || isActive) && (
-              <div 
-                className="card-buttons-right"
-              >
+            <div 
+              className="card-buttons-right"
+              style={{
+                opacity: (!isTouchDevice || isActive) ? undefined : 0,
+                pointerEvents: (!isTouchDevice || isActive) ? undefined : 'none'
+              }}
+            >
                 <Tooltip title="Terminal">
                   <IconButton
                     onClick={(e) => {
@@ -238,7 +251,6 @@ const HostCard = ({
                   </IconButton>
                 </Tooltip>
               </div>
-            )}
           </div>
           
           {/* Title with dark background */}

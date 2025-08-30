@@ -1,0 +1,289 @@
+/* ============================================
+   TABLET RESPONSIVE STYLES
+   Consolidated tablet-specific styles (769px - 1366px)
+   Created: 2025-08-30
+   ============================================ */
+
+/* ===== MAIN LAYOUT & SCROLLING ===== */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Fix main content scrolling */
+  .main-content {
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .content-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+    padding: 24px;
+    min-height: 0;
+  }
+
+  .content-header {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Panel positioning */
+  .panel-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    height: 100vh;
+    z-index: 2000;
+    transform: none;
+  }
+
+  /* Modal z-index hierarchy */
+  .modal-overlay {
+    z-index: 10000;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    pointer-events: auto;
+  }
+
+  .modal,
+  .category-modal,
+  .settings-dialog {
+    z-index: 10001;
+    position: relative;
+    max-height: calc(100vh - 40px);
+    max-width: calc(100vw - 40px);
+    margin: auto;
+    pointer-events: auto;
+  }
+}
+
+/* ===== CARD STYLES ===== */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  /* Card icon positioning */
+  .appliance-card-container .card-icon {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(var(--card-size) * 0.5);
+    height: calc(var(--card-size) * 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.95);
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Card buttons positioning */
+  .appliance-card-container .card-buttons-left,
+  .appliance-card-container .card-buttons-right {
+    position: absolute;
+    top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 15;
+    transform: none;
+  }
+
+  .appliance-card-container .card-buttons-left {
+    left: 8px;
+  }
+
+  .appliance-card-container .card-buttons-right {
+    right: 8px;
+  }
+
+  /* Show buttons on hover */
+  .appliance-card-container:hover .card-buttons-left,
+  .appliance-card-container:hover .card-buttons-right {
+    opacity: 1;
+    pointer-events: auto;
+    display: flex;
+  }
+
+  /* Service controls positioning */
+  .appliance-card-container .service-controls-bottom {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 20;
+    pointer-events: auto;
+  }
+
+  /* Card info gradient */
+  .appliance-card-container .card-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .appliance-card-container .card-info .card-title,
+  .appliance-card-container .card-info .card-description {
+    pointer-events: auto;
+  }
+}
+
+/* ===== PROGRESSIVE CARD SCALING ===== */
+/* Size 12 (40% = 120px) */
+.appliance-card-container[style*='--card-size: 12'] .card-info {
+  height: max(50px, calc(var(--card-size) * 0.30));
+  padding: 6px 10px;
+}
+.appliance-card-container[style*='--card-size: 12'] .card-title {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+/* Size 11 (37% = 110px) */
+.appliance-card-container[style*='--card-size: 11'] .card-info {
+  height: max(48px, calc(var(--card-size) * 0.28));
+  padding: 6px 10px;
+}
+.appliance-card-container[style*='--card-size: 11'] .card-title {
+  font-size: 12px;
+}
+
+/* Size 10 (33% = 100px) */
+.appliance-card-container[style*='--card-size: 10'] .card-info {
+  height: max(45px, calc(var(--card-size) * 0.26));
+  padding: 5px 8px;
+}
+.appliance-card-container[style*='--card-size: 10'] .card-title {
+  font-size: 12px;
+}
+.appliance-card-container[style*='--card-size: 10'] .card-description {
+  display: none;
+}
+
+/* Size 9 (30% = 90px) */
+.appliance-card-container[style*='--card-size: 9'] .card-info {
+  height: max(40px, calc(var(--card-size) * 0.25));
+  padding: 5px 8px;
+}
+.appliance-card-container[style*='--card-size: 9'] .card-title {
+  font-size: 11px;
+  font-weight: 500;
+}
+.appliance-card-container[style*='--card-size: 9'] .card-description {
+  display: none;
+}
+
+/* Size 8 (27% = 80px) */
+.appliance-card-container[style*='--card-size: 8'] .card-info {
+  height: max(35px, calc(var(--card-size) * 0.23));
+  padding: 4px 6px;
+}
+.appliance-card-container[style*='--card-size: 8'] .card-title {
+  font-size: 10px;
+  font-weight: 500;
+}
+.appliance-card-container[style*='--card-size: 8'] .card-description {
+  display: none;
+}
+
+/* Size 7 (23% = 70px) */
+.appliance-card-container[style*='--card-size: 7'] .card-info {
+  height: max(32px, calc(var(--card-size) * 0.22));
+  padding: 4px 6px;
+}
+.appliance-card-container[style*='--card-size: 7'] .card-title {
+  font-size: 9px;
+  font-weight: 500;
+}
+.appliance-card-container[style*='--card-size: 7'] .card-description {
+  display: none;
+}
+
+/* Size 6 (20% = 60px) */
+.appliance-card-container[style*='--card-size: 6'] .card-info {
+  height: max(28px, calc(var(--card-size) * 0.20));
+  padding: 3px 5px;
+}
+.appliance-card-container[style*='--card-size: 6'] .card-title {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.appliance-card-container[style*='--card-size: 6'] .card-description {
+  display: none;
+}
+
+/* Size 5 (17% = 50px) */
+.appliance-card-container[style*='--card-size: 5'] .card-info {
+  height: max(25px, calc(var(--card-size) * 0.18));
+  padding: 2px 4px;
+}
+.appliance-card-container[style*='--card-size: 5'] .card-title {
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.appliance-card-container[style*='--card-size: 5'] .card-description {
+  display: none;
+}
+
+/* ===== Z-INDEX HIERARCHY ===== */
+/* 
+   Proper z-index layering:
+   1: card-cover
+   3: card-info (gradient)
+   5: card-icon
+   10: card-buttons-left/right
+   12: service-controls-bottom
+   15: action-btn
+   20: edit-menu-toggle
+   25: edit-menu
+   10000: modal-overlay
+   10001: modal content
+*/
+
+/* ===== HOVER CAPABILITY DETECTION ===== */
+@media (hover: hover) {
+  .appliance-card-container:hover .card-buttons-left,
+  .appliance-card-container:hover .card-buttons-right,
+  .appliance-card-container:hover .service-controls-bottom {
+    opacity: 1;
+    pointer-events: auto;
+    display: flex;
+  }
+}
+
+/* ===== TOUCH OPTIMIZATION ===== */
+@media screen and (min-width: 769px) and (max-width: 1366px) and (pointer: coarse) {
+  /* Touch-friendly button sizes */
+  .appliance-card-container .action-btn {
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  /* Larger scrollbar for touch */
+  .content-body::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .content-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+  }
+}
