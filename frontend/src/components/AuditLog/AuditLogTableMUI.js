@@ -1,5 +1,6 @@
 // Simplified AuditLogTableMUI Component
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   TableBody,
@@ -17,6 +18,7 @@ import {
   Button,
   Divider,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
 import {
   ChevronDown,
@@ -39,6 +41,7 @@ const AuditLogTableMUI = ({
 }) => {
   console.log('AuditLogTableMUI rendered with onDeleteLog:', typeof onDeleteLog);
   const theme = useTheme();
+  const { t } = useTranslation();
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
 
@@ -147,7 +150,7 @@ const AuditLogTableMUI = ({
                     }}
                   >
                     {getActionIcon(log.action, 10)}
-                    <span style={{ fontSize: '0.65rem' }}>{formatActionName(log.action)}</span>
+                    <span style={{ fontSize: '0.65rem' }}>{formatActionName(log.action, t)}</span>
                   </Box>
 
                   {/* Delete Button */}
@@ -210,7 +213,7 @@ const AuditLogTableMUI = ({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                    }}>{log.username || 'System'}</span>
+                    }}>{log.username || t('auditLog.system')}</span>
                   </Box>
 
                   {/* Resource Badge - Feste Breite */}
@@ -369,12 +372,12 @@ const AuditLogTableMUI = ({
           <TableHead>
             <TableRow>
               <TableCell sx={headerCellStyle} width={50}></TableCell>
-              <TableCell sx={headerCellStyle}>Zeitstempel</TableCell>
-              <TableCell sx={headerCellStyle}>Benutzer</TableCell>
-              <TableCell sx={{ ...headerCellStyle, minWidth: 200 }}>Aktion</TableCell>
-              <TableCell sx={headerCellStyle}>Ressource</TableCell>
-              <TableCell sx={headerCellStyle}>IP-Adresse</TableCell>
-              <TableCell sx={headerCellStyle} width={50}>Aktion</TableCell>
+              <TableCell sx={headerCellStyle}>{t('auditLog.timestamp')}</TableCell>
+              <TableCell sx={headerCellStyle}>{t('auditLog.user')}</TableCell>
+              <TableCell sx={{ ...headerCellStyle, minWidth: 200 }}>{t('auditLog.action')}</TableCell>
+              <TableCell sx={headerCellStyle}>{t('auditLog.resource')}</TableCell>
+              <TableCell sx={headerCellStyle}>{t('auditLog.ipAddress')}</TableCell>
+              <TableCell sx={headerCellStyle} width={50}>{t('auditLog.action')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -409,7 +412,7 @@ const AuditLogTableMUI = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {log.username || 'System'}
+                        {log.username || t('auditLog.system')}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ minWidth: 200 }}>
@@ -430,7 +433,7 @@ const AuditLogTableMUI = ({
                         }}
                       >
                         {getActionIcon(log.action)}
-                        {formatActionName(log.action)}
+                        {formatActionName(log.action, t)}
                       </Box>
                     </TableCell>
                     <TableCell>
@@ -444,24 +447,25 @@ const AuditLogTableMUI = ({
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onDeleteLog) {
-                            onDeleteLog(log);
-                          }
-                        }}
-                        sx={{
-                          color: '#ff6b6b',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 100, 100, 0.1)',
-                          },
-                        }}
-                        title="Eintrag löschen"
-                      >
-                        <Trash2 size={16} />
-                      </IconButton>
+                      <Tooltip title={t('auditLog.tooltips.deleteLog')}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onDeleteLog) {
+                              onDeleteLog(log.id);
+                            }
+                          }}
+                          sx={{
+                            color: '#ff6b6b',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 100, 100, 0.1)',
+                            },
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                   

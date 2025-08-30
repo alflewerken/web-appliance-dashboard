@@ -50,11 +50,11 @@ export const actionIcons = {
   update: Settings,
   delete: XCircle,
   restore: Shield,
+  revert: Shield,
   appliance_created: CheckCircle,
   appliance_updated: Settings,
   appliance_update: Settings,
   appliance_deleted: XCircle,
-  appliance_delete: XCircle,
   appliance_reverted: Shield,
   appliance_restored: Shield,
   category_created: CheckCircle,
@@ -62,8 +62,8 @@ export const actionIcons = {
   category_deleted: XCircle,
   category_restored: Shield,
   category_reverted: Shield,
-  user_created: Users,
-  user_updated: Users,
+  user_created: CheckCircle,
+  user_updated: Settings,
   user_deleted: XCircle,
   user_restored: Shield,
   user_reverted: Shield,
@@ -71,22 +71,26 @@ export const actionIcons = {
   user_deactivated: XCircle,
   userActivated: CheckCircle,
   userDeactivated: XCircle,
+  userCreated: CheckCircle,
+  userUpdated: Settings,
+  userDeleted: XCircle,
+  userRestored: Shield,
+  userReverted: Shield,
   service_started: CheckCircle,
   service_stopped: XCircle,
-  service_restarted: Settings,
+  service_restarted: Shield,
   backup_created: FileText,
   backup_restored: Shield,
   rustdesk_installed: CheckCircle,
   ssh_key_generated: Shield,
   ssh_key_imported: Shield,
   ssh_key_deleted: XCircle,
+  ssh_key_registered: Shield,
   ssh_connection: Terminal,
   settings_update: Settings,
-  permission_granted: CheckCircle,
+  permission_granted: Shield,
   permission_revoked: XCircle,
   audit_logs_delete: Trash2,
-  ssh_key_registered: Shield,
-  remote_desktop_access: Terminal,
   host_created: CheckCircle,
   host_updated: Settings,
   host_deleted: XCircle,
@@ -111,9 +115,22 @@ export const actionIcons = {
   command_execute: Terminal,  // Hinzugefügt
 };
 
-// Format action name for display
-export const formatActionName = (action) => {
-  const actionMap = {
+// Format action name for display with i18n support
+export const formatActionName = (action, t) => {
+  // If translation function is provided, use it
+  if (t) {
+    const translationKey = `auditLog.actions.${action}`;
+    const translated = t(translationKey, { defaultValue: '' });
+    if (translated && translated !== translationKey) {
+      return translated;
+    }
+  }
+  
+  // Fallback to language detection and manual mapping
+  const currentLang = typeof window !== 'undefined' ? 
+    (localStorage.getItem('i18nextLng') || 'en') : 'en';
+  
+  const actionMapDE = {
     login: 'Anmeldung',
     user_login: 'Anmeldung',
     userLogin: 'Anmeldung',
@@ -164,219 +181,320 @@ export const formatActionName = (action) => {
     terminal_command: 'Terminal-Befehl',
     terminal_open: 'Terminal geöffnet',
     terminalOpen: 'Terminal geöffnet',
-    command_execute: 'Befehl ausgeführt',  // Hinzugefügt
+    command_execute: 'Befehl ausgeführt',
     ssh_key_registered: 'SSH-Schlüssel registriert',
-    ssh_file_upload: 'Dateiübertragung',  // Neu hinzugefügt
-    ssh_file_download: 'Dateiübertragung',  // Neu hinzugefügt
-    remote_desktop_access: 'Remote Desktop Zugriff',
-    remoteDesktopAccess: 'Remote Desktop Zugriff',
+    ssh_file_upload: 'Dateiübertragung',
+    ssh_file_download: 'Dateiübertragung',
     host_created: 'Host erstellt',
     host_updated: 'Host aktualisiert',
     host_deleted: 'Host gelöscht',
     host_restored: 'Host wiederhergestellt',
-    host_reverted: 'Host zurückgesetzt',  // Geändert von "wiederhergestellt" zu "zurückgesetzt"
-    host_revert: 'Host zurückgesetzt',    // Geändert von "wiederhergestellt" zu "zurückgesetzt"
-    hostReverted: 'Host zurückgesetzt',   // Geändert von "wiederhergestellt" zu "zurückgesetzt"
+    host_reverted: 'Host rückgängig gemacht',
     hostCreated: 'Host erstellt',
     hostUpdated: 'Host aktualisiert',
     hostDeleted: 'Host gelöscht',
     hostRestored: 'Host wiederhergestellt',
-    host_create: 'Host erstellt',
-    host_update: 'Host aktualisiert',
-    host_delete: 'Host gelöscht',
-    host_restore: 'Host wiederhergestellt',
-    hostCreate: 'Host erstellt',
-    hostUpdate: 'Host aktualisiert',
-    hostDelete: 'Host gelöscht',
-    hostRestore: 'Host wiederhergestellt',
-    file_transfer: 'Datei übertragen',
-    fileTransfer: 'Datei übertragen',
-    file_upload: 'Datei hochgeladen',
-    fileUpload: 'Datei hochgeladen',
-    file_download: 'Datei heruntergeladen',
-    fileDownload: 'Datei heruntergeladen',
+    hostReverted: 'Host rückgängig gemacht',
+    service_created: 'Service erstellt',
+    service_updated: 'Service aktualisiert',
+    service_deleted: 'Service gelöscht',
+    service_restored: 'Service wiederhergestellt',
+    service_accessed: 'Service aufgerufen',
+    session_started: 'Sitzung gestartet',
+    session_ended: 'Sitzung beendet',
+    session_timeout: 'Sitzung abgelaufen',
+    password_changed: 'Passwort geändert',
   };
-
-  return actionMap[action] || action;
-};
-
-// Get action color with specific color mapping
-export const getActionColor = (action) => {
-  // USER AKTIONEN - BLAU (user)
-  if (action === 'user_created' || action === 'user_create' || action === 'Benutzer erstellt') return 'user';
-  if (action === 'user_updated' || action === 'user_update' || action === 'Benutzer aktualisiert') return 'user';
-  if (action === 'user_deleted' || action === 'user_delete' || action === 'Benutzer gelöscht') return 'user';
-  if (action === 'user_restored' || action === 'Benutzer wiederhergestellt') return 'user';
-  if (action === 'user_reverted' || action === 'Benutzer rückgängig gemacht') return 'user';
-  if (action === 'user_activated' || action === 'userActivated' || action === 'Benutzer aktiviert') return 'user';
-  if (action === 'user_deactivated' || action === 'userDeactivated' || action === 'Benutzer deaktiviert') return 'user';
-  if (action === 'login' || action === 'user_login' || action === 'userLogin' || action === 'Anmeldung') return 'user';
-  if (action === 'logout' || action === 'user_logout' || action === 'userLogout' || action === 'Abmeldung') return 'user';
-  if (action === 'login_failed' || action === 'failed_login' || action === 'Anmeldung fehlgeschlagen') return 'user';
   
-  // SERVICE/APPLIANCE AKTIONEN - TÜRKIS (service)
-  if (action === 'appliance_created' || action === 'appliance_create' || action === 'Service erstellt') return 'service';
-  if (action === 'appliance_updated' || action === 'appliance_update' || action === 'Service geändert') return 'service';
-  if (action === 'appliance_deleted' || action === 'appliance_delete' || action === 'Service gelöscht') return 'service';
-  if (action === 'appliance_restored' || action === 'appliance_reverted' || action === 'Service wiederhergestellt') return 'service';
-  if (action === 'appliance_accessed' || action === 'Appliance aufgerufen') return 'service';
-  
-  // HOST AKTIONEN - HELLBLAU (host)
-  if (action?.includes('host_create') || action?.includes('hostCreate') || action === 'Host erstellt') return 'host';
-  if (action?.includes('host_update') || action?.includes('hostUpdate') || action === 'Host aktualisiert') return 'host';
-  if (action?.includes('host_delete') || action?.includes('hostDelete') || action === 'Host gelöscht') return 'host';
-  if (action?.includes('host_restore') || action?.includes('hostRestore') || action?.includes('host_revert') || action?.includes('hostRevert') || action === 'Host wiederhergestellt') return 'host';
-  
-  // SETTINGS - GELB (settings)
-  if (action === 'settings_update' || action === 'Einstellungen aktualisiert') return 'settings';
-  if (action?.includes('permission_granted') || action === 'Berechtigung erteilt') return 'settings';
-  if (action?.includes('permission_revoked') || action === 'Berechtigung entzogen') return 'settings';
-  if (action?.includes('category_created') || action === 'Kategorie erstellt') return 'settings';
-  if (action?.includes('category_updated') || action === 'Kategorie aktualisiert') return 'settings';
-  if (action?.includes('category_deleted') || action === 'Kategorie gelöscht') return 'settings';
-  if (action?.includes('category_restored') || action === 'Kategorie wiederhergestellt') return 'settings';
-  if (action?.includes('category_reverted') || action === 'Kategorie rückgängig gemacht') return 'settings';
-  if (action?.includes('backup_created') || action === 'Backup erstellt') return 'settings';
-  if (action?.includes('backup_restored') || action === 'Backup wiederhergestellt') return 'settings';
-  if (action?.includes('audit_logs_delete') || action === 'Audit-Logs gelöscht') return 'settings';
-  
-  // BEFEHLE AUS SERVICES - ROT (command)
-  if (action === 'command_execute' || action === 'Befehl ausgeführt') return 'command';
-  if (action === 'terminal_command' || action === 'Terminal-Befehl') return 'command';
-  
-  // SERVICE START/STOP - ORANGE (serviceControl)
-  if (action?.includes('service_started') || action === 'Service gestartet') return 'serviceControl';
-  if (action?.includes('service_stopped') || action === 'Service gestoppt') return 'serviceControl';
-  if (action?.includes('service_restarted') || action === 'Service neugestartet') return 'serviceControl';
-  
-  // TERMINAL AUFGERUFEN - ORANGE (terminal)
-  if (action === 'terminal_open' || action === 'terminalOpen' || action === 'Terminal geöffnet') return 'terminal';
-  if (action?.includes('ssh_connection') || action === 'SSH-Verbindung') return 'terminal';
-  if (action?.includes('ssh_key')) return 'terminal';
-  
-  // REMOTE DESKTOP - HELLROT (remoteDesktop)
-  if (action === 'remote_desktop_access' || action === 'remoteDesktopAccess' || action === 'Remote Desktop Zugriff') return 'remoteDesktop';
-  if (action?.includes('rustdesk') || action === 'RustDesk installiert') return 'remoteDesktop';
-  
-  // DATEI ÜBERTRAGEN - VIOLETT (fileTransfer)
-  if (action?.includes('file_transfer') || action?.includes('fileTransfer')) return 'fileTransfer';
-  if (action?.includes('file_upload') || action?.includes('fileUpload')) return 'fileTransfer';
-  if (action?.includes('file_download') || action?.includes('fileDownload')) return 'fileTransfer';
-  
-  return 'default';
-};
-
-// Get explicit color styles for action badges
-export const getActionColorStyle = (action) => {
-  const colorMap = {
-    user: {
-      backgroundColor: '#2196f3',  // Blau
-      color: '#ffffff',
-      border: '1px solid #2196f3',
-    },
-    service: {
-      backgroundColor: '#00bcd4',  // Türkis/Cyan
-      color: '#ffffff',
-      border: '1px solid #00bcd4',
-    },
-    host: {
-      backgroundColor: '#81d4fa',  // Hellblau
-      color: '#000000',
-      border: '1px solid #81d4fa',
-    },
-    settings: {
-      backgroundColor: '#ffeb3b',  // Gelb
-      color: '#000000',
-      border: '1px solid #ffeb3b',
-    },
-    command: {
-      backgroundColor: '#f44336',  // Rot
-      color: '#ffffff',
-      border: '1px solid #f44336',
-    },
-    serviceControl: {
-      backgroundColor: '#ff9800',  // Orange
-      color: '#000000',
-      border: '1px solid #ff9800',
-    },
-    terminal: {
-      backgroundColor: '#ff9800',  // Orange
-      color: '#000000',
-      border: '1px solid #ff9800',
-    },
-    remoteDesktop: {
-      backgroundColor: '#ff8c00',  // Helles Orange (DarkOrange)
-      color: '#ffffff',
-      border: '1px solid #ff8c00',
-    },
-    fileTransfer: {
-      backgroundColor: '#9c27b0',  // Violett
-      color: '#ffffff',
-      border: '1px solid #9c27b0',
-    },
-    // Legacy mappings für Kompatibilität
-    error: {
-      backgroundColor: '#f44336',  // Rot
-      color: '#ffffff',
-      border: '1px solid #f44336',
-    },
-    secondary: {
-      backgroundColor: '#9c27b0',  // Violett
-      color: '#ffffff',
-      border: '1px solid #9c27b0',
-    },
-    warning: {
-      backgroundColor: '#ffa726',  // Gelb/Orange
-      color: '#000000',
-      border: '1px solid #ffa726',
-    },
-    success: {
-      backgroundColor: '#66bb6a',  // Grün
-      color: '#ffffff',
-      border: '1px solid #66bb6a',
-    },
-    info: {
-      backgroundColor: '#42a5f5',  // Blau
-      color: '#ffffff',
-      border: '1px solid #42a5f5',
-    },
-    default: {
-      backgroundColor: 'rgba(158, 158, 158, 0.4)',
-      color: 'rgba(255, 255, 255, 0.9)',
-      border: '1px solid rgba(158, 158, 158, 0.6)',
-    },
+  const actionMapEN = {
+    login: 'Login',
+    user_login: 'User login',
+    userLogin: 'User login',
+    logout: 'Logout',
+    user_logout: 'User logout',
+    userLogout: 'User logout',
+    login_failed: 'Login failed',
+    failed_login: 'Failed login',
+    create: 'Created',
+    update: 'Updated',
+    delete: 'Deleted',
+    restore: 'Restored',
+    appliance_created: 'Service created',
+    appliance_updated: 'Service updated',
+    appliance_update: 'Service updated',
+    appliance_deleted: 'Service deleted',
+    appliance_reverted: 'Service reverted',
+    appliance_restored: 'Service restored',
+    category_created: 'Category created',
+    category_updated: 'Category updated',
+    category_deleted: 'Category deleted',
+    category_restored: 'Category restored',
+    category_reverted: 'Category reverted',
+    user_created: 'User created',
+    user_updated: 'User updated',
+    user_deleted: 'User deleted',
+    user_restored: 'User restored',
+    user_reverted: 'User reverted',
+    user_activated: 'User activated',
+    user_deactivated: 'User deactivated',
+    userActivated: 'User activated',
+    userDeactivated: 'User deactivated',
+    service_started: 'Service started',
+    service_stopped: 'Service stopped',
+    service_restarted: 'Service restarted',
+    backup_created: 'Backup created',
+    backup_restored: 'Backup restored',
+    rustdesk_installed: 'RustDesk installed',
+    ssh_key_generated: 'SSH key generated',
+    ssh_key_imported: 'SSH key imported',
+    ssh_key_deleted: 'SSH key deleted',
+    ssh_connection: 'SSH connection',
+    settings_update: 'Settings updated',
+    permission_granted: 'Permission granted',
+    permission_revoked: 'Permission revoked',
+    audit_logs_delete: 'Audit logs deleted',
+    appliance_accessed: 'Appliance accessed',
+    terminal_command: 'Terminal command',
+    terminal_open: 'Terminal opened',
+    terminalOpen: 'Terminal opened',
+    command_execute: 'Command executed',
+    ssh_key_registered: 'SSH key registered',
+    ssh_file_upload: 'File transfer',
+    ssh_file_download: 'File transfer',
+    host_created: 'Host created',
+    host_updated: 'Host updated',
+    host_deleted: 'Host deleted',
+    host_restored: 'Host restored',
+    host_reverted: 'Host reverted',
+    hostCreated: 'Host created',
+    hostUpdated: 'Host updated',
+    hostDeleted: 'Host deleted',
+    hostRestored: 'Host restored',
+    hostReverted: 'Host reverted',
+    service_created: 'Service created',
+    service_updated: 'Service updated',
+    service_deleted: 'Service deleted',
+    service_restored: 'Service restored',
+    service_accessed: 'Service accessed',
+    session_started: 'Session started',
+    session_ended: 'Session ended',
+    session_timeout: 'Session timeout',
+    password_changed: 'Password changed',
   };
-
-  const color = getActionColor(action);
-  return colorMap[color] || colorMap.default;
+  
+  const actionMap = currentLang === 'de' ? actionMapDE : actionMapEN;
+  
+  // Return mapped name or formatted original
+  if (actionMap[action]) {
+    return actionMap[action];
+  }
+  
+  // Fallback: format the action name
+  return action
+    .replace(/_/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
+    .replace(/^\w/, c => c.toUpperCase());
 };
 
-// Get action icon component with optional size
-export const getActionIcon = (action, size = 16) => {
-  const IconComponent = actionIcons[action] || Activity;
-  return <IconComponent size={size} />;
-};
-
-// Format timestamp
+// Format timestamp for display with i18n support
 export const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now - date;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSeconds < 60) return 'Gerade eben';
-  if (diffMinutes < 60) return `vor ${diffMinutes} Minute${diffMinutes > 1 ? 'n' : ''}`;
-  if (diffHours < 24) return `vor ${diffHours} Stunde${diffHours > 1 ? 'n' : ''}`;
-  if (diffDays < 7) return `vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`;
-
-  return date.toLocaleString('de-DE', {
-    year: 'numeric',
-    month: '2-digit',
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  // Get current language
+  const currentLang = typeof window !== 'undefined' ? 
+    (localStorage.getItem('i18nextLng') || 'en') : 'en';
+  
+  // If less than 1 hour, show minutes
+  if (diffMins < 60) {
+    if (currentLang === 'de') {
+      return `vor ${diffMins} ${diffMins === 1 ? 'Minute' : 'Minuten'}`;
+    } else {
+      return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+    }
+  }
+  
+  // If less than 24 hours, show hours
+  if (diffHours < 24) {
+    if (currentLang === 'de') {
+      return `vor ${diffHours} ${diffHours === 1 ? 'Stunde' : 'Stunden'}`;
+    } else {
+      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    }
+  }
+  
+  // If less than 7 days, show days
+  if (diffDays < 7) {
+    if (currentLang === 'de') {
+      return `vor ${diffDays} ${diffDays === 1 ? 'Tag' : 'Tagen'}`;
+    } else {
+      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    }
+  }
+  
+  // Otherwise show date
+  const locale = currentLang === 'de' ? 'de-DE' : 'en-US';
+  return date.toLocaleDateString(locale, {
     day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   });
+};
+
+// Get action icon component
+export const getActionIcon = (action) => {
+  const IconComponent = actionIcons[action] || Activity;
+  return <IconComponent size={12} />;
+};
+
+// Get action color based on type - NEUE FARBLOGIK
+export const getActionColor = (action) => {
+  // Benutzer-bezogene Actions - BLAU
+  if (action.includes('user') || action.includes('login') || action.includes('logout') || 
+      action.includes('session') || action.includes('password')) {
+    if (action.includes('delete')) {
+      return 'user-delete'; // Intensive blaue Tönung
+    }
+    if (action.includes('update') || action.includes('change') || action.includes('activated') || 
+        action.includes('deactivated')) {
+      return 'user-update'; // Mittlere blaue Tönung
+    }
+    if (action.includes('login') || action.includes('logout')) {
+      return 'user-login'; // Schwache blaue Tönung
+    }
+    return 'user-default'; // Standard blau
+  }
+  
+  // Host-bezogene Actions - ORANGE
+  if (action.includes('host') || action.includes('ssh') || action.includes('terminal') || 
+      action.includes('command') || action.includes('remote')) {
+    if (action.includes('delete')) {
+      return 'host-delete'; // Intensive orange Tönung
+    }
+    if (action.includes('update') || action.includes('change')) {
+      return 'host-update'; // Mittlere orange Tönung
+    }
+    if (action.includes('restore') || action.includes('revert')) {
+      return 'host-restore'; // Mittlere orange Tönung
+    }
+    return 'host-default'; // Standard orange
+  }
+  
+  // Service/Appliance-bezogene Actions - GRÜN
+  if (action.includes('appliance') || action.includes('service') || action.includes('category')) {
+    if (action.includes('delete')) {
+      return 'service-delete'; // Intensive grüne Tönung
+    }
+    if (action.includes('update') || action.includes('change')) {
+      return 'service-update'; // Mittlere grüne Tönung
+    }
+    if (action.includes('accessed')) {
+      return 'service-access'; // Schwache grüne Tönung
+    }
+    if (action.includes('restore') || action.includes('revert')) {
+      return 'service-restore'; // Mittlere grüne Tönung
+    }
+    return 'service-default'; // Standard grün
+  }
+  
+  // Backup-bezogene Actions - eigene Kategorie
+  if (action.includes('backup')) {
+    if (action.includes('restore')) {
+      return 'backup-restore'; // Spezielle Farbe für Backup-Restore
+    }
+    return 'backup-default';
+  }
+  
+  // Standard fallback
+  return 'default';
+};
+
+// Get action color style for inline elements - NEUE FARBPALETTE
+export const getActionColorStyle = (action) => {
+  const colorType = getActionColor(action);
+  
+  const colorMap = {
+    // BENUTZER - BLAU Töne
+    'user-delete': {
+      backgroundColor: 'rgba(25, 118, 210, 1)', // Intensives Blau
+      color: '#fff',
+    },
+    'user-update': {
+      backgroundColor: 'rgba(66, 165, 245, 0.9)', // Mittleres Blau
+      color: '#fff',
+    },
+    'user-login': {
+      backgroundColor: 'rgba(144, 202, 249, 0.8)', // Schwaches Blau
+      color: '#fff',
+    },
+    'user-default': {
+      backgroundColor: 'rgba(100, 181, 246, 0.9)', // Standard Blau
+      color: '#fff',
+    },
+    
+    // HOST - ORANGE Töne
+    'host-delete': {
+      backgroundColor: 'rgba(255, 87, 34, 1)', // Intensives Orange
+      color: '#fff',
+    },
+    'host-update': {
+      backgroundColor: 'rgba(255, 138, 101, 0.9)', // Mittleres Orange
+      color: '#fff',
+    },
+    'host-restore': {
+      backgroundColor: 'rgba(255, 138, 101, 0.9)', // Mittleres Orange
+      color: '#fff',
+    },
+    'host-default': {
+      backgroundColor: 'rgba(255, 167, 38, 0.9)', // Standard Orange
+      color: '#fff',
+    },
+    
+    // SERVICE - GRÜN Töne
+    'service-delete': {
+      backgroundColor: 'rgba(46, 125, 50, 1)', // Intensives Grün
+      color: '#fff',
+    },
+    'service-update': {
+      backgroundColor: 'rgba(76, 175, 80, 0.9)', // Mittleres Grün
+      color: '#fff',
+    },
+    'service-access': {
+      backgroundColor: 'rgba(129, 199, 132, 0.8)', // Schwaches Grün
+      color: '#fff',
+    },
+    'service-restore': {
+      backgroundColor: 'rgba(76, 175, 80, 0.9)', // Mittleres Grün
+      color: '#fff',
+    },
+    'service-default': {
+      backgroundColor: 'rgba(102, 187, 106, 0.9)', // Standard Grün
+      color: '#fff',
+    },
+    
+    // BACKUP - SPEZIAL
+    'backup-restore': {
+      backgroundColor: 'rgba(156, 39, 176, 0.9)', // Lila für Backup-Restore
+      color: '#fff',
+    },
+    'backup-default': {
+      backgroundColor: 'rgba(186, 104, 200, 0.9)', // Standard Lila
+      color: '#fff',
+    },
+    
+    // DEFAULT
+    'default': {
+      backgroundColor: 'rgba(158, 158, 158, 0.9)', // Grau
+      color: '#fff',
+    },
+  };
+  
+  return colorMap[colorType] || colorMap.default;
 };

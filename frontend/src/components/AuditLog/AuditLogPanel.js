@@ -1,4 +1,4 @@
-// AuditLogPanel mit einheitlichem Resize-Hook
+// AuditLogPanel mit einheitlichem Resize-Hook und Internationalisierung
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
@@ -15,6 +15,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { FileDown, FileText, File, Activity, FileCode, ChevronUp, ChevronDown, FileJson } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import axios from '../../utils/axiosConfig';
 import AuditLogTableMUI from './AuditLogTableMUI';
@@ -34,6 +35,7 @@ import './AuditLogTableCardFix.css';
 
 const AuditLogPanel = ({ onClose, onWidthChange }) => {
   const theme = useTheme();
+  const { t } = useTranslation();
   
   // EINHEITLICHER RESIZE-HOOK
   const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
@@ -115,7 +117,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         log.createdAt && log.createdAt.startsWith(today)
       );
       
-      const uniqueUsers = new Set(logsArray.map(log => log.username || 'System'));
+      const uniqueUsers = new Set(logsArray.map(log => log.username || t('auditLog.system')));
       const criticalLogs = logsArray.filter(log => 
         criticalActions.includes(log.action)
       );
@@ -135,11 +137,11 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       
     } catch (err) {
       console.error('Error fetching audit logs:', err);
-      setError('Fehler beim Laden der Audit-Logs');
+      setError(t('auditLog.errorLoading'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // Filter logs effect
   useEffect(() => {
@@ -215,7 +217,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           break;
       }
       
-      if (startDate && dateRange !== 'custom') {
+      if (startDate && dateRange !== 'custom' && dateRange !== 'yesterday') {
         filtered = filtered.filter(log => 
           new Date(log.createdAt) >= startDate
         );
@@ -392,7 +394,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       setShowExportOptions(false);
     } catch (error) {
       console.error('Error exporting audit logs:', error);
-      setError('Fehler beim CSV-Export der Logs');
+      setError(t('auditLog.errorExportCSV'));
     }
   };
 
@@ -427,7 +429,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       setShowExportOptions(false);
     } catch (error) {
       console.error('Error exporting logs as JSON:', error);
-      setError('Fehler beim JSON-Export der Logs');
+      setError(t('auditLog.errorExportJSON'));
     }
   };
 
@@ -490,31 +492,34 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   // Markdown Export handler
   const handleMarkdownExport = async () => {
     try {
-      let markdown = '# Audit Log Report\n\n';
-      markdown += `**Erstellt am:** ${new Date().toLocaleString('de-DE')}\n\n`;
-      markdown += `**Anzahl Einträge:** ${filteredLogs.length}\n\n`;
+      const currentLang = localStorage.getItem('i18nextLng') || 'en';
+      const dateFormat = currentLang === 'de' ? 'de-DE' : 'en-US';
+      
+      let markdown = `# ${t('auditLog.report.title')}\n\n`;
+      markdown += `**${t('auditLog.report.createdAt')}:** ${new Date().toLocaleString(dateFormat)}\n\n`;
+      markdown += `**${t('auditLog.report.entryCount')}:** ${filteredLogs.length}\n\n`;
       
       // Filter-Info
-      markdown += '## Aktive Filter\n\n';
-      if (selectedAction !== 'all') markdown += `- **Aktion:** ${selectedAction}\n`;
-      if (selectedUser !== 'all') markdown += `- **Benutzer:** ${selectedUser}\n`;
-      if (selectedResourceType !== 'all') markdown += `- **Ressource:** ${selectedResourceType}\n`;
-      if (dateRange !== 'all') markdown += `- **Zeitraum:** ${dateRange}\n`;
-      if (showCriticalOnly) markdown += `- **Nur kritische Einträge**\n`;
-      if (activeUserFilter) markdown += `- **Nur Benutzer-Aktionen**\n`;
+      markdown += `## ${t('auditLog.report.activeFilters')}\n\n`;
+      if (selectedAction !== 'all') markdown += `- **${t('auditLog.action')}:** ${selectedAction}\n`;
+      if (selectedUser !== 'all') markdown += `- **${t('auditLog.user')}:** ${selectedUser}\n`;
+      if (selectedResourceType !== 'all') markdown += `- **${t('auditLog.resource')}:** ${selectedResourceType}\n`;
+      if (dateRange !== 'all') markdown += `- **${t('auditLog.filters.dateRange')}:** ${dateRange}\n`;
+      if (showCriticalOnly) markdown += `- **${t('auditLog.showCriticalOnly')}**\n`;
+      if (activeUserFilter) markdown += `- **${t('auditLog.stats.uniqueUsers')}**\n`;
       markdown += '\n---\n\n';
       
       // Log-Einträge
-      markdown += '## Log-Einträge\n\n';
+      markdown += `## ${t('auditLog.report.entries')}\n\n`;
       
       filteredLogs.forEach((log, index) => {
         markdown += `### ${index + 1}. ${log.action} - ${log.resourceName || log.resourceType || '-'}\n\n`;
-        markdown += `**Zeit:** ${new Date(log.createdAt).toLocaleString('de-DE')}\n`;
-        markdown += `**Benutzer:** ${log.username || 'System'}\n`;
-        markdown += `**IP-Adresse:** ${log.ipAddress || '-'}\n`;
+        markdown += `**${t('auditLog.report.time')}:** ${new Date(log.createdAt).toLocaleString(dateFormat)}\n`;
+        markdown += `**${t('auditLog.report.user')}:** ${log.username || t('auditLog.system')}\n`;
+        markdown += `**${t('auditLog.report.ipAddress')}:** ${log.ipAddress || '-'}\n`;
         
         if (log.details) {
-          markdown += '\n**Details:**\n';
+          markdown += `\n**${t('auditLog.report.details')}:**\n`;
           const details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
           Object.entries(details).forEach(([key, value]) => {
             markdown += `- **${key}:** ${formatValueForMarkdown(value)}\n`;
@@ -538,7 +543,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       setShowExportOptions(false);
     } catch (error) {
       console.error('Error exporting logs as Markdown:', error);
-      setError('Fehler beim Markdown-Export der Logs');
+      setError(t('auditLog.errorExportMarkdown'));
     }
   };
 
@@ -549,7 +554,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Möchten Sie die gefilterten Audit-Logs wirklich löschen?')) {
+    if (!window.confirm(t('auditLog.confirmDeleteFiltered'))) {
       return;
     }
 
@@ -564,7 +569,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
 
   // Delete single log entry
   const handleDeleteSingleLog = async (logId) => {
-    if (!window.confirm('Möchten Sie diesen Audit-Log-Eintrag wirklich löschen?')) {
+    if (!window.confirm(t('auditLog.confirmDeleteLog'))) {
       return;
     }
 
@@ -579,7 +584,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       const todayLogs = updatedLogs.filter(log => 
         log.createdAt && log.createdAt.startsWith(today)
       );
-      const uniqueUsers = new Set(updatedLogs.map(log => log.username || 'System'));
+      const uniqueUsers = new Set(updatedLogs.map(log => log.username || t('auditLog.system')));
       const criticalLogs = updatedLogs.filter(log => 
         criticalActions.includes(log.action)
       );
@@ -598,18 +603,19 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       });
     } catch (error) {
       console.error('Error deleting audit log:', error);
-      setError('Fehler beim Löschen des Audit-Log-Eintrags');
+      setError(t('auditLog.errorDeleting'));
       // Refresh on error to ensure consistency
       fetchAuditLogs();
     }
   };
 
-  const uniqueUsers = [...new Set(logs.map(log => log.username || 'System'))];
+  const uniqueUsers = [...new Set(logs.map(log => log.username || t('auditLog.system')))];
   const uniqueActions = [...new Set(logs.map(log => log.action))].sort((a, b) => {
-    // Sort by formatted (German) names for better user experience
-    const nameA = formatActionName(a);
-    const nameB = formatActionName(b);
-    return nameA.localeCompare(nameB, 'de');
+    // Sort by formatted names for better user experience
+    const nameA = formatActionName(a, t);
+    const nameB = formatActionName(b, t);
+    const currentLang = localStorage.getItem('i18nextLng') || 'en';
+    return nameA.localeCompare(nameB, currentLang);
   });
   const uniqueResourceTypes = [...new Set(logs.map(log => log.resourceType))].filter(Boolean);
 
@@ -641,7 +647,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       />
 
       <UnifiedPanelHeader 
-        title="Audit Log"
+        title={t('auditLog.title')}
         onClose={onClose}
         icon={Activity}
       />
@@ -668,7 +674,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
             />
             
             <Box sx={{ px: 1, py: 0.5, display: 'flex', justifyContent: 'center' }}>
-              <Tooltip title={filtersCollapsed ? "Filter anzeigen" : "Filter ausblenden"}>
+              <Tooltip title={filtersCollapsed ? t('auditLog.showFilters') : t('auditLog.hideFilters')}>
                 <Button
                   size="small"
                   onClick={() => {
@@ -697,7 +703,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                     },
                   }}
                 >
-                  {filtersCollapsed ? 'Filter einblenden' : 'Filter ausblenden'}
+                  {filtersCollapsed ? t('auditLog.showFilters') : t('auditLog.hideFilters')}
                 </Button>
               </Tooltip>
             </Box>
@@ -741,7 +747,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                 }}>
                   <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                     <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, textAlign: 'center' }}>
-                      Export-Format wählen
+                      {t('auditLog.exportOptions.title')}
                     </Typography>
                     <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
                       <Button
@@ -761,7 +767,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                           },
                         }}
                       >
-                        JSON
+                        {t('auditLog.exportOptions.json')}
                       </Button>
                       <Button
                         variant="contained"
@@ -780,7 +786,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                           },
                         }}
                       >
-                        CSV
+                        {t('auditLog.exportOptions.csv')}
                       </Button>
                       <Button
                         variant="contained"
@@ -799,7 +805,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                           },
                         }}
                       >
-                        PDF
+                        {t('auditLog.exportOptions.pdf')}
                       </Button>
                       <Button
                         variant="contained"
@@ -818,11 +824,11 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                           },
                         }}
                       >
-                        MD
+                        {t('auditLog.exportOptions.markdown')}
                       </Button>
                     </Stack>
                     <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'text.secondary', textAlign: 'center' }}>
-                      {filteredLogs.length} Einträge werden exportiert
+                      {t('auditLog.exportOptions.entriesWillBeExported', { count: filteredLogs.length })}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -834,7 +840,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ flex: 1, overflow: 'auto' }}>
                   {filteredLogs.length === 0 ? (
-                    <Alert severity="info">Keine Audit-Logs gefunden</Alert>
+                    <Alert severity="info">{t('auditLog.noLogsFound')}</Alert>
                   ) : (
                     <AuditLogTableMUI
                       logs={filteredLogs}

@@ -29,44 +29,36 @@ import {
 } from 'lucide-react';
 import { formatActionName } from './AuditLogActions';
 
-// Helper function to format resource types to German
-const formatResourceType = (type) => {
-  const resourceTypeMap = {
-    'appliance': 'Appliance',
-    'appliances': 'Appliances',
-    'host': 'Host',
-    'hosts': 'Hosts',
-    'ssh_host': 'SSH Host',
-    'ssh_hosts': 'SSH Hosts',
-    'category': 'Kategorie',
-    'categories': 'Kategorien',
-    'service': 'Service',
-    'services': 'Services',
-    'user': 'Benutzer',
-    'users': 'Benutzer',
-    'settings': 'Einstellungen',
-    'backup': 'Backup',
-    'audit_logs': 'Audit Logs',
-    'ssh_key': 'SSH Schlüssel',
-    'ssh_keys': 'SSH Schlüssel',
-    'ssh_config': 'SSH Konfiguration',
-    'background_image': 'Hintergrundbild',
-    'background_images': 'Hintergrundbilder',
-    'custom_command': 'Benutzerbefehl',
-    'custom_commands': 'Benutzerbefehle',
-    'role_permission': 'Rollenberechtigung',
-    'role_permissions': 'Rollenberechtigungen',
-    'user_appliance_permission': 'Benutzer-Appliance-Berechtigung',
-    'user_appliance_permissions': 'Benutzer-Appliance-Berechtigungen',
-    'service_command_log': 'Service-Befehl-Log',
-    'service_command_logs': 'Service-Befehl-Logs',
-  };
+// Helper function to format resource types with i18n
+const formatResourceType = (type, t) => {
+  const resourceTypeKey = `resourceTypes.${type}`;
+  const translated = t(resourceTypeKey, { defaultValue: '' });
   
-  return resourceTypeMap[type] || type
-    .replace(/_/g, ' ')
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+  // Falls keine Übersetzung gefunden wurde, Fallback auf Mapping
+  if (!translated || translated === resourceTypeKey) {
+    const resourceTypeMap = {
+      'appliance': 'Service',
+      'appliances': 'Services',
+      'host': 'Host',
+      'hosts': 'Hosts',
+      'ssh_host': 'SSH Host',
+      'ssh_hosts': 'SSH Hosts',
+      'category': t('categories.title', 'Category'),
+      'categories': t('categories.title', 'Categories'),
+      'service': 'Service',
+      'services': 'Services',
+      'user': t('users.title', 'User'),
+      'users': t('users.title', 'Users'),
+      'settings': t('settings.title', 'Settings'),
+      'backup': t('backup.title', 'Backup'),
+      'audit_logs': t('auditLog.title', 'Audit Logs'),
+      'ssh_key': t('sshKeys.title', 'SSH Key'),
+      'ssh_keys': t('sshKeys.title', 'SSH Keys'),
+    };
+    return resourceTypeMap[type] || type;
+  }
+  
+  return translated;
 };
 
 const AuditLogFilters = ({
@@ -94,248 +86,251 @@ const AuditLogFilters = ({
   uniqueResourceTypes,
   cardStyles,
 }) => {
-  const { t } = useTranslation();
   const theme = useTheme();
-  const isSmallScreen = useMediaQuery('(max-width:900px)');
-  const isMediumScreen = useMediaQuery('(max-width:1200px)');
+  const { t } = useTranslation();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  const handleClearFilters = () => {
+    onSearchChange('');
+    onActionChange('all');
+    onUserChange('all');
+    onResourceTypeChange('all');
+    onDateRangeChange('today');
+    onCustomStartDateChange('');
+    onCustomEndDateChange('');
+    onShowCriticalOnlyChange(false);
+  };
+
+  const hasActiveFilters = 
+    searchTerm ||
+    selectedAction !== 'all' ||
+    selectedUser !== 'all' ||
+    selectedResourceType !== 'all' ||
+    dateRange !== 'today' ||
+    showCriticalOnly;
+
+  const dateRangeOptions = [
+    { value: 'all', label: t('common.all', 'All') },
+    { value: 'today', label: t('auditLog.today') },
+    { value: 'yesterday', label: t('auditLog.yesterday') },
+    { value: 'week', label: t('auditLog.lastWeek') },
+    { value: 'month', label: t('auditLog.lastMonth') },
+    { value: 'custom', label: t('auditLog.customRange') },
+  ];
 
   return (
-    <Box sx={{ px: 1, py: 0.5 }}>
-      {/* Filter Card - Ultra-kompakt */}
-      <Card sx={{ ...cardStyles, mb: 0.5 }}>
-        <CardContent sx={{ 
-          p: 0.75,
-          '&:last-child': { pb: 0.75 }
-        }}>
-          {/* Search and Critical Filter Row */}
-          <Stack direction="row" spacing={0.5} sx={{ mb: 0.5 }}>
+    <Box sx={{ px: 2, pb: 2 }}>
+      <Card sx={cardStyles}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Stack spacing={2}>
+            {/* Search Bar */}
             <TextField
               fullWidth
               size="small"
-              placeholder={t('auditLog.search')}
+              placeholder={t('auditLog.filters.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search size={16} />
+                    <Search size={18} />
                   </InputAdornment>
                 ),
               }}
-              sx={{
-                '& .MuiInputBase-input': {
-                  py: 0.5,
-                  fontSize: '0.875rem',
-                },
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.05)'
-                    : 'rgba(0, 0, 0, 0.02)',
-                },
-              }}
             />
-            <Tooltip title={showCriticalOnly ? "Alle Einträge anzeigen" : "Nur kritische Einträge"}>
-              <IconButton
-                onClick={() => onShowCriticalOnlyChange(!showCriticalOnly)}
+
+            {/* Filter Dropdowns - responsive grid */}
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: isMobile 
+                ? '1fr' 
+                : isTablet 
+                  ? 'repeat(2, 1fr)' 
+                  : 'repeat(4, 1fr)',
+              gap: 1,
+            }}>
+              {/* Action Filter */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>{t('auditLog.action')}</InputLabel>
+                <Select
+                  value={selectedAction}
+                  onChange={(e) => onActionChange(e.target.value)}
+                  label={t('auditLog.action')}
+                >
+                  <MenuItem value="all">{t('auditLog.allActions')}</MenuItem>
+                  {uniqueActions.map(action => (
+                    <MenuItem key={action} value={action}>
+                      {formatActionName(action, t)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* User Filter */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>{t('auditLog.user')}</InputLabel>
+                <Select
+                  value={selectedUser}
+                  onChange={(e) => onUserChange(e.target.value)}
+                  label={t('auditLog.user')}
+                >
+                  <MenuItem value="all">{t('auditLog.allUsers')}</MenuItem>
+                  {uniqueUsers.map(user => (
+                    <MenuItem key={user} value={user}>
+                      {user}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Resource Type Filter */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>{t('auditLog.resourceType')}</InputLabel>
+                <Select
+                  value={selectedResourceType}
+                  onChange={(e) => onResourceTypeChange(e.target.value)}
+                  label={t('auditLog.resourceType')}
+                >
+                  <MenuItem value="all">{t('auditLog.allResourceTypes')}</MenuItem>
+                  {uniqueResourceTypes.map(type => (
+                    <MenuItem key={type} value={type}>
+                      {formatResourceType(type, t)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Date Range Filter */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>{t('auditLog.filters.dateRange')}</InputLabel>
+                <Select
+                  value={dateRange}
+                  onChange={(e) => onDateRangeChange(e.target.value)}
+                  label={t('auditLog.filters.dateRange')}
+                >
+                  {dateRangeOptions.map(option => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Custom Date Range */}
+            {dateRange === 'custom' && (
+              <Stack direction={isMobile ? "column" : "row"} spacing={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label={t('auditLog.from')}
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => onCustomStartDateChange(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label={t('auditLog.to')}
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => onCustomEndDateChange(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Stack>
+            )}
+
+            {/* Critical Only Toggle & Action Buttons */}
+            <Stack 
+              direction={isMobile ? "column" : "row"} 
+              spacing={1}
+              sx={{ justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}
+            >
+              {/* Critical Actions Toggle */}
+              <Button
+                variant={showCriticalOnly ? "contained" : "outlined"}
                 size="small"
+                startIcon={<AlertTriangle size={16} />}
+                onClick={() => onShowCriticalOnlyChange(!showCriticalOnly)}
                 sx={{
-                  color: showCriticalOnly ? theme.palette.error.main : theme.palette.text.secondary,
+                  borderColor: theme.palette.error.main,
+                  color: showCriticalOnly 
+                    ? theme.palette.common.white 
+                    : theme.palette.error.main,
                   backgroundColor: showCriticalOnly 
-                    ? theme.palette.error.main + '20'
+                    ? theme.palette.error.main 
                     : 'transparent',
-                  border: `1px solid ${showCriticalOnly ? theme.palette.error.main : theme.palette.divider}`,
                   '&:hover': {
                     backgroundColor: showCriticalOnly
-                      ? theme.palette.error.main + '30'
-                      : theme.palette.action.hover,
-                    borderColor: theme.palette.error.main,
+                      ? theme.palette.error.dark
+                      : theme.palette.error.main + '10',
                   },
-                  width: 32,
-                  height: 32,
                 }}
               >
-                <AlertTriangle size={16} />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-
-          {/* Filter Dropdowns - Kompakter */}
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{
-              flexWrap: 'wrap',
-              gap: 1,
-              justifyContent: 'center',
-              '& .MuiFormControl-root': {
-                flex: '1 1 auto',
-                minWidth: 120,
-                maxWidth: 180,
-              },
-              '& .MuiInputBase-root': {
-                fontSize: '0.875rem',
-              },
-              '& .MuiInputBase-input': {
-                py: 0.5,
-              }
-            }}
-          >
-            <FormControl size="small">
-              <InputLabel>Aktion</InputLabel>
-              <Select
-                value={selectedAction}
-                onChange={(e) => onActionChange(e.target.value)}
-                label="Aktion"
-              >
-                <MenuItem value="all">Alle Aktionen</MenuItem>
-                {uniqueActions.map(action => (
-                  <MenuItem key={action} value={action}>
-                    {formatActionName(action)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small">
-              <InputLabel>Benutzer</InputLabel>
-              <Select
-                value={selectedUser}
-                onChange={(e) => onUserChange(e.target.value)}
-                label="Benutzer"
-              >
-                <MenuItem value="all">Alle Benutzer</MenuItem>
-                {uniqueUsers.map(user => (
-                  <MenuItem key={user} value={user}>{user}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small">
-              <InputLabel>Ressource</InputLabel>
-              <Select
-                value={selectedResourceType}
-                onChange={(e) => onResourceTypeChange(e.target.value)}
-                label="Ressource"
-              >
-                <MenuItem value="all">Alle Ressourcen</MenuItem>
-                {uniqueResourceTypes.map(type => (
-                  <MenuItem key={type} value={type}>
-                    {formatResourceType(type)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small">
-              <InputLabel>Zeitraum</InputLabel>
-              <Select
-                value={dateRange}
-                onChange={(e) => onDateRangeChange(e.target.value)}
-                label="Zeitraum"
-              >
-                <MenuItem value="all">Alle</MenuItem>
-                <MenuItem value="today">Heute</MenuItem>
-                <MenuItem value="yesterday">Gestern</MenuItem>
-                <MenuItem value="week">Diese Woche</MenuItem>
-                <MenuItem value="month">Dieser Monat</MenuItem>
-                <MenuItem value="custom">Benutzerdefiniert</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-
-          {/* Custom Date Range */}
-          {dateRange === 'custom' && (
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{
-                mt: 2,
-                flexWrap: 'wrap',
-                gap: 1.5,
-                justifyContent: 'center',
-                '& .MuiTextField-root': {
-                  flex: '1 1 auto',
-                  minWidth: 140,
-                  maxWidth: 200,
-                }
-              }}
-            >
-              <TextField
-                type="date"
-                size="small"
-                label="Von"
-                value={customStartDate}
-                onChange={(e) => onCustomStartDateChange(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                type="date"
-                size="small"
-                label="Bis"
-                value={customEndDate}
-                onChange={(e) => onCustomEndDateChange(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Stack>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Action Buttons Card - Ultra-kompakt */}
-      <Card sx={{ ...cardStyles }}>
-        <CardContent sx={{ 
-          p: 0.75,
-          '&:last-child': { pb: 0.75 }
-        }}>
-          <Stack 
-            direction="row" 
-            spacing={1}
-            sx={{
-              justifyContent: 'center',
-              '& .MuiButton-root': {
-                minWidth: isSmallScreen ? '100%' : 100,
-                py: 0.5,
-                fontSize: '0.8rem',
-              }
-            }}
-          >
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={onRefresh}
-              startIcon={<RefreshCw size={16} />}
-              fullWidth={isSmallScreen}
-            >
-              Aktualisieren
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={onExport}
-              startIcon={<FileDown size={16} />}
-              fullWidth={isSmallScreen}
-            >
-              Export
-            </Button>
-            {onDelete && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={onDelete}
-                startIcon={<Trash2 size={16} />}
-                fullWidth={isSmallScreen}
-                sx={{ 
-                  color: theme.palette.error.main,
-                  borderColor: theme.palette.error.main,
-                  '&:hover': {
-                    backgroundColor: theme.palette.error.main + '20',
-                    borderColor: theme.palette.error.main,
-                  }
-                }}
-              >
-                Löschen
+                {t('auditLog.showCriticalOnly')}
               </Button>
-            )}
+
+              {/* Action Buttons */}
+              <Stack direction="row" spacing={1} sx={{ justifyContent: isMobile ? 'center' : 'flex-end' }}>
+                {hasActiveFilters && (
+                  <Tooltip title={t('auditLog.filters.clear')}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={handleClearFilters}
+                      sx={{ minWidth: 'auto', px: 1 }}
+                    >
+                      {t('auditLog.filters.clear')}
+                    </Button>
+                  </Tooltip>
+                )}
+                
+                <Tooltip title={t('auditLog.tooltips.refresh')}>
+                  <IconButton 
+                    size="small" 
+                    onClick={onRefresh}
+                    sx={{ 
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 1,
+                    }}
+                  >
+                    <RefreshCw size={16} />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title={t('auditLog.tooltips.export')}>
+                  <IconButton 
+                    size="small" 
+                    onClick={onExport}
+                    sx={{ 
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 1,
+                    }}
+                  >
+                    <FileDown size={16} />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title={t('auditLog.tooltips.delete')}>
+                  <IconButton 
+                    size="small" 
+                    onClick={onDelete}
+                    sx={{ 
+                      border: `1px solid ${theme.palette.error.main}`,
+                      borderRadius: 1,
+                      color: theme.palette.error.main,
+                      '&:hover': {
+                        backgroundColor: theme.palette.error.main + '10',
+                      },
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Stack>
           </Stack>
         </CardContent>
       </Card>

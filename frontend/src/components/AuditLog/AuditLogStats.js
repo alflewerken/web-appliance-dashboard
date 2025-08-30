@@ -1,5 +1,6 @@
 // Audit Log Statistics Component
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Card,
@@ -27,15 +28,20 @@ const AuditLogStats = ({
   activeUserFilter = false,  // NEU: Prop für Benutzer-Filter
 }) => {
   const theme = useTheme();
+  const { t } = useTranslation();
   
   // Kompakt-Ansicht bei Panel-Breite unter 900px
   const isCompactView = panelWidth && panelWidth < 900;
+  
+  // Locale für Zahlenformatierung
+  const currentLang = localStorage.getItem('i18nextLng') || 'en';
+  const locale = currentLang === 'de' ? 'de-DE' : 'en-US';
 
   const statItems = [
     {
-      label: 'Gesamt',
+      label: t('auditLog.stats.totalLogs'),
       value: stats.totalLogs,
-      description: 'Alle Log-Einträge',
+      description: t('auditLog.stats.totalLogs'),
       icon: <Activity size={14} />,
       color: theme.palette.primary.main,
       action: 'all',
@@ -47,9 +53,9 @@ const AuditLogStats = ({
       },
     },
     {
-      label: 'Heute',
+      label: t('auditLog.today'),
       value: stats.todayLogs,
-      description: 'Heutige Aktivitäten',
+      description: t('auditLog.stats.todayLogs'),
       icon: <Calendar size={14} />,
       color: theme.palette.info.main,
       action: 'today',
@@ -61,9 +67,9 @@ const AuditLogStats = ({
       },
     },
     {
-      label: 'Benutzer',
+      label: t('auditLog.user'),
       value: stats.uniqueUsers,
-      description: activeUserFilter ? 'Filter aktiv' : 'Benutzer-Aktionen',
+      description: activeUserFilter ? t('auditLog.filters.apply') : t('auditLog.stats.uniqueUsers'),
       icon: <Users size={14} />,
       color: theme.palette.success.main,
       action: 'userActivity',
@@ -75,9 +81,9 @@ const AuditLogStats = ({
       },
     },
     {
-      label: 'Kritisch',
+      label: t('auditLog.stats.criticalActions'),
       value: stats.criticalActions,
-      description: showCriticalOnly ? 'Filter aktiv' : 'Wichtige Aktionen',
+      description: showCriticalOnly ? t('auditLog.filters.apply') : t('auditLog.stats.criticalActions'),
       icon: <AlertTriangle size={14} />,
       color: theme.palette.error.main,
       action: 'critical',
@@ -198,7 +204,7 @@ const AuditLogStats = ({
                         userSelect: 'none',
                       }}
                     >
-                      {item.value.toLocaleString('de-DE')}
+                      {item.value.toLocaleString(locale)}
                     </Typography>
                     {!isCompactView && (
                       <Typography 
