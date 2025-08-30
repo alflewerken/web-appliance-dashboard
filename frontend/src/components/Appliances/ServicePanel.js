@@ -417,7 +417,7 @@ const ServicePanel = ({
           }
         } catch (error) {
           console.error('Error reloading appliance data:', error);
-          setError('Fehler beim Neuladen der Appliance-Daten');
+          setError(t('services.errorReloadingApplianceData'));
         }
       }
     };
@@ -548,16 +548,16 @@ const ServicePanel = ({
 
       setSuccess(
         appliance?.isNew
-          ? 'Service erfolgreich erstellt'
-          : 'Service erfolgreich gespeichert'
+          ? t('services.serviceCreated')
+          : t('services.serviceUpdated')
       );
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(
         err.message ||
           (appliance?.isNew
-            ? 'Fehler beim Erstellen des Services'
-            : 'Fehler beim Speichern des Services')
+            ? t('services.errorCreatingService')
+            : t('services.errorSavingService'))
       );
       setTimeout(() => setError(''), 5000);
     } finally {
@@ -579,10 +579,10 @@ const ServicePanel = ({
         });
       }
 
-      setSuccess('Visuelle Einstellungen gespeichert');
+      setSuccess(t('services.visualSettingsSaved'));
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Fehler beim Speichern der Einstellungen');
+      setError(err.message || t('services.errorSavingSettings'));
       setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
@@ -596,7 +596,7 @@ const ServicePanel = ({
       await onDelete(appliance);
       onClose();
     } catch (err) {
-      setError(err.message || 'Fehler beim Löschen des Services');
+      setError(err.message || t('services.errorDeletingService'));
       setLoading(false);
     }
   };
@@ -604,14 +604,14 @@ const ServicePanel = ({
   // Check RustDesk installation status
   const handleCheckRustDeskStatus = async () => {
     if (!appliance || appliance.isNew) {
-      setError('Service muss zuerst gespeichert werden');
+      setError(t('services.serviceMustBeSavedFirst'));
       return;
     }
 
     
     // If we already have a RustDesk ID in the form, show it directly
     if (formData.rustdeskId) {
-      alert(`RustDesk ist bereits installiert!\nID: ${formData.rustdeskId}`);
+      alert(`${t('services.rustdeskAlreadyInstalled')}\nID: ${formData.rustdeskId}`);
       return;
     }
     
@@ -632,7 +632,7 @@ const ServicePanel = ({
       }
       
       if (!sshConnectionId) {
-        setError('Keine SSH-Verbindung konfiguriert. Bitte wählen Sie zuerst eine SSH-Verbindung aus.');
+        setError(t('services.noSshConnectionConfigured'));
         return;
       }
 
@@ -649,7 +649,7 @@ const ServicePanel = ({
             setSuccess(true);
             setError(null);
             const rustdeskId = status.rustdeskId || status.rustdesk_id;
-            alert(`RustDesk ist installiert!\nID: ${rustdeskId}`);
+            alert(`${t('services.rustdeskIsInstalled')}\nID: ${rustdeskId}`);
             
             // Update the form with the ID
             handleFieldChange('rustdeskId', rustdeskId);
@@ -664,7 +664,7 @@ const ServicePanel = ({
       }
     } catch (err) {
       console.error('Error checking RustDesk status:', err);
-      setError('Fehler beim Prüfen des RustDesk-Status');
+      setError(t('services.errorCheckingRustdeskStatus'));
     } finally {
       setCheckingRustDeskStatus(false);
     }
@@ -801,12 +801,12 @@ const ServicePanel = ({
           command: '',
           host_id: defaultHostId,
         });
-        setSuccess('Kommando erfolgreich erstellt');
+        setSuccess(t('services.commandAddedSuccess'));
         setTimeout(() => setSuccess(''), 3000);
       }
     } catch (error) {
       console.error('Error creating command:', error);
-      setError('Fehler beim Erstellen des Kommandos');
+      setError(t('services.errorCreatingCommand'));
       setTimeout(() => setError(''), 5000);
     }
   };
@@ -839,7 +839,7 @@ const ServicePanel = ({
   };
 
   const handleDeleteCommand = async commandId => {
-    if (!window.confirm('Wirklich löschen?')) return;
+    if (!window.confirm(t('services.confirmDeleteCommand'))) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -935,9 +935,9 @@ const ServicePanel = ({
         ...commandOutput,
         [command.id]: {
           success: false,
-          output: 'Fehler beim Ausführen des Kommandos',
+          output: t('services.errorExecutingCommand'),
           htmlOutput:
-            '<span style="color: red">Fehler beim Ausführen des Kommandos</span>',
+            `<span style="color: red">${t('services.errorExecutingCommand')}</span>`,
           executedAt: new Date().toISOString(),
         },
       });
@@ -1170,7 +1170,7 @@ const ServicePanel = ({
                     }}
                   >
                     <Copy size={24} />
-                    Kommando aus Vorlagen wählen
+                    {t('services.selectFromTemplates')}
                   </Typography>
                 </Box>
 
@@ -1178,7 +1178,7 @@ const ServicePanel = ({
                 <Box sx={{ mb: 3 }}>
                   <TextField
                     fullWidth
-                    placeholder="Suche nach Service oder Kommando..."
+                    placeholder={t('services.searchTemplates')}
                     value={templateSearchTerm}
                     onChange={e => setTemplateSearchTerm(e.target.value)}
                     InputProps={{
@@ -1226,8 +1226,8 @@ const ServicePanel = ({
                       }}
                     >
                       {templateSearchTerm
-                        ? 'Keine Kommandos gefunden.'
-                        : 'Keine verfügbaren Kommandos zum Kopieren.'}
+                        ? t('services.noTemplatesFound')
+                        : t('services.noCommandTemplatesAvailable')}
                     </Typography>
                   </Box>
                 ) : (
@@ -1385,7 +1385,7 @@ const ServicePanel = ({
                         flex: 1,
                       }}
                     >
-                      Neues Kommando erstellen
+                      {t('services.createNewCommand')}
                     </Typography>
                   </Box>
                   {showNewCommandForm && (
@@ -1394,7 +1394,7 @@ const ServicePanel = ({
                     >
                     <TextField
                       fullWidth
-                      label="Beschreibung"
+                      label={t('services.commandDescription')}
                       value={newCommand.description}
                       onChange={e =>
                         setNewCommand({
@@ -1402,7 +1402,7 @@ const ServicePanel = ({
                           description: e.target.value,
                         })
                       }
-                      placeholder="Beschreibung des Befehls (z.B. was macht dieser Befehl, wann wird er verwendet)"
+                      placeholder={t('services.commandDescriptionPlaceholder')}
                       multiline
                       rows={3}
                       sx={{
@@ -1428,7 +1428,7 @@ const ServicePanel = ({
                     />
                     <TextField
                       fullWidth
-                      label="Kommando"
+                      label={t('services.command')}
                       value={newCommand.command}
                       onChange={e =>
                         setNewCommand({
@@ -1436,7 +1436,7 @@ const ServicePanel = ({
                           command: e.target.value,
                         })
                       }
-                      placeholder="z.B. systemctl restart nginx"
+                      placeholder={t('services.commandPlaceholder')}
                       sx={{
                         '& .MuiInputLabel-root': {
                           color: 'var(--text-secondary)',
@@ -1461,7 +1461,7 @@ const ServicePanel = ({
                     />
                     <FormControl fullWidth>
                       <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                        SSH-Host
+                        {t('services.sshHost')}
                       </InputLabel>
                       <Select
                         value={newCommand.host_id || ''}
@@ -1473,7 +1473,7 @@ const ServicePanel = ({
                               : null,
                           })
                         }
-                        label="SSH-Host"
+                        label={t('services.sshHost')}
                         sx={{
                           color: 'var(--text-primary)',
                           backgroundColor: 'var(--container-bg)',
@@ -1505,7 +1505,7 @@ const ServicePanel = ({
                           },
                         }}
                       >
-                        <MenuItem value="">Lokal ausführen</MenuItem>
+                        <MenuItem value="">{t('services.runLocally')}</MenuItem>
                         {sshHosts.map((host, index) => (
                           <MenuItem
                             key={`${host.hostname}-${index}`}
@@ -1541,7 +1541,7 @@ const ServicePanel = ({
                           },
                         }}
                       >
-                        Hinzufügen
+                        {t('services.addCommand')}
                       </Button>
                       <Button
                         variant="outlined"
@@ -1560,7 +1560,7 @@ const ServicePanel = ({
                           },
                         }}
                       >
-                        Aus Vorlagen
+                        {t('services.fromTemplates')}
                       </Button>
                     </Box>
                   </Box>
@@ -1594,7 +1594,7 @@ const ServicePanel = ({
                     >
                       <Command size={24} color="#FFFFFF" />
                     </Box>
-                    Gespeicherte Kommandos
+                    {t('services.savedCommands')}
                     {commands.length > 0 && (
                       <Chip
                         label={commands.length}
@@ -1639,7 +1639,7 @@ const ServicePanel = ({
                           fontSize: '1.1rem',
                         }}
                       >
-                        Noch keine Kommandos gespeichert
+                        {t('services.noCommandsSaved')}
                       </Typography>
                       <Typography
                         sx={{
@@ -1978,8 +1978,8 @@ const ServicePanel = ({
                                         }}
                                       >
                                         {commandOutput[command.id].success
-                                          ? '✓ Erfolgreich'
-                                          : '✗ Fehler'}{' '}
+                                          ? `✓ ${t('services.successLabel')}`
+                                          : `✗ ${t('services.errorLabel')}`}{' '}
                                         •{' '}
                                         {new Date(
                                           commandOutput[command.id].executedAt
@@ -2078,12 +2078,12 @@ const ServicePanel = ({
                 variant="h6"
                 sx={{ mb: 2, color: 'var(--text-primary)' }}
               >
-                Grundinformationen
+                {t('services.basicInformation')}
               </Typography>
 
               <TextField
                 fullWidth
-                label="Name"
+                label={t('services.serviceName')}
                 value={(() => {
                   console.log('[ServicePanel TextField] formData.name value:', formData.name);
                   return formData.name;
@@ -2111,7 +2111,7 @@ const ServicePanel = ({
 
               <TextField
                 fullWidth
-                label="URL"
+                label={t('services.serviceUrl')}
                 value={formData.url}
                 onChange={e => handleFieldChange('url', e.target.value)}
                 margin="normal"
@@ -2137,7 +2137,7 @@ const ServicePanel = ({
 
               <TextField
                 fullWidth
-                label="Beschreibung"
+                label={t('services.serviceDescription')}
                 value={formData.description}
                 onChange={e => handleFieldChange('description', e.target.value)}
                 margin="normal"
@@ -2163,12 +2163,12 @@ const ServicePanel = ({
 
               <FormControl fullWidth margin="normal">
                 <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                  Kategorie
+                  {t('services.serviceCategory')}
                 </InputLabel>
                 <Select
                   value={formData.category}
                   onChange={e => handleFieldChange('category', e.target.value)}
-                  label="Kategorie"
+                  label={t('services.serviceCategory')}
                   sx={{
                     color: 'var(--text-primary)',
                     backgroundColor: 'var(--container-bg)',
@@ -2232,7 +2232,7 @@ const ServicePanel = ({
                 variant="h6"
                 sx={{ mb: 2, color: 'var(--text-primary)' }}
               >
-                Symbol und Farbe
+                {t('services.symbolAndColor')}
               </Typography>
 
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -2261,7 +2261,7 @@ const ServicePanel = ({
                     variant="body2"
                     sx={{ color: 'var(--text-secondary)', mb: 1 }}
                   >
-                    Klicken Sie auf das Symbol, um es zu ändern
+                    {t('services.clickToChange')}
                   </Typography>
 
                   {/* Color Presets */}
@@ -2304,7 +2304,7 @@ const ServicePanel = ({
                   variant="body2"
                   sx={{ mb: 2, color: 'var(--text-secondary)' }}
                 >
-                  Vorschau mit Effekten
+                  {t('common.preview')}
                 </Typography>
 
                 <Box
@@ -2332,7 +2332,7 @@ const ServicePanel = ({
                   variant="body2"
                   sx={{ mb: 1, color: 'var(--text-secondary)' }}
                 >
-                  Transparenz: {visualSettings.transparency}%
+                  {t('settings.transparency')}: {visualSettings.transparency}%
                 </Typography>
                 <Slider
                   value={visualSettings.transparency}
@@ -2360,7 +2360,7 @@ const ServicePanel = ({
                   variant="body2"
                   sx={{ mb: 1, color: 'var(--text-secondary)' }}
                 >
-                  Unschärfe: {visualSettings.blur}px
+                  {t('services.unsharpness')}: {visualSettings.blur}px
                 </Typography>
                 <Slider
                   value={visualSettings.blur}
@@ -2399,19 +2399,19 @@ const ServicePanel = ({
                 variant="h6"
                 sx={{ mb: 2, color: 'var(--text-primary)' }}
               >
-                Öffnungsmodus
+                {t('services.openBehavior')}
               </Typography>
 
             <FormControl fullWidth margin="normal">
               <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Mini-Widget Modus
+                {t('services.miniWidgetMode')}
               </InputLabel>
               <Select
                 value={formData.openModeMini || 'browser_tab'}
                 onChange={e =>
                   handleFieldChange('openModeMini', e.target.value)
                 }
-                label="Mini-Widget Modus"
+                label={t('services.miniWidgetMode')}
                 sx={{
                   color: 'var(--text-primary)',
                   backgroundColor: 'var(--container-bg)',
@@ -2449,24 +2449,24 @@ const ServicePanel = ({
                   },
                 }}
               >
-                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
+                <MenuItem value="browser_tab">{t('services.browserNewTab')}</MenuItem>
                 <MenuItem value="browser_window">
-                  Browser neues Fenster
+                  {t('services.browserNewWindow')}
                 </MenuItem>
-                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
+                <MenuItem value="safari_pwa">{t('services.safariPwaMode')}</MenuItem>
               </Select>
             </FormControl>
 
             <FormControl fullWidth margin="normal">
               <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Mobile/iPad Modus
+                {t('services.mobileiPadMode')}
               </InputLabel>
               <Select
                 value={formData.openModeMobile || 'browser_tab'}
                 onChange={e =>
                   handleFieldChange('openModeMobile', e.target.value)
                 }
-                label="Mobile/iPad Modus"
+                label={t('services.mobileiPadMode')}
                 sx={{
                   color: 'var(--text-primary)',
                   backgroundColor: 'var(--container-bg)',
@@ -2504,24 +2504,24 @@ const ServicePanel = ({
                   },
                 }}
               >
-                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
+                <MenuItem value="browser_tab">{t('services.browserNewTab')}</MenuItem>
                 <MenuItem value="browser_window">
-                  Browser neues Fenster
+                  {t('services.browserNewWindow')}
                 </MenuItem>
-                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
+                <MenuItem value="safari_pwa">{t('services.safariPwaMode')}</MenuItem>
               </Select>
             </FormControl>
 
             <FormControl fullWidth margin="normal">
               <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                Desktop Modus
+                {t('services.desktopMode')}
               </InputLabel>
               <Select
                 value={formData.openModeDesktop || 'browser_tab'}
                 onChange={e =>
                   handleFieldChange('openModeDesktop', e.target.value)
                 }
-                label="Desktop Modus"
+                label={t('services.desktopMode')}
                 sx={{
                   color: 'var(--text-primary)',
                   backgroundColor: 'var(--container-bg)',
@@ -2559,11 +2559,11 @@ const ServicePanel = ({
                   },
                 }}
               >
-                <MenuItem value="browser_tab">Browser neuer Tab</MenuItem>
+                <MenuItem value="browser_tab">{t('services.browserNewTab')}</MenuItem>
                 <MenuItem value="browser_window">
-                  Browser neues Fenster
+                  {t('services.browserNewWindow')}
                 </MenuItem>
-                <MenuItem value="safari_pwa">Safari PWA Modus</MenuItem>
+                <MenuItem value="safari_pwa">{t('services.safariPwaMode')}</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -2585,19 +2585,19 @@ const ServicePanel = ({
                 variant="h6"
                 sx={{ mb: 2, color: 'var(--text-primary)' }}
               >
-                SSH-Einstellungen
+                {t('services.sshSettings')}
               </Typography>
 
                 <FormControl fullWidth margin="normal">
                   <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                    SSH-Verbindung
+                    {t('services.sshConnection')}
                   </InputLabel>
                   <Select
                     value={formData.sshConnection || ''}
                     onChange={e =>
                       handleFieldChange('sshConnection', e.target.value)
                     }
-                    label="SSH-Verbindung"
+                    label={t('services.sshConnection')}
                     disabled={isLoadingSSHHosts}
                     sx={{
                       color: 'var(--text-primary)',
@@ -2636,7 +2636,7 @@ const ServicePanel = ({
                       },
                     }}
                   >
-                    <MenuItem value="">Keine SSH-Verbindung</MenuItem>
+                    <MenuItem value="">{t('services.noSshConnection')}</MenuItem>
                     {sshHosts.map((host, index) => {
                       const hostValue = `${host.username || 'root'}@${host.hostname}:${host.port || 22}`;
                       return (
@@ -2659,14 +2659,13 @@ const ServicePanel = ({
                       mt: 1,
                     }}
                   >
-                    SSH-Verbindungen können in den Einstellungen konfiguriert
-                    werden.
+                    {t('services.sshConnectionsCanBeConfigured')}
                   </Typography>
                 )}
 
                 <TextField
                   fullWidth
-                  label="Status-Prüfbefehl"
+                  label={t('services.statusCheckCommand')}
                   value={formData.statusCommand}
                   onChange={e =>
                     handleFieldChange('statusCommand', e.target.value)
@@ -2689,7 +2688,7 @@ const ServicePanel = ({
                       },
                     },
                   }}
-                  helperText="Das Kommando sollte 'status: running' oder 'status: stopped' ausgeben"
+                  helperText={t('services.commandShouldOutputRunningOrStopped')}
                   FormHelperTextProps={{
                     sx: { color: 'var(--text-secondary)' },
                   }}
@@ -2697,7 +2696,7 @@ const ServicePanel = ({
 
                 <TextField
                   fullWidth
-                  label="Start-Befehl"
+                  label={t('services.startCommand')}
                   value={formData.startCommand}
                   onChange={e =>
                     handleFieldChange('startCommand', e.target.value)
@@ -2724,7 +2723,7 @@ const ServicePanel = ({
 
                 <TextField
                   fullWidth
-                  label="Stopp-Befehl"
+                  label={t('services.stopCommand')}
                   value={formData.stopCommand}
                   onChange={e =>
                     handleFieldChange('stopCommand', e.target.value)
@@ -2748,9 +2747,8 @@ const ServicePanel = ({
                     },
                   }}
                 />
-            )}
-          </Box>
-        )}
+            </Box>
+          )}
 
         {/* Remote Desktop Card */}
         <Box
@@ -2768,7 +2766,7 @@ const ServicePanel = ({
             variant="h6"
             sx={{ mb: 2, color: 'var(--text-primary)' }}
           >
-            Remote Desktop
+            {t('settings.remoteDesktop')}
           </Typography>
             
             <FormControlLabel
@@ -2783,7 +2781,7 @@ const ServicePanel = ({
                   }}
                 />
               }
-              label="Remote Desktop aktivieren"
+              label={t('services.enableRemoteDesktop')}
               sx={{ mb: 2, color: 'var(--text-primary)' }}
             />
 
@@ -2791,12 +2789,12 @@ const ServicePanel = ({
               <>
                 <FormControl fullWidth margin="normal">
                   <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                    Remote Desktop Typ
+                    {t('services.remoteDesktopType')}
                   </InputLabel>
                   <Select
                     value={formData.remoteDesktopType || 'guacamole'}
                     onChange={e => handleFieldChange('remoteDesktopType', e.target.value)}
-                    label="Remote Desktop Typ"
+                    label={t('services.remoteDesktopType')}
                     sx={{
                       color: 'var(--text-primary)',
                       backgroundColor: 'var(--container-bg)',
@@ -2805,8 +2803,8 @@ const ServicePanel = ({
                       },
                     }}
                   >
-                    <MenuItem value="guacamole">Guacamole (Classic)</MenuItem>
-                    <MenuItem value="rustdesk">RustDesk (Schneller)</MenuItem>
+                    <MenuItem value="guacamole">{t('services.guacamoleClassic')}</MenuItem>
+                    <MenuItem value="rustdesk">{t('services.rustdeskFaster')}</MenuItem>
                   </Select>
                 </FormControl>
 
@@ -2815,12 +2813,12 @@ const ServicePanel = ({
                   <Box sx={{ my: 2 }}>
                     <FormControl fullWidth margin="normal">
                       <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                        Performance Mode
+                        {t('services.performanceMode')}
                       </InputLabel>
                       <Select
                         value={formData.guacamolePerformanceMode || 'balanced'}
                         onChange={e => handleFieldChange('guacamolePerformanceMode', e.target.value)}
-                        label="Performance Mode"
+                        label={t('services.performanceMode')}
                         sx={{
                           color: 'var(--text-primary)',
                           backgroundColor: 'var(--container-bg)',
@@ -2829,10 +2827,10 @@ const ServicePanel = ({
                           },
                         }}
                       >
-                        <MenuItem value="high-quality">High Quality - Beste visuelle Qualität</MenuItem>
-                        <MenuItem value="balanced">Balanced - Gute Balance zwischen Qualität und Performance</MenuItem>
-                        <MenuItem value="performance">Performance - Niedrigere Qualität, schnellere Reaktion</MenuItem>
-                        <MenuItem value="low-bandwidth">Low Bandwidth - Minimale Bandbreite</MenuItem>
+                        <MenuItem value="high-quality">{t('services.highQuality')}</MenuItem>
+                        <MenuItem value="balanced">{t('services.balanced')}</MenuItem>
+                        <MenuItem value="performance">{t('services.performance')}</MenuItem>
+                        <MenuItem value="low-bandwidth">{t('services.lowBandwidth')}</MenuItem>
                       </Select>
                     </FormControl>
                   </Box>
@@ -2842,12 +2840,12 @@ const ServicePanel = ({
                 {formData.remoteDesktopType !== 'rustdesk' && (
                   <FormControl fullWidth margin="normal">
                     <InputLabel sx={{ color: 'var(--text-secondary)' }}>
-                      Protokoll
+                      {t('services.protocol')}
                     </InputLabel>
                     <Select
                       value={formData.remoteProtocol || 'vnc'}
                       onChange={e => handleFieldChange('remoteProtocol', e.target.value)}
-                      label="Protokoll"
+                      label={t('services.protocol')}
                       sx={{
                         color: 'var(--text-primary)',
                         backgroundColor: 'var(--container-bg)',
@@ -2867,12 +2865,12 @@ const ServicePanel = ({
                   <>
                     <TextField
                       fullWidth
-                      label="Host-Adresse"
+                      label={t('services.hostAddress')}
                       value={formData.remoteHost || ''}
                       onChange={e => handleFieldChange('remoteHost', e.target.value)}
                       margin="normal"
-                      placeholder={extractHostFromUrl(formData.url) || '192.168.1.100'}
-                      helperText="IP-Adresse oder Hostname des Remote Desktop Servers"
+                      placeholder={extractHostFromUrl(formData.url) || t('services.ipPlaceholder')}
+                      helperText={t('services.ipAddressOrHostname')}
                       sx={{
                         '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
                         '& .MuiInputBase-root': {
@@ -2885,12 +2883,12 @@ const ServicePanel = ({
 
                     <TextField
                       fullWidth
-                      label="Port"
+                      label={t('services.port')}
                       type="number"
                       value={formData.remotePort || (formData.remoteProtocol === 'rdp' ? 3389 : 5900)}
                       onChange={e => handleFieldChange('remotePort', parseInt(e.target.value) || '')}
                       margin="normal"
-                      placeholder={formData.remoteProtocol === 'rdp' ? '3389' : '5900'}
+                      placeholder={formData.remoteProtocol === 'rdp' ? t('services.rdpPort') : t('services.vncPort')}
                       sx={{
                         '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
                         '& .MuiInputBase-root': {
@@ -2902,12 +2900,12 @@ const ServicePanel = ({
 
                     <TextField
                       fullWidth
-                      label="Benutzername"
+                      label={t('services.username')}
                       value={formData.remoteUsername || ''}
                       onChange={e => handleFieldChange('remoteUsername', e.target.value)}
                       margin="normal"
-                      placeholder={formData.remoteProtocol === 'rdp' ? 'Administrator' : 'alflewerken'}
-                      helperText={formData.remoteProtocol === 'vnc' ? 'Optional für VNC (z.B. für macOS)' : 'Erforderlich für RDP'}
+                      placeholder={formData.remoteProtocol === 'rdp' ? t('services.administratorPlaceholder') : t('services.usernamePlaceholder')}
+                      helperText={formData.remoteProtocol === 'vnc' ? t('services.optionalForVnc') : t('services.requiredForRdp')}
                       sx={{
                         '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
                         '& .MuiInputBase-root': {
@@ -2920,12 +2918,12 @@ const ServicePanel = ({
 
                     <TextField
                       fullWidth
-                      label="Passwort"
+                      label={t('services.passwordLabel')}
                       type="password"
                       value={formData.remotePassword || ''}
                       onChange={e => handleFieldChange('remotePassword', e.target.value)}
                       margin="normal"
-                      helperText="Wird verschlüsselt gespeichert"
+                      helperText={t('services.passwordStoredEncrypted')}
                       sx={{
                         '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
                         '& .MuiInputBase-root': {
@@ -2947,8 +2945,8 @@ const ServicePanel = ({
                       value={formData.rustdeskId || ''}
                       onChange={e => handleFieldChange('rustdeskId', e.target.value)}
                       margin="normal"
-                      placeholder="z.B. 196611"
-                      helperText="Die RustDesk ID des Remote-Geräts (wird automatisch erkannt oder kann manuell eingegeben werden)"
+                      placeholder={t('services.examplePlaceholder', { example: t('services.rustdeskIdExample') })}
+                      helperText={t('services.rustdeskIdPlaceholder')}
                       sx={{
                         '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
                         '& .MuiInputBase-root': {
@@ -2966,7 +2964,7 @@ const ServicePanel = ({
                       value={formData.rustdeskPassword || ''}
                       onChange={e => handleFieldChange('rustdeskPassword', e.target.value)}
                       margin="normal"
-                      helperText="Das Passwort für die RustDesk-Verbindung (wird verschlüsselt gespeichert)"
+                      helperText={t('services.rustdeskPasswordPlaceholder')}
                       sx={{
                         '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
                         '& .MuiInputBase-root': {
@@ -2978,7 +2976,7 @@ const ServicePanel = ({
                     />
 
                     <Alert severity="info" sx={{ mt: 2 }}>
-                      RustDesk nutzt eine ID-basierte Verbindung. Falls noch nicht installiert, wird RustDesk automatisch beim ersten Klick auf den Remote Desktop Button installiert.
+                      {t('services.rustdeskInfo')}
                     </Alert>
 
                     {/* RustDesk Installation Status Button */}
@@ -2991,12 +2989,12 @@ const ServicePanel = ({
                       fullWidth
                       sx={{ mt: 2 }}
                     >
-                      {checkingRustDeskStatus ? 'Prüfe Status...' : 'RustDesk Installations Status'}
+                      {checkingRustDeskStatus ? t('services.checkingStatus') : t('services.rustdeskInstallationStatus')}
                     </Button>
 
                     {!formData.sshConnection && (
                       <Alert severity="warning" sx={{ mt: 2 }}>
-                        Bitte wählen Sie zuerst eine SSH-Verbindung aus, um den RustDesk-Status zu prüfen.
+                        {t('services.selectSshConnectionFirst')}
                       </Alert>
                     )}
                   </>
@@ -3020,7 +3018,7 @@ const ServicePanel = ({
                   },
                 }}
               >
-                Änderungen speichern
+                {t('services.saveChanges')}
               </Button>
 
               {adminMode && !appliance?.isNew && (
@@ -3039,7 +3037,7 @@ const ServicePanel = ({
                     },
                   }}
                 >
-                  Löschen
+                  {t('common.delete')}
                 </Button>
               )}
             </Box>
@@ -3085,19 +3083,19 @@ const ServicePanel = ({
                 onClick={handleDelete}
                 disabled={loading}
               >
-                Löschen
+                {t('services.deleteButton')}
               </Button>
               <Button
                 color="inherit"
                 size="small"
                 onClick={() => setShowDeleteConfirm(false)}
               >
-                Abbrechen
+                {t('services.cancelButton')}
               </Button>
             </>
           }
         >
-          Möchten Sie diesen Service wirklich löschen?
+          {t('services.deleteConfirmMessage')}
         </Alert>
       </Snackbar>
 
