@@ -220,36 +220,108 @@ const SettingsPanel = ({
     }
   }, [tabValue]);
 
-  // SSE event listeners for categories
+  // SSE event listeners for categories - REAL-TIME UPDATES
   useEffect(() => {
-    if (addEventListener && visibleTabs[tabValue]?.key === 'categories') {
+    if (addEventListener) {
       const unsubscribers = [
+        // Handle category creation
         addEventListener('category_created', (data) => {
-
+          
+          // Update local categories immediately
+          setLocalCategories(prev => {
+            // Check if category already exists to avoid duplicates
+            const exists = prev.some(cat => cat.id === data.id);
+            if (exists) return prev;
+            
+            // Add new category at the end or at specified position
+            const newCategories = [...prev, data];
+            // Sort by order_index if present
+            return newCategories.sort((a, b) => 
+              (a.orderIndex || a.order_index || 0) - (b.orderIndex || b.order_index || 0)
+            );
+          });
+          
+          // Also trigger the callback for parent component
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
+        
+        // Handle category updates
         addEventListener('category_updated', (data) => {
-
+          
+          // Update the specific category in local state
+          setLocalCategories(prev => prev.map(cat => 
+            cat.id === data.id ? { ...cat, ...data } : cat
+          ));
+          
+          // Also trigger the callback for parent component
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
+        
+        // Handle category deletion
         addEventListener('category_deleted', (data) => {
-
+          
+          // Remove category from local state
+          setLocalCategories(prev => prev.filter(cat => 
+            cat.id !== (data.id || data.categoryId)
+          ));
+          
+          // Also trigger the callback for parent component
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
+        
+        // Handle category restoration
         addEventListener('category_restored', (data) => {
-
+          
+          // Add restored category back to local state
+          setLocalCategories(prev => {
+            const exists = prev.some(cat => cat.id === data.id);
+            if (exists) {
+              // Update existing
+              return prev.map(cat => cat.id === data.id ? { ...cat, ...data } : cat);
+            } else {
+              // Add new
+              const newCategories = [...prev, data];
+              return newCategories.sort((a, b) => 
+                (a.orderIndex || a.order_index || 0) - (b.orderIndex || b.order_index || 0)
+              );
+            }
+          });
+          
+          // Also trigger the callback for parent component
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
         }),
+        
+        // Handle category revert
         addEventListener('category_reverted', (data) => {
-
+          
+          // Update category with reverted data
+          setLocalCategories(prev => prev.map(cat => 
+            cat.id === data.id ? { ...cat, ...data } : cat
+          ));
+          
+          // Also trigger the callback for parent component
+          if (onCategoriesUpdate) {
+            onCategoriesUpdate();
+          }
+        }),
+        
+        // Handle categories reordering
+        addEventListener('categories_reordered', (data) => {
+          
+          // If we receive the full list, replace it
+          if (data.categories && Array.isArray(data.categories)) {
+            setLocalCategories(data.categories);
+          }
+          
+          // Also trigger the callback for parent component
           if (onCategoriesUpdate) {
             onCategoriesUpdate();
           }
@@ -262,7 +334,7 @@ const SettingsPanel = ({
         });
       };
     }
-  }, [addEventListener, visibleTabs, tabValue, onCategoriesUpdate]);
+  }, [addEventListener, onCategoriesUpdate]);
 
   // SSE event listeners for settings updates
   useEffect(() => {
