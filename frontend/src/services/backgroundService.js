@@ -22,7 +22,33 @@ export class BackgroundService {
 
   static async activateBackground(backgroundId) {
     try {
-      await axios.post(`/api/background/activate/${backgroundId}`);
+      const response = await axios.post(`/api/background/activate/${backgroundId}`);
+      
+      // If settings are returned, update localStorage to preserve them
+      if (response.data && response.data.settings) {
+        const currentSettings = JSON.parse(localStorage.getItem('backgroundSettings') || '{}');
+        
+        // Preserve blur, opacity, and position values
+        const updatedSettings = {
+          ...currentSettings,
+          enabled: response.data.settings.background_enabled === 'true',
+          // Keep existing blur value if not provided in response
+          blur: response.data.settings.background_blur ? 
+            parseInt(response.data.settings.background_blur) : 
+            (currentSettings.blur || 5),
+          // Keep existing opacity value if not provided in response  
+          opacity: response.data.settings.background_opacity ? 
+            parseFloat(response.data.settings.background_opacity) : 
+            (currentSettings.opacity || 0.3),
+          // Keep existing position value if not provided in response
+          position: response.data.settings.background_position || 
+            currentSettings.position || 
+            'center center',
+        };
+        
+        localStorage.setItem('backgroundSettings', JSON.stringify(updatedSettings));
+      }
+      
       return true;
     } catch (error) {
       console.error('Error activating background:', error);

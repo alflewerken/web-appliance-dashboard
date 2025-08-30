@@ -121,14 +121,33 @@ export const useBackground = () => {
 
   const activateBackground = async backgroundId => {
     try {
+      // Store current blur/opacity/position values before activation
+      const currentBlur = settingsRef.current.blur;
+      const currentOpacity = settingsRef.current.opacity;
+      const currentPosition = settingsRef.current.position;
+      
       const success = await BackgroundService.activateBackground(backgroundId);
       if (success) {
-        // Lade alle Daten neu
+        // Reload all data
         await Promise.all([
           loadCurrentBackground(),
           loadAllBackgroundImages(),
-          loadBackgroundSettings(),
         ]);
+        
+        // Load settings but preserve blur/opacity/position if they weren't changed
+        const newSettings = await BackgroundService.loadBackgroundSettings();
+        
+        // Preserve existing values if the backend didn't explicitly change them
+        const mergedSettings = {
+          ...newSettings,
+          blur: newSettings.blur !== undefined ? newSettings.blur : currentBlur,
+          opacity: newSettings.opacity !== undefined ? newSettings.opacity : currentOpacity,
+          position: newSettings.position || currentPosition,
+        };
+        
+        setBackgroundSettings(mergedSettings);
+        localStorage.setItem('backgroundSettings', JSON.stringify(mergedSettings));
+        updateBackgroundStyles(mergedSettings);
       }
       return success;
     } catch (error) {

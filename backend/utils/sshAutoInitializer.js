@@ -278,25 +278,51 @@ class SSHAutoInitializer {
                     // Read generated keys
                     const privateKey = await fs.readFile(keyPath, 'utf8');
 
-                    // Store in database
-                    await pool.execute(
-                      `INSERT INTO ssh_keys 
-                       (key_name, private_key, public_key, key_type, key_size, comment, is_default, created_at, updated_at) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                       ON DUPLICATE KEY UPDATE 
-                       private_key = VALUES(private_key), 
-                       public_key = VALUES(public_key), 
-                       updated_at = NOW()`,
-                      [
-                        'dashboard',
-                        privateKey.trim(),
-                        publicKey.trim(),
-                        'rsa',
-                        2048,
-                        'Auto-generated dashboard SSH key (OpenSSL)',
-                        true,
-                      ]
+                    // Store in database - check if exists first
+                    const [existing] = await pool.execute(
+                      'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by IS NULL',
+                      ['dashboard']
                     );
+
+                    if (existing.length > 0) {
+                      // Update existing key
+                      await pool.execute(
+                        `UPDATE ssh_keys 
+                         SET private_key = ?, 
+                             public_key = ?, 
+                             key_type = ?, 
+                             key_size = ?, 
+                             comment = ?, 
+                             is_default = ?, 
+                             updated_at = NOW()
+                         WHERE key_name = ? AND created_by IS NULL`,
+                        [
+                          privateKey.trim(),
+                          publicKey.trim(),
+                          'rsa',
+                          2048,
+                          'Auto-generated dashboard SSH key (OpenSSL)',
+                          true,
+                          'dashboard'
+                        ]
+                      );
+                    } else {
+                      // Insert new key
+                      await pool.execute(
+                        `INSERT INTO ssh_keys 
+                         (key_name, private_key, public_key, key_type, key_size, comment, is_default, created_by, created_at, updated_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW())`,
+                        [
+                          'dashboard',
+                          privateKey.trim(),
+                          publicKey.trim(),
+                          'rsa',
+                          2048,
+                          'Auto-generated dashboard SSH key (OpenSSL)',
+                          true
+                        ]
+                      );
+                    }
 
                     console.log('✅ Generated and stored default SSH key');
                     resolve(true);

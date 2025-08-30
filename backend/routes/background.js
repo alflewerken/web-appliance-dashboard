@@ -116,12 +116,23 @@ router.post('/upload', upload.single('background'), async (req, res) => {
         createdAt: new Date()
       });
 
-      // Enable background in settings using raw query for UPSERT
-      await db.raw(
-        `INSERT INTO user_settings (setting_key, setting_value) 
-         VALUES ('background_enabled', 'true') 
-         ON DUPLICATE KEY UPDATE setting_value = 'true'`
+      // Enable background in settings - use proper UPDATE/INSERT logic
+      const [existingEnabled] = await pool.execute(
+        'SELECT id FROM user_settings WHERE user_id IS NULL AND setting_key = ?',
+        ['background_enabled']
       );
+
+      if (existingEnabled.length > 0) {
+        await pool.execute(
+          'UPDATE user_settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id IS NULL AND setting_key = ?',
+          ['true', 'background_enabled']
+        );
+      } else {
+        await pool.execute(
+          'INSERT INTO user_settings (user_id, setting_key, setting_value) VALUES (NULL, ?, ?)',
+          ['background_enabled', 'true']
+        );
+      }
 
       const responseData = {
         message: 'Background image uploaded successfully',
@@ -235,17 +246,47 @@ router.post('/activate/:id', async (req, res) => {
       return res.status(404).json({ error: 'Background image not found' });
     }
 
-    // Enable background in settings
-    await db.raw(
-      `INSERT INTO user_settings (setting_key, setting_value) 
-       VALUES ('background_enabled', 'true') 
-       ON DUPLICATE KEY UPDATE setting_value = 'true'`
+    // Enable background in settings - use proper UPDATE/INSERT logic
+    const [existingEnabled] = await pool.execute(
+      'SELECT id FROM user_settings WHERE user_id IS NULL AND setting_key = ?',
+      ['background_enabled']
     );
 
-    res.json({ message: 'Background activated successfully' });
+    if (existingEnabled.length > 0) {
+      await pool.execute(
+        'UPDATE user_settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id IS NULL AND setting_key = ?',
+        ['true', 'background_enabled']
+      );
+    } else {
+      await pool.execute(
+        'INSERT INTO user_settings (user_id, setting_key, setting_value) VALUES (NULL, ?, ?)',
+        ['background_enabled', 'true']
+      );
+    }
 
-    // Broadcast background activation
-    broadcast('background_activated', { id: parseInt(id) });
+    // Get all current background settings to send back
+    const [settings] = await pool.execute(
+      `SELECT setting_key, setting_value FROM user_settings 
+       WHERE setting_key IN ('background_blur', 'background_opacity', 'background_position', 'background_enabled')
+       AND user_id IS NULL`
+    );
+
+    // Convert to object
+    const backgroundSettings = {};
+    settings.forEach(row => {
+      backgroundSettings[row.setting_key] = row.setting_value;
+    });
+
+    res.json({ 
+      message: 'Background activated successfully',
+      settings: backgroundSettings 
+    });
+
+    // Broadcast background activation with settings
+    broadcast('background_activated', { 
+      id: parseInt(id),
+      settings: backgroundSettings 
+    });
   } catch (error) {
     console.error('Error activating background:', error);
     res.status(500).json({ error: 'Failed to activate background' });
@@ -283,11 +324,22 @@ router.delete('/:id', async (req, res) => {
 
     // If this was the active background, disable background feature
     if (background.isActive) {
-      await db.raw(
-        `INSERT INTO user_settings (setting_key, setting_value) 
-         VALUES ('background_enabled', 'false') 
-         ON DUPLICATE KEY UPDATE setting_value = 'false'`
+      const [existingEnabled] = await pool.execute(
+        'SELECT id FROM user_settings WHERE user_id IS NULL AND setting_key = ?',
+        ['background_enabled']
       );
+
+      if (existingEnabled.length > 0) {
+        await pool.execute(
+          'UPDATE user_settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id IS NULL AND setting_key = ?',
+          ['false', 'background_enabled']
+        );
+      } else {
+        await pool.execute(
+          'INSERT INTO user_settings (user_id, setting_key, setting_value) VALUES (NULL, ?, ?)',
+          ['background_enabled', 'false']
+        );
+      }
     }
 
     res.json({ message: 'Background image deleted successfully' });
@@ -303,11 +355,22 @@ router.delete('/:id', async (req, res) => {
 // Disable background
 router.post('/disable', async (req, res) => {
   try {
-    await db.raw(
-      `INSERT INTO user_settings (setting_key, setting_value) 
-       VALUES ('background_enabled', 'false') 
-       ON DUPLICATE KEY UPDATE setting_value = 'false'`
+    const [existingEnabled] = await pool.execute(
+      'SELECT id FROM user_settings WHERE user_id IS NULL AND setting_key = ?',
+      ['background_enabled']
     );
+
+    if (existingEnabled.length > 0) {
+      await pool.execute(
+        'UPDATE user_settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id IS NULL AND setting_key = ?',
+        ['false', 'background_enabled']
+      );
+    } else {
+      await pool.execute(
+        'INSERT INTO user_settings (user_id, setting_key, setting_value) VALUES (NULL, ?, ?)',
+        ['background_enabled', 'false']
+      );
+    }
 
     res.json({ message: 'Background disabled successfully' });
 

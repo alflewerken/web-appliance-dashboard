@@ -31,6 +31,20 @@ router.get('/', async (req, res) => {
         processedKeys.add(key);
       }
     });
+    
+    // Ensure background settings have default values if not set
+    if (!settings.background_blur) {
+      settings.background_blur = '5';
+    }
+    if (!settings.background_opacity) {
+      settings.background_opacity = '0.3';
+    }
+    if (!settings.background_position) {
+      settings.background_position = 'center center';
+    }
+    if (!settings.background_enabled) {
+      settings.background_enabled = 'false';
+    }
 
     res.json(settings);
   } catch (error) {
