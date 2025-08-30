@@ -152,6 +152,7 @@ const SettingsPanel = ({
     items_per_page: '20',
     auto_refresh: 'false',
     admin_mode: 'false',
+    language: i18n.language || 'en',
   });
   const [generalLoading, setGeneralLoading] = useState(true);
 
@@ -360,8 +361,15 @@ const SettingsPanel = ({
       const data = await SettingsService.fetchSettings();
       setGeneralSettings(data);
 
+      // Apply theme if set
       if (data.theme_mode && onApplyTheme) {
         onApplyTheme(data.theme_mode);
+      }
+      
+      // Apply language if set
+      if (data.language) {
+        i18n.changeLanguage(data.language);
+        localStorage.setItem('i18nextLng', data.language);
       }
     } catch (error) {
       setError(t('settings.errors.loadFailed'));
@@ -375,6 +383,20 @@ const SettingsPanel = ({
 
     if (key === 'theme_mode' && onApplyTheme) {
       onApplyTheme(value);
+    }
+    
+    // Handle language change separately
+    if (key === 'language') {
+      try {
+        // Change language in i18n - this will automatically update all components
+        await i18n.changeLanguage(value);
+        // Also update localStorage for i18next
+        localStorage.setItem('i18nextLng', value);
+        console.log('Language changed successfully to:', value);
+        // NO RELOAD NEEDED - React i18next handles the UI update automatically
+      } catch (error) {
+        console.error('Failed to change language:', error);
+      }
     }
 
     try {
@@ -745,10 +767,10 @@ const SettingsPanel = ({
                     {t('settings.language')}
                   </InputLabel>
                   <Select
-                    value={i18n.language}
-                    onChange={e => {
-                      i18n.changeLanguage(e.target.value);
-                      localStorage.setItem('language', e.target.value);
+                    value={generalSettings.language || i18n.language}
+                    onChange={(e) => {
+                      const newLanguage = e.target.value;
+                      handleGeneralSettingChange('language', newLanguage);
                     }}
                     label={t('settings.language')}
                     sx={{

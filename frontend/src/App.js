@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Import Services
 import { ApplianceService } from './services/applianceService';
+import { SettingsService } from './services/settingsService';
 
 // Import Components
 import AppSidebar from './components/AppSidebar';
@@ -78,7 +79,7 @@ import './styles/mui-dropdown-fix.css'; // Fix für Dropdown z-index auf Tablets
 
 // Dashboard Component - Only rendered when authenticated
 function Dashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isAdmin } = useAuth();
 
   // Local State für UI-Komponenten
@@ -221,6 +222,32 @@ function Dashboard() {
 
   // Simple swipe gesture hook for mobile sidebar
   useSimpleSwipe(sidebarOpen, setSidebarOpen);
+
+  // Initialize language from backend settings on mount
+  useEffect(() => {
+    const initializeLanguage = async () => {
+      try {
+        // Load language from backend settings
+        const settings = await SettingsService.fetchSettings();
+        if (settings.language && settings.language !== i18n.language) {
+          console.log('Loading language from backend:', settings.language);
+          await i18n.changeLanguage(settings.language);
+          // Sync with localStorage for next app start
+          localStorage.setItem('i18nextLng', settings.language);
+        } else if (!settings.language) {
+          // If no language in backend, save current language to backend
+          const currentLang = i18n.language || 'en';
+          console.log('Saving current language to backend:', currentLang);
+          await SettingsService.updateSetting('language', currentLang);
+        }
+      } catch (error) {
+        console.error('Failed to initialize language from settings:', error);
+        // Keep using current language from i18n
+      }
+    };
+
+    initializeLanguage();
+  }, []); // Run only once on mount
 
   // Load hosts when hosts view is shown
   useEffect(() => {

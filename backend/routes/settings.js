@@ -72,17 +72,30 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Setting key is required' });
     }
 
-    // Use INSERT ... ON DUPLICATE KEY UPDATE for upsert functionality
-    // For global settings, user_id should be NULL
-    const [result] = await pool.execute(
-      `INSERT INTO user_settings (user_id, setting_key, setting_value, description) 
-       VALUES (NULL, ?, ?, ?) 
-       ON DUPLICATE KEY UPDATE 
-       setting_value = VALUES(setting_value), 
-       description = COALESCE(VALUES(description), description),
-       updated_at = CURRENT_TIMESTAMP`,
-      [key, value || '', description || null]
+    // First check if setting exists for global settings (user_id = NULL)
+    const [existing] = await pool.execute(
+      'SELECT id FROM user_settings WHERE user_id IS NULL AND setting_key = ?',
+      [key]
     );
+
+    if (existing.length > 0) {
+      // Update existing setting
+      await pool.execute(
+        `UPDATE user_settings 
+         SET setting_value = ?, 
+             description = COALESCE(?, description),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE user_id IS NULL AND setting_key = ?`,
+        [value || '', description || null, key]
+      );
+    } else {
+      // Insert new setting
+      await pool.execute(
+        `INSERT INTO user_settings (user_id, setting_key, setting_value, description) 
+         VALUES (NULL, ?, ?, ?)`,
+        [key, value || '', description || null]
+      );
+    }
 
     res.json({
       message: 'Setting updated successfully',
@@ -147,14 +160,28 @@ router.put('/', async (req, res) => {
       let updatedCount = 0;
 
       for (const [key, value] of Object.entries(settings)) {
-        await connection.execute(
-          `INSERT INTO user_settings (user_id, setting_key, setting_value) 
-           VALUES (NULL, ?, ?) 
-           ON DUPLICATE KEY UPDATE 
-           setting_value = VALUES(setting_value),
-           updated_at = CURRENT_TIMESTAMP`,
-          [key, value]
+        // Check if setting exists
+        const [existing] = await connection.execute(
+          'SELECT id FROM user_settings WHERE user_id IS NULL AND setting_key = ?',
+          [key]
         );
+
+        if (existing.length > 0) {
+          // Update existing
+          await connection.execute(
+            `UPDATE user_settings 
+             SET setting_value = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE user_id IS NULL AND setting_key = ?`,
+            [value, key]
+          );
+        } else {
+          // Insert new
+          await connection.execute(
+            `INSERT INTO user_settings (user_id, setting_key, setting_value) 
+             VALUES (NULL, ?, ?)`,
+            [key, value]
+          );
+        }
         updatedCount++;
       }
 

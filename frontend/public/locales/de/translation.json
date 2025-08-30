@@ -831,7 +831,7 @@
       "privateKeyCopied": "Privater Schlüssel in Zwischenablage kopiert",
       "keyDeleted": "SSH-Schlüssel erfolgreich gelöscht"
     },
-    "confirmDelete": "Möchten Sie den SSH-Schlüssel \"{{keyName}}\" wirklich löschen?"
+    "confirmDelete": "Möchten Sie den SSH-Schlüssel \"{{keyName}}\" wirklich löschen?",
     "success": {
       "keyGenerated": "SSH-Schlüssel erfolgreich generiert",
       "keyImported": "SSH-Schlüssel erfolgreich importiert",
