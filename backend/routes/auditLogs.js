@@ -423,7 +423,7 @@ router.delete('/delete-filtered', requireAdmin, async (req, res) => {
 
 // Delete single audit log entry
 router.delete('/:id', requireAdmin, async (req, res) => {
-  console.log(`[AUDIT] Deleting audit log entry: ${req.params.id}`);
+
   const connection = await pool.getConnection();
   
   try {
@@ -453,13 +453,12 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     logger.info(`Admin ${req.user.username} deleted audit log entry ID: ${logId}`);
     
     // Broadcast the deletion event
-    console.log(`[AUDIT] Broadcasting deletion event for log ID: ${logId}`);
+
     broadcast('audit_log_deleted', {
       id: logId,
       deletedBy: req.user.username
     });
-    console.log(`[AUDIT] Broadcast completed`);
-    
+
     res.json({ 
       success: true, 
       message: 'Audit log entry deleted successfully'

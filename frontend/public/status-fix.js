@@ -2,8 +2,7 @@
 // This script ensures serviceStatus is properly mapped
 
 (function() {
-  console.log('🔧 Applying Service Status Hot-Fix...');
-  
+
   // Hook into React component updates
   const originalCreateElement = React.createElement;
   React.createElement = function(...args) {
@@ -23,19 +22,13 @@
       
       // Log for debugging
       if (appliance.name === 'Nextcloud-Mac') {
-        console.log('Fixed Nextcloud-Mac:', {
-          name: appliance.name,
-          serviceStatus: appliance.serviceStatus,
-          statusCommand: appliance.statusCommand
-        });
+
       }
     }
     
     return originalCreateElement.apply(this, args);
   };
-  
-  console.log('✅ Service Status Hot-Fix applied');
-  
+
   // Force re-render after 1 second
   setTimeout(() => {
     window.dispatchEvent(new Event('resize'));

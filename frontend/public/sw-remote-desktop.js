@@ -6,7 +6,7 @@
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'OPEN_REMOTE_DESKTOP') {
     // Kann verwendet werden für Offline-Handling oder Caching
-    console.log('Remote Desktop Window Request:', event.data);
+
   }
 });
 

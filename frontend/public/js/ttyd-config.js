@@ -9,7 +9,7 @@
         
         // Block ttyd token fetch attempts
         if (typeof url === 'string' && url.includes('/terminal/token')) {
-            console.log('[TTYD] Token fetch blocked - not required for operation');
+
             return Promise.resolve(new Response(JSON.stringify({
                 success: true,
                 token: 'not-required'
@@ -35,7 +35,7 @@
             }
             // Suppress WebGL renderer messages (info, not warning)
             if (message.includes('WebGL renderer loaded')) {
-                console.log('[TTYD]', message);
+
                 return;
             }
         }
