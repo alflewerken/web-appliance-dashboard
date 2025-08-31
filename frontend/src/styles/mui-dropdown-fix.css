@@ -59,7 +59,8 @@
   z-index: 2300 !important; /* Ganz oben */
 }
 
-/* Debug-Helper: Zeigt z-index Werte an (kann später entfernt werden) */
+/* Debug-Helper: Zeigt z-index Werte an - DEAKTIVIERT */
+/*
 .debug-z-index .MuiPopover-root::before,
 .debug-z-index .panel-container::before {
   content: attr(style);
@@ -72,3 +73,4 @@
   font-size: 10px;
   pointer-events: none;
 }
+*/

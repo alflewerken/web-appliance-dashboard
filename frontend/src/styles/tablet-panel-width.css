@@ -54,9 +54,9 @@
   }
 }
 
-/* Debug-Helper zum Testen */
+/* Debug-Helper zum Testen - DEAKTIVIERT */
+/* 
 @media screen and (min-width: 769px) and (max-width: 1366px) {
-  /* Zeige Panel-Breite visuell */
   .panel-container > .MuiBox-root::before {
     content: attr(style);
     position: absolute;
@@ -71,3 +71,4 @@
     word-break: break-all;
   }
 }
+*/
