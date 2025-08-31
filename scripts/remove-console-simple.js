@@ -152,26 +152,42 @@ function processFile(filePath) {
  */
 function findJsFiles(dir, fileList = []) {
   try {
+    // Check if directory exists before reading
+    if (!fs.existsSync(dir)) {
+      return fileList;
+    }
+    
     const files = fs.readdirSync(dir);
     
     files.forEach(file => {
       const filePath = path.join(dir, file);
-      const stat = fs.statSync(filePath);
       
-      if (stat.isDirectory()) {
-        if (!CONFIG.skipDirs.includes(path.basename(filePath))) {
-          findJsFiles(filePath, fileList);
+      try {
+        const stat = fs.statSync(filePath);
+        
+        if (stat.isDirectory()) {
+          if (!CONFIG.skipDirs.includes(path.basename(filePath))) {
+            findJsFiles(filePath, fileList);
+          }
+        } else if (file.endsWith('.js') && !CONFIG.skipFiles.includes(file)) {
+          // Check if file matches any skip pattern
+          const shouldSkip = CONFIG.skipPatterns.some(pattern => pattern.test(file));
+          if (!shouldSkip) {
+            fileList.push(filePath);
+          }
         }
-      } else if (file.endsWith('.js') && !CONFIG.skipFiles.includes(file)) {
-        // Check if file matches any skip pattern
-        const shouldSkip = CONFIG.skipPatterns.some(pattern => pattern.test(file));
-        if (!shouldSkip) {
-          fileList.push(filePath);
+      } catch (statError) {
+        // Silently skip files/directories that can't be accessed
+        if (CONFIG.verbose) {
+          console.log(`⚠️  Skipping inaccessible path: ${filePath}`);
         }
       }
     });
   } catch (error) {
-    console.error(`Error reading directory ${dir}:`, error.message);
+    // Only show errors in verbose mode
+    if (CONFIG.verbose) {
+      console.error(`⚠️  Cannot read directory ${dir}: ${error.message}`);
+    }
   }
   
   return fileList;
