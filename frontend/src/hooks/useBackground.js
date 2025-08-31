@@ -16,8 +16,8 @@ export const useBackground = () => {
     }
     return {
       enabled: false,
-      opacity: 0.3,
-      blur: 5,
+      opacity: 30,  // Default 30% (Wert zwischen 0-100)
+      blur: 0,      // Default kein Blur
       position: 'center',
     };
   };
@@ -39,49 +39,21 @@ export const useBackground = () => {
     // Save to localStorage for early initialization
     localStorage.setItem('backgroundSettings', JSON.stringify(settings));
     
-    // Update body attributes
+    // Update body attributes only (no DOM queries)
     if (settings.enabled) {
       document.body.classList.add('has-background-image');
       document.body.setAttribute('data-opacity', settings.opacity);
       document.body.setAttribute('data-blur', settings.blur);
+      document.body.setAttribute('data-position', settings.position || 'center');
     } else {
       document.body.classList.remove('has-background-image');
       document.body.removeAttribute('data-opacity');
       document.body.removeAttribute('data-blur');
+      document.body.removeAttribute('data-position');
     }
-
-    // Update background element if it exists
-    const backgroundElement =
-      backgroundRef.current ||
-      document.querySelector('.background-image') ||
-      document.querySelector('[data-background="true"]');
-
-    if (backgroundElement && settings.enabled) {
-      // Direct style manipulation with immediate effect
-      backgroundElement.style.transition =
-        'opacity 0.2s ease, filter 0.2s ease';
-      backgroundElement.style.opacity = settings.opacity;
-      backgroundElement.style.filter = `blur(${settings.blur}px)`;
-      backgroundElement.style.webkitFilter = `blur(${settings.blur}px)`;
-      backgroundElement.style.backgroundPosition =
-        settings.position || 'center';
-
-      // Update overlay if exists
-      const overlay = document.querySelector('.background-overlay');
-      if (overlay) {
-        overlay.style.opacity = Math.max(
-          0,
-          Math.min(1, 1 - (settings.opacity || 0.3))
-        );
-      }
-
-      // Trigger a custom event to notify other components
-      window.dispatchEvent(
-        new CustomEvent('backgroundSettingsUpdated', {
-          detail: settings,
-        })
-      );
-    }
+    
+    // Performance: Keine DOM-Queries mehr, keine direkten Style-Manipulationen
+    // Alles wird über CSS-Klassen und data-attributes gesteuert
   };
 
   const loadCurrentBackground = async () => {
@@ -134,15 +106,16 @@ export const useBackground = () => {
           loadAllBackgroundImages(),
         ]);
         
-        // Load settings but preserve blur/opacity/position if they weren't changed
+        // Load settings but ALWAYS preserve blur/opacity/position
+        // These values should NOT change when switching images
         const newSettings = await BackgroundService.loadBackgroundSettings();
         
-        // Preserve existing values if the backend didn't explicitly change them
+        // Always keep the current slider values when switching images
         const mergedSettings = {
           ...newSettings,
-          blur: newSettings.blur !== undefined ? newSettings.blur : currentBlur,
-          opacity: newSettings.opacity !== undefined ? newSettings.opacity : currentOpacity,
-          position: newSettings.position || currentPosition,
+          blur: currentBlur ?? 0,      // Keep current blur value
+          opacity: currentOpacity ?? 30, // Keep current opacity value  
+          position: currentPosition || 'center', // Keep current position
         };
         
         setBackgroundSettings(mergedSettings);
@@ -224,44 +197,13 @@ export const useBackground = () => {
     }
   };
 
-  // Effect für Blur-Anwendung
+  // Effect für Blur-Anwendung - DEAKTIVIERT für Performance
+  // Blur wird jetzt nur über CSS-Klassen gesteuert
   useEffect(() => {
-    if (currentBackground && backgroundSettings.enabled) {
-      const applyBlurEffect = () => {
-        const backgroundElement =
-          backgroundRef.current ||
-          document.querySelector('.background-image') ||
-          document.querySelector('[data-background="true"]');
-
-        if (backgroundElement) {
-          const blurValue = Math.max(
-            0,
-            Math.min(50, backgroundSettings.blur || 0)
-          );
-          const filterValue = `blur(${blurValue}px)`;
-
-          backgroundElement.style.transition = 'none';
-          backgroundElement.style.filter = filterValue;
-          backgroundElement.style.webkitFilter = filterValue;
-          backgroundElement.style.MozFilter = filterValue;
-          backgroundElement.style.msFilter = filterValue;
-          backgroundElement.style.OFilter = filterValue;
-
-          backgroundElement.offsetHeight;
-
-          requestAnimationFrame(() => {
-            backgroundElement.style.transition =
-              'filter 0.2s ease-out, -webkit-filter 0.2s ease-out';
-          });
-        }
-      };
-
-      applyBlurEffect();
-      const timer = setTimeout(applyBlurEffect, 50);
-
-      return () => clearTimeout(timer);
-    }
-  }, [currentBackground, backgroundSettings.blur, backgroundSettings.enabled]);
+    // Performance-Fix: Dieser Effect ist deaktiviert
+    // Der Blur wird über data-attributes und CSS gehandhabt
+    return;
+  }, []);
 
   // Effect to update styles when backgroundSettings change
   useEffect(() => {
@@ -310,7 +252,7 @@ export const useBackground = () => {
       'background_activated',
       data => {
         loadCurrentBackground();
-        loadBackgroundSettings();
+        // Don't reload settings - keep current slider values
       }
     );
 

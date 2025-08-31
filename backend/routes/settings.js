@@ -33,16 +33,16 @@ router.get('/', async (req, res) => {
     });
     
     // Ensure background settings have default values if not set
-    if (!settings.background_blur) {
+    if (settings.background_blur === undefined || settings.background_blur === null) {
       settings.background_blur = '5';
     }
-    if (!settings.background_opacity) {
+    if (settings.background_opacity === undefined || settings.background_opacity === null) {
       settings.background_opacity = '0.3';
     }
-    if (!settings.background_position) {
+    if (settings.background_position === undefined || settings.background_position === null) {
       settings.background_position = 'center center';
     }
-    if (!settings.background_enabled) {
+    if (settings.background_enabled === undefined || settings.background_enabled === null) {
       settings.background_enabled = 'false';
     }
 

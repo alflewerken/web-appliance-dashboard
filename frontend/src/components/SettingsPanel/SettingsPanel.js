@@ -138,12 +138,15 @@ const SettingsPanel = ({
     setLocalCategories(apiCategories || []);
   }, [apiCategories]);
   // Load current background when background tab is opened
+  // TEMPORÄR DEAKTIVIERT FÜR PERFORMANCE-TEST
+  /*
   useEffect(() => {
     const currentTab = visibleTabs[tabValue]?.key;
     if (currentTab === 'background' && loadCurrentBackground) {
       loadCurrentBackground();
     }
   }, [tabValue, loadCurrentBackground, visibleTabs]);
+  */
 
   // General Settings State
   const [generalSettings, setGeneralSettings] = useState({
@@ -1347,17 +1350,18 @@ const SettingsPanel = ({
           }}
         >
           {visibleTabs.map((tab, index) => (
-            <Box 
-              key={tab.key} 
-              sx={{ 
-                width: '100%',
-                height: '100%',
-                overflow: 'auto',
-                display: tabValue === index ? 'block' : 'none'
-              }}
-            >
-              {getTabContent(tab)}
-            </Box>
+            tabValue === index ? (
+              <Box 
+                key={tab.key} 
+                sx={{ 
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'auto'
+                }}
+              >
+                {getTabContent(tab)}
+              </Box>
+            ) : null
           ))}
         </Box>
       </Box>

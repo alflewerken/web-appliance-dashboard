@@ -49,7 +49,7 @@ const MoonlightPlayer = ({ applianceId, onClose }) => {
       pcRef.current = pc;
 
       // Connect to signaling server
-      const ws = new WebSocket(`ws://localhost:3001/api/streaming/stream/${applianceId}`);
+      const ws = new WebSocket(`ws://${window.location.host}/api/streaming/stream/${applianceId}`);
       
       ws.onmessage = async (event) => {
         const data = JSON.parse(event.data);

@@ -34,7 +34,7 @@ const BackgroundImage = ({
   // Ensure backgroundSettings has valid defaults
   const settings = {
     enabled: backgroundSettings?.enabled ?? false,
-    opacity: backgroundSettings?.opacity ?? 0.3,
+    opacity: backgroundSettings?.opacity ?? 30,  // Default 30% als Zahl 0-100
     blur: backgroundSettings?.blur ?? 0,
     position: backgroundSettings?.position || 'center',
   };
@@ -128,7 +128,7 @@ const BackgroundImage = ({
           width: '100%',
           height: '100%',
           backgroundColor: currentTheme === 'light' ? '#ffffff' : '#000000',
-          opacity: Math.max(0, Math.min(1, 1 - (settings.opacity || 0.3))),
+          opacity: Math.max(0, Math.min(1, 1 - (settings.opacity / 100))),
           zIndex: -1,
           pointerEvents: 'none',
           mixBlendMode: currentTheme === 'light' ? 'screen' : 'multiply',

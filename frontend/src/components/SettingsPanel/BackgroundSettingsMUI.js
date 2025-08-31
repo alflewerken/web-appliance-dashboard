@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box,
@@ -16,9 +16,86 @@ import {
   ImageListItemBar,
   Alert,
   Divider,
+  Stack,
 } from '@mui/material';
 import { Upload, X, Image, Layers } from 'lucide-react';
 import '../../styles/PositionGrid.css';
+
+// Memoized Preview Component - IMMER sichtbar
+const BackgroundPreview = memo(({ 
+  currentBackground, 
+  opacity, 
+  blur, 
+  position 
+}) => {
+  const { t } = useTranslation();
+  
+  if (!currentBackground?.filename) {
+    return (
+      <Box
+        sx={{
+          width: '100%',
+          height: 200,
+          borderRadius: 2,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '1px dashed rgba(255,255,255,0.3)',
+        }}
+      >
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+          {t('settings.backgroundNoSelected')}
+        </Typography>
+      </Box>
+    );
+  }
+  
+  const imageUrl = `/uploads/backgrounds/${currentBackground.filename}`;
+  const positionMap = {
+    'top-left': '0% 0%',
+    'top-center': '50% 0%',
+    'top-right': '100% 0%',
+    'center-left': '0% 50%',
+    'center': '50% 50%',
+    'center-right': '100% 50%',
+    'bottom-left': '0% 100%',
+    'bottom-center': '50% 100%',
+    'bottom-right': '100% 100%'
+  };
+
+  return (
+    <Box
+      sx={{
+        width: '100%',
+        height: 200,
+        borderRadius: 2,
+        overflow: 'hidden',
+        position: 'relative',
+        backgroundColor: '#000',
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          height: '100%',
+          backgroundImage: `url(${imageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: positionMap[position] || '50% 50%',
+          opacity: opacity / 100,
+          filter: blur > 0 ? `blur(${blur}px)` : 'none',
+        }}
+      />
+    </Box>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.currentBackground?.id === nextProps.currentBackground?.id &&
+    prevProps.opacity === nextProps.opacity &&
+    prevProps.blur === nextProps.blur &&
+    prevProps.position === nextProps.position
+  );
+});
 
 const BackgroundSettingsMUI = ({
   backgroundSettings,
@@ -32,514 +109,341 @@ const BackgroundSettingsMUI = ({
   backgroundSyncManager,
 }) => {
   const { t } = useTranslation();
+  const fileInputRef = useRef(null);
   
-  // State für transparente Panels
-  const [transparentPanels, setTransparentPanels] = useState(() => {
-    const saved = localStorage.getItem('transparentPanels');
-    return saved === 'true';
-  });
+  // Local state for sliders (prevents SSE flooding during drag)
+  const [localOpacity, setLocalOpacity] = useState(backgroundSettings?.opacity || 30);
+  const [localBlur, setLocalBlur] = useState(backgroundSettings?.blur || 0);
+  const [transparentPanels, setTransparentPanels] = useState(
+    backgroundSettings?.transparency?.panels || false
+  );
+  
+  // Update local state when backgroundSettings change from SSE
+  useEffect(() => {
+    setLocalOpacity(backgroundSettings?.opacity || 30);
+    setLocalBlur(backgroundSettings?.blur || 0);
+    setTransparentPanels(backgroundSettings?.transparency?.panels || false);
+  }, [backgroundSettings?.opacity, backgroundSettings?.blur, backgroundSettings?.transparency?.panels]);
 
-  // Toggle Handler für transparente Panels
-  const handleTransparentPanelsToggle = event => {
-    const newValue = event.target.checked;
-    setTransparentPanels(newValue);
-    localStorage.setItem('transparentPanels', newValue);
+  // Funktion zum Speichern der Settings in der Datenbank
+  const saveSettingsToDatabase = useCallback(async (settings) => {
+    try {
+      // Speichere Opacity
+      if (settings.opacity !== undefined) {
+        await SettingsService.updateSetting('background_opacity', settings.opacity.toString());
+      }
+      
+      // Speichere Blur
+      if (settings.blur !== undefined) {
+        await SettingsService.updateSetting('background_blur', settings.blur.toString());
+      }
+      
+      // Speichere Position
+      if (settings.position !== undefined) {
+        await SettingsService.updateSetting('background_position', settings.position);
+      }
+      
+      // Speichere Transparency Panels
+      if (settings.transparency?.panels !== undefined) {
+        await SettingsService.updateSetting('transparent_panels', settings.transparency.panels.toString());
+      }
+    } catch (error) {
+      console.error('Error saving settings to database:', error);
+    }
+  }, [SettingsService]);
 
-    // Toggle CSS-Klasse auf Body
-    if (newValue) {
+  // Handler für Panel Transparency
+  const handleTransparencyToggle = useCallback(async (checked) => {
+    setTransparentPanels(checked);
+    const newSettings = {
+      ...backgroundSettings,
+      transparency: {
+        ...backgroundSettings?.transparency,
+        panels: checked
+      }
+    };
+    setBackgroundSettings(newSettings);
+    
+    // Apply transparency immediately
+    if (checked) {
       document.body.classList.add('transparent-panels');
     } else {
       document.body.classList.remove('transparent-panels');
     }
-  };
+    
+    // Save to database
+    await saveSettingsToDatabase({ transparency: { panels: checked } });
+  }, [setBackgroundSettings, backgroundSettings, saveSettingsToDatabase]);
 
-  // Initial setup
-  useEffect(() => {
-    if (transparentPanels) {
-      document.body.classList.add('transparent-panels');
-    }
-  }, []);
+  // Handler für Position
+  const handlePositionChange = useCallback(async (position) => {
+    const newSettings = {
+      ...backgroundSettings,
+      position
+    };
+    setBackgroundSettings(newSettings);
+    
+    // Save to database
+    await saveSettingsToDatabase({ position });
+  }, [setBackgroundSettings, backgroundSettings, saveSettingsToDatabase]);
 
-  const handleImageUpload = async file => {
+  // Handler für Opacity mit Datenbank-Speicherung
+  const handleOpacityCommit = useCallback(async (value) => {
+    const newSettings = {
+      ...backgroundSettings,
+      opacity: value
+    };
+    setBackgroundSettings(newSettings);
+    
+    // Save to database
+    await saveSettingsToDatabase({ opacity: value });
+  }, [setBackgroundSettings, backgroundSettings, saveSettingsToDatabase]);
+
+  // Handler für Blur mit Datenbank-Speicherung
+  const handleBlurCommit = useCallback(async (value) => {
+    const newSettings = {
+      ...backgroundSettings,
+      blur: value
+    };
+    setBackgroundSettings(newSettings);
+    
+    // Save to database
+    await saveSettingsToDatabase({ blur: value });
+  }, [setBackgroundSettings, backgroundSettings, saveSettingsToDatabase]);
+
+  // File Upload Handler
+  const handleFileUpload = useCallback(async (event) => {
+    const file = event.target.files[0];
     if (!file) return;
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('background', file);
 
     try {
-      const response = await fetch('/api/background/upload', {
+      const response = await fetch('/api/backgrounds/upload', {
         method: 'POST',
-        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: formData,
+        body: formData
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setBackgroundImages([...backgroundImages, data.image]);
-        if (onActivateBackground) {
-          onActivateBackground(data.image.id);
+        const newImage = await response.json();
+        setBackgroundImages(prev => [...prev, newImage]);
+        
+        // Auto-activate if first image
+        if (backgroundImages.length === 0) {
+          onActivateBackground(newImage.id);
         }
       }
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload failed:', error);
     }
-  };
-
-  const positions = [
-    { value: 'left top' },
-    { value: 'center top' },
-    { value: 'right top' },
-    { value: 'left center' },
-    { value: 'center center' },
-    { value: 'right center' },
-    { value: 'left bottom' },
-    { value: 'center bottom' },
-    { value: 'right bottom' },
-  ];
+    
+    event.target.value = '';
+  }, [backgroundImages.length, setBackgroundImages, onActivateBackground]);
 
   return (
-    <Box sx={{ height: '100%', overflow: 'auto' }}>
-      {/* Panel Transparency Toggle - GANZ OBEN */}
-      <Card
-        sx={{
-          mb: 3,
-          backgroundColor: '#1a1a1a',
-          border: 'none',
-          borderRadius: '12px',
-          overflow: 'hidden',
-        }}
-      >
+    <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+      
+      {/* Preview - IMMER sichtbar */}
+      <Card sx={{ mb: 3, backgroundColor: 'rgba(255,255,255,0.1)' }}>
         <CardContent>
-          <FormGroup>
+          <Typography variant="subtitle1" sx={{ mb: 2, color: 'white' }}>
+            {t('settings.backgroundPreview')}
+          </Typography>
+          <BackgroundPreview
+            currentBackground={currentBackground}
+            opacity={localOpacity}
+            blur={localBlur}
+            position={backgroundSettings?.position || 'center'}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Settings Controls - Kompakter */}
+      <Card sx={{ mb: 3, backgroundColor: 'rgba(255,255,255,0.1)' }}>
+        <CardContent>
+          
+          {/* Panel Transparency Toggle */}
+          <FormGroup sx={{ mb: 3 }}>
             <FormControlLabel
               control={
                 <Switch
                   checked={transparentPanels}
-                  onChange={handleTransparentPanelsToggle}
+                  onChange={(e) => handleTransparencyToggle(e.target.checked)}
                   sx={{
                     '& .MuiSwitch-switchBase.Mui-checked': {
-                      color: '#007AFF',
+                      color: '#4caf50',
                     },
                     '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                      backgroundColor: '#007AFF',
+                      backgroundColor: '#4caf50',
                     },
                   }}
                 />
               }
               label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Layers size={20} />
-                  <Box>
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {t('settings.transparentPanels')}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.secondary', display: 'block' }}
-                    >
-                      {t('settings.transparentPanelsDescription')}
-                    </Typography>
-                  </Box>
-                </Box>
+                <Typography sx={{ color: 'white' }}>
+                  {t('settings.backgroundTransparentPanels')}
+                </Typography>
               }
-              sx={{
-                margin: 0,
-                '& .MuiFormControlLabel-label': {
-                  flex: 1,
-                },
-              }}
             />
           </FormGroup>
-        </CardContent>
-      </Card>
 
-      <Divider sx={{ mb: 3 }} />
-      {/* Current Background Preview */}
-      {currentBackground ? (
-        <Card
-          sx={{
-            mb: 3,
-            backgroundColor: '#1a1a1a',
-            border: 'none',
-            borderRadius: '12px',
-            overflow: 'hidden',
-          }}
-        >
-          <Box
-            sx={{
-              position: 'relative',
-              width: '100%',
-              // Responsive aspect ratio for different screen sizes
-              aspectRatio: {
-                xs: '16/9',   // Mobile: wider
-                sm: '16/10',  // Small screens
-                md: '2/1',    // Desktop: original
-                lg: '2/1',    // Large screens
-              },
-              minHeight: 200,
-              maxHeight: 400,
-              backgroundColor: '#0a0a0a',
-            }}
-          >
-            <img
-              src={`/uploads/backgrounds/${currentBackground.filename}`}
-              alt="Current background"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                opacity: backgroundSettings.opacity,
-                filter: `blur(${backgroundSettings.blur}px)`,
-              }}
-            />
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background:
-                  'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
-                color: 'white !important',
-                padding: '24px',
-                textAlign: 'left',
-                // Force white text in all modes
-                '& *': {
-                  color: 'white !important',
-                },
-              }}
-            >
-              <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white !important' }}>
-                {t('settings.activeBackground')} {!backgroundSettings.enabled && `(${t('common.disabled')})`}
-              </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9, mb: 0.5, color: 'white !important' }}>
-                {currentBackground.filename}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.8, color: 'white !important' }}>
-                {currentBackground.width || 2560}×
-                {currentBackground.height || 1342} •{' '}
-                {currentBackground.size || '566.7 KB'}
-              </Typography>
-            </Box>
-          </Box>
-        </Card>
-      ) : (
-        <Card
-          sx={{
-            mb: 3,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            textAlign: 'center',
-            p: 4,
-          }}
-        >
-          <Image
-            size={48}
-            style={{
-              opacity: 0.3,
-              marginBottom: 16,
-              color: 'var(--text-secondary)',
-            }}
-          />
-          <Typography color="text.secondary">
-            {t('settings.noBackgroundActive')}
-          </Typography>
-        </Card>
-      )}
-
-      {/* Settings Card */}
-      <Card
-        sx={{
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          mb: 3,
-        }}
-      >
-        <CardContent>
-          <FormGroup>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={backgroundSettings.enabled}
-                  onChange={async e => {
-                    const newValue = e.target.checked;
-                    const newSettings = {
-                      ...backgroundSettings,
-                      enabled: newValue,
-                    };
-                    setBackgroundSettings(newSettings);
-                    if (backgroundSyncManager) {
-                      backgroundSyncManager.handleLocalUpdate(newSettings);
-                    }
-
-                    try {
-                      // Update the setting in backend
-                      await SettingsService.updateSetting(
-                        'background_enabled',
-                        newValue.toString()
-                      );
-                      
-                      // Also update localStorage immediately for persistence
-                      localStorage.setItem('backgroundSettings', JSON.stringify(newSettings));
-                      
-                      // Force update background styles
-                      if (newValue) {
-                        document.body.classList.add('has-background-image');
-                        document.body.setAttribute('data-opacity', newSettings.opacity);
-                        document.body.setAttribute('data-blur', newSettings.blur);
-                      } else {
-                        document.body.classList.remove('has-background-image');
-                        document.body.removeAttribute('data-opacity');
-                        document.body.removeAttribute('data-blur');
-                      }
-                    } catch (error) {
-                      console.error(
-                        'Error updating background enabled:',
-                        error
-                      );
-                    }
-                  }}
-                />
-              }
-              label={t('settings.backgroundEnabled')}
-              sx={{ mb: 3 }}
-            />
-
-            <Box sx={{ mb: 3 }}>
-              <Typography gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                {t('settings.transparency')}: {Math.round(backgroundSettings.opacity * 100)}%
+          <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
+          
+          {/* Opacity und Blur in einer Zeile */}
+          <Stack direction="row" spacing={3} sx={{ mb: 3 }}>
+            {/* Opacity Slider */}
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" sx={{ mb: 1, color: 'rgba(255,255,255,0.8)' }}>
+                {t('settings.backgroundOpacity')}: {localOpacity}%
               </Typography>
               <Slider
-                value={backgroundSettings.opacity}
-                onChange={async (e, newValue) => {
-                  const newSettings = {
-                    ...backgroundSettings,
-                    opacity: newValue,
-                  };
-                  setBackgroundSettings(newSettings);
-                  if (backgroundSyncManager) {
-                    backgroundSyncManager.handleLocalUpdate(newSettings);
-                  }
-
-                  try {
-                    await SettingsService.updateSetting(
-                      'background_opacity',
-                      newValue.toString()
-                    );
-                  } catch (error) {
-                    console.error('Error updating opacity:', error);
-                  }
-                }}
-                step={0.05}
-                marks
+                value={localOpacity}
+                onChange={(e, value) => setLocalOpacity(value)}
+                onChangeCommitted={(e, value) => handleOpacityCommit(value)}
                 min={0}
-                max={1}
-                valueLabelDisplay="auto"
-                valueLabelFormat={value => `${Math.round(value * 100)}%`}
+                max={100}
+                step={5}
+                size="small"
+                sx={{
+                  color: '#4caf50',
+                  '& .MuiSlider-thumb': { 
+                    backgroundColor: '#4caf50',
+                    width: 16,
+                    height: 16,
+                  },
+                  '& .MuiSlider-track': { backgroundColor: '#4caf50' },
+                  '& .MuiSlider-rail': { backgroundColor: 'rgba(255,255,255,0.3)' },
+                }}
               />
             </Box>
-
-            <Box sx={{ mb: 3 }}>
-              <Typography gutterBottom sx={{ color: 'var(--text-primary)' }}>
-                {t('settings.blur')}: {backgroundSettings.blur}px
+            
+            {/* Blur Slider */}
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" sx={{ mb: 1, color: 'rgba(255,255,255,0.8)' }}>
+                {t('settings.backgroundBlur')}: {localBlur}px
               </Typography>
               <Slider
-                value={backgroundSettings.blur}
-                onChange={async (e, newValue) => {
-                  const newSettings = { ...backgroundSettings, blur: newValue };
-                  setBackgroundSettings(newSettings);
-                  if (backgroundSyncManager) {
-                    backgroundSyncManager.handleLocalUpdate(newSettings);
-                  }
-
-                  try {
-                    await SettingsService.updateSetting(
-                      'background_blur',
-                      newValue.toString()
-                    );
-                  } catch (error) {
-                    console.error('Error updating blur:', error);
-                  }
-                }}
-                step={1}
-                marks
+                value={localBlur}
+                onChange={(e, value) => setLocalBlur(value)}
+                onChangeCommitted={(e, value) => handleBlurCommit(value)}
                 min={0}
                 max={20}
-                valueLabelDisplay="auto"
-                valueLabelFormat={value => `${value}px`}
+                step={1}
+                size="small"
+                sx={{
+                  color: '#2196f3',
+                  '& .MuiSlider-thumb': { 
+                    backgroundColor: '#2196f3',
+                    width: 16,
+                    height: 16,
+                  },
+                  '& .MuiSlider-track': { backgroundColor: '#2196f3' },
+                  '& .MuiSlider-rail': { backgroundColor: 'rgba(255,255,255,0.3)' },
+                }}
               />
             </Box>
-          </FormGroup>
-        </CardContent>
-      </Card>
-
-      {/* Position Grid */}
-      <Card
-        sx={{
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          mb: 3,
-        }}
-      >
-        <CardContent>
-          <Typography
-            variant="h6"
-            gutterBottom
-            sx={{ color: 'var(--text-primary)', mb: 3 }}
-          >
-            {t('settings.imageAlignment')}
-          </Typography>
-          <div className="position-grid-wrapper">
-            <div className="position-grid-container">
-              <div className="position-grid">
-                {positions.map(pos => (
+          </Stack>
+          
+          <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
+          
+          {/* Position Grid - Zentriert */}
+          <Box>
+            <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.8)', textAlign: 'center' }}>
+              {t('settings.backgroundPosition')}
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Box className="position-grid">
+                {['top-left', 'top-center', 'top-right',
+                  'center-left', 'center', 'center-right',
+                  'bottom-left', 'bottom-center', 'bottom-right'].map((pos) => (
                   <button
-                    key={pos.value}
-                    className={`position-button ${backgroundSettings.position === pos.value ? 'active' : ''}`}
-                    onClick={async () => {
-                      const newSettings = {
-                        ...backgroundSettings,
-                        position: pos.value,
-                      };
-                      setBackgroundSettings(newSettings);
-                      if (backgroundSyncManager) {
-                        backgroundSyncManager.handleLocalUpdate(newSettings);
-                      }
-
-                      try {
-                        await SettingsService.updateSetting(
-                          'background_position',
-                          pos.value
-                        );
-                      } catch (error) {
-                        console.error('Error updating position:', error);
-                      }
-                    }}
-                    title={pos.value}
+                    key={pos}
+                    className={`position-button ${backgroundSettings?.position === pos ? 'active' : ''}`}
+                    onClick={() => handlePositionChange(pos)}
+                    aria-label={`${t('settings.backgroundPosition')} ${pos}`}
                   >
-                    <div className="position-indicator"></div>
+                    <div className="position-indicator" />
                   </button>
                 ))}
-              </div>
-            </div>
-          </div>
+              </Box>
+            </Box>
+          </Box>
         </CardContent>
       </Card>
 
-      {/* Image Gallery */}
-      <Card
-        sx={{
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-        }}
-      >
+      {/* Image Gallery mit Upload Button */}
+      <Card sx={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
         <CardContent>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 3,
-            }}
-          >
-            <Typography variant="h6" sx={{ color: 'var(--text-primary)' }}>
-              {t('settings.imageGallery')}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" sx={{ color: 'white' }}>
+              {t('settings.backgroundGallery')}
             </Typography>
             <Button
               variant="contained"
+              size="small"
               startIcon={<Upload size={16} />}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.onchange = e => handleImageUpload(e.target.files[0]);
-                input.click();
-              }}
+              onClick={() => fileInputRef.current?.click()}
               sx={{
-                backgroundColor: 'var(--primary-color)',
-                '&:hover': {
-                  backgroundColor: 'var(--primary-hover)',
-                },
+                backgroundColor: '#4caf50',
+                '&:hover': { backgroundColor: '#45a049' },
+                textTransform: 'none',
               }}
             >
-              {t('settings.uploadImage')}
+              {t('settings.backgroundUpload')}
             </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleFileUpload}
+            />
           </Box>
-
-          {!backgroundImages || backgroundImages.length === 0 ? (
-            <Box
-              sx={{
-                textAlign: 'center',
-                py: 6,
-                border: '2px dashed rgba(255, 255, 255, 0.2)',
-                borderRadius: 1,
-              }}
-            >
-              <Image
-                size={48}
-                style={{
-                  opacity: 0.3,
-                  marginBottom: 16,
-                  color: 'var(--text-secondary)',
-                }}
-              />
-              <Typography color="text.secondary" gutterBottom>
-                {t('settings.noImagesAvailable')}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t('settings.uploadImagesHint')}
-              </Typography>
-            </Box>
-          ) : (
-            <ImageList
-              sx={{ width: '100%', height: 'auto' }}
-              cols={3}
-              rowHeight={180}
-            >
-              {backgroundImages.map(image => (
-                <ImageListItem
+          
+          {backgroundImages && backgroundImages.length > 0 ? (
+            <ImageList cols={3} gap={8}>
+              {backgroundImages.map((image) => (
+                <ImageListItem 
                   key={image.id}
                   sx={{
-                    cursor: 'pointer',
-                    border:
-                      currentBackground?.id === image.id
-                        ? '3px solid var(--primary-color)'
-                        : '3px solid transparent',
+                    border: currentBackground?.id === image.id ? '2px solid #4caf50' : '2px solid transparent',
                     borderRadius: 1,
                     overflow: 'hidden',
-                    transition: 'all 0.2s',
+                    cursor: 'pointer',
+                    transition: 'border 0.2s',
                     '&:hover': {
-                      transform: 'scale(1.05)',
-                    },
+                      border: '2px solid rgba(76, 175, 80, 0.5)',
+                    }
                   }}
-                  onClick={() =>
-                    onActivateBackground && onActivateBackground(image.id)
-                  }
                 >
                   <img
                     src={`/uploads/backgrounds/${image.filename}`}
-                    alt={image.name}
+                    alt={image.originalName}
                     loading="lazy"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
+                    style={{ 
+                      width: '100%', 
+                      height: '100px', 
+                      objectFit: 'cover' 
                     }}
+                    onClick={() => onActivateBackground(image.id)}
                   />
                   <ImageListItemBar
-                    title={image.name}
+                    sx={{ 
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)' 
+                    }}
                     actionIcon={
                       <IconButton
+                        size="small"
                         sx={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                        onClick={e => {
+                        onClick={(e) => {
                           e.stopPropagation();
-                          if (onDeleteBackground) {
-                            onDeleteBackground(image.id);
-                          }
+                          onDeleteBackground(image.id);
                         }}
+                        aria-label={t('common.delete')}
                       >
                         <X size={16} />
                       </IconButton>
@@ -548,6 +452,19 @@ const BackgroundSettingsMUI = ({
                 </ImageListItem>
               ))}
             </ImageList>
+          ) : (
+            <Box 
+              sx={{ 
+                py: 4, 
+                textAlign: 'center',
+                border: '1px dashed rgba(255,255,255,0.3)',
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                {t('settings.backgroundNoImages')}
+              </Typography>
+            </Box>
           )}
         </CardContent>
       </Card>
