@@ -531,7 +531,7 @@ export const useAppliances = () => {
           }
           
           // Set up new interval with the value from settings
-          console.log(`Setting service check interval to ${intervalSeconds} seconds`);
+
           statusInterval = setInterval(refreshStatus, intervalMs);
         }
       } catch (error) {
@@ -552,7 +552,7 @@ export const useAppliances = () => {
     // Listen for settings changes to update interval
     const unsubscribeSettingsUpdate = addEventListener('setting_update', data => {
       if (data.key === 'service_check_interval') {
-        console.log(`Service check interval updated to ${data.value} seconds`);
+
         setupInterval(); // Re-setup with new interval
       }
     });
@@ -560,7 +560,7 @@ export const useAppliances = () => {
     // Also listen for bulk settings updates
     const unsubscribeBulkUpdate = addEventListener('settings_bulk_update', data => {
       if (data.service_check_interval !== undefined) {
-        console.log(`Service check interval updated to ${data.service_check_interval} seconds`);
+
         setupInterval(); // Re-setup with new interval
       }
     });

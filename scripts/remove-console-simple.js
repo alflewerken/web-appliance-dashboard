@@ -22,9 +22,11 @@ const CONFIG = {
   // Target specific file
   targetFile: process.argv.find(arg => arg.endsWith('.js') && !arg.startsWith('--') && !arg.includes('remove-console')),
   // Directories to skip
-  skipDirs: ['node_modules', '.git', 'build', 'dist', 'coverage', '.next'],
+  skipDirs: ['node_modules', '.git', 'build', 'dist', 'coverage', '.next', 'my-data', 'nginx/static'],
   // Files to skip
   skipFiles: ['remove-console-simple.js', 'webpack.config.js'],
+  // Patterns to skip (e.g., bundle files)
+  skipPatterns: [/bundle\.[a-f0-9]+\.js$/, /\.min\.js$/],
   // Show stats only
   statsOnly: process.argv.includes('--stats')
 };
@@ -161,7 +163,11 @@ function findJsFiles(dir, fileList = []) {
           findJsFiles(filePath, fileList);
         }
       } else if (file.endsWith('.js') && !CONFIG.skipFiles.includes(file)) {
-        fileList.push(filePath);
+        // Check if file matches any skip pattern
+        const shouldSkip = CONFIG.skipPatterns.some(pattern => pattern.test(file));
+        if (!shouldSkip) {
+          fileList.push(filePath);
+        }
       }
     });
   } catch (error) {

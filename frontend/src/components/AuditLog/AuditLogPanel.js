@@ -105,8 +105,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
 
   // Fetch Audit Logs with incremental update support
   const fetchAuditLogs = useCallback(async (incremental = false) => {
-    console.log(`Fetching audit logs - incremental: ${incremental}`);
-    
+
     // Only show loading on initial load
     if (!incremental || isInitialLoad) {
       setLoading(true);
@@ -118,16 +117,15 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       const params = {};
       if (incremental && lastFetchTimestamp.current && !isInitialLoad) {
         params.since = lastFetchTimestamp.current;
-        console.log(`Fetching logs since: ${params.since}`);
+
       } else {
-        console.log('Fetching all logs (full refresh)');
+
       }
 
       const response = await axios.get('/api/audit-logs', { params });
       const logsData = response.data.logs || response.data || [];
       const logsArray = Array.isArray(logsData) ? logsData : [];
-      console.log(`Received ${logsArray.length} logs from server`);
-      
+
       let finalLogs = logsArray;
       
       if (incremental && lastFetchTimestamp.current && !isInitialLoad) {
@@ -136,7 +134,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           const existingIds = new Set(prevLogs.map(log => log.id));
           const newLogs = logsArray.filter(log => !existingIds.has(log.id));
           if (newLogs.length > 0) {
-            console.log(`Adding ${newLogs.length} new audit log entries`);
+
             finalLogs = [...newLogs, ...prevLogs]; // New logs at the top
             return finalLogs;
           }
@@ -145,7 +143,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         });
       } else {
         // Full refresh - replace all logs
-        console.log('Replacing all logs (full refresh)');
+
         setLogs(logsArray);
         finalLogs = logsArray;
         setIsInitialLoad(false);
@@ -177,9 +175,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
         uniqueUsers: uniqueUsers.size,
         criticalActions: criticalLogs.length,
       });
-      
-      console.log(`Stats updated - Total: ${finalLogs.length}, Today: ${todayLogs.length}`);
-      
+
     } catch (err) {
       console.error('Error fetching audit logs:', err);
       setError(t('auditLog.errorLoading'));
@@ -358,10 +354,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
 
   // SSE Event Listeners - OPTIMIZED VERSION
   useEffect(() => {
-    console.log('SSE useEffect triggered - isConnected:', isConnected, 'addEventListener:', !!addEventListener);
-    
+
     if (!addEventListener || !isConnected) {
-      console.warn('SSE not available - addEventListener:', !!addEventListener, 'isConnected:', isConnected);
+
       return;
     }
 
@@ -371,43 +366,36 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     const debouncedFetch = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        console.log('Fetching new audit logs (incremental update)');
+
         fetchAuditLogsRef.current(true); // Use ref to avoid dependency
       }, 3000); // Wait 3 seconds to batch multiple events
     };
 
     // Listen to audit log events for real-time updates
-    console.log('Registering SSE event listeners...');
-    
+
     const unsubscribeCreated = addEventListener('audit_log_created', (data) => {
-      console.log('SSE Event received: audit_log_created', data);
+
       debouncedFetch();
     });
-    console.log('Registered: audit_log_created');
-    
+
     // For deletions, we need a full refresh to remove the items
     const unsubscribeDeleted = addEventListener('audit_log_deleted', (data) => {
-      console.log('SSE Event received: audit_log_deleted', data);
+
       fetchAuditLogsRef.current(false); // Use ref to avoid dependency
     });
-    console.log('Registered: audit_log_deleted');
-    
+
     const unsubscribeMultiDeleted = addEventListener('audit_logs_deleted', (data) => {
-      console.log('SSE Event received: audit_logs_deleted', data);
+
       fetchAuditLogsRef.current(false); // Use ref to avoid dependency
     });
-    console.log('Registered: audit_logs_deleted');
-    
+
     const unsubscribeUpdated = addEventListener('audit_log_updated', (data) => {
-      console.log('SSE Event received: audit_log_updated', data);
+
       debouncedFetch();
     });
-    console.log('Registered: audit_log_updated');
-    
-    console.log('All SSE Event listeners registered for audit log');
 
     return () => {
-      console.log('Cleaning up SSE event listeners');
+
       clearTimeout(debounceTimer);
       if (unsubscribeCreated && typeof unsubscribeCreated === 'function') {
         unsubscribeCreated();
@@ -622,10 +610,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     }
 
     try {
-      console.log(`Deleting audit log entry: ${logId}`);
+
       await axios.delete(`/api/audit-logs/${logId}`);
-      console.log(`Successfully deleted audit log entry: ${logId}`);
-      
+
       // Remove from local state immediately for better UX
       setLogs(prevLogs => prevLogs.filter(log => log.id !== logId));
       setFilteredLogs(prevLogs => prevLogs.filter(log => log.id !== logId));
@@ -778,7 +765,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                 showCriticalOnly={showCriticalOnly}
                 onShowCriticalOnlyChange={setShowCriticalOnly}
                 onRefresh={() => {
-                  console.log('Manual refresh triggered');
+
                   fetchAuditLogs(false); // Explicit full refresh
                 }}
                 onExport={handleExport}
@@ -911,7 +898,7 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
                         });
                       }}
                       onRefresh={() => {
-                  console.log('Manual refresh triggered');
+
                   fetchAuditLogs(false); // Explicit full refresh
                 }}
                       onDeleteLog={handleDeleteSingleLog}
