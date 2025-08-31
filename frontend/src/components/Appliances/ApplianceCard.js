@@ -11,13 +11,7 @@ import ConfirmDialog from '../ConfirmDialog';
 import proxyService from '../../services/proxyService';
 
 import { iconMap } from '../../utils/iconMap';
-import './ApplianceCard.css';
-import './ApplianceCard.mobile.css';
-import '../MobileButtonFix.css';
-import '../UnifiedButtonLayout.css';
-import '../ButtonLayoutOverrides.css';
-import './ServiceControls.css';
-import './ServiceControlsFix.css';
+import './ApplianceCard.css'; /* EINZIGE CSS-DATEI - Alles konsolidiert */
 
 const ApplianceCard = ({
   appliance,
@@ -271,7 +265,7 @@ const ApplianceCard = ({
     // Prevent if clicking on interactive elements
     if (
       e.target.closest(
-        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn'
+        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn, .MuiIconButton-root, .card-buttons-left, .card-buttons-right'
       )
     ) {
       return;
@@ -324,7 +318,7 @@ const ApplianceCard = ({
     // Prevent click if clicking on interactive elements
     if (
       e.target.closest(
-        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn, .remote-desktop-button, .remote-desktop-button-wrapper'
+        '.action-button, .action-btn, .edit-menu-toggle, .flip-btn, .service-actions, .settings-btn-icon, .service-controls-bottom, .file-transfer-button, .remote-desktop-btn, .remote-desktop-button, .remote-desktop-button-wrapper, .MuiIconButton-root, .card-buttons-left, .card-buttons-right'
       )
     ) {
       return;
@@ -383,8 +377,20 @@ const ApplianceCard = ({
   );
 
   const handleServiceAction = async action => {
-
     if (!appliance.sshConnection || isProcessing) return;
+
+    // Auf Mobile: Direkte Ausführung ohne Dialog
+    if (isMobile || isTouchDevice) {
+      setIsProcessing(true);
+      try {
+        await onServiceAction(appliance, action);
+      } catch (error) {
+        console.error('Service action error:', error);
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
 
     // Zeige den Confirm Dialog
     setConfirmDialog({
@@ -826,6 +832,12 @@ const ApplianceCard = ({
                             e.stopPropagation();
                             handleServiceAction('start');
                           }}
+                          onTouchEnd={e => {
+                            // Spezielle Touch-Behandlung für Mobile
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleServiceAction('start');
+                          }}
                           disabled={isProcessing || !appliance.startCommand}
                           size="small"
                           sx={{
@@ -849,6 +861,12 @@ const ApplianceCard = ({
                       <Tooltip title={t('services.stopService')}>
                         <IconButton
                           onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleServiceAction('stop');
+                          }}
+                          onTouchEnd={e => {
+                            // Spezielle Touch-Behandlung für Mobile
                             e.preventDefault();
                             e.stopPropagation();
                             handleServiceAction('stop');

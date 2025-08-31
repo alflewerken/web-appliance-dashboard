@@ -108,6 +108,12 @@ const FileTransferButton = ({ appliance }) => {
     e.stopPropagation();
     setShowUpload(true);
   };
+  
+  const handleTouch = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowUpload(true);
+  };
 
   const handleClose = () => {
     setShowUpload(false);
@@ -125,6 +131,7 @@ const FileTransferButton = ({ appliance }) => {
       <Tooltip title={t('services.fileUpload', 'File Upload')}>
         <IconButton
           onClick={handleClick}
+          onTouchEnd={handleTouch}
           disabled={loading}
           size="small"
           className="file-transfer-button"
@@ -141,6 +148,9 @@ const FileTransferButton = ({ appliance }) => {
             width: 28,
             height: 28,
             padding: 0,
+            position: 'relative',
+            zIndex: 100,
+            pointerEvents: 'auto',
           }}
         >
           <Upload size={16} />
