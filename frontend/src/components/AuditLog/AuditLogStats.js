@@ -142,7 +142,10 @@ const AuditLogStats = ({
                     borderRadius: 'inherit',
                     background: `linear-gradient(45deg, ${item.color}60, transparent, ${item.color}60)`,
                     opacity: 0.8,
-                    animation: 'pulse-glow 1.5s ease-in-out infinite',
+                    // PERFORMANCE FIX: Removed infinite animation that caused high CPU usage
+                    // animation: 'pulse-glow 1.5s ease-in-out infinite',
+                    // Use static glow effect instead
+                    boxShadow: `0 0 20px ${item.color}40, 0 0 40px ${item.color}20`,
                     pointerEvents: 'none',
                     zIndex: -1,
                   } : {},
@@ -152,16 +155,7 @@ const AuditLogStats = ({
                       ? `0 0 40px ${item.color}, 0 0 80px ${item.color}70, 0 0 120px ${item.color}40, inset 0 0 40px ${item.color}30`
                       : theme.shadows[4],
                   } : {},
-                  '@keyframes pulse-glow': {
-                    '0%, 100%': {
-                      opacity: 0.8,
-                      transform: 'scale(1)',
-                    },
-                    '50%': {
-                      opacity: 0.4,
-                      transform: 'scale(1.08)',
-                    },
-                  },
+                  // PERFORMANCE FIX: Removed pulse-glow keyframes animation
                 }}
                 onClick={item.clickAction}
               >

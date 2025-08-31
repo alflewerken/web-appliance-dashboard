@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ApplianceService } from '../services/applianceService';
+import { SettingsService } from '../services/settingsService';
 import { useSSE } from './useSSE';
 import proxyService from '../services/proxyService';
 
@@ -465,6 +466,7 @@ export const useAppliances = () => {
         }, 100);
 
         // Set up periodic refresh while tab is visible
+        // PERFORMANCE FIX: Increased interval from 5s to 60s to reduce CPU load
         refreshInterval = setInterval(() => {
           // Force update to trigger re-render with current service_status
           setAppliances(prev =>
@@ -473,7 +475,7 @@ export const useAppliances = () => {
               _forceUpdate: Date.now(),
             }))
           );
-        }, 5000); // Update every 5 seconds
+        }, 60000); // Update every 60 seconds (was 5 seconds - caused extreme CPU usage)
       } else {
         // Clear interval when tab becomes hidden
         if (refreshInterval) {
@@ -497,9 +499,10 @@ export const useAppliances = () => {
     };
   }, []);
 
-  // Auto-refresh service status every 30 seconds
+  // Auto-refresh service status based on settings
   useEffect(() => {
     let statusInterval;
+    let currentIntervalMs = 60000; // Default: 60 seconds
 
     const refreshStatus = () => {
       ApplianceService.checkAllServiceStatus()
@@ -511,18 +514,71 @@ export const useAppliances = () => {
         });
     };
 
+    const setupInterval = async () => {
+      try {
+        // Get service check interval from settings
+        const settings = await SettingsService.fetchSettings();
+        const intervalSeconds = settings.service_check_interval || 60; // Default 60 seconds
+        const intervalMs = intervalSeconds * 1000;
+        
+        // Only update interval if it changed
+        if (intervalMs !== currentIntervalMs) {
+          currentIntervalMs = intervalMs;
+          
+          // Clear existing interval
+          if (statusInterval) {
+            clearInterval(statusInterval);
+          }
+          
+          // Set up new interval with the value from settings
+          console.log(`Setting service check interval to ${intervalSeconds} seconds`);
+          statusInterval = setInterval(refreshStatus, intervalMs);
+        }
+      } catch (error) {
+        console.error('Error loading service check interval:', error);
+        // Fallback to default interval
+        if (!statusInterval) {
+          statusInterval = setInterval(refreshStatus, 60000); // Default 60 seconds
+        }
+      }
+    };
+
     // Initial status check after 2 seconds
     const initialTimeout = setTimeout(refreshStatus, 2000);
 
-    // Set up interval for regular checks
-    statusInterval = setInterval(refreshStatus, 30000); // 30 seconds
+    // Setup interval based on settings
+    setupInterval();
+
+    // Listen for settings changes to update interval
+    const unsubscribeSettingsUpdate = addEventListener('setting_update', data => {
+      if (data.key === 'service_check_interval') {
+        console.log(`Service check interval updated to ${data.value} seconds`);
+        setupInterval(); // Re-setup with new interval
+      }
+    });
+
+    // Also listen for bulk settings updates
+    const unsubscribeBulkUpdate = addEventListener('settings_bulk_update', data => {
+      if (data.service_check_interval !== undefined) {
+        console.log(`Service check interval updated to ${data.service_check_interval} seconds`);
+        setupInterval(); // Re-setup with new interval
+      }
+    });
 
     // Cleanup on unmount
     return () => {
       clearTimeout(initialTimeout);
-      clearInterval(statusInterval);
+      if (statusInterval) {
+        clearInterval(statusInterval);
+      }
+      if (unsubscribeSettingsUpdate) {
+        unsubscribeSettingsUpdate();
+      }
+      if (unsubscribeBulkUpdate) {
+        unsubscribeBulkUpdate();
+      }
     };
-  }, []);
+  }, [addEventListener]);
 
   return {
     appliances,

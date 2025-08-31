@@ -178,7 +178,10 @@ body.resizing-panel .resize-handle {
   bottom: -3px;
   border-radius: inherit;
   opacity: 0.6;
-  animation: pulse-glow 2s ease-in-out infinite;
+  /* PERFORMANCE FIX: Removed infinite animation
+  animation: pulse-glow 2s ease-in-out infinite; */
+  /* Use static glow instead */
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);
   pointer-events: none;
   z-index: -1;
 }

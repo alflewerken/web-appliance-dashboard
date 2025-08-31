@@ -1,5 +1,5 @@
-// Simplified AuditLogTableMUI Component
-import React, { useState, useEffect, useRef } from 'react';
+// Simplified AuditLogTableMUI Component with Performance Optimizations
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Table,
@@ -79,6 +79,13 @@ const AuditLogTableMUI = ({
     };
   }, []);
 
+  // PERFORMANCE: Limit visible rows for better performance
+  const MAX_VISIBLE_ROWS = 100;
+  const visibleLogs = logs.length > MAX_VISIBLE_ROWS 
+    ? logs.slice(0, MAX_VISIBLE_ROWS) 
+    : logs;
+  const hasMoreLogs = logs.length > MAX_VISIBLE_ROWS;
+
   // Switch to widget view when width < 600px
   const useWidgetView = containerWidth < 600;
 
@@ -86,7 +93,7 @@ const AuditLogTableMUI = ({
   const renderWidgetView = () => {
     return (
       <Stack spacing={0.5}>
-        {logs.map((log) => {
+        {visibleLogs.map((log) => {
           // Ensure we're comparing the same type (convert to string)
           const logIdStr = String(log.id);
           const isExpanded = expandedRows && expandedRows.has ? expandedRows.has(logIdStr) : false;
@@ -374,7 +381,7 @@ const AuditLogTableMUI = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {logs.map((log) => {
+            {visibleLogs.map((log) => {
               // Ensure we're comparing the same type (convert to string)
               const logIdStr = String(log.id);
               const isExpanded = expandedRows && expandedRows.has ? expandedRows.has(logIdStr) : false;
@@ -565,6 +572,22 @@ const AuditLogTableMUI = ({
   return (
     <Box ref={containerRef}>
       {useWidgetView ? renderWidgetView() : renderTableView()}
+      {hasMoreLogs && (
+        <Box sx={{ 
+          mt: 2, 
+          p: 2, 
+          textAlign: 'center',
+          backgroundColor: theme.palette.warning.main + '20',
+          borderRadius: 1,
+        }}>
+          <Typography variant="body2" color="warning.main">
+            Showing first {MAX_VISIBLE_ROWS} of {logs.length} entries
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Use filters to narrow down results
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };

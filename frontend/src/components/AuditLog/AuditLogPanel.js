@@ -1,5 +1,5 @@
 // AuditLogPanel mit einheitlichem Resize-Hook und Internationalisierung
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import {
   Box,
   Typography,
@@ -99,19 +99,50 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   const isAdmin = true;
   const { addEventListener, removeEventListener, isConnected } = useSSE();
 
-  // Fetch Audit Logs
-  const fetchAuditLogs = useCallback(async () => {
-    setLoading(true);
+  // PERFORMANCE: Track last fetch timestamp for incremental updates
+  const lastFetchTimestamp = useRef(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Fetch Audit Logs with incremental update support
+  const fetchAuditLogs = useCallback(async (incremental = false) => {
+    // Only show loading on initial load
+    if (!incremental || isInitialLoad) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
-      const response = await axios.get('/api/audit-logs');
+      // For incremental updates, only fetch new logs
+      const params = {};
+      if (incremental && lastFetchTimestamp.current && !isInitialLoad) {
+        params.since = lastFetchTimestamp.current;
+      }
+
+      const response = await axios.get('/api/audit-logs', { params });
       const logsData = response.data.logs || response.data || [];
       const logsArray = Array.isArray(logsData) ? logsData : [];
       
-      setLogs(logsArray);
-      setFilteredLogs(logsArray);
+      if (incremental && lastFetchTimestamp.current && !isInitialLoad) {
+        // PERFORMANCE: Merge new logs with existing ones
+        setLogs(prevLogs => {
+          const existingIds = new Set(prevLogs.map(log => log.id));
+          const newLogs = logsArray.filter(log => !existingIds.has(log.id));
+          if (newLogs.length > 0) {
+            console.log(`Adding ${newLogs.length} new audit log entries`);
+            return [...newLogs, ...prevLogs]; // New logs at the top
+          }
+          return prevLogs;
+        });
+      } else {
+        // Full refresh
+        setLogs(logsArray);
+        setIsInitialLoad(false);
+      }
       
+      // Update timestamp for next incremental fetch
+      lastFetchTimestamp.current = new Date().toISOString();
+      
+      // Update statistics
       const today = new Date().toISOString().split('T')[0];
       const todayLogs = logsArray.filter(log => 
         log.createdAt && log.createdAt.startsWith(today)
@@ -141,10 +172,11 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, isInitialLoad]);
 
-  // Filter logs effect
-  useEffect(() => {
+  // PERFORMANCE FIX: Use useMemo instead of useEffect for filtering
+  // This prevents unnecessary re-calculations on every render
+  const { filteredLogs: memoizedFilteredLogs, stats: memoizedStats } = useMemo(() => {
     let filtered = [...logs];
 
     if (searchTerm) {
@@ -199,11 +231,9 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
           break;
         case 'custom':
           if (customStartDate && customEndDate) {
-            // Startdatum auf 00:00:00 setzen
             startDate = new Date(customStartDate);
             startDate.setHours(0, 0, 0, 0);
             
-            // Enddatum auf 23:59:59 setzen für den ganzen Tag
             const endDate = new Date(customEndDate);
             endDate.setHours(23, 59, 59, 999);
             
@@ -230,21 +260,11 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       );
     }
 
-    // NEU: Filter für Benutzer-Aktionen
     if (activeUserFilter) {
       const userActions = [
-        'user_login', 
-        'user_logout', 
-        'user_created',
-        'user_updated',
-        'user_deleted',
-        'user_reverted',
-        'login_failed',
-        'service_accessed',
-        'password_changed',
-        'session_timeout',
-        'session_started',
-        'session_ended'
+        'user_login', 'user_logout', 'user_created', 'user_updated', 'user_deleted',
+        'user_reverted', 'login_failed', 'service_accessed', 'password_changed',
+        'session_timeout', 'session_started', 'session_ended'
       ];
       filtered = filtered.filter(log =>
         userActions.includes(log.action) || 
@@ -256,14 +276,11 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       );
     }
 
-    setFilteredLogs(filtered);
-    
-    // Statistiken: Erste beiden bleiben unverändert, letzte beiden basieren auf Filter
+    // Calculate stats
     const criticalFilteredLogs = filtered.filter(log => 
       criticalActions.includes(log.action)
     );
     
-    // Benutzer-bezogene Logs zählen (aus gefilterten Daten)
     const userRelatedActions = [
       'user_login', 'user_logout', 'user_created', 'user_updated', 'user_deleted',
       'user_reverted', 'login_failed', 'service_accessed', 'password_changed',
@@ -277,18 +294,24 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
       log.action.toLowerCase().includes('session')
     );
     
-    // WICHTIG: totalLogs und todayLogs bleiben IMMER die ungefilterten Werte
-    setStats({
-      totalLogs: baseStats.totalLogs || logs.length,  // Immer ungefiltert
+    const stats = {
+      totalLogs: baseStats.totalLogs || logs.length,
       todayLogs: baseStats.todayLogs || logs.filter(log => 
         log.createdAt && log.createdAt.startsWith(new Date().toISOString().split('T')[0])
-      ).length,  // Immer ungefiltert
-      uniqueUsers: userActionLogs.length,  // Gefilterte Benutzer-Aktionen
-      criticalActions: criticalFilteredLogs.length,  // Gefilterte kritische Aktionen
-    });
-    
+      ).length,
+      uniqueUsers: userActionLogs.length,
+      criticalActions: criticalFilteredLogs.length,
+    };
+
+    return { filteredLogs: filtered, stats };
   }, [logs, searchTerm, selectedAction, selectedUser, selectedResourceType, 
       dateRange, customStartDate, customEndDate, showCriticalOnly, activeUserFilter, baseStats]);
+
+  // Update state when memoized values change
+  useEffect(() => {
+    setFilteredLogs(memoizedFilteredLogs);
+    setStats(memoizedStats);
+  }, [memoizedFilteredLogs, memoizedStats]);
 
   // Initial load
   useEffect(() => {
@@ -315,64 +338,31 @@ const AuditLogPanel = ({ onClose, onWidthChange }) => {
   }, [searchTerm, selectedAction, selectedUser, selectedResourceType, 
       dateRange, showCriticalOnly, filtersCollapsed]);
 
-  // SSE Event Listeners
+  // SSE Event Listeners - OPTIMIZED VERSION
   useEffect(() => {
     if (!addEventListener || !isConnected) {
       return;
     }
 
-    const auditEvents = [
-      'audit_log_created',
-      'host_created',
-      'host_updated',
-      'host_deleted',
-      'appliance_created',
-      'appliance_updated',
-      'appliance_deleted',
-      'service_created',
-      'service_updated',
-      'service_deleted',
-      'category_created',
-      'category_updated',
-      'category_deleted',
-      'user_created',
-      'user_updated',
-      'user_deleted',
-      'ssh_key_registered',
-      'backup_created',
-      'backup_restored',
-    ];
+    // PERFORMANCE FIX: Only listen to audit_log_created event
+    // All other events will create audit logs anyway
+    let debounceTimer = null;
+    const debouncedFetch = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.log('Fetching new audit logs (incremental update)');
+        fetchAuditLogs(true); // Use incremental update
+      }, 3000); // Wait 3 seconds to batch multiple events
+    };
 
-    const unsubscribers = auditEvents
-      .map(eventName => {
-        try {
-          const unsubscribe = addEventListener(eventName, () => {
-            setTimeout(() => {
-              fetchAuditLogs();
-            }, 1000);
-          });
-          
-          if (typeof unsubscribe !== 'function') {
-
-            return null;
-          }
-          
-          return unsubscribe;
-        } catch (error) {
-          console.error(`Error subscribing to ${eventName}:`, error);
-          return null;
-        }
-      })
-      .filter(Boolean);
+    // Only subscribe to the main audit log event
+    const unsubscribe = addEventListener('audit_log_created', debouncedFetch);
 
     return () => {
-      unsubscribers.forEach(unsubscribe => {
-        try {
-          unsubscribe();
-        } catch (error) {
-          console.error('Error unsubscribing:', error);
-        }
-      });
+      clearTimeout(debounceTimer);
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
   }, [addEventListener, removeEventListener, isConnected, fetchAuditLogs]);
 
