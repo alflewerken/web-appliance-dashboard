@@ -11,15 +11,7 @@
   min-height: calc(var(--min-card-size, 50px) + 80px);
 }
 
-/* Button visibility classes */
-.card-buttons-left.visible-buttons,
-.card-buttons-right.visible-buttons {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
+/* Button visibility classes for touch devices */
 .card-buttons-left.hidden-buttons,
 .card-buttons-right.hidden-buttons {
   opacity: 0 !important;
@@ -48,33 +40,38 @@
 /* Hide buttons by default on desktop, show on hover */
 @media (hover: hover) and (pointer: fine) {
   /* Desktop with mouse - hide buttons by default */
-  .appliance-card .card-buttons-left,
-  .appliance-card .card-buttons-right {
+  .appliance-card .card-buttons-left:not(.hidden-buttons),
+  .appliance-card .card-buttons-right:not(.hidden-buttons) {
     opacity: 0;
-    transition: opacity 0.3s ease;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
   }
   
   /* Show buttons on card hover */
-  .appliance-card-container:hover .card-buttons-left,
-  .appliance-card-container:hover .card-buttons-right {
+  .appliance-card-container:hover .card-buttons-left:not(.hidden-buttons),
+  .appliance-card-container:hover .card-buttons-right:not(.hidden-buttons) {
     opacity: 1;
+    visibility: visible;
   }
 }
 
 /* Touch devices - buttons are controlled by JavaScript state */
 @media (hover: none), (pointer: coarse) {
-  /* Touch devices - ensure buttons are visible when they should be */
-  .appliance-card .card-buttons-left.visible-buttons,
-  .appliance-card .card-buttons-right.visible-buttons {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    -webkit-transition: opacity 0.3s ease;
-  }
-  
+  /* Touch devices - ensure hidden-buttons class works */
   .appliance-card .card-buttons-left.hidden-buttons,
   .appliance-card .card-buttons-right.hidden-buttons {
     opacity: 0 !important;
     pointer-events: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* When not hidden, buttons should be visible */
+  .appliance-card .card-buttons-left:not(.hidden-buttons),
+  .appliance-card .card-buttons-right:not(.hidden-buttons) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    -webkit-transition: opacity 0.3s ease;
   }
 }
 
@@ -95,9 +92,9 @@
     z-index: 100 !important;
   }
   
-  /* Force visible buttons to show on iOS */
-  .appliance-card .card-buttons-left.visible-buttons,
-  .appliance-card .card-buttons-right.visible-buttons {
+  /* Force non-hidden buttons to show on iOS */
+  .appliance-card .card-buttons-left:not(.hidden-buttons),
+  .appliance-card .card-buttons-right:not(.hidden-buttons) {
     opacity: 1 !important;
     visibility: visible !important;
     pointer-events: auto !important;

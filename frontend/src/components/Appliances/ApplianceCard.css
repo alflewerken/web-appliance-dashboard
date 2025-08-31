@@ -536,12 +536,20 @@
     flex-direction: column !important;
     transition: opacity 0.3s ease !important;
     
-    /* Positionierung */
-    --content-height: calc(var(--card-size) * 0.65);
-    top: calc(var(--content-height) / 2) !important;
-    transform: translateY(-50%) !important;
-    max-height: calc(var(--content-height) - 20px) !important;
+    /* Positionierung - OBEN statt Mitte auf Mobile */
+    top: 10px !important;
+    transform: none !important;
+    max-height: calc(var(--card-size) * 0.65 - 20px) !important;
     overflow: visible !important;
+    gap: 4px !important;
+  }
+  
+  .card-buttons-left {
+    left: 8px !important;
+  }
+  
+  .card-buttons-right {
+    right: 8px !important;
   }
   
   /* Buttons SICHTBAR nach Touch/Tap */
@@ -625,7 +633,7 @@
   .card-front.touched .card-buttons-left,
   .card-front.touched .card-buttons-right {
     opacity: 1 !important;
-    transform: translateY(-50%) translateZ(10px) !important;
+    transform: translateZ(10px) !important;
   }
 
   /* Keine Hover-Effekte auf Mobile */
@@ -642,6 +650,9 @@
   .card-buttons-left,
   .card-buttons-right {
     opacity: 0 !important;
+    /* Position oben auf Touch-Geräten */
+    top: 10px !important;
+    transform: none !important;
   }
   
   /* Buttons sichtbar nach Touch */

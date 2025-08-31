@@ -197,9 +197,9 @@ const HostCard = ({
             </div>
             
             {/* Left Button Column - Edit Button */}
-            {/* Show buttons based on touch state and active state */}
+            {/* Show buttons based on touch state and active state - Desktop relies on CSS hover */}
             <div 
-              className={`card-buttons-left ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : 'visible-buttons'}`}
+              className={`card-buttons-left ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : ''}`}
               style={{
                 pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
               }}
@@ -227,7 +227,7 @@ const HostCard = ({
             
             {/* Right Button Column - Action Buttons */}
             <div 
-              className={`card-buttons-right ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : 'visible-buttons'}`}
+              className={`card-buttons-right ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : ''}`}
               style={{
                 pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
               }}
