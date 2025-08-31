@@ -96,7 +96,8 @@ class BackupManager {
       'role_permissions',
       'user_appliance_permissions',
       'service_command_logs',
-      'active_sessions'
+      'active_sessions',
+      'services' // Added: services table contains VNC/RDP passwords
     ];
     
     // Collect data from each table

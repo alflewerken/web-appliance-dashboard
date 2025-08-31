@@ -8,7 +8,8 @@ const { createAuditLog } = require('../utils/auditLogger');
 const { broadcast } = require('./sse');
 const { getClientIp } = require('../utils/getClientIp');
 const { saveBackgroundImageToAuditLog } = require('../utils/backgroundImageHelper');
-const { encrypt, decrypt } = require('../utils/crypto');
+// WICHTIG: Verwende encryption.js (CBC) statt crypto.js (GCM) für Konsistenz mit Hosts!
+const { encrypt, decrypt } = require('../utils/encryption');
 const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
 
 // Initialize QueryBuilder

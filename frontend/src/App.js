@@ -205,8 +205,13 @@ function Dashboard() {
     handleBackgroundSettingsUpdate,
   } = useBackground();
 
-  const { handleDragEnter, handleDragOver, handleDragLeave, handleDrop } =
-    useDragAndDrop(
+  const { 
+    handleDragEnter, 
+    handleDragOver, 
+    handleDragLeave, 
+    handleDrop,
+    restoreDialogComponent 
+  } = useDragAndDrop(
       showSettingsModal,
       activeSettingsTab,
       setActiveSettingsTab,
@@ -1668,6 +1673,8 @@ function Dashboard() {
 
       {/* SSE Debug Panel - nur im Development Mode */}
 
+      {/* Restore Dialog Component */}
+      {restoreDialogComponent}
     </div>
   );
 }

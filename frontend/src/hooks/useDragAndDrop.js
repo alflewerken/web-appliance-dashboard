@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { BackupService } from '../services/backupService';
 import { RestoreKeyDialog } from '../components/SettingsPanel';
 import React from 'react';
-import ReactDOM from 'react-dom/client';
 
 export const useDragAndDrop = (
   showSettingsModal,
@@ -43,59 +42,20 @@ export const useDragAndDrop = (
     setShowRestoreDialog(false);
   };
 
-  // Render den Dialog wenn nötig
-  React.useEffect(() => {
-    let root = null;
-    let dialogContainer = null;
-    
-    if (showRestoreDialog && pendingRestoreFile) {
-      dialogContainer = document.createElement('div');
-      dialogContainer.id = 'restore-dialog-container';
-      document.body.appendChild(dialogContainer);
-      
-      // Use createRoot API for React 18+
-      root = ReactDOM.createRoot(dialogContainer);
-      root.render(
-        <RestoreKeyDialog
-          open={showRestoreDialog}
-          onClose={() => {
-            setShowRestoreDialog(false);
-            setPendingRestoreFile(null);
-            if (root) {
-              root.unmount();
-              root = null;
-            }
-            const container = document.getElementById('restore-dialog-container');
-            if (container && container.parentNode) {
-              container.parentNode.removeChild(container);
-            }
-          }}
-          onRestore={(key) => {
-            handleRestoreWithKey(key);
-            if (root) {
-              root.unmount();
-              root = null;
-            }
-            const container = document.getElementById('restore-dialog-container');
-            if (container && container.parentNode) {
-              container.parentNode.removeChild(container);
-            }
-          }}
-          fileName={pendingRestoreFile?.name || 'backup.json'}
-        />
-      );
-      
-      return () => {
-        if (root) {
-          root.unmount();
-        }
-        const container = document.getElementById('restore-dialog-container');
-        if (container && container.parentNode) {
-          container.parentNode.removeChild(container);
-        }
-      };
-    }
-  }, [showRestoreDialog, pendingRestoreFile]);
+  // Dialog-Component wird direkt zurückgegeben statt in einem separaten Portal gerendert
+  const restoreDialogComponent = showRestoreDialog && pendingRestoreFile ? (
+    <RestoreKeyDialog
+      open={showRestoreDialog}
+      onClose={() => {
+        setShowRestoreDialog(false);
+        setPendingRestoreFile(null);
+      }}
+      onRestore={(key) => {
+        handleRestoreWithKey(key);
+      }}
+      fileName={pendingRestoreFile?.name || 'backup.json'}
+    />
+  ) : null;
 
   // Hilfsfunktion zur Bestimmung der Kategorie für neue Services
   const getValidCategoryForNewService = () => {
@@ -399,5 +359,6 @@ export const useDragAndDrop = (
     handleDragLeave,
     handleDrop,
     processBackupFile,
+    restoreDialogComponent,  // Dialog-Komponente zurückgeben
   };
 };

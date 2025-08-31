@@ -26,7 +26,8 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
-  const handleCopyKey = () => {
+  const handleCopyKey = (event) => {
+    event.stopPropagation();
     navigator.clipboard.writeText(encryptionKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -35,14 +36,36 @@ const EncryptionKeyDialog = ({ open, onClose, encryptionKey }) => {
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={(event, reason) => {
+        // Nur bei ESC-Taste schließen, nicht bei Backdrop-Click
+        if (reason === 'escapeKeyDown') {
+          onClose();
+        }
+      }}
       maxWidth="md"
       fullWidth
+      disableEscapeKeyDown={false}
+      slotProps={{
+        backdrop: {
+          sx: {
+            zIndex: 9997,
+          },
+          onClick: (event) => {
+            event.stopPropagation();
+            // Backdrop-Click wird ignoriert
+          },
+        },
+      }}
       PaperProps={{
         sx: {
           backgroundColor: '#1E1E1E',
           backgroundImage: 'none',
+          zIndex: 9999,
+          position: 'relative',
         },
+      }}
+      sx={{
+        zIndex: 9998,
       }}
     >
       <DialogTitle

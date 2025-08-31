@@ -181,6 +181,7 @@ router.post('/', verifyToken, async (req, res) => {
           remote_username: newHost.remoteUsername,
           // Pass the encrypted password from DB (will be decrypted by syncGuacamoleConnection)
           remote_password_encrypted: newHost.remotePassword,
+          remotePassword: newHost.remotePassword,  // Also provide in camelCase for compatibility
           guacamole_performance_mode: newHost.guacamolePerformanceMode,
           // SSH credentials for SFTP
           sshHostname: newHost.hostname,
@@ -424,6 +425,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
             remote_username: updatedHost.remoteUsername,
             // Pass the encrypted password from DB (will be decrypted by syncGuacamoleConnection)
             remote_password_encrypted: updatedHost.remotePassword,
+            remotePassword: updatedHost.remotePassword,  // Also provide in camelCase for compatibility
             guacamole_performance_mode: updatedHost.guacamolePerformanceMode,
             // SSH credentials for SFTP
             sshHostname: updatedHost.hostname,
@@ -600,6 +602,7 @@ router.put('/:id', verifyToken, async (req, res) => {
           remote_username: updatedHost.remoteUsername,
           // Pass the encrypted password from DB (will be decrypted by syncGuacamoleConnection)
           remote_password_encrypted: updatedHost.remotePassword,
+          remotePassword: updatedHost.remotePassword,  // Also provide in camelCase for compatibility
           guacamole_performance_mode: updatedHost.guacamolePerformanceMode,
           // SSH credentials for SFTP
           sshHostname: updatedHost.hostname,
@@ -763,6 +766,7 @@ router.post('/:id/remoteDesktopToken', verifyToken, async (req, res) => {
           remote_port: host.remotePort || 5900,  // Default VNC port
           remote_username: host.remoteUsername,
           remote_password_encrypted: host.remotePassword,  // Pass encrypted password
+          remotePassword: host.remotePassword,  // Also provide in camelCase for compatibility
           guacamole_performance_mode: host.guacamolePerformanceMode,
           // SSH credentials for SFTP
           sshHostname: host.hostname,

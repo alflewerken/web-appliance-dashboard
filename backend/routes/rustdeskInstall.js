@@ -120,7 +120,7 @@ router.post('/:applianceId', verifyToken, async (req, res) => {
 
     } else if (appliance.remote_password_encrypted) {
       // Decrypt the stored password if available
-      const { decrypt } = require('../utils/crypto');
+      const { decrypt } = require('../utils/encryption');
       rustdeskPassword = decrypt(appliance.remote_password_encrypted);
 
     } else {
@@ -1340,7 +1340,7 @@ router.put('/:applianceId/password', verifyToken, async (req, res) => {
     }
     
     // Decrypt the remote password
-    const { decrypt } = require('../utils/crypto');
+    const { decrypt } = require('../utils/encryption');
     const password = decrypt(appliance.remote_password_encrypted);
     
     if (!password) {

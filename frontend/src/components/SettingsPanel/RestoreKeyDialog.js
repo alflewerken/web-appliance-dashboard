@@ -58,14 +58,32 @@ const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={(event, reason) => {
+        // Nur bei ESC-Taste schließen, nicht bei Backdrop-Click
+        if (reason === 'escapeKeyDown') {
+          handleClose();
+        }
+      }}
       maxWidth="sm"
       fullWidth
+      disableEscapeKeyDown={false}
+      slotProps={{
+        backdrop: {
+          sx: {
+            zIndex: 9997,
+          },
+        },
+      }}
       PaperProps={{
         sx: {
           backgroundColor: '#1E1E1E',
           backgroundImage: 'none',
+          zIndex: 9999,
+          position: 'relative',
         },
+      }}
+      sx={{
+        zIndex: 9998,
       }}
     >
       <DialogTitle
@@ -119,6 +137,9 @@ const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
             disabled={skipDecryption}
             error={!!error && !skipDecryption}
             helperText={!skipDecryption ? error : ''}
+            autoFocus={true}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             sx={{
               '& .MuiOutlinedInput-root': {
                 backgroundColor: 'rgba(0, 0, 0, 0.3)',

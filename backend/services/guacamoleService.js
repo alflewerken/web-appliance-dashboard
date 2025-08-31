@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
 const axios = require('axios');
 const { getOptimizedConnectionParams } = require('../utils/guacamoleOptimizer');
-const { decrypt } = require('../utils/crypto');
+const { decrypt } = require('../utils/encryption');
 
 class GuacamoleService {
   constructor() {

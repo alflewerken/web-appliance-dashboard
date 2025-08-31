@@ -14,9 +14,10 @@ const bcrypt = require('bcryptjs');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
+// WICHTIG: Verwende encryptionManager für konsistente CBC-Verschlüsselung!
 const { encryptionManager } = require('../utils/encryption');
-// WICHTIG: Verwende die gleichen crypto-Funktionen wie appliances.js für konsistente Verschlüsselung!
-const { encrypt: cryptoEncrypt, decrypt: cryptoDecrypt } = require('../utils/crypto');
+// Nicht mehr benötigt - wir verwenden encryptionManager statt crypto.js
+// const { encrypt: cryptoEncrypt, decrypt: cryptoDecrypt } = require('../utils/crypto');
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
@@ -109,38 +110,19 @@ router.get('/backup', verifyToken, async (req, res) => {
     const backupKey = crypto.randomBytes(32).toString('hex');
 
     // Function to re-encrypt password for backup
-    // WICHTIG: Nutze crypto.js (GCM) für konsistente Verschlüsselung!
-    // Die Datenbank nutzt crypto.js, also müssen wir das auch für Backup/Restore verwenden
+    // WICHTIG: Nutze encryptionManager (CBC) für konsistente Verschlüsselung!
     const reEncryptForBackup = (encryptedData) => {
       if (!encryptedData) return null;
       
       try {
-        // First decrypt with system key using crypto.js (GCM mode)
-        const plaintext = cryptoDecrypt(encryptedData);
-        if (!plaintext) {
-          console.error('Failed to decrypt data with system key (GCM)');
-          return encryptedData; // Return original if decryption fails
-        }
+        // Use encryptionManager's reEncrypt function
+        // This handles CBC encryption properly
+        const systemKey = encryptionManager.getSystemKey();
+        const result = encryptionManager.reEncrypt(encryptedData, systemKey, backupKey);
         
-        // Then encrypt with backup key using a custom GCM encryption
-        // We need to manually create the encryption with backup key since crypto.js uses system key
-        const algorithm = 'aes-256-gcm';
-        const crypto = require('crypto');
-        const keyHash = crypto.createHash('sha256').update(backupKey).digest();
-        const iv = crypto.randomBytes(16);
-        
-        const cipher = crypto.createCipheriv(algorithm, keyHash, iv);
-        let encrypted = cipher.update(plaintext, 'utf8', 'hex');
-        encrypted += cipher.final('hex');
-        const authTag = cipher.getAuthTag();
-        
-        // Return in GCM format: iv:authTag:encrypted (authTag in the middle!)
-        const result = `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
-        
-        // Debug logging to verify format
-        const parts = result.split(':');
-        if (parts[1].length !== 32) {
-          console.error(`⚠️ WARNING: authTag has wrong length: ${parts[1].length} chars (expected 32)`);
+        if (!result) {
+          console.error('Failed to re-encrypt data for backup');
+          return encryptedData; // Return original if re-encryption fails
         }
         
         return result;
@@ -221,11 +203,13 @@ router.get('/backup', verifyToken, async (req, res) => {
     try {
       const rawHosts = await db.select('hosts', {}, { orderBy: 'createdAt' });
       // Re-encrypt passwords in hosts (decrypt with system key, encrypt with backup key)
+      // QueryBuilder returns camelCase fields, so we need to use the correct names
       hosts = rawHosts.map(host => ({
         ...host,
         password: reEncryptForBackup(host.password),
-        remotePassword: reEncryptForBackup(host.remotePassword),
-        rustdeskPassword: reEncryptForBackup(host.rustdeskPassword)
+        privateKey: reEncryptForBackup(host.privateKey), // Added: private SSH key
+        remotePassword: reEncryptForBackup(host.remotePassword), // This is correct (camelCase from QueryBuilder)
+        rustdeskPassword: reEncryptForBackup(host.rustdeskPassword) // This is correct (camelCase from QueryBuilder)
       }));
 
     } catch (error) {
@@ -860,6 +844,7 @@ router.post('/restore', verifyToken, async (req, res) => {
     
     // Extract the decryption key from the request
     const backupDecryptionKey = backupData.encryption_key || backupData.decryption_key || null;
+    console.log('🔑 Restore started with key:', backupDecryptionKey ? backupDecryptionKey.substring(0, 20) + '...' : 'NO KEY PROVIDED');
     delete backupData.encryption_key; // Remove from backup data
     delete backupData.decryption_key; // Remove from backup data
     
@@ -889,97 +874,56 @@ router.post('/restore', verifyToken, async (req, res) => {
     // Function to decrypt data from backup and re-encrypt with system key
     // WICHTIG: Unterstützt beide GCM-Formate für Backward Compatibility!
     // - Neues Format (ab 18.08.2025): iv:authTag:encrypted (3 Teile, 32-char authTag)
-    // - Altes Format (vor 18.08.2025): iv:encryptedDataWithAuthTag (2 Teile, authTag in letzten 16 bytes)
+    // Function to re-encrypt password from backup to system key
     const reEncryptFromBackup = (encryptedData) => {
       if (!encryptedData) {
         return null;
       }
+      
+      // Debug: Check if we have the decryption key
+      if (!backupDecryptionKey) {
+        console.error('❌ No backup decryption key available!');
+        // Return original data if we can't decrypt it
+        return encryptedData;
+      }
 
       try {
-        const parts = encryptedData.split(':');
-        const crypto = require('crypto');
+        // Use encryptionManager's reEncrypt function to handle the conversion
+        // From backup key to system key
+        const systemKey = encryptionManager.getSystemKey();
+        console.log('🔐 Re-encrypting: backup key:', backupDecryptionKey.substring(0, 20) + '..., system key:', systemKey.substring(0, 20) + '...');
         
-        // Unterstütze beide Formate
-        let decrypted = null;
+        const result = encryptionManager.reEncrypt(encryptedData, backupDecryptionKey, systemKey);
         
-        if (parts.length === 2) {
-          // Altes Format (vor 18.08.2025): iv:encryptedDataWithAuthTag
-          // Für Backward Compatibility mit Backups die vor der Vereinheitlichung erstellt wurden
-          // AuthTag ist in den letzten 16 Bytes enthalten
-
-          const [ivHex, encryptedWithTag] = parts;
-          const encryptedBuffer = Buffer.from(encryptedWithTag, 'hex');
-          
-          // AuthTag sind die letzten 16 Bytes
-          const authTag = encryptedBuffer.slice(-16);
-          const encrypted = encryptedBuffer.slice(0, -16);
-          
-          if (backupDecryptionKey) {
-            try {
-              const algorithm = 'aes-256-gcm';
-              const keyHash = crypto.createHash('sha256').update(backupDecryptionKey).digest();
-              const iv = Buffer.from(ivHex, 'hex');
-              
-              const decipher = crypto.createDecipheriv(algorithm, keyHash, iv);
-              decipher.setAuthTag(authTag);
-              
-              decrypted = decipher.update(encrypted, null, 'utf8');
-              decrypted += decipher.final('utf8');
-
-            } catch (err) {
-              console.error('❌ Failed to decrypt 2-part format:', err.message);
-              return encryptedData;
-            }
-          }
-          
-        } else if (parts.length === 3) {
-          // Neues vereinheitlichtes Format (ab 18.08.2025): iv:authTag:encrypted
-          // Dies ist das aktuelle Standard-Format nach der Encryption-Vereinheitlichung
-
-          const [ivHex, authTagHex, encrypted] = parts;
-          
-          // Validate authTag length
-          if (authTagHex.length !== 32) {
-            console.error(`❌ Invalid authTag length: ${authTagHex.length} chars (expected 32)`);
-            return encryptedData;
-          }
-          
-          if (backupDecryptionKey) {
-            try {
-              const algorithm = 'aes-256-gcm';
-              const keyHash = crypto.createHash('sha256').update(backupDecryptionKey).digest();
-              const iv = Buffer.from(ivHex, 'hex');
-              const authTag = Buffer.from(authTagHex, 'hex');
-              
-              const decipher = crypto.createDecipheriv(algorithm, keyHash, iv);
-              decipher.setAuthTag(authTag);
-              
-              decrypted = decipher.update(encrypted, 'hex', 'utf8');
-              decrypted += decipher.final('utf8');
-
-            } catch (err) {
-              console.error('❌ Failed to decrypt 3-part format:', err.message);
-              return encryptedData;
-            }
-          }
-          
-        } else {
-          console.error(`❌ Invalid format - ${parts.length} parts (expected 2 or 3)`);
+        if (!result) {
+          console.error('❌ encryptionManager.reEncrypt returned null');
+          // WICHTIG: Return original data instead of null to avoid corruption
           return encryptedData;
         }
         
-        // Re-encrypt with system key if decryption was successful
-        if (decrypted && backupDecryptionKey) {
-
-          const reEncrypted = cryptoEncrypt(decrypted);
-
-          return reEncrypted;
+        // Check if the result is the same as input (re-encryption failed silently)
+        if (result === encryptedData) {
+          console.warn('⚠️  Re-encryption returned original data (decryption likely failed)');
+          // Try to decrypt manually and re-encrypt
+          const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
+          if (decrypted) {
+            console.log('📝 Manual decrypt successful, re-encrypting...');
+            const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
+            return reEncrypted || encryptedData;
+          } else {
+            console.error('❌ Manual decrypt also failed - key might be wrong or data corrupted');
+            // WICHTIG: KEIN Fallback-Passwort! Das wäre ein Sicherheitsrisiko
+            // Stattdessen null zurückgeben, damit der Restore-Prozess weiß, dass es fehlgeschlagen ist
+            return null;
+          }
         } else {
-
-          return encryptedData;
+          console.log('✅ Successfully re-encrypted (data changed)');
         }
+        
+        return result;
       } catch (error) {
-        console.error('❌ Re-encryption failed:', error.message);
+        console.error('Failed to re-encrypt from backup:', error.message);
+        // WICHTIG: Return original data instead of null to avoid corruption
         return encryptedData;
       }
     };
@@ -1217,8 +1161,17 @@ router.post('/restore', verifyToken, async (req, res) => {
           
           // Re-encrypt remote password using the same function as hosts
           const remotePasswordEnc = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
-
-          dbAppliance.remote_password_encrypted = reEncryptFromBackup(remotePasswordEnc);
+          if (remotePasswordEnc) {
+            console.log(`🔐 Re-encrypting password for appliance ${appliance.name}`);
+            dbAppliance.remote_password_encrypted = reEncryptFromBackup(remotePasswordEnc);
+            if (!dbAppliance.remote_password_encrypted) {
+              console.error(`❌ Failed to re-encrypt password for ${appliance.name} - will be NULL in database`);
+              // WICHTIG: Kein Fallback-Passwort! Benutzer muss es neu eingeben
+              dbAppliance.remote_password_encrypted = null;
+            }
+          } else {
+            dbAppliance.remote_password_encrypted = null;
+          }
 
           dbAppliance.remote_desktop_type = appliance.remoteDesktopType || appliance.remote_desktop_type || 'guacamole';
           
@@ -1291,6 +1244,38 @@ router.post('/restore', verifyToken, async (req, res) => {
         await connection.execute(
           `ALTER TABLE appliances AUTO_INCREMENT = ${maxId + 1}`
         );
+        
+        // WICHTIG: Nach dem Import müssen alle Guacamole-Verbindungen für Appliances synchronisiert werden
+        console.log('🔄 Synchronizing Guacamole connections for restored appliances...');
+        const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
+        
+        // Get all imported appliances from DB with remote desktop enabled
+        const [importedAppliances] = await connection.execute(
+          'SELECT * FROM appliances WHERE remote_desktop_enabled = 1'
+        );
+        
+        for (const appliance of importedAppliances) {
+          try {
+            // Pass data directly as-is (snake_case from DB)
+            const guacamoleData = {
+              id: appliance.id,
+              name: appliance.name,
+              remote_desktop_enabled: appliance.remote_desktop_enabled,
+              remote_host: appliance.remote_host,
+              remote_protocol: appliance.remote_protocol || 'vnc',
+              remote_port: appliance.remote_port,
+              remote_username: appliance.remote_username,
+              remote_password_encrypted: appliance.remote_password_encrypted,
+              guacamole_performance_mode: appliance.guacamole_performance_mode
+            };
+            
+            await syncGuacamoleConnection(guacamoleData);
+            console.log(`✅ Synced Guacamole connection for appliance: ${appliance.name}`);
+          } catch (syncError) {
+            console.error(`❌ Failed to sync Guacamole for appliance ${appliance.name}:`, syncError.message);
+            // Don't throw - continue with other appliances
+          }
+        }
       }
 
       // Restore settings
@@ -1527,6 +1512,13 @@ router.post('/restore', verifyToken, async (req, res) => {
               }
             }
 
+            // Debug: Check what we have from backup
+            console.log(`🔍 Host ${host.name} from backup:`, {
+              hasRemotePassword: !!(host.remote_password || host.remotePassword),
+              remotePasswordField: host.remote_password ? 'remote_password' : (host.remotePassword ? 'remotePassword' : 'none'),
+              remoteDesktopEnabled: host.remote_desktop_enabled || host.remoteDesktopEnabled
+            });
+
             const hostData = {
               id: host.id,
               name: host.name,
@@ -1536,7 +1528,7 @@ router.post('/restore', verifyToken, async (req, res) => {
               username: host.username,
               icon: host.icon || 'Server',
               password: reEncryptFromBackup(host.password),
-              privateKey: host.private_key || host.privateKey || null,
+              privateKey: reEncryptFromBackup(host.private_key || host.privateKey), // Re-encrypt private key
               color: host.color || '#007AFF',
               transparency: host.transparency !== undefined ? host.transparency : 0.10,
               blur: host.blur !== undefined ? host.blur : 0,
@@ -1550,12 +1542,20 @@ router.post('/restore', verifyToken, async (req, res) => {
               remoteProtocol: host.remote_protocol || host.remoteProtocol || null,
               remotePort: host.remote_port || host.remotePort || null,
               remoteUsername: host.remote_username || host.remoteUsername || null,
-              remotePassword: reEncryptFromBackup(host.remote_password || host.remotePassword),
+              // WICHTIG: In der hosts-Tabelle heißt das Feld "remote_password", nicht "remote_password_encrypted"!
+              remote_password: reEncryptFromBackup(host.remote_password || host.remotePassword),
               guacamolePerformanceMode: host.guacamole_performance_mode || host.guacamolePerformanceMode || 'balanced',
               rustdeskId: host.rustdesk_id || host.rustdeskId || null,
               rustdeskPassword: reEncryptFromBackup(host.rustdesk_password || host.rustdeskPassword),
               isActive: host.is_active !== undefined ? host.is_active : (host.isActive !== false)
             };
+            
+            // Debug: Check what we're writing to DB
+            console.log(`🔍 Host ${host.name} data to DB:`, {
+              hasRemotePassword: !!hostData.remotePassword,
+              remotePasswordLength: hostData.remotePassword ? hostData.remotePassword.length : 0,
+              remoteDesktopEnabled: hostData.remoteDesktopEnabled
+            });
 
             const { sql, values } = prepareInsert('hosts', hostData);
             await connection.execute(sql, values);
@@ -1570,6 +1570,60 @@ router.post('/restore', verifyToken, async (req, res) => {
           await connection.execute(
             `ALTER TABLE hosts AUTO_INCREMENT = ${maxId + 1}`
           );
+
+          // WICHTIG: Nach dem Import müssen alle Guacamole-Verbindungen synchronisiert werden
+          console.log('🔄 Synchronizing Guacamole connections for restored hosts...');
+          const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
+          
+          // Get all imported hosts from DB (need to fetch them again to get the encrypted passwords)
+          const [importedHosts] = await connection.execute(
+            'SELECT * FROM hosts WHERE remote_desktop_enabled = 1'
+          );
+          
+          for (const host of importedHosts) {
+            try {
+              // Debug: Check what we read from DB
+              console.log(`🔍 Host ${host.name} from DB:`, {
+                hasRemotePassword: !!host.remote_password,
+                remotePasswordLength: host.remote_password ? host.remote_password.length : 0,
+                remoteDesktopEnabled: host.remote_desktop_enabled,
+                remoteProtocol: host.remote_protocol,
+                hostname: host.hostname
+              });
+              
+              // Convert snake_case to camelCase for syncGuacamoleConnection
+              const guacamoleData = {
+                id: host.id,
+                name: host.name,
+                remote_desktop_enabled: host.remote_desktop_enabled,
+                remote_host: host.hostname,
+                remote_protocol: host.remote_protocol || 'vnc',
+                remote_port: host.remote_port,
+                remote_username: host.remote_username,
+                // WICHTIG: Die DB-Spalte heißt "remote_password", aber guacamoleHelper erwartet "remote_password_encrypted"
+                remote_password_encrypted: host.remote_password,  // Pass the encrypted password from DB
+                remotePassword: host.remote_password,  // Also provide in camelCase for compatibility
+                guacamole_performance_mode: host.guacamole_performance_mode,
+                // SSH credentials for SFTP
+                sshHostname: host.hostname,
+                sshUsername: host.username,
+                sshPassword: host.password  // SSH password (encrypted)
+              };
+              
+              // Debug: Check what we pass to Guacamole
+              console.log(`🔍 Guacamole data for ${host.name}:`, {
+                hasRemotePasswordEncrypted: !!guacamoleData.remote_password_encrypted,
+                hasRemotePassword: !!guacamoleData.remotePassword,
+                remotePasswordLength: guacamoleData.remotePassword ? guacamoleData.remotePassword.length : 0
+              });
+              
+              await syncGuacamoleConnection(guacamoleData);
+              console.log(`✅ Synced Guacamole connection for host: ${host.name}`);
+            } catch (syncError) {
+              console.error(`❌ Failed to sync Guacamole for host ${host.name}:`, syncError.message);
+              // Don't throw - continue with other hosts
+            }
+          }
 
         } catch (error) {
           console.error('❌ Error restoring hosts:', error);

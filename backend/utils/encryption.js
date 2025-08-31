@@ -54,7 +54,8 @@ class EncryptionManager {
    * Decrypt data using a specific key
    * Accepts multiple formats:
    * - New format: iv:encrypted (CBC)
-   * - Legacy with auth tag: iv:encrypted:authTag (GCM)
+   * - GCM format from crypto.js: iv:authTag:encrypted (GCM)
+   * - Legacy GCM format: iv:encrypted:authTag (GCM) 
    * - Legacy plain: just hex
    */
   decrypt(encryptedData, keyString = null) {
@@ -69,11 +70,19 @@ class EncryptionManager {
         const parts = encryptedData.split(':');
         
         if (parts.length === 3) {
-          // Legacy GCM format: iv:encrypted:authTag
-          // This format was used in older versions
+          // GCM format - need to determine which variant
           iv = Buffer.from(parts[0], 'hex');
-          encrypted = parts[1];
-          authTag = Buffer.from(parts[2], 'hex');
+          
+          // Check if middle part looks like authTag (should be 32 hex chars for 16 bytes)
+          if (parts[1].length === 32) {
+            // crypto.js format: iv:authTag:encrypted
+            authTag = Buffer.from(parts[1], 'hex');
+            encrypted = parts[2];
+          } else {
+            // Legacy format: iv:encrypted:authTag
+            encrypted = parts[1];
+            authTag = Buffer.from(parts[2], 'hex');
+          }
           
           // Try GCM decryption
           try {

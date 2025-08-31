@@ -1,7 +1,7 @@
 // Script to recreate Guacamole connections after restore
 const pool = require('../utils/database');
 const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
-const { decrypt } = require('../utils/crypto');
+const { decrypt } = require('../utils/encryption');
 
 async function recreateGuacamoleConnections() {
 

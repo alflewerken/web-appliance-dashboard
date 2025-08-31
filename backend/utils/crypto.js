@@ -1,74 +1,26 @@
-// General purpose encryption utilities
-const crypto = require('crypto');
+// ⚠️ DEPRECATED - DO NOT USE THIS FILE ⚠️
+// 
+// crypto.js has been REMOVED to prevent confusion.
+// 
+// Use encryption.js instead for ALL encryption needs!
+// 
+// Why?
+// - crypto.js used GCM encryption (3-part format: iv:authTag:encrypted)
+// - encryption.js uses CBC encryption (2-part format: iv:encrypted)
+// - Having two different systems caused endless problems
+// - Everything now uses encryption.js for consistency
+//
+// Example:
+// const { encrypt, decrypt } = require('./encryption');
+//
+// This file exists only to prevent accidental recreation.
+// DO NOT IMPLEMENT ANYTHING HERE!
 
-// Get encryption key from environment or generate one
-const getEncryptionKey = () => {
-  let key = process.env.SSH_KEY_ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET;
-
-  if (!key) {
-
-    key = 'default-insecure-key-change-this-in-production!!';
-  }
-
-  // Ensure key is exactly 32 bytes for AES-256
-  return crypto.createHash('sha256').update(key).digest();
-};
-
-// Encrypt a string
-const encrypt = (text) => {
-  if (!text) return null;
+throw new Error(`
+  ❌ STOP! crypto.js has been deprecated!
   
-  const algorithm = 'aes-256-gcm';
-  const key = getEncryptionKey();
-  const iv = crypto.randomBytes(16);
-
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
-
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-
-  const authTag = cipher.getAuthTag();
-
-  // Return as a single string with format: iv:authTag:encrypted
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
-};
-
-// Decrypt a string
-const decrypt = (encryptedText) => {
-  if (!encryptedText) return null;
+  Use encryption.js instead:
+  const { encrypt, decrypt } = require('./encryption');
   
-  try {
-    // Parse the encrypted string
-    const parts = encryptedText.split(':');
-    if (parts.length !== 3) {
-      console.error('Invalid encrypted format');
-      return null;
-    }
-
-    const [ivHex, authTagHex, encrypted] = parts;
-    const algorithm = 'aes-256-gcm';
-    const key = getEncryptionKey();
-    
-    const decipher = crypto.createDecipheriv(
-      algorithm,
-      key,
-      Buffer.from(ivHex, 'hex')
-    );
-
-    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
-
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-
-    return decrypted;
-  } catch (error) {
-    console.error('Decryption error:', error.message);
-    return null;
-  }
-};
-
-module.exports = {
-  encrypt,
-  decrypt,
-  getEncryptionKey,
-};
+  All encryption in this project MUST use encryption.js for consistency.
+`);
