@@ -49,10 +49,12 @@ router.get('/stream', (req, res) => {
 
   // Add client to active connections
   clients.add(res);
+  console.log(`[SSE] Client connected. Total clients: ${clients.size}`);
 
   // Handle client disconnect
   req.on('close', () => {
     clients.delete(res);
+    console.log(`[SSE] Client disconnected. Total clients: ${clients.size}`);
 
   });
 
@@ -77,6 +79,9 @@ router.get('/stream', (req, res) => {
 // Broadcast function to send updates to all connected clients
 const broadcast = (eventType, data) => {
   const message = JSON.stringify(data);
+  
+  console.log(`[SSE] Broadcasting event '${eventType}' to ${clients.size} clients`);
+  console.log(`[SSE] Event data:`, data);
 
   let sentCount = 0;
   clients.forEach(client => {
@@ -90,7 +95,8 @@ const broadcast = (eventType, data) => {
       clients.delete(client);
     }
   });
-
+  
+  console.log(`[SSE] Successfully sent to ${sentCount} clients`);
 };
 
 // Debug endpoint to test token validation

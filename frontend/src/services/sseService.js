@@ -130,6 +130,8 @@ class SSEService {
           'terminal_disconnect',
           'password_change',
           'audit_logs_deleted',
+          'audit_log_deleted',
+          'audit_log_updated',
           'audit_log_created',
           'restore_completed',
           'service_accessed',
