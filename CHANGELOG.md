@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Massive Performance Optimizations** - Dashboard CPU usage reduced from 119% to < 5%
+  - Increased force-update interval from 5s to 60s to reduce unnecessary re-renders
+  - Service check interval now dynamically loaded from user settings (default 60s)
+  - Removed infinite CSS animations (pulse-glow) that caused 60-85% CPU usage
+  - Implemented React.memo and useMemo for Audit Log components
+  - Added SSE event debouncing (2s delay) to batch multiple updates
+  - Fixed critical useEffect dependency arrays to prevent render loops
+  - Conditional rendering for Settings tabs instead of display:none
+  - Optimized background blur effects with GPU acceleration
+  - Eliminated unnecessary DOM queries and requestAnimationFrame calls
+
+- **Mobile UX Improvements for Host and Service Cards**
+  - iOS Safari compatibility for touch events and button visibility
+  - CSS classes instead of inline styles for better iOS support
+  - Button positioning fixed for mobile (top: 10px instead of center)
+  - Touch event handlers with preventDefault for smoother interaction
+  - Reduced button sizes on mobile (30-32px) to prevent overflow
+  - Added visual feedback with borders for active cards
+  - Proper z-index hierarchy to ensure buttons appear above gradients
+  - File transfer button now fully functional on touch devices
+
 - **Complete Frontend Internationalization (i18n)** - Full multi-language support
   - Implemented React i18next with automatic browser language detection
   - Complete German (DE) and English (EN) translations (~22KB each)
@@ -37,6 +58,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preserves console.error for error handling
 
 ### Fixed
+- **Critical Performance Issues** - Multiple render loops and CPU-intensive operations
+  - Fixed infinite render loop in useBackground hook (object reference in dependencies)
+  - Corrected blur slider bug where value 0 was treated as falsy (jumped to 5px)
+  - Settings tabs were all rendering simultaneously (now conditional rendering)
+  - Removed PUBLIC_URL placeholders causing 400 Bad Request errors
+  - Fixed Audit Log useMemo implementation preventing React Error #130
+  - Eliminated continuous re-renders from aggressive auto-refresh
+  - Service status polling no longer blocks other operations
+
+- **Desktop/Mobile Button Visibility** - Proper hover and touch behavior
+  - Desktop: Host card buttons now only visible on hover (removed visible-buttons class)
+  - Mobile: Buttons correctly positioned at top of cards (10px margin)
+  - iOS Safari: Special handling for touch events with CSS classes
+  - Fixed z-index conflicts between buttons and card gradients
+  - Prevented hidden buttons from receiving touch events
+  - File transfer button now clickable on all mobile devices
+
+- **CSS Architecture Issues** - Consolidated 8 files into 1 clean structure
+  - Merged ApplianceCard CSS files eliminating conflicts
+  - Removed debug elements showing panel width in production
+  - Fixed import order issues causing style overrides
+  - Bundle size reduced by 40KB through consolidation
+  - Clear media query hierarchy: Desktop → Tablet → Mobile
+
 - **Missing Translations in Production Deployment** - nginx Docker image missing locales
   - Added locales directory to nginx Dockerfile COPY instructions
   - Ensures translation files are included in production builds
@@ -47,6 +92,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminates placeholder text in empty states
 
 ### Changed
+- **Performance Monitoring Integration** - Added debug logging for optimization
+  - Console cleanup script now ignores my-data and bundle files
+  - Added render loop detection in useBackground hook
+  - Implemented performance counters for updateBackgroundStyles
+  - Debug logging for button visibility states on mobile devices
+  - SSE event tracking for multi-client synchronization
+
+- **UI/UX Refinements** - Smoother interactions and better feedback
+  - Debounced slider inputs (500ms) to reduce API calls
+  - Background preview optional with click-to-show
+  - Reduced info gradient height on mobile (25% instead of 35%)
+  - Added transition effects for button visibility changes
+  - Stronger visual feedback for active filter cards
+
 - **Node.js Version Requirement** - Upgraded to Node.js 20+
   - Required for react-router-dom 7.8.2 compatibility
   - Updated .nvmrc and documentation
