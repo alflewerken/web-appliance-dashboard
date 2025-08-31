@@ -257,7 +257,7 @@
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: clamp(4px, calc(var(--card-size) * 0.04), 12px);
+  gap: clamp(3px, calc(var(--card-size) * 0.03), 8px);
   z-index: 30;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -267,11 +267,11 @@
 }
 
 .card-buttons-left {
-  left: clamp(8px, calc(var(--card-size) * 0.05), 20px);
+  left: clamp(6px, calc(var(--card-size) * 0.04), 16px);
 }
 
 .card-buttons-right {
-  right: clamp(8px, calc(var(--card-size) * 0.05), 20px);
+  right: clamp(6px, calc(var(--card-size) * 0.04), 16px);
 }
 
 /* Show buttons on hover */
@@ -282,8 +282,8 @@
 
 /* Action Buttons */
 .action-btn {
-  width: clamp(28px, calc(var(--card-size) * 0.16), 48px);
-  height: clamp(28px, calc(var(--card-size) * 0.16), 48px);
+  width: clamp(24px, calc(var(--card-size) * 0.14), 36px);
+  height: clamp(24px, calc(var(--card-size) * 0.14), 36px);
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -408,8 +408,8 @@
 .settings-btn-icon svg,
 .flip-btn svg,
 .edit-menu-toggle svg {
-  width: clamp(16px, calc(var(--card-size) * 0.1), 28px);
-  height: clamp(16px, calc(var(--card-size) * 0.1), 28px);
+  width: clamp(14px, calc(var(--card-size) * 0.08), 20px);
+  height: clamp(14px, calc(var(--card-size) * 0.08), 20px);
 }
 
 /* Settings Dialog */
@@ -477,9 +477,25 @@
    TABLET STYLES - 768px bis 1024px
    ============================================ */
 @media (min-width: 769px) and (max-width: 1024px) {
-  /* Tablet-spezifische Anpassungen hier */
-  .appliance-card-container {
-    /* Tablet-Größen können hier angepasst werden */
+  /* Buttons versteckt bis Touch/Tap */
+  .card-buttons-left,
+  .card-buttons-right {
+    opacity: 0 !important;
+    transition: opacity 0.3s ease;
+  }
+  
+  /* Buttons sichtbar nach Touch */
+  .card-front.touched .card-buttons-left,
+  .card-front.touched .card-buttons-right,
+  .card-front.mobile-tap-hint .card-buttons-left,
+  .card-front.mobile-tap-hint .card-buttons-right {
+    opacity: 1 !important;
+  }
+  
+  /* Hover funktioniert noch auf Tablets mit Maus */
+  .card-front:hover .card-buttons-left,
+  .card-front:hover .card-buttons-right {
+    opacity: 1 !important;
   }
 }
 
@@ -508,16 +524,17 @@
     height: max(45px, calc(var(--card-size) * 0.25)) !important;
   }
 
-  /* Button Container - MÜSSEN ÜBER ALLEM SEIN */
+  /* Button Container - VERSTECKT bis Touch */
   .card-buttons-left,
   .card-buttons-right {
-    /* IMMER sichtbar auf Mobile */
-    opacity: 1 !important;
+    /* Versteckt standardmäßig auf Mobile */
+    opacity: 0 !important;
     z-index: 100 !important;
     pointer-events: auto !important;
     position: absolute !important;
     display: flex !important;
     flex-direction: column !important;
+    transition: opacity 0.3s ease !important;
     
     /* Positionierung */
     --content-height: calc(var(--card-size) * 0.65);
@@ -526,8 +543,16 @@
     max-height: calc(var(--content-height) - 20px) !important;
     overflow: visible !important;
   }
+  
+  /* Buttons SICHTBAR nach Touch/Tap */
+  .card-front.touched .card-buttons-left,
+  .card-front.touched .card-buttons-right,
+  .card-front.mobile-tap-hint .card-buttons-left,
+  .card-front.mobile-tap-hint .card-buttons-right {
+    opacity: 1 !important;
+  }
 
-  /* Alle Buttons - MAXIMALE SICHTBARKEIT */
+  /* Alle Buttons - MAXIMALE SICHTBARKEIT aber angepasste Größe */
   .card-buttons-left button,
   .card-buttons-right button,
   .card-buttons-left .MuiIconButton-root,
@@ -546,9 +571,21 @@
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
     
-    /* Mindestgröße für Touch */
-    min-width: 32px !important;
-    min-height: 32px !important;
+    /* Angepasste Größe für Mobile - kleiner damit sie nicht überlappen */
+    min-width: 28px !important;
+    min-height: 28px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  /* Icons in Buttons auch kleiner */
+  .action-btn svg,
+  .card-buttons-left svg,
+  .card-buttons-right svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 
   /* FileTransfer Button SPEZIELL */
@@ -601,8 +638,17 @@
    TOUCH DEVICES - hover: none
    ============================================ */
 @media (hover: none) and (pointer: coarse) {
+  /* Buttons versteckt bis Touch */
   .card-buttons-left,
   .card-buttons-right {
+    opacity: 0 !important;
+  }
+  
+  /* Buttons sichtbar nach Touch */
+  .card-front.touched .card-buttons-left,
+  .card-front.touched .card-buttons-right,
+  .card-front.mobile-tap-hint .card-buttons-left,
+  .card-front.mobile-tap-hint .card-buttons-right {
     opacity: 1 !important;
   }
 

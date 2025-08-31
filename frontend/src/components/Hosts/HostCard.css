@@ -11,6 +11,40 @@
   min-height: calc(var(--min-card-size, 50px) + 80px);
 }
 
+/* Button visibility classes */
+.card-buttons-left.visible-buttons,
+.card-buttons-right.visible-buttons {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.card-buttons-left.hidden-buttons,
+.card-buttons-right.hidden-buttons {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  z-index: -1 !important; /* Unter allen anderen Elementen */
+}
+
+/* Alle Child-Elemente auch deaktivieren */
+.card-buttons-left.hidden-buttons *,
+.card-buttons-right.hidden-buttons * {
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
+/* Transition for smooth show/hide */
+.card-buttons-left,
+.card-buttons-right {
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  -webkit-transition: opacity 0.3s ease, visibility 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Hide buttons by default on desktop, show on hover */
 @media (hover: hover) and (pointer: fine) {
   /* Desktop with mouse - hide buttons by default */
@@ -29,10 +63,66 @@
 
 /* Touch devices - buttons are controlled by JavaScript state */
 @media (hover: none), (pointer: coarse) {
-  /* Touch devices - opacity controlled by component state */
+  /* Touch devices - ensure buttons are visible when they should be */
+  .appliance-card .card-buttons-left.visible-buttons,
+  .appliance-card .card-buttons-right.visible-buttons {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    -webkit-transition: opacity 0.3s ease;
+  }
+  
+  .appliance-card .card-buttons-left.hidden-buttons,
+  .appliance-card .card-buttons-right.hidden-buttons {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}
+
+/* iOS Safari specific fixes for Host Cards */
+@supports (-webkit-touch-callout: none) {
+  /* iOS specific styles */
   .appliance-card .card-buttons-left,
   .appliance-card .card-buttons-right {
-    transition: opacity 0.3s ease;
+    /* Force GPU acceleration */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: opacity, transform;
+    
+    /* Ensure touch events work */
+    -webkit-tap-highlight-color: transparent;
+    
+    /* Position absolute but with high z-index */
+    z-index: 100 !important;
+  }
+  
+  /* Force visible buttons to show on iOS */
+  .appliance-card .card-buttons-left.visible-buttons,
+  .appliance-card .card-buttons-right.visible-buttons {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    transform: translateZ(1px) !important;
+    -webkit-transform: translateZ(1px) !important;
+  }
+  
+  .appliance-card .card-buttons-left button,
+  .appliance-card .card-buttons-right button,
+  .appliance-card .card-buttons-left .MuiIconButton-root,
+  .appliance-card .card-buttons-right .MuiIconButton-root {
+    /* iOS button fixes */
+    -webkit-appearance: none !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+    z-index: 101 !important;
+  }
+  
+  /* Active card visual feedback */
+  .card-front.active-card {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
   }
 }
 
@@ -56,6 +146,8 @@
   /* Fix für abgerundete untere Ecken */
   border-radius: 0 0 16px 16px;
   overflow: hidden;
+  /* Lower z-index than buttons */
+  z-index: 1;
 }
 
 .card-info-overlay .card-title {
@@ -80,6 +172,33 @@
   .appliance-card .action-button span {
     font-size: 11px;
   }
+  
+  /* Buttons angepasst für mobile Geräte - kleiner für bessere Passform */
+  .appliance-card .card-buttons-left button,
+  .appliance-card .card-buttons-right button,
+  .appliance-card .card-buttons-left .MuiIconButton-root,
+  .appliance-card .card-buttons-right .MuiIconButton-root {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+  }
+  
+  /* Reduziere Abstände zwischen Buttons */
+  .appliance-card .card-buttons-left,
+  .appliance-card .card-buttons-right {
+    gap: 4px !important;
+  }
 }
 
-/* Removed forced size override to allow smaller cards */
+/* Debug: Force show all buttons on iOS for testing */
+@supports (-webkit-touch-callout: none) {
+  body.debug-buttons .card-buttons-left,
+  body.debug-buttons .card-buttons-right {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+}

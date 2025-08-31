@@ -53,14 +53,23 @@ const HostCard = ({
         navigator.msMaxTouchPoints > 0
       );
       
+      // iOS specific detection
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      
       // Check if device also has hover capability (tablets with stylus/mouse)
       const hasHover = window.matchMedia('(hover: hover)').matches;
       
-      // Only treat as touch device if it has touch AND no hover
-      // This excludes tablets with stylus/mouse support
-      const isTouchOnly = hasTouch && !hasHover;
+      // Treat iOS devices always as touch-only
+      // OR treat as touch-only if it has touch AND no hover
+      const isTouchOnly = isIOS || (hasTouch && !hasHover);
       
       setIsTouchDevice(isTouchOnly);
+      
+      // Debug logging für iOS
+      if (isIOS) {
+        console.log('[HostCard] iOS detected - Touch mode enabled');
+        console.log('[HostCard] hasTouch:', hasTouch, 'hasHover:', hasHover);
+      }
     };
 
     checkTouch();
@@ -69,22 +78,47 @@ const HostCard = ({
     return () => window.removeEventListener('resize', checkTouch);
   }, []);
 
+  // State für Touch-Aktivierung
+  const [wasTouched, setWasTouched] = useState(false);
+  
+  // Reset wasTouched when card becomes inactive, set it when active on touch devices
+  useEffect(() => {
+    if (!isActive) {
+      setWasTouched(false);
+    } else if (isTouchDevice) {
+      // Auf Touch-Geräten: Wenn aktiv, dann automatisch touched setzen
+      setWasTouched(true);
+      console.log(`[HostCard ${host.name}] Active on touch device - buttons should be visible`);
+    }
+  }, [isActive, isTouchDevice, host.name]);
+  
   const handleCardTouch = useCallback((e) => {
     // Don't handle touch if clicking on a button
     if (e.target.closest('button') || e.target.closest('[role="button"]')) {
       return;
     }
     
-    if (isTouchDevice && !isActive && onActivate) {
+    // Auf Touch-Geräten: Aktiviere die Karte beim ersten Touch
+    if (isTouchDevice) {
+      e.preventDefault(); // Verhindere Standard-Touch-Verhalten
       e.stopPropagation();
-      onActivate();
+      
+      // Setze touched state
+      setWasTouched(true);
+      
+      // Aktiviere die Karte
+      if (!isActive && onActivate) {
+        onActivate();
+      }
     }
   }, [isTouchDevice, isActive, onActivate]);
 
   const handleEdit = (event) => {
     event.stopPropagation();
-    // Direkt das Host-Panel öffnen
-    onEdit(host);
+    // Nur ausführen wenn Karte aktiv oder kein Touch-Device
+    if (!isTouchDevice || isActive || wasTouched) {
+      onEdit(host);
+    }
   };
   
   const cardColor = host.color || '#007AFF';
@@ -104,17 +138,42 @@ const HostCard = ({
   };
   
   const cardRgb = hexToRgb(cardColor);
+  
+  // Debug: Log button visibility state
+  useEffect(() => {
+    if (isTouchDevice) {
+      console.log(`[HostCard ${host.name}] Button visibility:`, {
+        isTouchDevice,
+        isActive,
+        wasTouched,
+        shouldShowButtons: !isTouchDevice || isActive || wasTouched,
+        className: (isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : 'visible-buttons'
+      });
+    }
+  }, [isTouchDevice, isActive, wasTouched, host.name]);
 
   return (
     <div 
       className="appliance-card-container"
       style={{ '--card-size': `${cardSize || 180}px` }}
       onClick={handleCardTouch}
+      onTouchStart={(e) => {
+        // Zusätzlicher Touch-Handler für bessere Mobile-Unterstützung
+        if (isTouchDevice) {
+          // Prüfe ob nicht auf Button getippt wurde
+          if (!e.target.closest('button') && !e.target.closest('[role="button"]')) {
+            setWasTouched(true);
+            if (!isActive && onActivate) {
+              onActivate();
+            }
+          }
+        }
+      }}
     >
       <div className="appliance-card">
         {/* Front Side */}
         <div 
-          className="card-side card-front"
+          className={`card-side card-front ${isActive ? 'active-card' : ''}`}
           style={{
             '--card-bg-color': cardColor,
             '--card-rgb': cardRgb,
@@ -124,6 +183,7 @@ const HostCard = ({
             backdropFilter: `blur(${blurAmount}px)`,
             WebkitBackdropFilter: `blur(${blurAmount}px)`,
             cursor: 'pointer',
+            border: isActive ? '2px solid rgba(255, 255, 255, 0.5)' : 'none',
           }}
         >
           {/* Card Cover with Icon */}
@@ -137,12 +197,11 @@ const HostCard = ({
             </div>
             
             {/* Left Button Column - Edit Button */}
-            {/* Show buttons if: not touch-only device OR card is active */}
+            {/* Show buttons based on touch state and active state */}
             <div 
-              className="card-buttons-left"
+              className={`card-buttons-left ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : 'visible-buttons'}`}
               style={{
-                opacity: (!isTouchDevice || isActive) ? undefined : 0,
-                pointerEvents: (!isTouchDevice || isActive) ? undefined : 'none'
+                pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
               }}
             >
                 <Tooltip title="Host bearbeiten">
@@ -168,17 +227,19 @@ const HostCard = ({
             
             {/* Right Button Column - Action Buttons */}
             <div 
-              className="card-buttons-right"
+              className={`card-buttons-right ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : 'visible-buttons'}`}
               style={{
-                opacity: (!isTouchDevice || isActive) ? undefined : 0,
-                pointerEvents: (!isTouchDevice || isActive) ? undefined : 'none'
+                pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
               }}
             >
                 <Tooltip title="Terminal">
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation();
-                      onTerminal(host);
+                      // Nur ausführen wenn Karte aktiv oder kein Touch-Device
+                      if (!isTouchDevice || isActive || wasTouched) {
+                        onTerminal(host);
+                      }
                     }}
                     size="small"
                     sx={{
@@ -203,11 +264,13 @@ const HostCard = ({
                     <IconButton
                       onClick={(e) => {
                         e.stopPropagation();
-
-                        if (onRemoteDesktop) {
-                          onRemoteDesktop(host);
-                        } else {
-                          console.error('[HostCard] onRemoteDesktop function not provided!');
+                        // Nur ausführen wenn Karte aktiv oder kein Touch-Device
+                        if (!isTouchDevice || isActive || wasTouched) {
+                          if (onRemoteDesktop) {
+                            onRemoteDesktop(host);
+                          } else {
+                            console.error('[HostCard] onRemoteDesktop function not provided!');
+                          }
                         }
                       }}
                       size="small"
@@ -232,7 +295,10 @@ const HostCard = ({
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation();
-                      onFileTransfer(host);
+                      // Nur ausführen wenn Karte aktiv oder kein Touch-Device
+                      if (!isTouchDevice || isActive || wasTouched) {
+                        onFileTransfer(host);
+                      }
                     }}
                     size="small"
                     sx={{
