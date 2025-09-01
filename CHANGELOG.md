@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Comprehensive UI Configuration System** - Complete visual customization with real-time updates
+  - New UIConfigPanel with extensive customization options for all UI elements
+  - Sliders for transparency, blur, tint, and border radius for:
+    - Sidebar, Panels, Cards, Inputs, Buttons, Modals
+  - Real-time updates without page reload via UIConfigManager
+  - Persistent settings in localStorage
+  - CSS variables dynamically managed for instant visual feedback
+  - Enhanced tint effects (3x stronger in light mode) for better visibility
+  - Header automatically synchronized with sidebar for consistent appearance
+  - Proper camelCase to snake_case mapping for database compatibility
+  - Complete control over glassmorphism effects and overall UI aesthetics
+
 - **Massive Performance Optimizations** - Dashboard CPU usage reduced from 119% to < 5%
   - Increased force-update interval from 5s to 60s to reduce unnecessary re-renders
   - Service check interval now dynamically loaded from user settings (default 60s)
@@ -58,6 +70,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preserves console.error for error handling
 
 ### Fixed
+- **UI Configuration Modal and Dropdown Issues** - Complete overhaul of modal behavior
+  - Fixed modal dialog transparency to properly use UI config CSS variables
+  - Removed hardcoded modal backgrounds in favor of dynamic CSS variables
+  - Dropdown menus now use solid backgrounds without affecting app background
+  - Eliminated modal overlay darkening effect - app remains fully visible
+  - Fixed header blur at 0px by removing saturate(150%) effect
+  - Removed all CSS fallback values that prevented 0-blur from working
+  - Proper separation of modal content styling from input field styling
+
+- **JavaScript Nullish Coalescing for 0-Values** - Fixed falsy value handling
+  - Replaced || operator with ?? for all blur value defaults
+  - Fixes issue where blur value 0 would jump to default (25px for header, 5px for cards)
+  - Applied to header, card, input, and modal blur calculations
+  - Ensures 0 is treated as valid value, not falsy
+  - Both ServicePanel and UIConfigManager now handle 0 correctly
+
+- **Service Panel Blur Value Persistence** - Fixed blur slider always resetting to 8px
+  - Replaced || with explicit !== undefined checks in 5 locations
+  - Backend now accepts both 'blur' and 'blurAmount' field names
+  - Added proper field mapping between frontend (blur) and database (blur_amount)
+  - Fixed SSE updates, visual settings, and form data initialization
+  - Blur value 0 now properly saved, displayed, and synchronized
+
 - **Critical Performance Issues** - Multiple render loops and CPU-intensive operations
   - Fixed infinite render loop in useBackground hook (object reference in dependencies)
   - Corrected blur slider bug where value 0 was treated as falsy (jumped to 5px)
