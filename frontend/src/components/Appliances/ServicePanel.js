@@ -277,14 +277,18 @@ const ServicePanel = ({
         rustdeskId: appliance.rustdeskId || appliance.rustdesk_id || '',
         rustdeskPassword: '', // RustDesk Passwort wird nicht vom Server zurückgegeben
         rustdeskInstalled: appliance.rustdeskInstalled || appliance.rustdesk_installed || false,
-        transparency: appliance.transparency || 0.85,
-        blur: appliance.blur || 8,
+        transparency: appliance.transparency ?? 0.85,
+        blur: appliance.blur !== undefined ? appliance.blur : 8,
       };
 
       setFormData(initialData);
       
-      // Store original data for comparison when saving
-      setOriginalFormData(initialData);
+      // Store original data for comparison when saving (including visual settings)
+      setOriginalFormData({
+        ...initialData,
+        transparency: initialData.transparency ?? 0.85,
+        blur: initialData.blur !== undefined ? initialData.blur : 8
+      });
 
       // Convert transparency from 0-1 range to 0-100 percentage
       // Note: In ApplianceCard, 1 = fully opaque, 0 = fully transparent
@@ -295,7 +299,7 @@ const ServicePanel = ({
 
       setVisualSettings({
         transparency: transparencyPercentage,
-        blur: appliance.blur || 8,
+        blur: appliance.blur !== undefined ? appliance.blur : 8,
       });
 
       // Set default SSH host based on appliance's SSH connection
@@ -372,8 +376,8 @@ const ServicePanel = ({
               rustdeskId: updatedAppliance.rustdeskId || '',
               rustdeskPassword: '', // Password not returned from server
               rustdeskInstalled: updatedAppliance.rustdeskInstalled || false,
-              transparency: updatedAppliance.transparency || 0.85,
-              blur: updatedAppliance.blur || 8,
+              transparency: updatedAppliance.transparency ?? 0.85,
+              blur: updatedAppliance.blur !== undefined ? updatedAppliance.blur : 8,
             };
             
             setFormData(updatedData);
@@ -385,7 +389,7 @@ const ServicePanel = ({
             );
             setVisualSettings({
               transparency: transparencyPercentage,
-              blur: updatedAppliance.blur || 8,
+              blur: updatedAppliance.blur !== undefined ? updatedAppliance.blur : 8,
             });
             
             setSuccess('Appliance wurde extern aktualisiert und neu geladen');
@@ -487,14 +491,27 @@ const ServicePanel = ({
       setLoading(true);
       setError('');
 
+      // Convert transparency from percentage (0-100) to fraction (0-1)
+      const transparencyValue = visualSettings.transparency / 100;
+      
+      // Merge visual settings into form data
+      const dataWithVisualSettings = {
+        ...formData,
+        transparency: transparencyValue,
+        blur: visualSettings.blur
+      };
+
       // Get only changed fields for existing appliances
       let dataToSave;
       if (appliance?.isNew) {
         // For new appliances, send all fields
-        dataToSave = { ...formData };
+        dataToSave = { ...dataWithVisualSettings };
       } else {
         // For existing appliances, send only changed fields
-        dataToSave = getChangedFields(originalFormData, formData);
+        console.log('[ServicePanel] Original form data:', originalFormData);
+        console.log('[ServicePanel] Current data with visual:', dataWithVisualSettings);
+        dataToSave = getChangedFields(originalFormData, dataWithVisualSettings);
+        console.log('[ServicePanel] Changed fields detected:', dataToSave);
         
         // Check if there are any changes
         if (Object.keys(dataToSave).length === 0) {
@@ -510,12 +527,15 @@ const ServicePanel = ({
       }
       
       // Debug logging to see what fields are being sent
+      console.log('[ServicePanel] Sending data to save:', dataToSave);
+      console.log('[ServicePanel] Visual settings:', visualSettings);
+      console.log('[ServicePanel] Merged data:', dataWithVisualSettings);
 
       await onSave(appliance?.id, dataToSave);
       
       // Update original data after successful save (for existing appliances)
       if (!appliance?.isNew) {
-        setOriginalFormData({ ...formData });
+        setOriginalFormData({ ...dataWithVisualSettings });
       }
 
       setSuccess(

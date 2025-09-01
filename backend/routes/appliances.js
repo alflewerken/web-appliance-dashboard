@@ -146,6 +146,7 @@ router.get('/:id', verifyToken, async (req, res) => {
       color: appliance.color || '#007AFF',
       transparency: appliance.transparency ?? 0.85,
       blurAmount: appliance.blurAmount ?? 8,
+      blur: appliance.blurAmount ?? 8, // Alias for frontend compatibility
     };
 
     res.json(enhancedAppliance);
@@ -300,7 +301,8 @@ router.post('/', verifyToken, async (req, res) => {
       autoStart: req.body.autoStart || false,
       sshConnection: req.body.sshConnection || null,
       transparency: req.body.transparency ?? 0.85,
-      blurAmount: req.body.blurAmount ?? 8,
+      // Accept both blur and blurAmount for compatibility
+      blurAmount: req.body.blur ?? req.body.blurAmount ?? 8,
       openModeMini: req.body.openModeMini || 'browser_tab',
       openModeMobile: req.body.openModeMobile || 'browser_tab',
       openModeDesktop: req.body.openModeDesktop || 'browser_tab',
@@ -425,6 +427,8 @@ router.put('/:id', verifyToken, async (req, res) => {
     if (req.body.autoStart !== undefined) updateDataCamelCase.autoStart = req.body.autoStart;
     if (req.body.sshConnection !== undefined) updateDataCamelCase.sshConnection = req.body.sshConnection;
     if (req.body.transparency !== undefined) updateDataCamelCase.transparency = req.body.transparency;
+    // Accept both blur and blurAmount for compatibility
+    if (req.body.blur !== undefined) updateDataCamelCase.blurAmount = req.body.blur;
     if (req.body.blurAmount !== undefined) updateDataCamelCase.blurAmount = req.body.blurAmount;
     if (req.body.openModeMini !== undefined) updateDataCamelCase.openModeMini = req.body.openModeMini;
     if (req.body.openModeMobile !== undefined) updateDataCamelCase.openModeMobile = req.body.openModeMobile;
@@ -574,6 +578,10 @@ router.put('/:id', verifyToken, async (req, res) => {
       );
     }
 
+    // Add blur alias for frontend compatibility  
+    updatedAppliance.blur = updatedAppliance.blurAmount !== undefined ? updatedAppliance.blurAmount : 8;
+    console.log('[SSE] Broadcasting updatedAppliance with blur:', updatedAppliance.blur, 'blurAmount:', updatedAppliance.blurAmount);
+
     // Broadcast the update to all connected clients
     broadcast('appliance_updated', updatedAppliance);
     broadcast('audit_log_created', {
@@ -644,6 +652,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
+  console.log('[PATCH] Received updates for appliance', id, ':', updates);
+
   try {
     // First, get the current data for audit log
     // QueryBuilder returns data in camelCase format
@@ -681,6 +691,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
         updateData[field] = updates[field];
       }
     });
+    
+    // Accept both blur and blurAmount for compatibility
+    if (updates.blur !== undefined) {
+      updateData.blurAmount = updates.blur;
+      console.log('[PATCH] Setting blurAmount from blur:', updates.blur);
+    }
 
     // Handle isFavorite separately - it needs field mapping
     if (updates.isFavorite !== undefined) {
@@ -700,6 +716,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
 
     // Add updatedAt timestamp
     updateData.updatedAt = new Date();
+
+    console.log('[PATCH] Final updateData to save:', updateData);
 
     // Execute the update
     await db.update('appliances', updateData, { id });
@@ -814,6 +832,10 @@ router.patch('/:id', verifyToken, async (req, res) => {
       }
     }
 
+    // Add blur alias for frontend compatibility  
+    updatedAppliance.blur = updatedAppliance.blurAmount !== undefined ? updatedAppliance.blurAmount : 8;
+    console.log('[SSE] Broadcasting updatedAppliance with blur:', updatedAppliance.blur, 'blurAmount:', updatedAppliance.blurAmount);
+
     // Broadcast the update to all connected clients
     broadcast('appliance_updated', updatedAppliance);
     broadcast('audit_log_created', {
@@ -877,6 +899,10 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
         updatedAppliance.name  // resourceName
       );
     }
+
+    // Add blur alias for frontend compatibility  
+    updatedAppliance.blur = updatedAppliance.blurAmount !== undefined ? updatedAppliance.blurAmount : 8;
+    console.log('[SSE] Broadcasting updatedAppliance with blur:', updatedAppliance.blur, 'blurAmount:', updatedAppliance.blurAmount);
 
     // Broadcast the update to all connected clients
     broadcast('appliance_updated', updatedAppliance);
