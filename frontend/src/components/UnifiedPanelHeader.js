@@ -50,8 +50,6 @@ const UnifiedPanelHeader = ({ title, icon: Icon, onClose, actions }) => {
           onClick={onClose}
           sx={{
             padding: '8px',
-            color: 'rgba(255, 255, 255, 0.7)',
-            backgroundColor: 'rgba(118, 118, 128, 0.12)',
             borderRadius: '8px',
             transition: 'all 0.2s',
             '&:hover': {

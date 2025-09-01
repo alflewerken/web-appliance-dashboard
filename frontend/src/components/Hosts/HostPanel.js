@@ -113,6 +113,198 @@ const HostPanel = ({
   const [sshKeys, setSshKeys] = useState([]);
   const [selectedKey, setSelectedKey] = useState(null);
 
+  // Theme and UI Settings state
+  const [currentTheme, setCurrentTheme] = useState('dark');
+  const [uiSettings, setUiSettings] = useState({
+    cardTransparency: 85,
+    cardBlur: 5,
+    cardTint: 0,
+    inputTransparency: 95,
+    inputTint: 0
+  });
+
+  // Monitor theme changes
+  useEffect(() => {
+    const checkTheme = () => {
+      const theme = document.body.classList.contains('theme-light')
+        ? 'light'
+        : 'dark';
+      setCurrentTheme(theme);
+    };
+
+    checkTheme();
+
+    // Observer für Theme-Änderungen
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Monitor UI settings changes
+  useEffect(() => {
+    const loadUISettings = () => {
+      try {
+        const stored = localStorage.getItem('ui_settings');
+        if (stored) {
+          setUiSettings(JSON.parse(stored));
+        }
+      } catch (e) {
+        // Use defaults if parsing fails
+      }
+    };
+
+    loadUISettings();
+
+    // Listen for storage events
+    const handleStorageChange = (e) => {
+      if (e.key === 'ui_settings') {
+        loadUISettings();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events from same window
+    const handleUISettingsChange = () => {
+      loadUISettings();
+    };
+    
+    window.addEventListener('uiSettingsChanged', handleUISettingsChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('uiSettingsChanged', handleUISettingsChange);
+    };
+  }, []);
+
+  // Helper function for card styles based on theme and UI settings
+  const getCardStyles = () => {
+    const isLight = currentTheme === 'light';
+    
+    const transparency = uiSettings.cardTransparency / 100;
+    const blurAmount = uiSettings.cardBlur || 5;
+    const tint = uiSettings.cardTint;
+    
+    // Calculate RGB values based on tint
+    let r, g, b;
+    if (isLight) {
+      // Light mode: base is white
+      const baseValue = 255;
+      const adjustment = Math.round((tint / 100) * 50);
+      r = g = b = Math.max(0, Math.min(255, baseValue - adjustment));
+    } else {
+      // Dark mode: base is black  
+      const baseValue = 0;
+      const adjustment = Math.round((tint / 100) * 50);
+      r = g = b = Math.max(0, Math.min(255, baseValue + adjustment));
+    }
+    
+    return {
+      backgroundColor: `rgba(${r}, ${g}, ${b}, ${transparency})`,
+      backdropFilter: `blur(${blurAmount}px)`,
+      WebkitBackdropFilter: `blur(${blurAmount}px)`,
+      borderRadius: '12px',
+      border: isLight
+        ? '1px solid rgba(0, 0, 0, 0.1)'
+        : '1px solid rgba(255, 255, 255, 0.08)',
+    };
+  };
+
+  // Helper function for input styles based on theme and UI settings
+  const getInputStyles = () => {
+    const isLight = currentTheme === 'light';
+    
+    const transparency = uiSettings.inputTransparency / 100;
+    const tint = uiSettings.inputTint;
+    
+    // Calculate RGB values based on tint
+    let r, g, b;
+    if (isLight) {
+      // Light mode: base is white
+      const baseValue = 255;
+      const adjustment = Math.round((tint / 100) * 30);
+      r = g = b = Math.max(0, Math.min(255, baseValue - adjustment));
+    } else {
+      // Dark mode: base is black
+      const baseValue = 0;
+      const adjustment = Math.round((tint / 100) * 30);
+      r = g = b = Math.max(0, Math.min(255, baseValue + adjustment));
+    }
+    
+    return {
+      '& .MuiInputLabel-root': { 
+        color: 'var(--text-secondary)' 
+      },
+      '& .MuiInputBase-root': {
+        color: 'var(--text-primary)',
+        backgroundColor: `rgba(${r}, ${g}, ${b}, ${transparency})`,
+      },
+      '& .MuiOutlinedInput-root': {
+        '& fieldset': {
+          borderColor: isLight 
+            ? 'rgba(0, 0, 0, 0.23)'
+            : 'rgba(255, 255, 255, 0.2)',
+        },
+        '&:hover fieldset': {
+          borderColor: isLight 
+            ? 'rgba(0, 0, 0, 0.3)'
+            : 'rgba(255, 255, 255, 0.3)',
+        },
+        '&.Mui-focused fieldset': {
+          borderColor: 'var(--accent-color)',
+        },
+      },
+      '& .MuiFormHelperText-root': { 
+        color: 'var(--text-tertiary)' 
+      },
+    };
+  };
+
+  // Helper for Select components
+  const getSelectStyles = () => {
+    const isLight = currentTheme === 'light';
+    
+    const transparency = uiSettings.inputTransparency / 100;
+    const tint = uiSettings.inputTint;
+    
+    // Calculate RGB values based on tint
+    let r, g, b;
+    if (isLight) {
+      const baseValue = 255;
+      const adjustment = Math.round((tint / 100) * 30);
+      r = g = b = Math.max(0, Math.min(255, baseValue - adjustment));
+    } else {
+      const baseValue = 0;
+      const adjustment = Math.round((tint / 100) * 30);
+      r = g = b = Math.max(0, Math.min(255, baseValue + adjustment));
+    }
+    
+    return {
+      color: 'var(--text-primary)',
+      backgroundColor: `rgba(${r}, ${g}, ${b}, ${transparency})`,
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: isLight 
+          ? 'rgba(0, 0, 0, 0.23)'
+          : 'rgba(255, 255, 255, 0.2)',
+      },
+      '&:hover .MuiOutlinedInput-notchedOutline': {
+        borderColor: isLight 
+          ? 'rgba(0, 0, 0, 0.3)'
+          : 'rgba(255, 255, 255, 0.3)',
+      },
+      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+        borderColor: 'var(--accent-color)',
+      },
+      '& .MuiSvgIcon-root': {
+        color: 'var(--text-secondary)',
+      },
+    };
+  };
+
   // Initialize form data
   useEffect(() => {
     if (host && !host.isNew) {
@@ -637,11 +829,7 @@ const HostPanel = ({
 
   // Card styles
   const cardStyles = {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderRadius: '12px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    ...getCardStyles(),
     mb: 3,
     '.theme-light &': {
       backgroundColor: 'rgba(0, 0, 0, 0.05)',
@@ -649,18 +837,7 @@ const HostPanel = ({
     },
   };
 
-  const textFieldStyles = {
-    '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-    '& .MuiInputBase-root': {
-      color: 'var(--text-primary)',
-      backgroundColor: 'var(--container-bg)',
-    },
-    '& .MuiOutlinedInput-root': {
-      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-      '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-      '&.Mui-focused fieldset': { borderColor: 'var(--primary-color)' },
-    },
-  };
+  const textFieldStyles = getInputStyles();
 
   return (
     <Box
@@ -713,7 +890,7 @@ const HostPanel = ({
         {activeTab === 0 && (
           <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
             {/* Grundinformationen Card */}
-            <Card sx={cardStyles}>
+            <Card className="settings-card" sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
                   {t('hosts.sections.basicInfo')}
@@ -745,7 +922,7 @@ const HostPanel = ({
             </Card>
 
             {/* Verbindungseinstellungen Card */}
-            <Card sx={cardStyles}>
+            <Card className="settings-card" sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
                   {t('hosts.sections.connectionSettings')}
@@ -788,7 +965,7 @@ const HostPanel = ({
             </Card>
 
             {/* Authentifizierung Card */}
-            <Card sx={cardStyles}>
+            <Card className="settings-card" sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
                   {t('hosts.sections.authentication')}
@@ -797,12 +974,7 @@ const HostPanel = ({
                 <FormControl fullWidth margin="normal">
                   <InputLabel 
                     id="ssh-key-select-label"
-                    sx={{ 
-                      color: 'var(--text-secondary)',
-                      '&.Mui-focused': {
-                        color: 'var(--primary-color)',
-                      },
-                    }}
+                  >
                   >
                     {t('hosts.sshKey')}
                   </InputLabel>
@@ -828,19 +1000,7 @@ const HostPanel = ({
                         </Box>
                       );
                     }}
-                    sx={{
-                      color: 'var(--text-primary)',
-                      backgroundColor: 'var(--container-bg)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.3)',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'var(--primary-color)',
-                      },
-                    }}
+                    sx={getSelectStyles()}
                   >
                     {sshKeys.map((key) => (
                       <MenuItem 
@@ -911,7 +1071,7 @@ const HostPanel = ({
             </Card>
 
             {/* Visuelle Einstellungen Card */}
-            <Card sx={cardStyles}>
+            <Card className="settings-card" sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
                   {t('hosts.sections.appearance')}
@@ -1005,7 +1165,7 @@ const HostPanel = ({
             </Card>
 
             {/* Remote Desktop Card */}
-            <Card sx={cardStyles}>
+            <Card className="settings-card" sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
                   {t('hosts.sections.remoteDesktop')}
@@ -1030,7 +1190,7 @@ const HostPanel = ({
                 {formData.remoteDesktopEnabled && (
                   <>
                     <FormControl fullWidth margin="normal">
-                      <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                      <InputLabel>
                         {t('hosts.remoteDesktop.type')}
                       </InputLabel>
                       <Select
@@ -1049,16 +1209,13 @@ const HostPanel = ({
                     {formData.remoteDesktopType === 'guacamole' && (
                       <>
                         <FormControl fullWidth margin="normal">
-                          <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                          <InputLabel>
                             {t('hosts.remoteDesktop.protocol')}
                           </InputLabel>
                           <Select
                             value={formData.remoteProtocol}
                             onChange={(e) => handleInputChange('remoteProtocol', e.target.value)}
-                            sx={{
-                              color: 'var(--text-primary)',
-                              backgroundColor: 'var(--container-bg)',
-                            }}
+                            sx={getSelectStyles()}
                           >
                             <MenuItem value="vnc">VNC</MenuItem>
                             <MenuItem value="rdp">RDP</MenuItem>

@@ -8,10 +8,10 @@
   display: flex !important;
   align-items: center !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  /* Glassmorphism effect matching side panels */
-  background: rgba(118, 118, 128, 0.12) !important;
-  backdrop-filter: blur(30px) saturate(150%) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  /* Glassmorphism effect using CSS variables from UI Config */
+  background: var(--header-bg, rgba(118, 118, 128, 0.12)) !important;
+  backdrop-filter: blur(var(--header-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--header-blur)) !important;
 }
 
 /* Ensure header controls are vertically centered */
@@ -104,10 +104,10 @@
 /* Light mode adjustments */
 body.theme-light .content-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  /* EXACT same glassmorphism as sidebar */
-  background: rgba(118, 118, 128, 0.12) !important;
-  backdrop-filter: blur(30px) saturate(150%) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  /* Use CSS variables from UI Config */
+  background: var(--header-bg, rgba(118, 118, 128, 0.12)) !important;
+  backdrop-filter: blur(var(--header-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--header-blur)) !important;
 }
 
 /* Fix for input elements vertical alignment */

@@ -1,0 +1,754 @@
+/* Global UI Configuration CSS Variables */
+/* These variables are dynamically set by UIConfigManager */
+
+:root {
+  /* Panel Variables */
+  --panel-bg: rgba(0, 0, 0, 0.85);
+  --panel-blur: 20px;
+  --panel-border: rgba(255, 255, 255, 0.08);
+  
+  /* Sidebar Variables */
+  --sidebar-bg: rgba(0, 0, 0, 0.9);
+  --sidebar-blur: 25px;
+  --sidebar-width: 280px;
+  
+  /* Card Variables */
+  --card-bg: rgba(0, 0, 0, 0.85);
+  --card-blur: 20px;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --card-radius: 12px;
+  
+  /* Input Variables - now including blur */
+  --input-bg: rgba(0, 0, 0, 0.95);
+  --input-blur: 0px;
+  --input-border: rgba(255, 255, 255, 0.2);
+  --input-radius: 8px;
+  
+  /* Button Variables */
+  --button-bg: rgba(0, 0, 0, 1);
+  --button-hover-scale: 1.02;
+  --button-radius: 8px;
+  
+  /* Modal Variables */
+  --modal-bg: rgba(0, 0, 0, 0.95);
+  --modal-blur: 30px;
+  
+  /* Text Opacity */
+  --text-primary-opacity: 1;
+  --text-secondary-opacity: 0.7;
+  --text-tertiary-opacity: 0.5;
+  
+  /* Animation */
+  --animation-speed: 0.2s;
+  --animation-enabled: running;
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.25);
+  
+  /* Glassmorphism */
+  --glass-blur: 20px;
+  --glass-saturation: 150%;
+}
+
+/* Apply to all panels */
+.service-panel-container,
+.host-panel-container,
+.user-panel-container,
+.settings-panel-container {
+  background: var(--panel-bg) !important;
+  backdrop-filter: blur(var(--panel-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--panel-blur)) !important;
+  border-left: 1px solid var(--panel-border) !important;
+  transition: all var(--animation-speed) !important;
+}
+
+/* Apply to sidebar */
+.sidebar,
+.appliance-sidebar {
+  background: var(--sidebar-bg) !important;
+  backdrop-filter: blur(var(--sidebar-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--sidebar-blur)) !important;
+  width: var(--sidebar-width) !important;
+  transition: all var(--animation-speed) !important;
+}
+
+/* Apply to all cards EXCEPT appliance-card */
+.MuiCard-root,
+.settings-card,
+.command-card,
+.category-card {
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  backdrop-filter: blur(var(--card-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--card-blur)) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: var(--card-radius) !important;
+  transition: all var(--animation-speed) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Ensure MUI Card overrides */
+.MuiPaper-root.MuiCard-root,
+.MuiCard-root.settings-card {
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+}
+
+/* Appliance cards use their own transparency and blur, only radius from UI config */
+.appliance-card {
+  border-radius: var(--card-radius) !important;
+  transition: all var(--animation-speed) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.MuiCard-root:hover,
+.settings-card:hover,
+.command-card:hover,
+.category-card:hover {
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-2px);
+}
+
+.appliance-card:hover {
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-2px);
+}
+
+/* Apply to all inputs - ENHANCED for complete coverage */
+.MuiTextField-root .MuiInputBase-root,
+.MuiTextField-root .MuiOutlinedInput-root,
+.MuiTextField-root .MuiFilledInput-root,
+.MuiSelect-root,
+.MuiInputBase-root,
+.MuiOutlinedInput-root,
+.MuiFilledInput-root,
+.MuiInput-root,
+.MuiFormControl-root .MuiInputBase-root,
+.MuiAutocomplete-root .MuiInputBase-root,
+textarea,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+select {
+  background-color: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+  border-radius: var(--input-radius) !important;
+  transition: all var(--animation-speed) !important;
+}
+
+/* Override any component-specific colors */
+.MuiTextField-root .MuiInputBase-root,
+.MuiTextField-root .MuiInputBase-input,
+.MuiSelect-root,
+.MuiInputBase-input {
+  color: inherit !important;
+}
+
+/* Labels should also follow the theme */
+.MuiInputLabel-root,
+.MuiFormLabel-root {
+  color: inherit !important;
+  opacity: 0.7 !important;
+}
+
+.MuiInputLabel-root.Mui-focused,
+.MuiFormLabel-root.Mui-focused {
+  color: var(--primary-color, #007AFF) !important;
+  opacity: 1 !important;
+}
+
+/* Apply to all input borders - ENHANCED */
+.MuiTextField-root .MuiOutlinedInput-notchedOutline,
+.MuiSelect-root .MuiOutlinedInput-notchedOutline,
+.MuiOutlinedInput-notchedOutline,
+.MuiFormControl-root .MuiOutlinedInput-notchedOutline,
+.MuiAutocomplete-root .MuiOutlinedInput-notchedOutline,
+.MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: var(--input-border) !important;
+  opacity: 1 !important;
+}
+
+/* Hover state */
+.MuiTextField-root:hover .MuiOutlinedInput-notchedOutline,
+.MuiSelect-root:hover .MuiOutlinedInput-notchedOutline,
+.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--input-border) !important;
+  opacity: 1.2 !important;
+}
+
+/* Focus state */
+.MuiTextField-root .Mui-focused .MuiOutlinedInput-notchedOutline,
+.MuiSelect-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary-color, #007AFF) !important;
+  border-width: 2px !important;
+}
+
+/* Apply to Select dropdowns */
+.MuiSelect-select,
+.MuiNativeSelect-select,
+.MuiMenuItem-root {
+  background-color: transparent !important;
+}
+
+/* Dropdown menus should also use input styles */
+.MuiMenu-paper,
+.MuiAutocomplete-paper,
+.MuiSelect-paper {
+  background-color: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: var(--input-radius) !important;
+}
+
+/* Apply to all buttons */
+.MuiButton-root {
+  border-radius: var(--button-radius) !important;
+  transition: all var(--animation-speed) !important;
+}
+
+.MuiButton-root:hover {
+  transform: scale(var(--button-hover-scale)) !important;
+}
+
+/* Apply to all modals/dialogs */
+.MuiDialog-paper,
+.MuiModal-root .MuiBox-root,
+.MuiDrawer-paper.MuiDrawer-paperAnchorRight,
+.MuiDrawer-paper.MuiDrawer-paperAnchorLeft,
+.MuiDrawer-paper.MuiDrawer-paperAnchorTop,
+.MuiDrawer-paper.MuiDrawer-paperAnchorBottom {
+  background: var(--modal-bg) !important;
+  backdrop-filter: blur(var(--modal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--modal-blur)) !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+/* Text opacity adjustments */
+.MuiTypography-root {
+  opacity: var(--text-primary-opacity) !important;
+}
+
+.MuiTypography-body2,
+.MuiInputLabel-root,
+.text-secondary {
+  opacity: var(--text-secondary-opacity) !important;
+}
+
+.MuiTypography-caption,
+.MuiFormHelperText-root,
+.text-tertiary {
+  opacity: var(--text-tertiary-opacity) !important;
+}
+
+/* Animation control */
+* {
+  animation-play-state: var(--animation-enabled) !important;
+}
+
+/* Glassmorphism effects */
+.glass-effect {
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
+}
+
+/* Override for specific components that need special treatment */
+.MuiAppBar-root {
+  background: var(--panel-bg) !important;
+  backdrop-filter: blur(var(--panel-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--panel-blur)) !important;
+}
+
+.MuiDrawer-paper {
+  background: var(--sidebar-bg) !important;
+  backdrop-filter: blur(var(--sidebar-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--sidebar-blur)) !important;
+}
+
+/* Tabs styling */
+.MuiTabs-root {
+  background: transparent !important;
+}
+
+.MuiTab-root {
+  transition: all var(--animation-speed) !important;
+}
+
+/* Accordion styling */
+.MuiAccordion-root {
+  background: var(--card-bg) !important;
+  backdrop-filter: blur(var(--card-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--card-blur)) !important;
+  border-radius: var(--card-radius) !important;
+}
+
+/* Slider styling */
+.MuiSlider-root {
+  transition: all var(--animation-speed) !important;
+}
+
+/* Switch styling */
+.MuiSwitch-root {
+  transition: all var(--animation-speed) !important;
+}
+
+/* Chip styling */
+.MuiChip-root {
+  background: var(--button-bg) !important;
+  border-radius: var(--button-radius) !important;
+  transition: all var(--animation-speed) !important;
+}
+
+/* Menu and Popover styling - Standard dropdowns without transparency/blur */
+.MuiMenu-paper,
+.MuiPopover-paper,
+.MuiSelect-popper,
+.MuiAutocomplete-popper,
+.MuiAutocomplete-paper {
+  /* Standard dropdown styling - solid background, no effects */
+  background: #2c2c2e !important;
+  background-color: #2c2c2e !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Light mode dropdown overrides */
+body.theme-light .MuiMenu-paper,
+body.theme-light .MuiPopover-paper,
+body.theme-light .MuiSelect-popper,
+body.theme-light .MuiAutocomplete-popper,
+body.theme-light .MuiAutocomplete-paper {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ensure dropdown backdrops are transparent and don't affect app background */
+.MuiPopover-root > .MuiBackdrop-root,
+.MuiMenu-root > .MuiBackdrop-root {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Tooltip styling - smaller blur for readability */
+.MuiTooltip-tooltip,
+.MuiTooltip-popper .MuiTooltip-tooltip {
+  background: var(--modal-bg) !important;
+  backdrop-filter: blur(calc(var(--modal-blur) / 2)) !important;
+  -webkit-backdrop-filter: blur(calc(var(--modal-blur) / 2)) !important;
+  border: 1px solid var(--card-border) !important;
+}
+
+/* Alert styling - use modal settings for consistency */
+.MuiAlert-root,
+.MuiSnackbar-root .MuiPaper-root {
+  background: var(--modal-bg) !important;
+  backdrop-filter: blur(var(--modal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--modal-blur)) !important;
+  border-radius: var(--card-radius) !important;
+}
+
+/* Table styling */
+.MuiTableContainer-root {
+  background: var(--card-bg) !important;
+  border-radius: var(--card-radius) !important;
+}
+
+.MuiTableCell-root {
+  border-color: var(--card-border) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
+  transition: all var(--animation-speed);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Light theme overrides */
+body.theme-light {
+  --panel-border: rgba(0, 0, 0, 0.08);
+  --card-border: rgba(0, 0, 0, 0.1);
+  --input-border: rgba(0, 0, 0, 0.2);
+}
+
+/* CRITICAL: App background must NEVER be affected by dropdowns or modals */
+body, 
+html, 
+#root, 
+.App,
+.app-container,
+.main-content {
+  /* No backdrop filter on main app */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 100vw !important;
+  }
+  
+  .service-panel-container,
+  .host-panel-container,
+  .user-panel-container,
+  .settings-panel-container {
+    width: 100vw !important;
+  }
+}
+
+/* Performance optimization - disable blur on low-end devices */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --panel-blur: 0px !important;
+    --sidebar-blur: 0px !important;
+    --card-blur: 0px !important;
+    --modal-blur: 0px !important;
+    --glass-blur: 0px !important;
+    --animation-speed: 0s !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --panel-border: rgba(255, 255, 255, 0.5) !important;
+    --card-border: rgba(255, 255, 255, 0.5) !important;
+    --input-border: rgba(255, 255, 255, 0.5) !important;
+    --text-secondary-opacity: 0.9 !important;
+    --text-tertiary-opacity: 0.8 !important;
+  }
+}
+
+
+/* Ensure only real dialog types use modal settings - NOT dropdowns */
+.MuiDialog-root .MuiDialog-container .MuiPaper-root,
+.MuiModal-root .MuiModal-backdrop + *,
+.MuiDrawer-root .MuiPaper-root,
+[role="dialog"]:not(.MuiPopover-root),
+[role="alertdialog"]:not(.MuiPopover-root) {
+  background: var(--modal-bg) !important;
+  backdrop-filter: blur(var(--modal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--modal-blur)) !important;
+}
+
+/* Custom modal classes that should use the modal settings */
+.icon-selector-modal,
+.category-modal,
+.confirmation-dialog,
+.error-dialog,
+.info-dialog,
+.warning-dialog,
+.success-dialog {
+  background: var(--modal-bg) !important;
+  backdrop-filter: blur(var(--modal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--modal-blur)) !important;
+}
+
+/* Modal/Dialog backdrops - Completely transparent, no darkening */
+.MuiDialog-root .MuiBackdrop-root,
+.MuiModal-root .MuiBackdrop-root,
+.MuiDrawer-root .MuiBackdrop-root {
+  /* Completely transparent - no darkening effect */
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Dropdown backdrops must be transparent */
+.MuiPopover-root .MuiBackdrop-root,
+.MuiMenu-root .MuiBackdrop-root {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+
+/* ========================================
+   PANEL-SPECIFIC INPUT OVERRIDES
+   Force all inputs in panels to use global styles
+   ======================================== */
+
+/* All inputs inside panels MUST use the global input styles */
+.service-panel-container .MuiTextField-root .MuiInputBase-root,
+.service-panel-container .MuiSelect-root,
+.host-panel-container .MuiTextField-root .MuiInputBase-root,
+.host-panel-container .MuiSelect-root,
+.user-panel-container .MuiTextField-root .MuiInputBase-root,
+.user-panel-container .MuiSelect-root,
+.settings-panel-container .MuiTextField-root .MuiInputBase-root,
+.settings-panel-container .MuiSelect-root,
+[class*="panel"] .MuiTextField-root .MuiInputBase-root,
+[class*="panel"] .MuiSelect-root {
+  background-color: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+  color: inherit !important;
+}
+
+/* Dialog inputs must also follow the theme */
+.MuiDialog-root .MuiTextField-root .MuiInputBase-root,
+.MuiDialog-root .MuiSelect-root,
+.MuiModal-root .MuiTextField-root .MuiInputBase-root,
+.MuiModal-root .MuiSelect-root {
+  background-color: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+  color: inherit !important;
+}
+
+/* Override any hardcoded background colors */
+.MuiInputBase-root[style*="background"] {
+  background-color: var(--input-bg) !important;
+}
+
+/* Override any hardcoded colors */
+.MuiInputBase-root[style*="color"],
+.MuiInputBase-input[style*="color"] {
+  color: inherit !important;
+}
+
+/* Helper text and labels */
+.MuiFormHelperText-root {
+  color: inherit !important;
+  opacity: 0.6 !important;
+}
+
+/* Ensure Select dropdowns also follow the theme */
+.MuiList-root .MuiMenuItem-root {
+  background-color: transparent !important;
+}
+
+.MuiList-root .MuiMenuItem-root:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.MuiList-root .MuiMenuItem-root.Mui-selected {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+/* ========================================
+   AGGRESSIVE INPUT OVERRIDES - FORCE ALL INPUTS
+   ======================================== */
+
+/* Override ALL MUI TextField components with maximum specificity */
+body .MuiTextField-root .MuiInputBase-root,
+body .MuiTextField-root .MuiOutlinedInput-root,
+body .MuiTextField-root .MuiFilledInput-root,
+body .MuiTextField-root .MuiInput-root,
+body .MuiFormControl-root .MuiInputBase-root,
+body .MuiFormControl-root .MuiOutlinedInput-root,
+body .MuiFormControl-root .MuiFilledInput-root,
+body .MuiFormControl-root .MuiInput-root,
+body .MuiSelect-root,
+body .MuiAutocomplete-root .MuiInputBase-root,
+body textarea,
+body input[type="text"],
+body input[type="password"],
+body input[type="email"],
+body input[type="number"],
+body input[type="search"],
+body input[type="url"],
+body select {
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+  border-radius: var(--input-radius) !important;
+  transition: all var(--animation-speed) !important;
+}
+
+/* Force text color */
+body .MuiInputBase-input,
+body .MuiInput-input,
+body .MuiOutlinedInput-input,
+body .MuiFilledInput-input {
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+/* Force label colors */
+body .MuiInputLabel-root,
+body .MuiFormLabel-root {
+  color: currentColor !important;
+  opacity: 0.7 !important;
+}
+
+body .MuiInputLabel-root.Mui-focused,
+body .MuiFormLabel-root.Mui-focused {
+  color: var(--primary-color, #007AFF) !important;
+  opacity: 1 !important;
+}
+
+/* Force border colors on ALL states */
+body .MuiOutlinedInput-notchedOutline,
+body .MuiTextField-root .MuiOutlinedInput-notchedOutline,
+body .MuiFormControl-root .MuiOutlinedInput-notchedOutline,
+body .MuiSelect-root .MuiOutlinedInput-notchedOutline {
+  border-color: var(--input-border) !important;
+  transition: all var(--animation-speed) !important;
+}
+
+/* Hover state */
+body .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--input-border) !important;
+  opacity: 1.5 !important;
+}
+
+/* Focus state */
+body .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+body .MuiTextField-root .Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary-color, #007AFF) !important;
+  border-width: 2px !important;
+}
+
+/* Select dropdowns */
+body .MuiMenu-paper,
+body .MuiAutocomplete-paper,
+body .MuiAutocomplete-listbox,
+body .MuiPaper-root.MuiMenu-paper,
+body .MuiPaper-root.MuiAutocomplete-paper {
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+  border: 1px solid var(--input-border) !important;
+}
+
+/* Menu items */
+body .MuiMenuItem-root,
+body .MuiAutocomplete-option {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+body .MuiMenuItem-root:hover,
+body .MuiAutocomplete-option[data-focus="true"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body .MuiMenuItem-root.Mui-selected,
+body .MuiAutocomplete-option[aria-selected="true"] {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Helper text */
+body .MuiFormHelperText-root {
+  color: currentColor !important;
+  opacity: 0.6 !important;
+}
+
+/* Override any inline styles (nuclear option) */
+body [style*="background-color"] .MuiInputBase-root {
+  background-color: var(--input-bg) !important;
+}
+
+body [style*="background"] .MuiInputBase-root {
+  background: var(--input-bg) !important;
+}
+
+/* Debug: Make changes obvious */
+/* body .MuiTextField-root .MuiInputBase-root { */
+  /* Add a red border to verify CSS is applied */
+  /* border: 2px solid red !important; */
+/* }
+/* ========================================
+   NUCLEAR OPTION - FORCE ALL MUI INPUTS
+   ======================================== */
+
+/* Override EVERYTHING with maximum specificity */
+body .MuiOutlinedInput-root,
+body .MuiFilledInput-root,
+body .MuiInput-root,
+body div[class*="MuiOutlinedInput-root"],
+body div[class*="MuiFilledInput-root"],
+body div[class*="MuiInput-root"],
+body div[class*="MuiInputBase-root"],
+body div[class*="MuiSelect-root"] {
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+}
+
+/* Target the actual input element inside */
+body .MuiOutlinedInput-input,
+body .MuiFilledInput-input,
+body .MuiInput-input,
+body .MuiSelect-select,
+body .MuiNativeSelect-select,
+body input[class*="MuiInputBase-input"],
+body input[class*="MuiOutlinedInput-input"],
+body input[class*="MuiSelect-select"] {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+/* Force Select components specifically */
+body .MuiSelect-root .MuiOutlinedInput-root,
+body .MuiFormControl-root .MuiOutlinedInput-root,
+body div[role="button"][class*="MuiSelect"] {
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+}
+
+/* Target by CSS classes directly */
+body .css-1erpgu5,
+body .css-mp9f0v,
+body div[class^="css-"][class*="MuiOutlinedInput"],
+body div[class^="css-"][class*="MuiInputBase"] {
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+}
+
+/* Override the parent containers */
+body .MuiFormControl-root > div,
+body .MuiTextField-root > div {
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  backdrop-filter: blur(var(--input-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--input-blur)) !important;
+}
+
+/* Debug mode - uncomment to see red borders on all inputs */
+/*
+body .MuiOutlinedInput-root,
+body .MuiFormControl-root > div {
+  border: 3px solid red !important;
+}
+*/
+

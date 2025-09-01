@@ -12,7 +12,7 @@
 :root {
   --primary-color: #007aff;
   --card-size: 180px;
-  --card-bg-blur: blur(var(--card-blur, 8px));
+  /* Keine globalen card-blur oder card-bg Variablen verwenden */
   --card-bg-transparency: var(--card-transparency, 0.85);
 }
 
@@ -56,7 +56,7 @@
   height: 100%;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  border-radius: 16px;
+  border-radius: var(--card-radius, 16px);
   overflow: visible;
 }
 
@@ -135,7 +135,7 @@
     rgba(0, 0, 0, 0.3) 80%,
     transparent 100%
   );
-  border-radius: 0 0 16px 16px;
+  border-radius: 0 0 var(--card-radius, 16px) var(--card-radius, 16px);
   overflow: hidden;
   z-index: 2;
   pointer-events: none;
@@ -370,7 +370,7 @@
   right: 0;
   height: 8px;
   transition: all 0.3s ease;
-  border-radius: 0 0 16px 16px;
+  border-radius: 0 0 var(--card-radius, 16px) var(--card-radius, 16px);
   z-index: 45;
   opacity: 1 !important;
   transform: translateZ(1px);
@@ -436,7 +436,7 @@
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
+  border-radius: var(--card-radius, 16px);
   padding: 24px;
   width: 100%;
   max-width: 400px;

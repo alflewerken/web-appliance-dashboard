@@ -179,12 +179,6 @@ const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
               <Checkbox
                 checked={skipDecryption}
                 onChange={handleSkipChange}
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  '&.Mui-checked': {
-                    color: '#FFA726',
-                  },
-                }}
               />
             }
             label={

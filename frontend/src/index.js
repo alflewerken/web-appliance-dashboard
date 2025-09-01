@@ -1,11 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/globals.css'; // Global CSS variables
+import './styles/uiConfig.css'; // UI Configuration CSS - CONTAINS ALL MODAL FIXES
 import './App.css';
 import './i18n'; // Initialize i18n
 import App from './App';
 import StandaloneServicePanel from './components/Appliances/StandaloneServicePanel';
 import './utils/axiosConfig'; // Import axios configuration
+import uiConfig from './utils/uiConfigManager'; // Initialize UI Config Manager
+
+// Initialize UI configuration on app start
+uiConfig.initializeStyles();
 
 // Import mobile button override as LAST CSS file
 // Mobile styles are now in App.js (consolidated)

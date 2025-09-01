@@ -170,9 +170,9 @@ export const getPanelStyles = (isResizing) => ({
   // Das macht der Container
   // KEINE width hier - wird als style-Attribut gesetzt
   height: '100%',
-  backgroundColor: 'rgba(118, 118, 128, 0.12)',
-  backdropFilter: 'blur(30px) saturate(150%)',
-  WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+  backgroundColor: 'var(--panel-bg, rgba(118, 118, 128, 0.12))',
+  backdropFilter: `blur(var(--panel-blur, 30px)) saturate(150%)`,
+  WebkitBackdropFilter: `blur(var(--panel-blur, 30px)) saturate(150%)`,
   borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
   display: 'flex',
   flexDirection: 'column',

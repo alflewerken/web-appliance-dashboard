@@ -5,17 +5,21 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  /* Completely transparent - no darkening effect */
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10001;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* No backdrop-filter */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .icon-selector-modal {
-  background: var(--card-background, #2c2c2e);
+  background: var(--modal-bg, var(--card-background, #2c2c2e));
+  backdrop-filter: blur(var(--modal-blur, 30px));
+  -webkit-backdrop-filter: blur(var(--modal-blur, 30px));
   border-radius: 16px;
   width: 90vw;
   max-width: 800px;
@@ -37,7 +41,7 @@
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-color, #38383a);
-  background: var(--card-background, #2c2c2e);
+  background: transparent; /* Transparent so modal-bg shows through */
 }
 
 .icon-selector-header h3 {
@@ -66,7 +70,7 @@
 .icon-selector-controls {
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-color, #38383a);
-  background: var(--card-background, #2c2c2e);
+  background: transparent; /* Transparent so modal-bg shows through */
 }
 
 .search-container {
@@ -87,7 +91,9 @@
   padding: 10px 12px 10px 40px;
   border: 1px solid var(--border-color, #38383a);
   border-radius: 8px;
-  background: var(--background-secondary, #1c1c1e);
+  background: var(--input-bg, var(--background-secondary, #1c1c1e));
+  backdrop-filter: blur(var(--input-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--input-blur, 0px));
   color: var(--text-primary, #ffffff);
   font-size: 14px;
   transition: all 0.2s ease;
@@ -137,7 +143,9 @@
 }
 
 .category-btn {
-  background: var(--background-secondary, #1c1c1e);
+  background: var(--input-bg, var(--background-secondary, #1c1c1e));
+  backdrop-filter: blur(var(--input-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--input-blur, 0px));
   border: 1px solid var(--border-color, #38383a);
   color: var(--text-secondary, #8e8e93);
   padding: 8px 16px;
@@ -184,7 +192,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px 24px;
-  background: var(--background-secondary, #1c1c1e);
+  background: transparent; /* Transparent so modal-bg shows through */
 }
 
 .icon-grid {
@@ -194,7 +202,9 @@
 }
 
 .icon-item {
-  background: var(--card-background, #2c2c2e);
+  background: var(--input-bg, var(--card-background, #2c2c2e));
+  backdrop-filter: blur(var(--input-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--input-blur, 0px));
   border: 2px solid var(--border-color, #38383a);
   border-radius: 12px;
   padding: 12px 8px;
@@ -275,7 +285,7 @@
 .icon-selector-footer {
   padding: 16px 24px;
   border-top: 1px solid var(--border-color, #38383a);
-  background: var(--card-background, #2c2c2e);
+  background: transparent; /* Transparent so modal-bg shows through */
 }
 
 .footer-content {

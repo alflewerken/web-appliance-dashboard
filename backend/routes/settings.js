@@ -117,14 +117,38 @@ router.post('/', async (req, res) => {
       value,
     });
 
-    // Create audit log - skip background-related settings
-    const backgroundSettingKeys = [
+    // Create audit log - skip background-related and UI config settings
+    const skipAuditLogKeys = [
+      // Background settings
       'background_enabled',
       'background_opacity',
       'background_blur',
       'background_position',
+      // UI Config settings
+      'ui_settings',
+      'ui_config',
+      'uiSettings',
+      'uiConfig',
+      // Individual UI settings that might be stored separately
+      'sidebarTransparency',
+      'sidebarBlur',
+      'sidebarTint',
+      'headerTransparency',
+      'headerBlur',
+      'headerTint',
+      'cardTransparency',
+      'cardBlur',
+      'cardTint',
+      'inputTransparency',
+      'inputBlur',
+      'inputTint',
+      'buttonTransparency',
+      'buttonTint',
+      'modalTransparency',
+      'modalBlur',
+      'modalTint',
     ];
-    if (!backgroundSettingKeys.includes(key)) {
+    if (!skipAuditLogKeys.includes(key)) {
       const ipAddress = req.clientIp;
       await createAuditLog(
         req.user?.id || null,

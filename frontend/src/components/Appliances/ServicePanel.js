@@ -180,6 +180,198 @@ const ServicePanel = ({
   const [rustDeskStatus, setRustDeskStatus] = useState(null);
   const [checkingRustDeskStatus, setCheckingRustDeskStatus] = useState(false);
 
+  // Theme state
+  const [currentTheme, setCurrentTheme] = useState('dark');
+  const [uiSettings, setUiSettings] = useState({
+    cardTransparency: 85,
+    cardBlur: 5,
+    cardTint: 0,
+    inputTransparency: 95,
+    inputTint: 0
+  });
+
+  // Monitor theme changes
+  useEffect(() => {
+    const checkTheme = () => {
+      const theme = document.body.classList.contains('theme-light')
+        ? 'light'
+        : 'dark';
+      setCurrentTheme(theme);
+    };
+
+    checkTheme();
+
+    // Observer für Theme-Änderungen
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Monitor UI settings changes
+  useEffect(() => {
+    const loadUISettings = () => {
+      try {
+        const stored = localStorage.getItem('ui_settings');
+        if (stored) {
+          setUiSettings(JSON.parse(stored));
+        }
+      } catch (e) {
+        // Use defaults if parsing fails
+      }
+    };
+
+    loadUISettings();
+
+    // Listen for storage events
+    const handleStorageChange = (e) => {
+      if (e.key === 'ui_settings') {
+        loadUISettings();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events from same window
+    const handleUISettingsChange = () => {
+      loadUISettings();
+    };
+    
+    window.addEventListener('uiSettingsChanged', handleUISettingsChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('uiSettingsChanged', handleUISettingsChange);
+    };
+  }, []);
+
+  // Helper function for card styles based on theme and UI settings
+  const getCardStyles = () => {
+    const isLight = currentTheme === 'light';
+    
+    const transparency = uiSettings.cardTransparency / 100;
+    const blurAmount = uiSettings.cardBlur || 5;
+    const tint = uiSettings.cardTint;
+    
+    // Calculate RGB values based on tint
+    let r, g, b;
+    if (isLight) {
+      // Light mode: base is white
+      const baseValue = 255;
+      const adjustment = Math.round((tint / 100) * 50); // Max ±50 adjustment
+      r = g = b = Math.max(0, Math.min(255, baseValue - adjustment));
+    } else {
+      // Dark mode: base is black  
+      const baseValue = 0;
+      const adjustment = Math.round((tint / 100) * 50); // Max ±50 adjustment
+      r = g = b = Math.max(0, Math.min(255, baseValue + adjustment));
+    }
+    
+    return {
+      backgroundColor: `rgba(${r}, ${g}, ${b}, ${transparency})`,
+      backdropFilter: `blur(${blurAmount}px)`,
+      WebkitBackdropFilter: `blur(${blurAmount}px)`,
+      borderRadius: '12px',
+      border: isLight
+        ? '1px solid rgba(0, 0, 0, 0.1)'
+        : '1px solid rgba(255, 255, 255, 0.08)',
+    };
+  };
+
+  // Helper function for input styles based on theme and UI settings
+  const getInputStyles = () => {
+    const isLight = currentTheme === 'light';
+    
+    const transparency = uiSettings.inputTransparency / 100;
+    const tint = uiSettings.inputTint;
+    
+    // Calculate RGB values based on tint
+    let r, g, b;
+    if (isLight) {
+      // Light mode: base is white
+      const baseValue = 255;
+      const adjustment = Math.round((tint / 100) * 30); // Max ±30 adjustment for inputs
+      r = g = b = Math.max(0, Math.min(255, baseValue - adjustment));
+    } else {
+      // Dark mode: base is black
+      const baseValue = 0;
+      const adjustment = Math.round((tint / 100) * 30); // Max ±30 adjustment for inputs
+      r = g = b = Math.max(0, Math.min(255, baseValue + adjustment));
+    }
+    
+    return {
+      '& .MuiInputLabel-root': { 
+        color: 'var(--text-secondary)' 
+      },
+      '& .MuiInputBase-root': {
+        color: 'var(--text-primary)',
+        backgroundColor: `rgba(${r}, ${g}, ${b}, ${transparency})`,
+      },
+      '& .MuiOutlinedInput-root': {
+        '& fieldset': {
+          borderColor: isLight 
+            ? 'rgba(0, 0, 0, 0.23)'
+            : 'rgba(255, 255, 255, 0.2)',
+        },
+        '&:hover fieldset': {
+          borderColor: isLight 
+            ? 'rgba(0, 0, 0, 0.3)'
+            : 'rgba(255, 255, 255, 0.3)',
+        },
+        '&.Mui-focused fieldset': {
+          borderColor: 'var(--accent-color)',
+        },
+      },
+      '& .MuiFormHelperText-root': { 
+        color: 'var(--text-tertiary)' 
+      },
+    };
+  };
+
+  // Helper for Select components
+  const getSelectStyles = () => {
+    const isLight = currentTheme === 'light';
+    
+    const transparency = uiSettings.inputTransparency / 100;
+    const tint = uiSettings.inputTint;
+    
+    // Calculate RGB values based on tint
+    let r, g, b;
+    if (isLight) {
+      const baseValue = 255;
+      const adjustment = Math.round((tint / 100) * 30);
+      r = g = b = Math.max(0, Math.min(255, baseValue - adjustment));
+    } else {
+      const baseValue = 0;
+      const adjustment = Math.round((tint / 100) * 30);
+      r = g = b = Math.max(0, Math.min(255, baseValue + adjustment));
+    }
+    
+    return {
+      color: 'var(--text-primary)',
+      backgroundColor: `rgba(${r}, ${g}, ${b}, ${transparency})`,
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: isLight 
+          ? 'rgba(0, 0, 0, 0.23)'
+          : 'rgba(255, 255, 255, 0.2)',
+      },
+      '&:hover .MuiOutlinedInput-notchedOutline': {
+        borderColor: isLight 
+          ? 'rgba(0, 0, 0, 0.3)'
+          : 'rgba(255, 255, 255, 0.3)',
+      },
+      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+        borderColor: 'var(--accent-color)',
+      },
+      '& .MuiSvgIcon-root': {
+        color: 'var(--text-secondary)',
+      },
+    };
+  };
+
   // EINHEITLICHER RESIZE-HOOK (ersetzt alten Code)
   const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
     'servicePanelWidth',
@@ -1182,11 +1374,7 @@ const ServicePanel = ({
                         />
                       ),
                     }}
-                    sx={{
-                      '& .MuiInputBase-root': {
-                        backgroundColor: 'var(--container-bg)',
-                      },
-                    }}
+                    sx={getInputStyles()}
                     autoFocus
                   />
                 </Box>
@@ -1248,25 +1436,25 @@ const ServicePanel = ({
                             {commands.map(command => (
                               <Box
                                 key={command.id}
+                                className="command-card"
                                 onClick={() => handleSelectTemplate(command)}
                                 sx={{
-                                  background:
-                                    selectedTemplate?.id === command.id
-                                      ? 'rgba(0, 122, 255, 0.2)'
-                                      : 'var(--container-bg)',  
-                                  backdropFilter: 'blur(10px)',
-                                  border:
-                                    selectedTemplate?.id === command.id
-                                      ? '2px solid var(--primary-color)'
-                                      : '1px solid rgba(255, 255, 255, 0.08)',
-                                  borderRadius: '12px',
+                                  ...(selectedTemplate?.id === command.id
+                                    ? {
+                                        backgroundColor: 'rgba(0, 122, 255, 0.2)',
+                                        border: '2px solid var(--primary-color)',
+                                      }
+                                    : {}),
                                   p: 3,
                                   cursor: 'pointer',
                                   transition: 'all 0.2s',
                                   '&:hover': {
-                                    backgroundColor:
-                                      'var(--container-bg)',
-                                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                                    backgroundColor: currentTheme === 'light'
+                                      ? 'rgba(255, 255, 255, 0.8)'
+                                      : 'rgba(0, 0, 0, 0.25)',
+                                    borderColor: currentTheme === 'light'
+                                      ? 'rgba(0, 0, 0, 0.2)'
+                                      : 'rgba(255, 255, 255, 0.2)',
                                   },
                                 }}
                               >
@@ -1331,13 +1519,10 @@ const ServicePanel = ({
               <>
                 {/* New Command Form */}
                 <Box
+                  className="command-card"
                   sx={{
-                    background: 'var(--container-bg)',  
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '12px',
                     p: 4,
                     mb: 4,
-                    border: '1px solid var(--container-border)',
                     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
                   }}
                 >
@@ -1395,26 +1580,7 @@ const ServicePanel = ({
                       placeholder={t('services.commandDescriptionPlaceholder')}
                       multiline
                       rows={3}
-                      sx={{
-                        '& .MuiInputLabel-root': {
-                          color: 'var(--text-secondary)',
-                        },
-                        '& .MuiInputBase-root': {
-                          color: 'var(--text-primary)',
-                          backgroundColor: 'var(--container-bg)',
-                        },
-                        '& .MuiOutlinedInput-root': {
-                          '& fieldset': {
-                            borderColor: 'rgba(255, 255, 255, 0.2)',
-                          },
-                          '&:hover fieldset': {
-                            borderColor: 'rgba(255, 255, 255, 0.3)',
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: 'var(--primary-color)',
-                          },
-                        },
-                      }}
+                      sx={getInputStyles()}
                     />
                     <TextField
                       fullWidth
@@ -1427,30 +1593,10 @@ const ServicePanel = ({
                         })
                       }
                       placeholder={t('services.commandPlaceholder')}
-                      sx={{
-                        '& .MuiInputLabel-root': {
-                          color: 'var(--text-secondary)',
-                        },
-                        '& .MuiInputBase-root': {
-                          color: 'var(--text-primary)',
-                          fontFamily: 'Monaco, Consolas, monospace',
-                          backgroundColor: 'var(--container-bg)',
-                        },
-                        '& .MuiOutlinedInput-root': {
-                          '& fieldset': {
-                            borderColor: 'rgba(255, 255, 255, 0.2)',
-                          },
-                          '&:hover fieldset': {
-                            borderColor: 'rgba(255, 255, 255, 0.3)',
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: 'var(--primary-color)',
-                          },
-                        },
-                      }}
+                      sx={getInputStyles()}
                     />
                     <FormControl fullWidth>
-                      <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                      <InputLabel>
                         {t('services.sshHost')}
                       </InputLabel>
                       <Select
@@ -1464,22 +1610,7 @@ const ServicePanel = ({
                           })
                         }
                         label={t('services.sshHost')}
-                        sx={{
-                          color: 'var(--text-primary)',
-                          backgroundColor: 'var(--container-bg)',
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'rgba(255, 255, 255, 0.2)',
-                          },
-                          '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'rgba(255, 255, 255, 0.3)',
-                          },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'var(--primary-color)',
-                          },
-                          '& .MuiSvgIcon-root': {
-                            color: 'var(--text-secondary)',
-                          },
-                        }}
+                        sx={getSelectStyles()}
                         MenuProps={{
                           PaperProps: {
                             sx: {
@@ -1653,11 +1784,8 @@ const ServicePanel = ({
                         .map((command, index) => (
                           <Box
                             key={command.id}
+                            className="command-card"
                             sx={{
-                              background: 'var(--container-bg)',  
-                              backdropFilter: 'blur(10px)',
-                              border: '1px solid var(--container-border)',
-                              borderRadius: '12px',
                               p: 3,
                               transition:
                                 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1665,10 +1793,13 @@ const ServicePanel = ({
                               overflow: 'hidden',
                               '&:hover': {
                                 transform: 'translateY(-2px)',
-                                borderColor: 'rgba(255, 255, 255, 0.2)',
+                                borderColor: currentTheme === 'light' 
+                                  ? 'rgba(0, 0, 0, 0.2)'
+                                  : 'rgba(255, 255, 255, 0.2)',
                                 boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-                                background:
-                                  'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                                background: currentTheme === 'light'
+                                  ? 'linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.02) 100%)'
+                                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
                               },
                             }}
                           >
@@ -1698,18 +1829,7 @@ const ServicePanel = ({
                                   }
                                   multiline
                                   rows={3}
-                                  sx={{
-                                    '& .MuiInputBase-root': {
-                                      color: 'var(--text-primary)',
-                                      backgroundColor:
-                                        'var(--container-bg)',
-                                    },
-                                    '& .MuiOutlinedInput-root': {
-                                      '& fieldset': {
-                                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                                      },
-                                    },
-                                  }}
+                                  sx={getInputStyles()}
                                 />
                                 <TextField
                                   fullWidth
@@ -1723,19 +1843,7 @@ const ServicePanel = ({
                                       )
                                     )
                                   }
-                                  sx={{
-                                    '& .MuiInputBase-root': {
-                                      color: 'var(--text-primary)',
-                                      fontFamily: 'Monaco, Consolas, monospace',
-                                      backgroundColor:
-                                        'var(--container-bg)',
-                                    },
-                                    '& .MuiOutlinedInput-root': {
-                                      '& fieldset': {
-                                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                                      },
-                                    },
-                                  }}
+                                  sx={getInputStyles()}
                                 />
                                 <FormControl fullWidth>
                                   <Select
@@ -2055,11 +2163,7 @@ const ServicePanel = ({
             <Box
               className="settings-card"
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                ...getCardStyles(),
                 p: 3,
                 mb: 3,
               }}
@@ -2081,22 +2185,7 @@ const ServicePanel = ({
                 onChange={e => handleFieldChange('name', e.target.value)}
                 margin="normal"
                 required
-                sx={{
-                  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                  '& .MuiInputBase-root': {
-                    color: 'var(--text-primary)',
-                    backgroundColor: 'var(--container-bg)',
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'var(--accent-color)',
-                    },
-                  },
-                }}
+                sx={getInputStyles()}
               />
 
               <TextField
@@ -2107,22 +2196,7 @@ const ServicePanel = ({
                 margin="normal"
                 required
                 placeholder="https://example.com"
-                sx={{
-                  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                  '& .MuiInputBase-root': {
-                    color: 'var(--text-primary)',
-                    backgroundColor: 'var(--container-bg)',
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'var(--accent-color)',
-                    },
-                  },
-                }}
+                sx={getInputStyles()}
               />
 
               <TextField
@@ -2133,48 +2207,18 @@ const ServicePanel = ({
                 margin="normal"
                 multiline
                 rows={3}
-                sx={{
-                  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-                  '& .MuiInputBase-root': {
-                    color: 'var(--text-primary)',
-                    backgroundColor: 'var(--container-bg)',
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'var(--accent-color)',
-                    },
-                  },
-                }}
+                sx={getInputStyles()}
               />
 
               <FormControl fullWidth margin="normal">
-                <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                <InputLabel>
                   {t('services.serviceCategory')}
                 </InputLabel>
                 <Select
                   value={formData.category}
                   onChange={e => handleFieldChange('category', e.target.value)}
                   label={t('services.serviceCategory')}
-                  sx={{
-                    color: 'var(--text-primary)',
-                    backgroundColor: 'var(--container-bg)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'var(--accent-color)',
-                    },
-                    '& .MuiSvgIcon-root': {
-                      color: 'var(--text-secondary)',
-                    },
-                  }}
+                  sx={getSelectStyles()}
                   MenuProps={{
                     PaperProps: {
                       sx: {
@@ -2208,12 +2252,8 @@ const ServicePanel = ({
 
             {/* Symbol und Farbe Card */}
             <Box
+              className="settings-card"
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
                 p: 3,
                 mb: 3,
               }}
@@ -2375,12 +2415,8 @@ const ServicePanel = ({
 
             {/* Öffnungsmodus Card */}
             <Box
+              className="settings-card"
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
                 p: 3,
                 mb: 3,
               }}
@@ -2393,7 +2429,7 @@ const ServicePanel = ({
               </Typography>
 
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+              <InputLabel>
                 {t('services.miniWidgetMode')}
               </InputLabel>
               <Select
@@ -2448,7 +2484,7 @@ const ServicePanel = ({
             </FormControl>
 
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+              <InputLabel>
                 {t('services.mobileiPadMode')}
               </InputLabel>
               <Select
@@ -2503,7 +2539,7 @@ const ServicePanel = ({
             </FormControl>
 
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+              <InputLabel>
                 {t('services.desktopMode')}
               </InputLabel>
               <Select
@@ -2561,12 +2597,8 @@ const ServicePanel = ({
           {/* SSH-Einstellungen Card */}
           {adminMode && (
             <Box
+              className="settings-card"
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
                 p: 3,
                 mb: 3,
               }}
@@ -2579,7 +2611,7 @@ const ServicePanel = ({
               </Typography>
 
                 <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                  <InputLabel>
                     {t('services.sshConnection')}
                   </InputLabel>
                   <Select
@@ -2742,12 +2774,8 @@ const ServicePanel = ({
 
         {/* Remote Desktop Card */}
         <Box
+          className="settings-card"
           sx={{
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
             p: 3,
             mb: 3,
           }}
@@ -2778,7 +2806,7 @@ const ServicePanel = ({
             {formData.remoteDesktopEnabled && (
               <>
                 <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                  <InputLabel>
                     {t('services.remoteDesktopType')}
                   </InputLabel>
                   <Select
@@ -2802,7 +2830,7 @@ const ServicePanel = ({
                 {formData.remoteDesktopType === 'guacamole' && (
                   <Box sx={{ my: 2 }}>
                     <FormControl fullWidth margin="normal">
-                      <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                      <InputLabel>
                         {t('services.performanceMode')}
                       </InputLabel>
                       <Select
@@ -2829,7 +2857,7 @@ const ServicePanel = ({
                 {/* Protokoll nur für Guacamole anzeigen */}
                 {formData.remoteDesktopType !== 'rustdesk' && (
                   <FormControl fullWidth margin="normal">
-                    <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                    <InputLabel>
                       {t('services.protocol')}
                     </InputLabel>
                     <Select

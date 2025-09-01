@@ -39,7 +39,8 @@ body:not(.theme-light) .ssh-manager-modal,
 body:not(.theme-light) .icon-selector-modal,
 body:not(.theme-light) .audit-log-modal,
 body:not(.theme-light) .mobile-modal {
-  background: #1c1c1e;
+  /* Use UI config modal variables instead of hardcoded background */
+  background: var(--modal-bg) !important;
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -117,7 +118,8 @@ body.theme-light .ssh-manager-modal,
 body.theme-light .icon-selector-modal,
 body.theme-light .audit-log-modal,
 body.theme-light .mobile-modal {
-  background: #ffffff;
+  /* Use UI config modal variables instead of hardcoded background */
+  background: var(--modal-bg) !important;
   color: #000000;
   border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);

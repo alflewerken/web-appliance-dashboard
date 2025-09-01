@@ -85,10 +85,10 @@ body {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  /* Glassmorphism effect matching side panels */
-  background: rgba(118, 118, 128, 0.12);
-  backdrop-filter: blur(30px) saturate(150%);
-  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  /* Glassmorphism effect using CSS variables from UI Config */
+  background: var(--header-bg, rgba(118, 118, 128, 0.12));
+  backdrop-filter: blur(var(--header-blur));
+  -webkit-backdrop-filter: blur(var(--header-blur));
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
   z-index: 10;
@@ -730,10 +730,11 @@ select:focus {
   left: 0;
   right: 0;
   bottom: 0;
-  /* Hintergrund transparent - keine Verdunkelung oder Blur */
+  /* Completely transparent - no darkening or blur */
   background: transparent;
-  /* backdrop-filter entfernt */
-  /* -webkit-backdrop-filter entfernt */
+  /* No backdrop-filter to prevent app background blur */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -753,7 +754,8 @@ select:focus {
 
 /* Modal Styles - Dark Mode Default */
 body:not(.theme-light) .modal {
-  background: #1c1c1e;
+  /* Use UI config modal variables instead of hardcoded background */
+  background: var(--modal-bg);
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   width: 90%;

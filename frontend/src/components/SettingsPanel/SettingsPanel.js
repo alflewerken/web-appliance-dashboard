@@ -67,6 +67,7 @@ import { useSSE } from '../../hooks/useSSE';
 import { backgroundSyncManager } from '../../utils/backgroundSyncManager';
 import CategoryModal from './CategoryModal';
 import BackgroundSettingsMUI from './BackgroundSettingsMUI';
+import UIConfigPanel from './UIConfigPanel';
 import BackupTab from './BackupTab';
 import './SettingsModal.css';
 import './SettingsPanel.css';
@@ -759,7 +760,7 @@ const SettingsPanel = ({
             ) : (
               <Box>
                 <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                  <InputLabel>
                     {t('settings.language')}
                   </InputLabel>
                   <Select
@@ -772,8 +773,7 @@ const SettingsPanel = ({
                     sx={{
                       color: 'var(--text-primary)',
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                      },
+                        },
                     }}
                   >
                     <MenuItem value="de">Deutsch</MenuItem>
@@ -782,7 +782,7 @@ const SettingsPanel = ({
                 </FormControl>
 
                 <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                  <InputLabel>
                     {t('settings.defaultCategory')}
                   </InputLabel>
                   <Select
@@ -797,8 +797,7 @@ const SettingsPanel = ({
                     sx={{
                       color: 'var(--text-primary)',
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                      },
+                        },
                     }}
                   >
                     <MenuItem value="all">{t('categories.all')}</MenuItem>
@@ -813,7 +812,7 @@ const SettingsPanel = ({
                 </FormControl>
 
                 <FormControl fullWidth margin="normal">
-                  <InputLabel sx={{ color: 'var(--text-secondary)' }}>
+                  <InputLabel>
                     {t('settings.theme')}
                   </InputLabel>
                   <Select
@@ -825,8 +824,7 @@ const SettingsPanel = ({
                     sx={{
                       color: 'var(--text-primary)',
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.2)',
-                      },
+                        },
                     }}
                   >
                     <MenuItem value="dark">{t('settings.themeDark')}</MenuItem>
@@ -849,7 +847,7 @@ const SettingsPanel = ({
 
       case 'background':
         return (
-          <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+          <>
             <BackgroundSettingsMUI
               backgroundSettings={backgroundSettings}
               setBackgroundSettings={setBackgroundSettings}
@@ -861,7 +859,8 @@ const SettingsPanel = ({
               SettingsService={SettingsService}
               backgroundSyncManager={backgroundSyncManager}
             />
-          </Box>
+            <UIConfigPanel />
+          </>
         );
 
       case 'categories':
@@ -963,7 +962,6 @@ const SettingsPanel = ({
                               }
                             }}
                             sx={{
-                              backgroundColor: 'rgba(0, 0, 0, 0.3)',
                               mb: 1,
                               borderRadius: 1,
                               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -975,8 +973,7 @@ const SettingsPanel = ({
                                 : 'scale(1)',
                               '&:hover': {
                                 backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                                borderColor: 'rgba(255, 255, 255, 0.2)',
-                              },
+                                },
                               // Touch feedback
                               WebkitTouchCallout: 'none',
                               WebkitUserSelect: 'none',
@@ -1009,7 +1006,6 @@ const SettingsPanel = ({
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  color: 'rgba(255, 255, 255, 0.9)',
                                   transition: 'all 0.2s ease',
                                   '&:hover': {
                                     transform: 'scale(1.05)',
@@ -1047,7 +1043,6 @@ const SettingsPanel = ({
                                     sx={{
                                       width: 36,
                                       height: 36,
-                                      backgroundColor: 'rgba(0, 122, 255, 0.1)',
                                       color: 'var(--primary-color)',
                                       borderRadius: '8px',
                                       '&:hover': {
@@ -1067,7 +1062,6 @@ const SettingsPanel = ({
                                     sx={{
                                       width: 36,
                                       height: 36,
-                                      backgroundColor: 'rgba(0, 122, 255, 0.1)',
                                       color: 'var(--primary-color)',
                                       borderRadius: '8px',
                                       '&:hover': {
@@ -1095,8 +1089,6 @@ const SettingsPanel = ({
                                         mr: 1,
                                         width: 36,
                                         height: 36,
-                                        backgroundColor: 'rgba(52, 199, 89, 0.15)',
-                                        color: '#34C759',
                                         borderRadius: '8px',
                                         '&:hover': {
                                           backgroundColor:

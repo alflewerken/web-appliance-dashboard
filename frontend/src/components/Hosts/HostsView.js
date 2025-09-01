@@ -176,8 +176,6 @@ const HostsView = ({
           startIcon={<Plus size={20} />}
           onClick={onAddHost}
           sx={{
-            backgroundColor: '#007AFF',
-            color: 'white',
             textTransform: 'none',
             fontWeight: 500,
             padding: '8px 16px',

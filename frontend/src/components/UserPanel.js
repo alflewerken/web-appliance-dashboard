@@ -426,7 +426,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     if (loading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress sx={{ color: '#007AFF' }} />
+          <CircularProgress />
         </Box>
       );
     }
@@ -434,17 +434,13 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     if (error) {
       return (
         <Box sx={{ textAlign: 'center', p: 4 }}>
-          <Typography sx={{ color: '#ff3b30', mb: 2 }}>{error}</Typography>
+          <Typography sx={{ mb: 2 }}>{error}</Typography>
           <Button
             variant="contained"
             onClick={() => {
               setError('');
               setLoading(true);
               fetchUsers();
-            }}
-            sx={{
-              backgroundColor: '#007AFF',
-              '&:hover': { backgroundColor: '#0051D5' },
             }}
           >
             {t('common.retry')}
@@ -456,7 +452,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     if (users.length === 0) {
       return (
         <Box sx={{ textAlign: 'center', p: 4 }}>
-          <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 2 }}>
+          <Typography sx={{ mb: 2 }}>
             {t('users.noUsersFound')}
           </Typography>
           <Button
@@ -464,14 +460,6 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             onClick={() => {
               setLoading(true);
               fetchUsers();
-            }}
-            sx={{
-              borderColor: '#007AFF',
-              color: '#007AFF',
-              '&:hover': {
-                borderColor: '#0051D5',
-                backgroundColor: 'rgba(0, 122, 255, 0.1)',
-              },
             }}
           >
             {t('common.refresh')}
@@ -516,7 +504,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography sx={{ color: '#fff', fontWeight: 600 }}>
+                    <Typography sx={{ fontWeight: 600 }}>
                       {u.username}
                     </Typography>
                     {u.username === user.username && (
@@ -532,7 +520,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                       />
                     )}
                   </Box>
-                  <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
+                  <Typography sx={{ fontSize: '0.875rem' }}>
                     {u.email}
                   </Typography>
                   {(isUserOnline(u) || u.username === user.username) && (
@@ -564,7 +552,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                 />
               </Box>
 
-              <Typography sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem', mb: 1 }}>
+              <Typography sx={{ fontSize: '0.75rem', mb: 1 }}>
                 {t('users.fields.lastLogin')}: {u.lastLogin ? new Date(u.lastLogin).toLocaleString(t('common.locale')) : t('common.never')}
               </Typography>
 
@@ -670,12 +658,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
         <Table sx={{ minWidth: isCompactMode ? 500 : 650 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.user')}</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.email')}</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.role')}</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.accountStatus')}</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.lastLogin')}</TableCell>
-              <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.actions')}</TableCell>
+              <TableCell>{t('users.fields.user')}</TableCell>
+              <TableCell>{t('users.fields.email')}</TableCell>
+              <TableCell>{t('users.fields.role')}</TableCell>
+              <TableCell>{t('users.fields.accountStatus')}</TableCell>
+              <TableCell>{t('users.fields.lastLogin')}</TableCell>
+              <TableCell>{t('users.fields.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -703,7 +691,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                       )}
                     </Box>
                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography sx={{ color: '#fff' }}>
+                      <Typography>
                         {u.username}
                         {u.username === user.username && (
                           <Chip
@@ -727,7 +715,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     </Box>
                   </Box>
                 </TableCell>
-                <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                <TableCell>
                   <Tooltip title={u.email}>
                     <span>{u.email}</span>
                   </Tooltip>
@@ -754,7 +742,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     }}
                   />
                 </TableCell>
-                <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                <TableCell>
                   <Tooltip title={u.lastLogin ? new Date(u.lastLogin).toLocaleString(t('common.locale')) : t('common.never')}>
                     <span>{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString(t('common.locale')) : t('common.never')}</span>
                   </Tooltip>
@@ -917,7 +905,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                 </Button>
               )}
               {!isAdmin() && (
-                <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                <Typography>
                   {t('users.onlyAdminsCanSeeAllUsers')}
                 </Typography>
               )}
@@ -955,12 +943,12 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                       />
                     </Box>
                     <Divider sx={{ my: 1, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
                       {t('users.fields.permissions')}:
                     </Typography>
                     <Box sx={{ pl: 1 }}>
                       {role.permissions.map((perm, index) => (
-                        <Typography key={index} variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)', mb: 0.5 }}>
+                        <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
                           • {perm}
                         </Typography>
                       ))}
@@ -991,10 +979,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     textAlign: 'center',
                   }}
                 >
-                  <Typography variant="h3" sx={{ color: '#007AFF', fontWeight: 'bold' }}>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
                     {users.length}
                   </Typography>
-                  <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <Typography variant="body1">
                     {t('users.statistics.totalUsers')}
                   </Typography>
                 </Paper>
@@ -1010,10 +998,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     textAlign: 'center',
                   }}
                 >
-                  <Typography variant="h3" sx={{ color: '#34C759', fontWeight: 'bold' }}>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
                     {users.filter(u => Boolean(u.isActive)).length}
                   </Typography>
-                  <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <Typography variant="body1">
                     {t('users.statistics.activeUsers')}
                   </Typography>
                 </Paper>
@@ -1029,10 +1017,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     textAlign: 'center',
                   }}
                 >
-                  <Typography variant="h3" sx={{ color: '#FF3B30', fontWeight: 'bold' }}>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
                     {users.filter(u => u.role === 'Administrator').length}
                   </Typography>
-                  <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <Typography variant="body1">
                     {t('users.statistics.administrators')}
                   </Typography>
                 </Paper>
@@ -1047,7 +1035,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     borderRadius: '12px',
                   }}
                 >
-                  <Typography variant="h6" sx={{ color: '#fff', mb: 2 }}>
+                  <Typography variant="h6" sx={{ mb: 2 }}>
                     {t('users.statistics.roleDistribution')}
                   </Typography>
                   {roles.map(role => {
@@ -1056,10 +1044,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
                     return (
                       <Box key={role.role} sx={{ mb: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                          <Typography variant="body2">
                             {role.label}
                           </Typography>
-                          <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                          <Typography variant="body2">
                             {count} ({percentage}%)
                           </Typography>
                         </Box>
@@ -1163,7 +1151,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.role')}</InputLabel>
+                <InputLabel>{t('users.fields.role')}</InputLabel>
                 <Select
                   value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value })}
@@ -1186,10 +1174,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)} sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+          <Button onClick={() => setOpenDialog(false)}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={handleCreateUser} variant="contained" sx={{ backgroundColor: '#007AFF' }}>
+          <Button onClick={handleCreateUser} variant="contained">
             {t('common.create')}
           </Button>
         </DialogActions>
@@ -1269,7 +1257,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{t('users.fields.role')}</InputLabel>
+                <InputLabel>{t('users.fields.role')}</InputLabel>
                 <Select
                   value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value })}
@@ -1292,10 +1280,10 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialog(false)} sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+          <Button onClick={() => setEditDialog(false)}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={handleUpdateUser} variant="contained" sx={{ backgroundColor: '#007AFF' }}>
+          <Button onClick={handleUpdateUser} variant="contained">
             {t('common.save')}
           </Button>
         </DialogActions>

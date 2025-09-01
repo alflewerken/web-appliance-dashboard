@@ -1,34 +1,34 @@
 /* Header Transparency Fix for Light Mode */
 
-/* Force header to use EXACT SAME transparency as sidebar */
+/* Force header to use CSS variables from UI Config */
 body.theme-light .content-header,
 body.theme-light.has-background-image .content-header,
 html body.theme-light .content-header,
 html body.theme-light.has-background-image .content-header {
-  /* EXACT same as sidebar - no additional tinting */
-  background: rgba(118, 118, 128, 0.12) !important;
-  backdrop-filter: blur(30px) saturate(150%) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  /* Use CSS variables from UI Config */
+  background: var(--header-bg, rgba(118, 118, 128, 0.12)) !important;
+  backdrop-filter: blur(var(--header-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--header-blur)) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Mobile headers - same transparency as sidebar */
+/* Mobile headers - use CSS variables */
 body.theme-light .mobile-header,
 body.theme-light .mobile-search-header,
 body.theme-light.has-background-image .mobile-header,
 body.theme-light.has-background-image .mobile-search-header,
 html body.theme-light .mobile-header,
 html body.theme-light .mobile-search-header {
-  background: rgba(118, 118, 128, 0.12) !important;
-  backdrop-filter: blur(30px) saturate(150%) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+  background: var(--header-bg, rgba(118, 118, 128, 0.12)) !important;
+  backdrop-filter: blur(var(--header-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--header-blur)) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Override any inline styles or higher specificity rules */
 body.theme-light [class*="header"][style*="background"],
 body.theme-light [class*="header"][style*="backgroundColor"] {
-  background: rgba(118, 118, 128, 0.12) !important;
+  background: var(--header-bg, rgba(118, 118, 128, 0.12)) !important;
 }
 
 /* Ensure all header variations use sidebar transparency */
@@ -40,5 +40,5 @@ body.theme-light [role="banner"] {
 
 /* Remove any solid backgrounds that might be applied */
 body.theme-light .content-header:not(.force-solid) {
-  background-color: rgba(118, 118, 128, 0.12) !important;
+  background-color: var(--header-bg, rgba(118, 118, 128, 0.12)) !important;
 }

@@ -114,16 +114,57 @@ const BackgroundSettingsMUI = ({
   // Local state for sliders (prevents SSE flooding during drag)
   const [localOpacity, setLocalOpacity] = useState(backgroundSettings?.opacity || 30);
   const [localBlur, setLocalBlur] = useState(backgroundSettings?.blur || 0);
-  const [transparentPanels, setTransparentPanels] = useState(
-    backgroundSettings?.transparency?.panels || false
+  
+  // UI customization states
+  const [cardTransparency, setCardTransparency] = useState(
+    backgroundSettings?.uiSettings?.cardTransparency || 85
+  );
+  const [cardTint, setCardTint] = useState(
+    backgroundSettings?.uiSettings?.cardTint || 0
+  );
+  const [inputTransparency, setInputTransparency] = useState(
+    backgroundSettings?.uiSettings?.inputTransparency || 95
+  );
+  const [inputTint, setInputTint] = useState(
+    backgroundSettings?.uiSettings?.inputTint || 0
   );
   
+  // Initialize UI settings on mount
+  useEffect(() => {
+    const loadUISettings = async () => {
+      try {
+        // Try to load from database first
+        const response = await SettingsService.getSetting('ui_settings');
+        if (response && response.value) {
+          const settings = JSON.parse(response.value);
+          setCardTransparency(settings.cardTransparency || 85);
+          setCardTint(settings.cardTint || 0);
+          setInputTransparency(settings.inputTransparency || 95);
+          setInputTint(settings.inputTint || 0);
+          
+          // Also save to localStorage
+          localStorage.setItem('ui_settings', response.value);
+          window.dispatchEvent(new Event('uiSettingsChanged'));
+        }
+      } catch (error) {
+        console.log('Using default UI settings');
+      }
+    };
+    
+    loadUISettings();
+  }, [SettingsService]);
+
   // Update local state when backgroundSettings change from SSE
   useEffect(() => {
     setLocalOpacity(backgroundSettings?.opacity || 30);
     setLocalBlur(backgroundSettings?.blur || 0);
-    setTransparentPanels(backgroundSettings?.transparency?.panels || false);
-  }, [backgroundSettings?.opacity, backgroundSettings?.blur, backgroundSettings?.transparency?.panels]);
+    setCardTransparency(backgroundSettings?.uiSettings?.cardTransparency || 85);
+    setCardTint(backgroundSettings?.uiSettings?.cardTint || 0);
+    setInputTransparency(backgroundSettings?.uiSettings?.inputTransparency || 95);
+    setInputTint(backgroundSettings?.uiSettings?.inputTint || 0);
+  }, [backgroundSettings?.opacity, backgroundSettings?.blur, 
+      backgroundSettings?.uiSettings?.cardTransparency, backgroundSettings?.uiSettings?.cardTint,
+      backgroundSettings?.uiSettings?.inputTransparency, backgroundSettings?.uiSettings?.inputTint]);
 
   // Funktion zum Speichern der Settings in der Datenbank
   const saveSettingsToDatabase = useCallback(async (settings) => {
@@ -211,6 +252,44 @@ const BackgroundSettingsMUI = ({
     await saveSettingsToDatabase({ blur: value });
   }, [setBackgroundSettings, backgroundSettings, saveSettingsToDatabase]);
 
+  // Handler für UI Settings
+  const handleUISettingCommit = useCallback(async (setting, value) => {
+    const newUISettings = {
+      cardTransparency: setting === 'cardTransparency' ? value : cardTransparency,
+      cardTint: setting === 'cardTint' ? value : cardTint,
+      inputTransparency: setting === 'inputTransparency' ? value : inputTransparency,
+      inputTint: setting === 'inputTint' ? value : inputTint
+    };
+    
+    const newSettings = {
+      ...backgroundSettings,
+      uiSettings: newUISettings
+    };
+    
+    setBackgroundSettings(newSettings);
+    
+    // Save to localStorage for immediate effect
+    localStorage.setItem('ui_settings', JSON.stringify(newUISettings));
+    
+    // Fire custom event for same-window listeners
+    window.dispatchEvent(new Event('uiSettingsChanged'));
+    
+    // Save as JSON string to database
+    await SettingsService.updateSetting('ui_settings', JSON.stringify(newUISettings));
+    
+    // Apply CSS variables globally
+    const root = document.documentElement;
+    if (setting === 'cardTransparency') {
+      root.style.setProperty('--card-transparency', value / 100);
+    } else if (setting === 'cardTint') {
+      root.style.setProperty('--card-tint', value);
+    } else if (setting === 'inputTransparency') {
+      root.style.setProperty('--input-transparency', value / 100);
+    } else if (setting === 'inputTint') {
+      root.style.setProperty('--input-tint', value);
+    }
+  }, [cardTransparency, cardTint, inputTransparency, inputTint, backgroundSettings, setBackgroundSettings, SettingsService]);
+
   // File Upload Handler
   const handleFileUpload = useCallback(async (event) => {
     const file = event.target.files[0];
@@ -245,12 +324,12 @@ const BackgroundSettingsMUI = ({
   }, [backgroundImages.length, setBackgroundImages, onActivateBackground]);
 
   return (
-    <Box sx={{ height: '100%', overflow: 'auto', p: 3 }}>
+    <Box sx={{ p: 3 }}>
       
       {/* Preview - IMMER sichtbar */}
-      <Card sx={{ mb: 3, backgroundColor: 'rgba(255,255,255,0.1)' }}>
+      <Card className="settings-card" sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="subtitle1" sx={{ mb: 2, color: 'white' }}>
+          <Typography variant="subtitle1" sx={{ mb: 2 }}>
             {t('settings.backgroundPreview')}
           </Typography>
           <BackgroundPreview
@@ -262,42 +341,18 @@ const BackgroundSettingsMUI = ({
         </CardContent>
       </Card>
 
-      {/* Settings Controls - Kompakter */}
-      <Card sx={{ mb: 3, backgroundColor: 'rgba(255,255,255,0.1)' }}>
+      {/* Settings Controls - Background Settings */}
+      <Card className="settings-card" sx={{ mb: 3 }}>
         <CardContent>
-          
-          {/* Panel Transparency Toggle */}
-          <FormGroup sx={{ mb: 3 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={transparentPanels}
-                  onChange={(e) => handleTransparencyToggle(e.target.checked)}
-                  sx={{
-                    '& .MuiSwitch-switchBase.Mui-checked': {
-                      color: '#4caf50',
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                      backgroundColor: '#4caf50',
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography sx={{ color: 'white' }}>
-                  {t('settings.backgroundTransparentPanels')}
-                </Typography>
-              }
-            />
-          </FormGroup>
-
-          <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            {t('settings.backgroundSettings', 'Hintergrund-Einstellungen')}
+          </Typography>
           
           {/* Opacity und Blur in einer Zeile */}
           <Stack direction="row" spacing={3} sx={{ mb: 3 }}>
             {/* Opacity Slider */}
             <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" sx={{ mb: 1, color: 'rgba(255,255,255,0.8)' }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
                 {t('settings.backgroundOpacity')}: {localOpacity}%
               </Typography>
               <Slider
@@ -323,7 +378,7 @@ const BackgroundSettingsMUI = ({
             
             {/* Blur Slider */}
             <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" sx={{ mb: 1, color: 'rgba(255,255,255,0.8)' }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
                 {t('settings.backgroundBlur')}: {localBlur}px
               </Typography>
               <Slider
@@ -352,7 +407,7 @@ const BackgroundSettingsMUI = ({
           
           {/* Position Grid - Zentriert */}
           <Box>
-            <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.8)', textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
               {t('settings.backgroundPosition')}
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
@@ -376,10 +431,10 @@ const BackgroundSettingsMUI = ({
       </Card>
 
       {/* Image Gallery mit Upload Button */}
-      <Card sx={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+      <Card className="settings-card" sx={{ mb: 3 }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: 'white' }}>
+            <Typography variant="h6">
               {t('settings.backgroundGallery')}
             </Typography>
             <Button
@@ -459,10 +514,12 @@ const BackgroundSettingsMUI = ({
                 textAlign: 'center',
                 border: '1px dashed rgba(255,255,255,0.3)',
                 borderRadius: 1,
+                color: 'rgba(255,255,255,0.6)'
               }}
             >
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                {t('settings.backgroundNoImages')}
+              <Image size={48} style={{ marginBottom: 8, opacity: 0.5 }} />
+              <Typography variant="body2">
+                {t('settings.noBackgroundImages')}
               </Typography>
             </Box>
           )}
@@ -472,4 +529,4 @@ const BackgroundSettingsMUI = ({
   );
 };
 
-export default BackgroundSettingsMUI;
+export default memo(BackgroundSettingsMUI);
