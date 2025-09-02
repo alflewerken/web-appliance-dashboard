@@ -150,17 +150,17 @@ const UIConfigPanel = () => {
               {t('common.saveAll', 'Alle Speichern')}
             </Button>
           )}
-          <Tooltip title={t('settings.exportConfig', 'Konfiguration exportieren')}>
+          <Tooltip title={t('settings.exportConfig')}>
             <IconButton onClick={handleExport} sx={{ color: 'white' }}>
               <Download size={20} />
             </IconButton>
           </Tooltip>
-          <Tooltip title={t('settings.importConfig', 'Konfiguration importieren')}>
+          <Tooltip title={t('settings.importConfig')}>
             <IconButton onClick={() => setShowImportExport(!showImportExport)} sx={{ color: 'white' }}>
               <Upload size={20} />
             </IconButton>
           </Tooltip>
-          <Tooltip title={t('settings.resetAll', 'Alles zurücksetzen')}>
+          <Tooltip title={t('settings.resetAll')}>
             <IconButton onClick={resetToDefaults} sx={{ color: '#ff9800' }}>
               <RotateCcw size={20} />
             </IconButton>
@@ -173,7 +173,7 @@ const UIConfigPanel = () => {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              {t('settings.importExport', 'Import/Export')}
+              {t('settings.importExport')}
             </Typography>
             <TextField
               fullWidth
@@ -181,11 +181,11 @@ const UIConfigPanel = () => {
               rows={4}
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
-              placeholder={t('settings.pasteConfig', 'Konfiguration hier einfügen...')}
+              placeholder={t('settings.pasteConfig')}
               sx={{ mb: 2 }}
             />
             <Button variant="contained" onClick={handleImport}>
-              {t('common.import', 'Importieren')}
+              {t('common.import')}
             </Button>
           </CardContent>
         </Card>
@@ -196,17 +196,17 @@ const UIConfigPanel = () => {
         <AccordionSummary expandIcon={<ChevronDown />}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Layers size={20} />
-            <Typography>{t('settings.general', 'Allgemein')}</Typography>
+            <Typography>{t('settings.general')}</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
           <Stack spacing={3}>
             <Typography variant="subtitle2" sx={{ mb: 2 }}>
-              {t('settings.uiElements', 'UI Elemente (Textfelder, Dropdowns, Meldungen)')}
+              {t('settings.uiElements')}
             </Typography>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.inputTransparency', 'Eingabefeld-Transparenz')}: {localConfig.inputTransparency || 95}%
+                {t('settings.inputTransparency')}: {localConfig.inputTransparency || 95}%
               </Typography>
               <Slider
                 value={localConfig.inputTransparency || 95}
@@ -220,7 +220,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.inputBlur', 'Eingabefeld-Unschärfe')}: {localConfig.inputBlur || 0}px
+                {t('settings.inputBlur')}: {localConfig.inputBlur || 0}px
               </Typography>
               <Slider
                 value={localConfig.inputBlur || 0}
@@ -234,7 +234,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.inputTint', 'Eingabefeld-Tönung')}: {(localConfig.inputTint || 0) > 0 ? '+' : ''}{localConfig.inputTint || 0}
+                {t('settings.inputTint')}: {(localConfig.inputTint || 0) > 0 ? '+' : ''}{localConfig.inputTint || 0}
               </Typography>
               <Slider
                 value={localConfig.inputTint || 0}
@@ -251,11 +251,11 @@ const UIConfigPanel = () => {
             <Divider sx={{ my: 2 }} />
             
             <Typography variant="subtitle2" sx={{ mb: 2 }}>
-              {t('settings.dialogsModals', 'Dialoge & Info-Fenster')}
+              {t('settings.dialogsModals')}
             </Typography>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.modalTransparency', 'Dialog-Deckkraft')}: {localConfig.modalTransparency || 95}%
+                {t('settings.modalTransparency')}: {localConfig.modalTransparency || 95}%
               </Typography>
               <Slider
                 value={localConfig.modalTransparency || 95}
@@ -269,7 +269,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.modalBlur', 'Dialog-Unschärfe')}: {localConfig.modalBlur || 30}px
+                {t('settings.modalBlur')}: {localConfig.modalBlur || 30}px
               </Typography>
               <Slider
                 value={localConfig.modalBlur || 30}
@@ -283,7 +283,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.modalTint', 'Dialog-Tönung')}: {(localConfig.modalTint || 0) > 0 ? '+' : ''}{localConfig.modalTint || 0}
+                {t('settings.modalTint')}: {(localConfig.modalTint || 0) > 0 ? '+' : ''}{localConfig.modalTint || 0}
               </Typography>
               <Slider
                 value={localConfig.modalTint || 0}
@@ -302,7 +302,7 @@ const UIConfigPanel = () => {
               onClick={() => resetSection('general')}
               size="small"
             >
-              {t('settings.resetSection', 'Bereich zurücksetzen')}
+              {t('settings.resetSection')}
             </Button>
           </Stack>
         </AccordionDetails>
@@ -313,14 +313,14 @@ const UIConfigPanel = () => {
         <AccordionSummary expandIcon={<ChevronDown />}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Square size={20} />
-            <Typography>{t('settings.sidebar', 'Seitenleiste')}</Typography>
+            <Typography>{t('settings.sidebar')}</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
           <Stack spacing={3}>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.width', 'Breite')}: {localConfig.sidebarWidth}px
+                {t('settings.width')}: {localConfig.sidebarWidth}px
               </Typography>
               <Slider
                 value={localConfig.sidebarWidth}
@@ -334,7 +334,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.transparency', 'Transparenz')}: {localConfig.sidebarTransparency}%
+                {t('settings.transparency')}: {localConfig.sidebarTransparency}%
               </Typography>
               <Slider
                 value={localConfig.sidebarTransparency}
@@ -348,7 +348,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.blur', 'Unschärfe')}: {localConfig.sidebarBlur}px
+                {t('settings.blur')}: {localConfig.sidebarBlur}px
               </Typography>
               <Slider
                 value={localConfig.sidebarBlur}
@@ -362,7 +362,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.tint', 'Tönung')}: {(localConfig.sidebarTint || 0) > 0 ? '+' : ''}{localConfig.sidebarTint || 0}
+                {t('settings.tint')}: {(localConfig.sidebarTint || 0) > 0 ? '+' : ''}{localConfig.sidebarTint || 0}
               </Typography>
               <Slider
                 value={localConfig.sidebarTint || 0}
@@ -380,7 +380,7 @@ const UIConfigPanel = () => {
               onClick={() => resetSection('sidebar')}
               size="small"
             >
-              {t('settings.resetSection', 'Bereich zurücksetzen')}
+              {t('settings.resetSection')}
             </Button>
           </Stack>
         </AccordionDetails>
@@ -391,14 +391,14 @@ const UIConfigPanel = () => {
         <AccordionSummary expandIcon={<ChevronDown />}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Square size={20} />
-            <Typography>{t('settings.cards', 'Karten')}</Typography>
+            <Typography>{t('settings.cards')}</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
           <Stack spacing={3}>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.cardTransparency', 'Karten-Transparenz')}: {localConfig.cardTransparency}%
+                {t('settings.cardTransparency')}: {localConfig.cardTransparency}%
               </Typography>
               <Slider
                 value={localConfig.cardTransparency}
@@ -412,7 +412,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.blur', 'Unschärfe')}: {localConfig.cardBlur || 5}px
+                {t('settings.blur')}: {localConfig.cardBlur || 5}px
               </Typography>
               <Slider
                 value={localConfig.cardBlur || 5}
@@ -426,7 +426,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.cardTint', 'Karten-Tönung')}: {(localConfig.cardTint || 0) > 0 ? '+' : ''}{localConfig.cardTint || 0}
+                {t('settings.cardTint')}: {(localConfig.cardTint || 0) > 0 ? '+' : ''}{localConfig.cardTint || 0}
               </Typography>
               <Slider
                 value={localConfig.cardTint || 0}
@@ -441,7 +441,7 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.borderRadius', 'Ecken-Radius')}: {localConfig.cardBorderRadius}px
+                {t('settings.cardRadius')}: {localConfig.cardBorderRadius}px
               </Typography>
               <Slider
                 value={localConfig.cardBorderRadius}
@@ -458,7 +458,7 @@ const UIConfigPanel = () => {
               onClick={() => resetSection('cards')}
               size="small"
             >
-              {t('settings.resetSection', 'Bereich zurücksetzen')}
+              {t('settings.resetSection')}
             </Button>
           </Stack>
         </AccordionDetails>
