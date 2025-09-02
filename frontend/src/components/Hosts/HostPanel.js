@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import SSHKeyManagement from '../SettingsPanel/SSHKeyManagement';
+import HostMonitoringTab from './HostMonitoringTab';
 import sseService from '../../services/sseService';
 import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import {
@@ -46,6 +47,15 @@ import {
   Plus,
   Edit2,
   Server,
+  Activity,
+  Cpu,
+  MemoryStick,
+  HardDrive,
+  Network,
+  Thermometer,
+  Clock,
+  RefreshCw,
+  CheckCircle,
 } from 'lucide-react';
 import SimpleIcon from '../SimpleIcon';
 import IconSelector from '../IconSelector';
@@ -113,6 +123,33 @@ const HostPanel = ({
   const [sshKeys, setSshKeys] = useState([]);
   const [selectedKey, setSelectedKey] = useState(null);
 
+  // SNMP Monitoring state
+  const [snmpConfig, setSnmpConfig] = useState({
+    enabled: false,
+    version: '2c',
+    community: 'public',
+    port: 161,
+    username: '',
+    authProtocol: 'SHA',
+    authPassword: '',
+    privProtocol: 'AES',
+    privPassword: '',
+    pollInterval: 60,
+  });
+  const [monitoringData, setMonitoringData] = useState({
+    status: 'offline',
+    lastUpdate: null,
+    metrics: {
+      cpu: null,
+      memory: null,
+      disk: [],
+      network: [],
+      temperature: null,
+      uptime: null,
+    }
+  });
+  const [testingConnection, setTestingConnection] = useState(false);
+
   // Theme and UI Settings state
   const [currentTheme, setCurrentTheme] = useState('dark');
   const [uiSettings, setUiSettings] = useState({
@@ -122,6 +159,101 @@ const HostPanel = ({
     inputTransparency: 95,
     inputTint: 0
   });
+
+  // Load SNMP configuration for host
+  const loadSNMPConfig = async () => {
+    if (!host?.id) return;
+    
+    try {
+      const response = await axios.get(`/api/hosts/${host.id}/snmp-config`);
+      if (response.data?.config) {
+        setSnmpConfig(response.data.config);
+        if (response.data.config.enabled) {
+          loadMonitoringData();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load SNMP config:', err);
+    }
+  };
+
+  // Load monitoring data
+  const loadMonitoringData = async () => {
+    if (!host?.id) return;
+    
+    try {
+      const response = await axios.get(`/api/hosts/${host.id}/monitoring-data`);
+      setMonitoringData(response.data);
+    } catch (err) {
+      console.error('Failed to load monitoring data:', err);
+    }
+  };
+
+  // Test SNMP connection
+  const handleTestSNMPConnection = async () => {
+    setTestingConnection(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, snmpConfig);
+      
+      if (response.data?.success) {
+        setSuccess(t('monitoring.testSuccess'));
+        loadMonitoringData();
+      } else {
+        setError(response.data?.error || t('monitoring.testFailed'));
+      }
+    } catch (err) {
+      setError(t('monitoring.testFailed'));
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  // Save SNMP configuration
+  const handleSaveSNMPConfig = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      await axios.put(`/api/hosts/${host.id}/snmp-config`, snmpConfig);
+      setSuccess(t('monitoring.configSaved'));
+      if (snmpConfig.enabled) {
+        loadMonitoringData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || t('monitoring.saveFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format helper functions for monitoring display
+  const formatUptime = (seconds) => {
+    if (!seconds) return 'N/A';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    return parts.join(' ') || '< 1m';
+  };
+
+  const formatBytes = (bytes) => {
+    if (!bytes) return 'N/A';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = bytes;
+    let unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex++;
+    }
+    return `${value.toFixed(1)} ${units[unitIndex]}`;
+  };
 
   // Monitor theme changes
   useEffect(() => {
@@ -881,6 +1013,7 @@ const HostPanel = ({
         >
           <Tab label={t('hosts.tabs.general')} />
           <Tab label={t('hosts.tabs.sshKeys')} />
+          <Tab label={t('hosts.tabs.monitoring')} />
         </Tabs>
       </Box>
 
@@ -1376,6 +1509,14 @@ const HostPanel = ({
               adminMode={adminMode}
             />
           </Box>
+        )}
+
+        {/* Tab 2: Monitoring */}
+        {activeTab === 2 && (
+          <HostMonitoringTab 
+            host={host}
+            getInputStyles={getInputStyles}
+          />
         )}
       </Box>
 

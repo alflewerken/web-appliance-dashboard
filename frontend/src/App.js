@@ -1712,6 +1712,7 @@ function Dashboard() {
           />
         </div>
       )}
+
       </MobileSwipeableWrapper>
 
       {activeTerminals.map(terminal => (

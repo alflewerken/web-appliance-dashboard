@@ -158,9 +158,20 @@ app.use('/api/commands', verifyToken, commandsRouter);
 app.use('/api/audit-logs', verifyToken, auditLogsRouter);
 app.use('/api/auditRestore', verifyToken, auditRestoreRouter);
 
+// Import QueryBuilder
+const QueryBuilder = require('./utils/QueryBuilder');
+
+// Initialize QueryBuilder with pool
+const queryBuilder = new QueryBuilder(pool);
+
 // Hosts routes
 const hostsRouter = require('./routes/hosts');
 app.use('/api/hosts', verifyToken, hostsRouter);
+
+// Host Monitoring Routes
+const initHostMonitoring = require('./routes/hostMonitoring');
+const hostMonitoringRouter = initHostMonitoring(queryBuilder);
+app.use('/api', verifyToken, hostMonitoringRouter);
 
 // SSH Keys routes
 const sshKeysRouter = require('./routes/sshKeys');
@@ -169,12 +180,6 @@ app.use('/api/sshKeys', verifyToken, sshKeysRouter);
 // SSH routes (including file upload)
 const sshRouter = require('./routes/ssh');
 app.use('/api/ssh', verifyToken, sshRouter);
-
-// Import QueryBuilder
-const QueryBuilder = require('./utils/QueryBuilder');
-
-// Initialize QueryBuilder with pool
-const queryBuilder = new QueryBuilder(pool);
 
 // SNMP Monitoring routes
 const initSNMPMonitor = require('./routes/snmp');

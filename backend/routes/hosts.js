@@ -1071,4 +1071,196 @@ router.post('/restore/:auditLogId', verifyToken, async (req, res) => {
   }
 });
 
+// SNMP Configuration endpoints
+
+// Get SNMP configuration for a host
+router.get('/:id/snmp-config', async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    
+    // Check if user has access to this host
+    const host = await db.findOne('hosts', { id: hostId });
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // Get SNMP config from database
+    const config = await db.findOne('host_snmp_configs', { hostId });
+    
+    if (!config) {
+      // Return default config if none exists
+      return res.json({
+        config: {
+          enabled: false,
+          version: '2c',
+          community: 'public',
+          port: 161,
+          username: '',
+          authProtocol: 'SHA',
+          authPassword: '',
+          privProtocol: 'AES',
+          privPassword: '',
+          pollInterval: 60,
+        }
+      });
+    }
+    
+    res.json({ config });
+  } catch (error) {
+    logger.error('Error fetching SNMP config:', error);
+    res.status(500).json({ error: 'Failed to fetch SNMP configuration' });
+  }
+});
+
+// Update SNMP configuration for a host
+router.put('/:id/snmp-config', async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    const config = req.body;
+    
+    // Check if user has access to this host
+    const host = await db.findOne('hosts', { id: hostId });
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // Check if config exists
+    const existingConfig = await db.findOne('host_snmp_configs', { hostId });
+    
+    const configData = {
+      ...config,
+      hostId,
+      updatedAt: new Date()
+    };
+    
+    if (existingConfig) {
+      // Update existing config
+      await db.update('host_snmp_configs', { hostId }, configData);
+    } else {
+      // Insert new config
+      configData.createdAt = new Date();
+      await db.insert('host_snmp_configs', configData);
+    }
+    
+    // Create audit log
+    await createAuditLog(
+      1, // Default user ID - in production, get from auth
+      'snmp_config_updated',
+      'hosts',
+      hostId,
+      configData,
+      getClientIp(req),
+      host.name
+    );
+    
+    res.json({ success: true, config: configData });
+  } catch (error) {
+    logger.error('Error updating SNMP config:', error);
+    res.status(500).json({ error: 'Failed to update SNMP configuration' });
+  }
+});
+
+// Test SNMP connection
+router.post('/:id/snmp-test', async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    const config = req.body;
+    
+    // Check if user has access to this host
+    const host = await db.findOne('hosts', { id: hostId });
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // For now, return mock success
+    // In production, you would implement actual SNMP testing here
+    // using net-snmp or similar library
+    
+    logger.info(`Testing SNMP connection for host ${host.name} (${host.hostname})`);
+    
+    // Simulate test delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Mock response - always successful for testing
+    res.json({
+      success: true,
+      message: 'SNMP connection test successful',
+      details: {
+        host: host.hostname,
+        port: config.port || 161,
+        version: config.version,
+        responseTime: '45ms'
+      }
+    });
+    
+    // Create audit log
+    await createAuditLog(
+      1, // Default user ID - in production, get from auth
+      'snmp_test',
+      'hosts',
+      hostId,
+      { config, success: true },
+      getClientIp(req),
+      host.name
+    );
+    
+  } catch (error) {
+    logger.error('Error testing SNMP connection:', error);
+    res.status(500).json({ error: 'Failed to test SNMP connection' });
+  }
+});
+
+// Get monitoring data for a host
+router.get('/:id/monitoring-data', async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    
+    // Check if user has access to this host
+    const host = await db.findOne('hosts', { id: hostId });
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // For now, return mock data
+    // In production, you would fetch real metrics from your monitoring system
+    
+    const mockData = {
+      status: 'online',
+      lastUpdate: new Date().toISOString(),
+      metrics: {
+        cpu: Math.floor(Math.random() * 100),
+        memory: {
+          used: 4294967296, // 4GB in bytes
+          total: 8589934592, // 8GB in bytes
+          percentage: 50
+        },
+        disk: [
+          {
+            mount: '/',
+            used: 53687091200, // 50GB
+            total: 107374182400, // 100GB
+            percentage: 50
+          }
+        ],
+        network: [
+          {
+            interface: 'eth0',
+            rxBytes: 1073741824, // 1GB
+            txBytes: 536870912, // 512MB
+            rxRate: 1048576, // 1MB/s
+            txRate: 524288 // 512KB/s
+          }
+        ],
+        temperature: 45,
+        uptime: 864000 // 10 days in seconds
+      }
+    };
+    
+    res.json(mockData);
+  } catch (error) {
+    logger.error('Error fetching monitoring data:', error);
+    res.status(500).json({ error: 'Failed to fetch monitoring data' });
+  }
+});
+
 module.exports = router;

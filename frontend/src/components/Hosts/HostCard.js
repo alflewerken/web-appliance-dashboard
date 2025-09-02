@@ -187,6 +187,7 @@ const HostCard = ({
           }}
         >
           {/* Card Cover with Icon */}
+          {/* Card Cover with Icon */}
           <div className="card-cover">
             {/* Main Icon */}
             <div className="card-icon">
@@ -195,15 +196,16 @@ const HostCard = ({
                 size="100%" 
               />
             </div>
+          </div>
             
-            {/* Left Button Column - Edit Button */}
-            {/* Show buttons based on touch state and active state - Desktop relies on CSS hover */}
-            <div 
-              className={`card-buttons-left ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : ''}`}
-              style={{
-                pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
-              }}
-            >
+          {/* Left Button Column - Edit Button */}
+          {/* Show buttons based on touch state and active state - Desktop relies on CSS hover */}
+          <div 
+            className={`card-buttons-left ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : ''}`}
+            style={{
+              pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
+            }}
+          >
                 <Tooltip title="Host bearbeiten">
                   <IconButton
                     onClick={handleEdit}
@@ -316,7 +318,6 @@ const HostCard = ({
                     <Upload size={16} />
                   </IconButton>
                 </Tooltip>
-              </div>
           </div>
           
           {/* Title with dark background */}

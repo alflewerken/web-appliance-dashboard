@@ -93,7 +93,6 @@ CREATE OR REPLACE VIEW snmp_latest_metrics AS
 SELECT 
   h.id as host_id,
   h.hostname,
-  h.ip,
   h.snmp_enabled,
   h.snmp_status,
   m.cpu_percent,
