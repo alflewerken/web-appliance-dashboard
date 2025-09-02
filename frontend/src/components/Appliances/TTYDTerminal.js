@@ -224,35 +224,7 @@ const TTYDTerminal = ({ show, onHide, hostId = null, appliance = null, host = nu
               background: '#000'
             }}
             onLoad={(e) => {
-              // Check if we're in light mode and inject styles
-              const isLightMode = document.body.classList.contains('theme-light');
-              if (isLightMode) {
-                try {
-                  const iframe = e.target;
-                  const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                  
-                  // Inject light mode styles for terminal
-                  const style = iframeDoc.createElement('style');
-                  style.textContent = `
-                    /* Light mode terminal styles */
-                    body {
-                      background: #ffffff !important;
-                      filter: invert(1) hue-rotate(180deg) !important;
-                    }
-                    .terminal {
-                      background: #ffffff !important;
-                    }
-                    /* Invert the terminal colors for light mode */
-                    #terminal-container {
-                      filter: invert(1) hue-rotate(180deg) !important;
-                    }
-                  `;
-                  iframeDoc.head.appendChild(style);
-                } catch (err) {
-                  // Cross-origin restrictions, can't inject styles
-                  console.log('Cannot inject styles into terminal iframe (cross-origin)');
-                }
-              }
+              // Terminal style handling is done via CSS filters in TTYDTerminal.css for light mode
             }}
             onError={(e) => {
               // Silently handle iframe errors - terminal still works

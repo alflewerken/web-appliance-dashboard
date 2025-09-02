@@ -228,14 +228,13 @@ body.theme-light .terminal-body {
   background-color: #ffffff;
 }
 
+/* Force invert terminal colors in light mode using CSS filters on the iframe itself */
 body.theme-light .terminal-iframe {
   background-color: #ffffff !important;
-}
-
-/* Inject styles into iframe for light mode terminal */
-body.theme-light .terminal-iframe {
-  /* Terminal colors will be handled by ttyd configuration */
-  background: white !important;
+  /* Invert colors: black becomes white, white becomes black */
+  filter: invert(1) hue-rotate(180deg) !important;
+  /* Ensure the filter is applied */
+  -webkit-filter: invert(1) hue-rotate(180deg) !important;
 }
 
 body.theme-light .terminal-loading,
