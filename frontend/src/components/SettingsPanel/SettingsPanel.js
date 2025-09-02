@@ -55,7 +55,6 @@ import {
   Upload,
   Download,
   Wifi,
-  Check,
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
@@ -398,8 +397,9 @@ const SettingsPanel = ({
 
     try {
       await SettingsService.updateSetting(key, value);
-      setSuccess(t('settings.success.settingSaved'));
-      setTimeout(() => setSuccess(''), 2000);
+      // Success message removed - settings are saved automatically without notification
+      // setSuccess(t('settings.success.settingSaved'));
+      // setTimeout(() => setSuccess(''), 2000);
 
       if (onCategoriesUpdate) {
         await onCategoriesUpdate();
@@ -430,8 +430,9 @@ const SettingsPanel = ({
 
     try {
       await SettingsService.updateSetting(key, value);
-      setSuccess(t('settings.success.settingSaved'));
-      setTimeout(() => setSuccess(''), 2000);
+      // Success message removed - settings are saved automatically without notification
+      // setSuccess(t('settings.success.settingSaved'));
+      // setTimeout(() => setSuccess(''), 2000);
     } catch (error) {
       setError(t('settings.errors.saveFailed'));
       setTimeout(() => setError(''), 3000);
@@ -832,14 +833,6 @@ const SettingsPanel = ({
                     <MenuItem value="auto">{t('settings.themeAuto')}</MenuItem>
                   </Select>
                 </FormControl>
-
-                <Alert severity="success" sx={{ mt: 3 }}>
-                  <Check
-                    size={16}
-                    style={{ marginRight: 8, verticalAlign: 'middle' }}
-                  />
-                  {t('settings.settingsSaved')}
-                </Alert>
               </Box>
             )}
           </Box>
