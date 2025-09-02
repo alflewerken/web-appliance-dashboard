@@ -25,6 +25,10 @@ terminal-app/build/
 .env.test.local
 .env.production.local
 
+# Personal documentation (not for GitHub)
+branch-documentation/
+my-data/
+
 # Backup directories and files
 backups/*.json
 backups/*.sql
