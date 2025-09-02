@@ -18,6 +18,7 @@
     "clearSearch": "Clear search (or press ESC)",
     "showSidebar": "Show sidebar",
     "hideSidebar": "Hide sidebar",
+    "minimizeSidebar": "Minimize sidebar",
     "adjustTileSize": "Adjust tile size",
     "showAllServices": "Show all services",
     "showOnlyServicesWithStatus": "Show only services with status",

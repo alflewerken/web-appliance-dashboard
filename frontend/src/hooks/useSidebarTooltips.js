@@ -43,11 +43,11 @@ const SidebarTooltip = ({ text, position }) => {
   );
 };
 
-export const useSidebarTooltips = (isCollapsed) => {
+export const useSidebarTooltips = (showTooltips) => {
   const [tooltip, setTooltip] = useState({ text: null, position: null });
 
   useEffect(() => {
-    if (!isCollapsed) return;
+    if (!showTooltips) return;
 
     const handleMouseEnter = (e) => {
       const navItem = e.currentTarget;
@@ -79,7 +79,8 @@ export const useSidebarTooltips = (isCollapsed) => {
 
     // Funktion um Event Listener zu attachieren
     const attachListeners = () => {
-      const sidebar = document.querySelector('.sidebar.collapsed');
+      // Suche nach collapsed ODER icon-only Sidebar
+      const sidebar = document.querySelector('.sidebar.collapsed, .sidebar.icon-only');
       if (!sidebar) return [];
 
       // Finde ALLE nav-items, inklusive benutzerdefinierte Kategorien
@@ -120,7 +121,7 @@ export const useSidebarTooltips = (isCollapsed) => {
     });
 
     // Beobachte die Sidebar für Änderungen
-    const sidebar = document.querySelector('.sidebar.collapsed');
+    const sidebar = document.querySelector('.sidebar.collapsed, .sidebar.icon-only');
     if (sidebar) {
       observer.observe(sidebar, {
         childList: true,
@@ -136,7 +137,7 @@ export const useSidebarTooltips = (isCollapsed) => {
         element.removeEventListener('mouseleave', handleMouseLeave);
       });
     };
-  }, [isCollapsed]);
+  }, [showTooltips]);
 
   return <SidebarTooltip text={tooltip.text} position={tooltip.position} />;
 };

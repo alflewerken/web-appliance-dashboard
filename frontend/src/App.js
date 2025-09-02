@@ -104,14 +104,18 @@ function Dashboard() {
   const [isMobile, setIsMobile] = useState(false);
   const [isMiniDashboard, setIsMiniDashboard] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
+  // Sidebar state: 'full' | 'icon-only' | 'collapsed'
+  const [sidebarState, setSidebarState] = useState(() => {
     try {
-      const saved = localStorage.getItem('desktop-sidebar-collapsed');
-      return saved === 'true';
+      const saved = localStorage.getItem('desktop-sidebar-state');
+      return saved || 'full';
     } catch (error) {
-      return false;
+      return 'full';
     }
   });
+  
+  // Legacy compatibility - map old collapsed state to new state system
+  const desktopSidebarCollapsed = sidebarState === 'collapsed';
   const [cardSize, setCardSize] = useState(() => {
     try {
       const savedCardSize = localStorage.getItem('dashboard-card-size');
@@ -653,12 +657,37 @@ function Dashboard() {
   // Speichere Desktop-Sidebar-Zustand
   useEffect(() => {
     try {
+      localStorage.setItem('desktop-sidebar-state', sidebarState);
+      // Legacy compatibility
       localStorage.setItem(
         'desktop-sidebar-collapsed',
-        desktopSidebarCollapsed.toString()
+        (sidebarState === 'collapsed').toString()
       );
     } catch (error) {}
-  }, [desktopSidebarCollapsed]);
+  }, [sidebarState]);
+
+  // Adjust sidebar width based on state and make state globally available
+  useEffect(() => {
+    const root = document.documentElement;
+    const uiConfig = window.uiConfigManager?.config || {};
+    const fullWidth = uiConfig.sidebarWidth || 280;
+    
+    // Make sidebar state globally available for UIConfigManager
+    window.sidebarState = sidebarState;
+    
+    switch(sidebarState) {
+      case 'icon-only':
+        root.style.setProperty('--sidebar-width', '70px');
+        break;
+      case 'collapsed':
+        root.style.setProperty('--sidebar-width', '0px');
+        break;
+      case 'full':
+      default:
+        root.style.setProperty('--sidebar-width', `${fullWidth}px`);
+        break;
+    }
+  }, [sidebarState]);
 
   // Update window title based on mini dashboard mode and selected category
   useEffect(() => {
@@ -1165,7 +1194,7 @@ function Dashboard() {
 
   return (
     <div
-      className={`music-app ${isMiniDashboard ? 'mini-dashboard' : ''} ${isMobile ? 'mobile-layout' : ''} ${isMobile && sidebarOpen ? 'sidebar-active' : ''} ${currentBackground && backgroundSettings.enabled ? 'has-background-image' : ''} ${showServicePanel ? 'has-service-panel' : ''} ${showUserManagement ? 'has-user-panel' : ''} ${showSettingsModal ? 'has-settings-panel' : ''} ${showAuditLog ? 'has-audit-log-panel' : ''} ${showHostPanel ? 'has-host-panel' : ''} ${!isMobile && desktopSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+      className={`music-app ${isMiniDashboard ? 'mini-dashboard' : ''} ${isMobile ? 'mobile-layout' : ''} ${isMobile && sidebarOpen ? 'sidebar-active' : ''} ${currentBackground && backgroundSettings.enabled ? 'has-background-image' : ''} ${showServicePanel ? 'has-service-panel' : ''} ${showUserManagement ? 'has-user-panel' : ''} ${showSettingsModal ? 'has-settings-panel' : ''} ${showAuditLog ? 'has-audit-log-panel' : ''} ${showHostPanel ? 'has-host-panel' : ''} ${!isMobile && sidebarState === 'collapsed' ? 'sidebar-collapsed' : ''} ${!isMobile && sidebarState === 'icon-only' ? 'sidebar-icon-only' : ''}`}
       onDragEnter={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragEnter}
       onDragOver={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragOver}
       onDragLeave={(showSettingsModal && activeSettingsTab === 'backup') ? undefined : handleDragLeave}
@@ -1225,10 +1254,11 @@ function Dashboard() {
           showUserManagement={showUserManagement}
           showHostsView={showHostsView}
           showAuditLog={showAuditLog}
-          isOpen={isMobile ? sidebarOpen : true}
+          isOpen={isMobile ? sidebarOpen : sidebarState !== 'collapsed'}
           onClose={() => setSidebarOpen(false)}
           isMobile={isMobile}
           isCollapsed={!isMobile && desktopSidebarCollapsed}
+          isIconOnly={!isMobile && sidebarState === 'icon-only'}
         />
       )}
 
@@ -1246,9 +1276,24 @@ function Dashboard() {
             showOnlyWithStatus={showOnlyWithStatus}
             setShowOnlyWithStatus={setShowOnlyWithStatus}
             sidebarCollapsed={desktopSidebarCollapsed}
-            onToggleSidebar={() =>
-              setDesktopSidebarCollapsed(!desktopSidebarCollapsed)
-            }
+            sidebarState={sidebarState}
+            onToggleSidebar={() => {
+              // Cycle through states: full -> icon-only -> collapsed -> full
+              let newState;
+              switch(sidebarState) {
+                case 'full':
+                  newState = 'icon-only';
+                  break;
+                case 'icon-only':
+                  newState = 'collapsed';
+                  break;
+                case 'collapsed':
+                default:
+                  newState = 'full';
+                  break;
+              }
+              setSidebarState(newState);
+            }}
             onOpenTerminalInNewWindow={handleOpenTerminalInNewWindow}
           />
         )}

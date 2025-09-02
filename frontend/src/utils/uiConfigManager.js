@@ -201,7 +201,12 @@ class UIConfigManager {
     
     root.style.setProperty('--sidebar-bg', sidebarBg);
     root.style.setProperty('--sidebar-blur', `${this.config.sidebarBlur}px`);
-    root.style.setProperty('--sidebar-width', `${this.config.sidebarWidth}px`);
+    
+    // Only update sidebar width if in full state
+    if (!window.sidebarState || window.sidebarState === 'full') {
+      root.style.setProperty('--sidebar-width', `${this.config.sidebarWidth}px`);
+    }
+    
     root.style.setProperty('--sidebar-tint', sidebarTint);
     
     // Header styles - SYNCHRONIZED WITH SIDEBAR TINT

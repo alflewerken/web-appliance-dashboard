@@ -18,6 +18,7 @@
     "clearSearch": "Suche löschen (oder ESC drücken)",
     "showSidebar": "Sidebar einblenden",
     "hideSidebar": "Sidebar ausblenden",
+    "minimizeSidebar": "Sidebar minimieren",
     "adjustTileSize": "Kachel-Größe anpassen",
     "showAllServices": "Alle Services anzeigen",
     "showOnlyServicesWithStatus": "Nur Services mit Status anzeigen",

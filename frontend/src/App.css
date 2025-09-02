@@ -77,6 +77,11 @@ body {
   /* No specific adjustments needed - flex handles it automatically */
 }
 
+/* Adjust main content when sidebar is icon-only */
+.music-app.sidebar-icon-only .main-content {
+  /* No specific adjustments needed - flex handles it automatically */
+}
+
 /* Content Header */
 .content-header {
   height: 56px;

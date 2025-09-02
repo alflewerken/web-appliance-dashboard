@@ -3,7 +3,8 @@
 /* Überschreibt die Standard-Styles aus Sidebar.css für bessere Kontrolle */
 @media (min-width: 769px) {
   /* Stelle sicher, dass Tooltips nicht von der Sidebar abgeschnitten werden */
-  .sidebar.collapsed .nav-item {
+  .sidebar.collapsed .nav-item,
+  .sidebar.icon-only .nav-item {
     position: relative !important;
   }
   
@@ -11,7 +12,11 @@
   .sidebar.collapsed .nav-item::after,
   .sidebar.collapsed .nav-item::before,
   .sidebar.collapsed .add-btn::after,
-  .sidebar.collapsed .settings-btn::after {
+  .sidebar.collapsed .settings-btn::after,
+  .sidebar.icon-only .nav-item::after,
+  .sidebar.icon-only .nav-item::before,
+  .sidebar.icon-only .add-btn::after,
+  .sidebar.icon-only .settings-btn::after {
     display: none !important;
   }
 }

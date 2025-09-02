@@ -17,6 +17,7 @@ const AppHeader = ({
   showOnlyWithStatus,
   setShowOnlyWithStatus,
   sidebarCollapsed,
+  sidebarState,
   onToggleSidebar,
 }) => {
   const { t } = useTranslation();
@@ -69,9 +70,15 @@ const AppHeader = ({
         <button
           onClick={onToggleSidebar}
           className="sidebar-toggle-button"
-          title={sidebarCollapsed ? t('common.showSidebar') : t('common.hideSidebar')}
+          title={
+            sidebarState === 'full' 
+              ? t('common.minimizeSidebar', { defaultValue: 'Seitenleiste minimieren' })
+              : sidebarState === 'icon-only'
+              ? t('common.hideSidebar')
+              : t('common.showSidebar')
+          }
         >
-          {sidebarCollapsed ? (
+          {sidebarState === 'collapsed' ? (
             <PanelLeft size={20} />
           ) : (
             <PanelLeftClose size={20} />

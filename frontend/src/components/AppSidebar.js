@@ -33,13 +33,14 @@ const AppSidebar = ({
   onClose,
   isMobile = false,
   isCollapsed = false,
+  isIconOnly = false,
 }) => {
   const { t } = useTranslation();
   const { user, isAdmin, logout } = useAuth();
   const authEnabled = true; // Auth ist immer aktiviert in dieser Version
   
-  // Tooltip Hook für collapsed sidebar
-  const tooltipElement = useSidebarTooltips(isCollapsed);
+  // Tooltip Hook für collapsed oder icon-only sidebar
+  const tooltipElement = useSidebarTooltips(isCollapsed || isIconOnly);
 
   /**
    * Convert hex color to RGB values
@@ -366,7 +367,7 @@ const AppSidebar = ({
       {/* Tooltip Element */}
       {tooltipElement}
 
-      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isIconOnly ? 'icon-only' : ''}`}>
         <div className="sidebar-header">
           <div className="library-header">
             <h2>{t('sidebar.myServices')}</h2>

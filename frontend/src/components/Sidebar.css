@@ -27,8 +27,58 @@
   width: 60px;
 }
 
-.sidebar.collapsed .sidebar-header {
+/* Icon-Only Sidebar - Desktop Only */
+.sidebar.icon-only {
+  width: 70px;
+  transition: width 0.3s ease;
+}
+
+.sidebar.icon-only .sidebar-header {
   padding: 20px 12px 16px 12px;
+}
+
+.sidebar.icon-only .library-header h2 {
+  display: none;
+}
+
+.sidebar.icon-only .header-actions {
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 auto;
+}
+
+.sidebar.icon-only .nav-text,
+.sidebar.icon-only .nav-count,
+.sidebar.icon-only .nav-user {
+  display: none;
+}
+
+.sidebar.icon-only .nav-item {
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+.sidebar.icon-only .nav-section {
+  padding: 0 12px;
+}
+
+.sidebar.icon-only .nav-icon-container {
+  margin: 0;
+}
+
+.sidebar.icon-only .nav-divider {
+  margin: 12px 12px;
+}
+
+/* Collapsed Sidebar - Completely hidden */
+.sidebar.collapsed {
+  width: 0px;
+  overflow: hidden;
+  border-right: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+  display: none;
 }
 
 .sidebar.collapsed .library-header h2 {
@@ -36,9 +86,7 @@
 }
 
 .sidebar.collapsed .header-actions {
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 auto;
+  display: none;
 }
 
 /* Tooltips für Header-Buttons in collapsed state - Desktop only */
@@ -51,26 +99,25 @@
 }
 
 .sidebar.collapsed .nav-item {
-  justify-content: center;
-  padding: 8px;
+  display: none;
 }
 
 .sidebar.collapsed .nav-section {
-  padding: 0 12px;
+  display: none;
 }
 
 .sidebar.collapsed .nav-icon-container {
-  margin: 0;
+  display: none;
 }
 
 .sidebar.collapsed .nav-divider {
-  margin: 12px 12px;
+  display: none;
 }
 
-/* Tooltip styling for collapsed sidebar - Desktop only */
-/* WICHTIG: Diese Styles werden von sidebar-tooltip-debug.css überschrieben für Tests */
+/* Tooltip styling for collapsed and icon-only sidebar - Desktop only */
 @media (min-width: 769px) {
-  .sidebar.collapsed .nav-item {
+  .sidebar.collapsed .nav-item,
+  .sidebar.icon-only .nav-item {
     position: relative;
   }
 }

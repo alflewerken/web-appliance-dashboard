@@ -344,15 +344,15 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Sync Guacamole connection if remote desktop is enabled  
-    if (rawNewAppliance.remote_desktop_enabled) {
-      // Use the raw appliance data for Guacamole sync
+    if (newAppliance.remoteDesktopEnabled) {
+      // Use the appliance data for Guacamole sync
       const dbAppliance = {
         id: result.insertId,
         remote_desktop_enabled: 1,
-        remote_protocol: rawNewAppliance.remote_protocol,
-        remote_host: rawNewAppliance.remote_host,
-        remote_port: rawNewAppliance.remote_port,
-        remote_username: rawNewAppliance.remote_username,
+        remote_protocol: newAppliance.remoteProtocol,
+        remote_host: newAppliance.remoteHost,
+        remote_port: newAppliance.remotePort,
+        remote_username: newAppliance.remoteUsername,
         remote_password_encrypted: encryptedPassword
       };
       syncGuacamoleConnection(dbAppliance).catch(err => 
