@@ -1236,9 +1236,16 @@ const SettingsPanel = ({
                   />
                 </FormControl>
 
-                <Alert severity="info" sx={{ mt: 3 }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    mt: 1, 
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.875rem'
+                  }}
+                >
                   {t('settings.serviceCheckIntervalDescription')}
-                </Alert>
+                </Typography>
               </Box>
             )}
           </Box>
