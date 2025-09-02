@@ -38,32 +38,23 @@ import {
   BarChart
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip as ChartTooltip,
-  Legend,
-  Filler
-} from 'chart.js';
+// Chart.js integration removed for now - will be added when needed
+// import { Line } from 'react-chartjs-2';
+// import { Chart as ChartJS, ... } from 'chart.js';
 
-// Chart.js registrieren
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  ChartTooltip,
-  Legend,
-  Filler
-);
+// Chart.js integration removed for now - will be added when needed
+// ChartJS.register(
+//   CategoryScale,
+//   LinearScale,
+//   PointElement,
+//   LineElement,
+//   Title,
+//   ChartTooltip,
+//   Legend,
+//   Filler
+// );
 
-const SNMPDashboard = ({ theme }) => {
+const SNMPDashboard = () => {
   const { t } = useTranslation();
   const [metrics, setMetrics] = useState({});
   const [loading, setLoading] = useState(true);
@@ -73,6 +64,9 @@ const SNMPDashboard = ({ theme }) => {
   const [selectedHost, setSelectedHost] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [hostStatus, setHostStatus] = useState({});
+  
+  // Get current theme from DOM
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
 
   // Metriken abrufen
   const fetchMetrics = useCallback(async () => {

@@ -1683,7 +1683,6 @@ function Dashboard() {
             overflow: 'auto'
           }}>
             <SNMPDashboard 
-              theme={currentTheme}
               onClose={() => setShowSNMPMonitor(false)}
             />
           </div>
