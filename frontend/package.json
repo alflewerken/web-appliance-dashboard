@@ -34,7 +34,7 @@
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-i18next": "^15.7.2"
+    "react-i18next": "^15.7.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
