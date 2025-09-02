@@ -1,13 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const SNMPMonitor = require('../services/SNMPMonitor');
-const { verifyToken } = require('../auth');
+const { verifyToken } = require('../utils/auth');
 
 // SNMP Monitor Instanz
 let snmpMonitor;
+let db;
 
 // Initialize SNMP Monitor with database
-const initSNMPMonitor = (db) => {
+const initSNMPMonitor = (queryBuilder) => {
+  db = queryBuilder;
   snmpMonitor = new SNMPMonitor(db);
   return router;
 };
@@ -41,7 +43,7 @@ router.get('/metrics/:hostId', async (req, res) => {
     const { hostId } = req.params;
     
     // Host aus DB laden
-    const host = await req.db.findOne('hosts', { id: hostId });
+    const host = await db.findOne('hosts', { id: hostId });
     
     if (!host) {
       return res.status(404).json({ error: 'Host not found' });
@@ -145,7 +147,7 @@ router.put('/hosts/:hostId/enable', async (req, res) => {
     const { hostId } = req.params;
     const { community = 'public', port = 161 } = req.body;
     
-    await req.db.update('hosts',
+    await db.update('hosts',
       { id: hostId },
       {
         snmpEnabled: 1,
@@ -177,7 +179,7 @@ router.put('/hosts/:hostId/disable', async (req, res) => {
   try {
     const { hostId } = req.params;
     
-    await req.db.update('hosts',
+    await db.update('hosts',
       { id: hostId },
       {
         snmpEnabled: 0,
@@ -205,7 +207,7 @@ router.put('/hosts/:hostId/disable', async (req, res) => {
  */
 router.get('/status', async (req, res) => {
   try {
-    const hosts = await req.db.raw(`
+    const hosts = await db.raw(`
       SELECT 
         h.id,
         h.hostname as name,

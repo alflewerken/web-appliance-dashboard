@@ -170,6 +170,12 @@ app.use('/api/sshKeys', verifyToken, sshKeysRouter);
 const sshRouter = require('./routes/ssh');
 app.use('/api/ssh', verifyToken, sshRouter);
 
+// Import QueryBuilder
+const QueryBuilder = require('./utils/QueryBuilder');
+
+// Initialize QueryBuilder with pool
+const queryBuilder = new QueryBuilder(pool);
+
 // SNMP Monitoring routes
 const initSNMPMonitor = require('./routes/snmp');
 const snmpRouter = initSNMPMonitor(queryBuilder);
