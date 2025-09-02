@@ -170,6 +170,11 @@ app.use('/api/sshKeys', verifyToken, sshKeysRouter);
 const sshRouter = require('./routes/ssh');
 app.use('/api/ssh', verifyToken, sshRouter);
 
+// SNMP Monitoring routes
+const initSNMPMonitor = require('./routes/snmp');
+const snmpRouter = initSNMPMonitor(queryBuilder);
+app.use('/api/snmp', snmpRouter);
+
 app.use('/api/restore', verifyToken, restoreRouter);
 app.use('/api/guacamole', verifyToken, guacamoleRouter); // Guacamole Integration
 

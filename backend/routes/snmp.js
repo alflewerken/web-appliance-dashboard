@@ -1,0 +1,248 @@
+const express = require('express');
+const router = express.Router();
+const SNMPMonitor = require('../services/SNMPMonitor');
+const { verifyToken } = require('../auth');
+
+// SNMP Monitor Instanz
+let snmpMonitor;
+
+// Initialize SNMP Monitor with database
+const initSNMPMonitor = (db) => {
+  snmpMonitor = new SNMPMonitor(db);
+  return router;
+};
+
+// Middleware für Authentication
+router.use(verifyToken);
+
+/**
+ * GET /api/snmp/metrics
+ * Aktuelle Metriken für alle SNMP-fähigen Hosts abrufen
+ */
+router.get('/metrics', async (req, res) => {
+  try {
+    const results = await snmpMonitor.pollAllHosts();
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching SNMP metrics:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch SNMP metrics',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/snmp/metrics/:hostId
+ * Metriken für einen spezifischen Host abrufen
+ */
+router.get('/metrics/:hostId', async (req, res) => {
+  try {
+    const { hostId } = req.params;
+    
+    // Host aus DB laden
+    const host = await req.db.findOne('hosts', { id: hostId });
+    
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    if (!host.snmpEnabled) {
+      return res.status(400).json({ 
+        error: 'SNMP not enabled for this host' 
+      });
+    }
+    
+    const result = await snmpMonitor.pollHost(host);
+    res.json(result);
+    
+  } catch (error) {
+    console.error(`Error fetching metrics for host ${req.params.hostId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to fetch host metrics',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/snmp/history/:hostId
+ * Historische Daten für einen Host
+ */
+router.get('/history/:hostId', async (req, res) => {
+  try {
+    const { hostId } = req.params;
+    const { hours = 24 } = req.query;
+    
+    const history = await snmpMonitor.getHistoricalData(
+      hostId, 
+      parseInt(hours)
+    );
+    
+    res.json({
+      hostId,
+      hours: parseInt(hours),
+      dataPoints: history.length,
+      data: history
+    });
+    
+  } catch (error) {
+    console.error(`Error fetching history for host ${req.params.hostId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to fetch historical data',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/snmp/test
+ * SNMP-Verbindung testen
+ */
+router.post('/test', async (req, res) => {
+  try {
+    const { ip, port = 161, community = 'public' } = req.body;
+    
+    if (!ip) {
+      return res.status(400).json({ error: 'IP address required' });
+    }
+    
+    // Temporären Host für Test erstellen
+    const testHost = {
+      id: 'test',
+      name: 'Test Host',
+      ip,
+      snmpPort: port,
+      snmpCommunity: community,
+      snmpEnabled: true
+    };
+    
+    const result = await snmpMonitor.pollHost(testHost);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 
+        'SNMP connection successful' : 
+        'SNMP connection failed',
+      data: result
+    });
+    
+  } catch (error) {
+    console.error('Error testing SNMP connection:', error);
+    res.status(500).json({ 
+      error: 'Test failed',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * PUT /api/snmp/hosts/:hostId/enable
+ * SNMP für einen Host aktivieren
+ */
+router.put('/hosts/:hostId/enable', async (req, res) => {
+  try {
+    const { hostId } = req.params;
+    const { community = 'public', port = 161 } = req.body;
+    
+    await req.db.update('hosts',
+      { id: hostId },
+      {
+        snmpEnabled: 1,
+        snmpCommunity: community,
+        snmpPort: port,
+        snmpStatus: 'pending'
+      }
+    );
+    
+    res.json({ 
+      success: true,
+      message: 'SNMP enabled for host' 
+    });
+    
+  } catch (error) {
+    console.error(`Error enabling SNMP for host ${req.params.hostId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to enable SNMP',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * PUT /api/snmp/hosts/:hostId/disable
+ * SNMP für einen Host deaktivieren
+ */
+router.put('/hosts/:hostId/disable', async (req, res) => {
+  try {
+    const { hostId } = req.params;
+    
+    await req.db.update('hosts',
+      { id: hostId },
+      {
+        snmpEnabled: 0,
+        snmpStatus: 'disabled'
+      }
+    );
+    
+    res.json({ 
+      success: true,
+      message: 'SNMP disabled for host' 
+    });
+    
+  } catch (error) {
+    console.error(`Error disabling SNMP for host ${req.params.hostId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to disable SNMP',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/snmp/status
+ * Status aller SNMP-überwachten Hosts
+ */
+router.get('/status', async (req, res) => {
+  try {
+    const hosts = await req.db.raw(`
+      SELECT 
+        h.id,
+        h.hostname as name,
+        h.ip,
+        h.snmp_enabled as snmpEnabled,
+        h.snmp_status as status,
+        h.last_snmp_check as lastCheck,
+        h.last_snmp_error as lastError,
+        JSON_EXTRACT(h.last_metrics, '$.cpu.percent') as cpuPercent,
+        JSON_EXTRACT(h.last_metrics, '$.memory.usedPercent') as memoryPercent,
+        JSON_EXTRACT(h.last_metrics, '$.uptime.formatted') as uptime
+      FROM hosts h
+      WHERE h.snmp_enabled = 1
+      ORDER BY h.hostname
+    `);
+    
+    res.json({
+      total: hosts.length,
+      online: hosts.filter(h => h.status === 'online').length,
+      offline: hosts.filter(h => h.status === 'offline').length,
+      hosts
+    });
+    
+  } catch (error) {
+    console.error('Error fetching SNMP status:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch status',
+      message: error.message 
+    });
+  }
+});
+
+// Cleanup on server shutdown
+process.on('SIGINT', () => {
+  if (snmpMonitor) {
+    snmpMonitor.closeAllSessions();
+  }
+});
+
+module.exports = initSNMPMonitor;

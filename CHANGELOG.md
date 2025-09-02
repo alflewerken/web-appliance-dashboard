@@ -8,6 +8,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Three-Stage Sidebar Toggle** - Enhanced navigation flexibility
+  - Full → Icon-Only (70px) → Collapsed (0px) → Full cycle
+  - State persistence in localStorage
+  - Dynamic CSS variable updates for smooth transitions
+  - Tooltips functional in Icon-Only mode
+  - QuerySelector extended for both sidebar modes
+
+### Fixed
+- **Light Mode Perfection** - Complete light mode functionality
+  - Fixed undefined variable "rawNewAppliance" ReferenceError in appliances.js
+  - Appliance creation now working properly again
+  - Service/Host card icons now black in light mode for visibility
+  - Info texts remain white on colored backgrounds
+  - Terminal modal shows proper light mode with inverted colors
+  - Control buttons with black icons in light mode
+  - CSS filter `invert(1) hue-rotate(180deg)` for terminal inversion
+  - Status bars with appropriate opacity (85% light, 10% dark)
+  - Command output with theme-dependent text and background colors
+  - ANSI conversion with adjusted colors for readability
+
+- **Custom Commands SSH Host** - Commands use correct SSH host
+  - Fixed SQL query for command-host priority
+  - Commands now properly use their own SSH host
+  - SSH host selection logic corrected
+
+- **Service Panel Tab Logic** - Smart tab selection
+  - New services open with "Service Settings" tab
+  - Existing services open with "Commands" tab
+  - Better user experience for initial configuration
+
+### Changed  
+- **UI Configuration Internationalization** - Complete translation coverage
+  - Added 43 new translation keys for UI configuration
+  - Removed all German fallback strings from frontend
+  - Settings Panel fully internationalized
+  - Background Settings and UI Configuration translated
+  - General Tab completely localized
+
+- **UI Cleanup** - Removed noisy notifications
+  - "Settings saved" alert removed
+  - Snackbar notifications disabled
+  - System Tab alert converted to simple text
+  - Cleaner, less intrusive user experience
+
+- **Light Mode Consolidation** - Unified light mode styles
+  - All light mode fixes consolidated into light-mode.css (264 lines)
+  - Removed separate light-mode-card-fix.css file
+  - Consistent structure for light mode styles
+  - Better maintainability with single source of truth
+
+### Added
 - **Comprehensive UI Configuration System** - Complete visual customization with real-time updates
   - New UIConfigPanel with extensive customization options for all UI elements
   - Sliders for transparency, blur, tint, and border radius for:
