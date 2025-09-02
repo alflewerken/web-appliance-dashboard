@@ -1094,8 +1094,12 @@ const ServicePanel = ({
 
         // If no HTML tags were added, it might not have ANSI codes
         if (coloredOutput === outputText) {
-          // Add some basic formatting
-          coloredOutput = `<span style="color: ${result.success ? '#0f0' : '#f00'}">${outputText}</span>`;
+          // Add some basic formatting based on theme
+          const textColor = currentTheme === 'light' 
+            ? (result.success ? '#059212' : '#d32f2f')  // Darker colors for light mode
+            : (result.success ? '#0f0' : '#f00');  // Bright colors for dark mode
+            
+          coloredOutput = `<span style="color: ${textColor}">${outputText}</span>`;
         }
       } catch (e) {
         console.error('Error converting ANSI to HTML:', e);
@@ -1113,13 +1117,14 @@ const ServicePanel = ({
       });
     } catch (error) {
       console.error('Error executing command:', error);
+      const errorColor = currentTheme === 'light' ? '#d32f2f' : 'red';
       setCommandOutput({
         ...commandOutput,
         [command.id]: {
           success: false,
           output: t('services.errorExecutingCommand'),
           htmlOutput:
-            `<span style="color: red">${t('services.errorExecutingCommand')}</span>`,
+            `<span style="color: ${errorColor}">${t('services.errorExecutingCommand')}</span>`,
           executedAt: new Date().toISOString(),
         },
       });
@@ -2113,7 +2118,10 @@ const ServicePanel = ({
                                         lineHeight: 1.6,
                                         whiteSpace: 'pre-wrap',
                                         wordWrap: 'break-word',
-                                        color: '#ffffff',
+                                        color: currentTheme === 'light' ? '#000000' : '#ffffff',
+                                        backgroundColor: currentTheme === 'light' 
+                                          ? 'rgba(255, 255, 255, 0.9)' 
+                                          : 'rgba(0, 0, 0, 0.5)',
                                         maxHeight: '400px',
                                         overflowY: 'auto',
                                         '&::-webkit-scrollbar': {
