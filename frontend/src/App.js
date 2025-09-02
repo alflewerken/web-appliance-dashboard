@@ -843,6 +843,7 @@ function Dashboard() {
       ...constants.defaultFormData,
       category: getValidCategoryForNewService(),
       isNew: true, // Flag to indicate this is a new service
+      initialTab: 'service', // Start with service settings tab for new services
     };
     setSelectedServiceForPanel(newAppliance);
     setShowServicePanel(true);
