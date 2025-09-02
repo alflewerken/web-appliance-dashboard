@@ -2061,13 +2061,16 @@ const ServicePanel = ({
                                         alignItems: 'center',
                                         px: 2,
                                         py: 1,
-                                        borderBottom:
-                                          '1px solid rgba(255, 255, 255, 0.1)',
-                                        backgroundColor: commandOutput[
-                                          command.id
-                                        ].success
-                                          ? 'rgba(52, 199, 89, 0.1)'
-                                          : 'rgba(255, 59, 48, 0.1)',
+                                        borderBottom: currentTheme === 'light'
+                                          ? '1px solid rgba(0, 0, 0, 0.1)'
+                                          : '1px solid rgba(255, 255, 255, 0.1)',
+                                        backgroundColor: commandOutput[command.id].success
+                                          ? (currentTheme === 'light' 
+                                            ? 'rgba(52, 199, 89, 0.85)'   // Brighter green in light mode
+                                            : 'rgba(52, 199, 89, 0.1)')   // Dark green in dark mode
+                                          : (currentTheme === 'light'
+                                            ? 'rgba(255, 59, 48, 0.85)'   // Brighter red in light mode
+                                            : 'rgba(255, 59, 48, 0.1)'),  // Dark red in dark mode
                                       }}
                                     >
                                       <Typography
