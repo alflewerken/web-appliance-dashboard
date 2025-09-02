@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../hooks/usePanelResize';
 import UnifiedPanelHeader from './UnifiedPanelHeader';
 import { useTranslation } from 'react-i18next';
+import { useUIConfig } from '../utils/uiConfigManager';
 import {
   Box,
   Typography,
@@ -53,6 +54,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { t } = useTranslation();
+  const { config: uiConfig } = useUIConfig(); // UI Config für dynamische Styles
   const { user, isAdmin } = useAuth();
   const { addEventListener } = useSSE();
   const [users, setUsers] = useState([]);
@@ -474,13 +476,8 @@ const UserPanel = ({ onClose, onWidthChange }) => {
           {users.map(u => (
             <Paper
               key={u.id}
-              sx={{
-                p: 2,
-                backgroundColor: 'var(--container-bg)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid var(--container-border)',
-                borderRadius: '12px',
-              }}
+              className="MuiCard-root"
+              sx={{ p: 2 }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <Box sx={{ position: 'relative', mr: 2 }}>
@@ -648,12 +645,7 @@ const UserPanel = ({ onClose, onWidthChange }) => {
     return (
       <TableContainer
         component={Paper}
-        sx={{
-          backgroundColor: 'var(--container-bg)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid var(--container-border)',
-          borderRadius: '12px',
-        }}
+        className="MuiCard-root"
       >
         <Table sx={{ minWidth: isCompactMode ? 500 : 650 }}>
           <TableHead>
@@ -925,11 +917,8 @@ const UserPanel = ({ onClose, onWidthChange }) => {
               {roles.map(role => (
                 <Grid item xs={12} md={6} key={role.role}>
                   <Paper
-                    sx={{
-                      p: 2,
-                      backgroundColor: 'var(--container-bg)',
-                      border: '1px solid var(--container-border)',
-                    }}
+                    className="MuiCard-root"
+                    sx={{ p: 2 }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                       <Chip
@@ -970,14 +959,8 @@ const UserPanel = ({ onClose, onWidthChange }) => {
             <Grid container spacing={3}>
               <Grid item xs={12} md={4}>
                 <Paper
-                  sx={{
-                    p: 3,
-                    backgroundColor: 'var(--container-bg)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid var(--container-border)',
-                    borderRadius: '12px',
-                    textAlign: 'center',
-                  }}
+                  className="MuiCard-root"
+                  sx={{ p: 3, textAlign: 'center' }}
                 >
                   <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
                     {users.length}
@@ -989,14 +972,8 @@ const UserPanel = ({ onClose, onWidthChange }) => {
               </Grid>
               <Grid item xs={12} md={4}>
                 <Paper
-                  sx={{
-                    p: 3,
-                    backgroundColor: 'var(--container-bg)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid var(--container-border)',
-                    borderRadius: '12px',
-                    textAlign: 'center',
-                  }}
+                  className="MuiCard-root"
+                  sx={{ p: 3, textAlign: 'center' }}
                 >
                   <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
                     {users.filter(u => Boolean(u.isActive)).length}
@@ -1008,14 +985,8 @@ const UserPanel = ({ onClose, onWidthChange }) => {
               </Grid>
               <Grid item xs={12} md={4}>
                 <Paper
-                  sx={{
-                    p: 3,
-                    backgroundColor: 'var(--container-bg)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid var(--container-border)',
-                    borderRadius: '12px',
-                    textAlign: 'center',
-                  }}
+                  className="MuiCard-root"
+                  sx={{ p: 3, textAlign: 'center' }}
                 >
                   <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
                     {users.filter(u => u.role === 'Administrator').length}

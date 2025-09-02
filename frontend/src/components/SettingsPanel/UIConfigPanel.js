@@ -44,18 +44,46 @@ const UIConfigPanel = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
   const [importText, setImportText] = useState('');
+  const [isSliderDragging, setIsSliderDragging] = useState(false);
 
-  // Update local config when global config changes
+  // Update local config when global config changes (but not during slider dragging)
   useEffect(() => {
-    setLocalConfig(config);
-  }, [config]);
+    if (!isSliderDragging) {
+      setLocalConfig(config);
+    }
+  }, [config, isSliderDragging]);
 
-  // Handle slider changes (apply immediately)
+  // Handle slider changes (apply visually but don't save)
   const handleSliderChange = (key, value) => {
-    setLocalConfig(prev => ({ ...prev, [key]: value }));
+    // Set flag to prevent useEffect from overwriting
+    setIsSliderDragging(true);
+    
+    // Update local state
+    const newConfig = { ...localConfig, [key]: value };
+    
+    // Apply synchronization for sidebar values
+    if (key === 'sidebarTransparency') {
+      newConfig.headerTransparency = value;
+      newConfig.panelTransparency = value;
+    } else if (key === 'sidebarBlur') {
+      newConfig.headerBlur = value;
+      newConfig.panelBlur = value;
+    } else if (key === 'sidebarTint') {
+      newConfig.headerTint = value;
+      newConfig.panelTint = value;
+    }
+    
+    setLocalConfig(newConfig);
     setHasChanges(true);
-    // Apply changes immediately for instant feedback
-    updateConfig({ [key]: value });
+    
+    // Apply styles immediately for visual feedback
+    // This updates the CSS variables directly without saving to storage
+    const root = document.documentElement;
+    if (key.includes('Transparency') || key.includes('Blur') || key.includes('Tint')) {
+      // Apply the visual change immediately
+      uiConfig.config = { ...uiConfig.config, ...newConfig };
+      uiConfig.applyStyles();
+    }
   };
 
   // Handle slider commit (save to global)
@@ -80,8 +108,12 @@ const UIConfigPanel = () => {
       setLocalConfig(prev => ({ ...prev, ...updates }));
     } else {
       updateConfig({ [key]: value });
+      setLocalConfig(prev => ({ ...prev, [key]: value }));
     }
     setHasChanges(false);
+    
+    // Reset flag after a short delay to allow state updates to complete
+    setTimeout(() => setIsSliderDragging(false), 100);
   };
 
   // Save all changes
@@ -161,7 +193,12 @@ const UIConfigPanel = () => {
             </IconButton>
           </Tooltip>
           <Tooltip title={t('settings.resetAll')}>
-            <IconButton onClick={resetToDefaults} sx={{ color: '#ff9800' }}>
+            <IconButton onClick={() => {
+              resetToDefaults();
+              // Update local state with defaults
+              const defaults = uiConfig.getDefaultConfig();
+              setLocalConfig(defaults);
+            }} sx={{ color: '#ff9800' }}>
               <RotateCcw size={20} />
             </IconButton>
           </Tooltip>
@@ -206,10 +243,10 @@ const UIConfigPanel = () => {
             </Typography>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.inputTransparency')}: {localConfig.inputTransparency || 95}%
+                {t('settings.inputTransparency')}: {localConfig.inputTransparency ?? 25}%
               </Typography>
               <Slider
-                value={localConfig.inputTransparency || 95}
+                value={localConfig.inputTransparency ?? 25}
                 onChange={(e, v) => handleSliderChange('inputTransparency', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('inputTransparency', v)}
                 min={0}
@@ -220,10 +257,10 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.inputBlur')}: {localConfig.inputBlur || 0}px
+                {t('settings.inputBlur')}: {localConfig.inputBlur ?? 4}px
               </Typography>
               <Slider
-                value={localConfig.inputBlur || 0}
+                value={localConfig.inputBlur ?? 4}
                 onChange={(e, v) => handleSliderChange('inputBlur', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('inputBlur', v)}
                 min={0}
@@ -234,10 +271,10 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.inputTint')}: {(localConfig.inputTint || 0) > 0 ? '+' : ''}{localConfig.inputTint || 0}
+                {t('settings.inputTint')}: {(localConfig.inputTint ?? 0) > 0 ? '+' : ''}{localConfig.inputTint ?? 0}
               </Typography>
               <Slider
-                value={localConfig.inputTint || 0}
+                value={localConfig.inputTint ?? 0}
                 onChange={(e, v) => handleSliderChange('inputTint', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('inputTint', v)}
                 min={-30}
@@ -255,10 +292,10 @@ const UIConfigPanel = () => {
             </Typography>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.modalTransparency')}: {localConfig.modalTransparency || 95}%
+                {t('settings.modalTransparency')}: {localConfig.modalTransparency ?? 20}%
               </Typography>
               <Slider
-                value={localConfig.modalTransparency || 95}
+                value={localConfig.modalTransparency ?? 20}
                 onChange={(e, v) => handleSliderChange('modalTransparency', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('modalTransparency', v)}
                 min={0}
@@ -269,10 +306,10 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.modalBlur')}: {localConfig.modalBlur || 30}px
+                {t('settings.modalBlur')}: {localConfig.modalBlur ?? 35}px
               </Typography>
               <Slider
-                value={localConfig.modalBlur || 30}
+                value={localConfig.modalBlur ?? 35}
                 onChange={(e, v) => handleSliderChange('modalBlur', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('modalBlur', v)}
                 min={0}
@@ -283,10 +320,10 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.modalTint')}: {(localConfig.modalTint || 0) > 0 ? '+' : ''}{localConfig.modalTint || 0}
+                {t('settings.modalTint')}: {(localConfig.modalTint ?? 0) > 0 ? '+' : ''}{localConfig.modalTint ?? 0}
               </Typography>
               <Slider
-                value={localConfig.modalTint || 0}
+                value={localConfig.modalTint ?? 0}
                 onChange={(e, v) => handleSliderChange('modalTint', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('modalTint', v)}
                 min={-30}
@@ -362,10 +399,10 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.tint')}: {(localConfig.sidebarTint || 0) > 0 ? '+' : ''}{localConfig.sidebarTint || 0}
+                {t('settings.tint')}: {(localConfig.sidebarTint ?? 0) > 0 ? '+' : ''}{localConfig.sidebarTint ?? 0}
               </Typography>
               <Slider
-                value={localConfig.sidebarTint || 0}
+                value={localConfig.sidebarTint ?? 0}
                 onChange={(e, v) => handleSliderChange('sidebarTint', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('sidebarTint', v)}
                 min={-50}
@@ -412,10 +449,10 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.blur')}: {localConfig.cardBlur || 5}px
+                {t('settings.blur')}: {localConfig.cardBlur ?? 5}px
               </Typography>
               <Slider
-                value={localConfig.cardBlur || 5}
+                value={localConfig.cardBlur ?? 5}
                 onChange={(e, v) => handleSliderChange('cardBlur', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('cardBlur', v)}
                 min={0}
@@ -426,10 +463,10 @@ const UIConfigPanel = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {t('settings.cardTint')}: {(localConfig.cardTint || 0) > 0 ? '+' : ''}{localConfig.cardTint || 0}
+                {t('settings.cardTint')}: {(localConfig.cardTint ?? 0) > 0 ? '+' : ''}{localConfig.cardTint ?? 0}
               </Typography>
               <Slider
-                value={localConfig.cardTint || 0}
+                value={localConfig.cardTint ?? 0}
                 onChange={(e, v) => handleSliderChange('cardTint', v)}
                 onChangeCommitted={(e, v) => handleSliderCommit('cardTint', v)}
                 min={-50}

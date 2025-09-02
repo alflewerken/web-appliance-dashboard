@@ -17,33 +17,33 @@ class UIConfigManager {
   getDefaultConfig() {
     return {
       // Panel Settings (synchronisiert mit Sidebar)
-      panelTransparency: 90,  // gleich wie Sidebar
-      panelBlur: 25,          // gleich wie Sidebar
+      panelTransparency: 30,  // gleich wie Sidebar
+      panelBlur: 0,          // gleich wie Sidebar
       panelTint: 0,           // gleich wie Sidebar
       panelBorderOpacity: 8,
       
       // Sidebar Settings
-      sidebarTransparency: 90,
-      sidebarBlur: 25,
+      sidebarTransparency: 30,
+      sidebarBlur: 0,
       sidebarTint: 0,
       sidebarWidth: 280,
       
       // Header Settings (synchronisiert mit Sidebar)
-      headerTransparency: 90,  // gleich wie Sidebar
-      headerBlur: 25,          // gleich wie Sidebar
+      headerTransparency: 30,  // gleich wie Sidebar
+      headerBlur: 0,          // gleich wie Sidebar
       headerTint: 0,           // gleich wie Sidebar
       
       // Card Settings
-      cardTransparency: 85,
-      cardBlur: 5,
-      cardTint: 0,
+      cardTransparency: 55,
+      cardBlur: 6,
+      cardTint: 5,
       cardBorderOpacity: 10,
-      cardBorderRadius: 12,
+      cardBorderRadius: 20,
       
       // Input/Form Settings (for UI elements in panels/dialogs)
-      inputTransparency: 95,
-      inputBlur: 0,
-      inputTint: 0,
+      inputTransparency: 25,
+      inputBlur: 4,
+      inputTint: 20,
       inputBorderOpacity: 20,
       inputBorderRadius: 8,
       
@@ -54,9 +54,9 @@ class UIConfigManager {
       buttonBorderRadius: 8,
       
       // Modal/Dialog Settings
-      modalTransparency: 95,
-      modalBlur: 30,
-      modalTint: 0,
+      modalTransparency: 20,
+      modalBlur: 35,
+      modalTint: 15,
       
       // Text Settings
       textPrimaryOpacity: 100,

@@ -9,7 +9,7 @@
   --border-color: rgba(255, 255, 255, 0.1);
 
   /* Component Colors */
-  --card-bg: rgba(255, 255, 255, 0.05);
+  /* --card-bg wird dynamisch von uiConfigManager gesetzt */
   --modal-bg: #2c2c2e;
   --input-bg: rgba(255, 255, 255, 0.05);
 
@@ -31,7 +31,7 @@ body.theme-light {
   --text-secondary: #6c6c70;
   --text-tertiary: #8e8e93;
   --border-color: rgba(0, 0, 0, 0.1);
-  --card-bg: rgba(0, 0, 0, 0.05);
+  /* --card-bg wird dynamisch von uiConfigManager gesetzt */
   --modal-bg: #ffffff;
   --input-bg: rgba(0, 0, 0, 0.05);
   

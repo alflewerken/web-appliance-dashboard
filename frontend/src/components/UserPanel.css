@@ -86,12 +86,14 @@
 /* ========================================
    User Cards
    ======================================== */
+/* REMOVED - Let UI Config handle Paper styles
 .user-panel-container .MuiPaper-root {
   background: rgba(118, 118, 128, 0.12) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
+*/
 /* ========================================
    Chips & Status Indicators
    ======================================== */

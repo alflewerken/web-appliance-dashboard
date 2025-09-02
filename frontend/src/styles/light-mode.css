@@ -1,0 +1,267 @@
+/* ============================================================
+   LIGHT MODE COMPREHENSIVE FIXES
+   Konsolidierte Datei für alle Light Mode Korrekturen
+   Created: 2025-09-02 13:10:00
+   
+   Enthält:
+   - Service/Host Card Icons und Texte
+   - Panel Header Icons
+   - Sidebar & UI Icons  
+   - Tooltip Fixes
+   - Audit Log Statistik-Karten
+   ============================================================ */
+
+/* ============================================
+   1. CARD ICONS - LIGHT MODE
+   ============================================ */
+
+/* Service Card Icons - schwarz im Light Mode */
+body.theme-light .appliance-card .card-icon,
+body.theme-light .appliance-card .card-icon svg {
+  color: rgba(0, 0, 0, 0.9) !important;
+  stroke: rgba(0, 0, 0, 0.9) !important;
+  stroke-width: 2 !important;
+}
+
+/* Host Card Icons - schwarz im Light Mode */
+body.theme-light .host-card .card-icon,
+body.theme-light .host-card .card-icon svg {
+  color: rgba(0, 0, 0, 0.9) !important;
+  stroke: rgba(0, 0, 0, 0.9) !important;
+  stroke-width: 2 !important;
+}
+
+/* ============================================
+   2. CARD INFO TEXTS - IMMER WEISS
+   ============================================ */
+
+/* Service Card Texte - bleiben weiß */
+body.theme-light .appliance-card .card-info .card-title {
+  color: rgba(255, 255, 255, 0.95) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.theme-light .appliance-card .card-info .card-description {
+  color: rgba(255, 255, 255, 0.85) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Host Card Texte - bleiben weiß */
+body.theme-light .host-card .card-info .card-title,
+.host-card .card-info .card-title,
+body.theme-light .card-info-overlay .card-title,
+body.theme-light .appliance-card .card-info-overlay .card-title {
+  color: rgba(255, 255, 255, 0.95) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.theme-light .host-card .card-info .card-description,
+.host-card .card-info .card-description,
+body.theme-light .card-info-overlay .card-description,
+body.theme-light .appliance-card .card-info-overlay .card-description {
+  color: rgba(255, 255, 255, 0.85) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ============================================
+   3. EDIT MENU TOGGLES
+   ============================================ */
+
+/* Edit Menu Toggle Icons */
+body.theme-light .appliance-card .edit-menu-toggle,
+body.theme-light .host-card .edit-menu-toggle {
+  color: rgba(0, 0, 0, 0.7) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+body.theme-light .appliance-card .edit-menu-toggle:hover,
+body.theme-light .host-card .edit-menu-toggle:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+body.theme-light .appliance-card .edit-menu-toggle svg,
+body.theme-light .host-card .edit-menu-toggle svg {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* ============================================
+   4. SIDEBAR & HEADER ICONS
+   ============================================ */
+
+/* Sidebar Icons */
+body.theme-light .sidebar-button svg,
+body.theme-light .sidebar-icons svg,
+body.theme-light .sidebar svg {
+  color: var(--text-primary) !important;
+  stroke: var(--text-primary) !important;
+  stroke-width: 1.5 !important;
+}
+
+/* Header Icons */
+body.theme-light .content-header svg,
+body.theme-light .header-controls svg,
+body.theme-light .header-icon svg {
+  color: var(--text-primary) !important;
+  stroke: var(--text-primary) !important;
+  stroke-width: 1.5 !important;
+}
+
+/* Settings Panel Icons */
+body.theme-light .settings-panel svg,
+body.theme-light .MuiTab-root svg {
+  color: var(--text-primary) !important;
+}
+
+/* ============================================
+   5. PANEL HEADER ICONS
+   ============================================ */
+
+/* Panel Header Icons */
+body.theme-light .MuiTypography-root svg,
+body.theme-light .MuiTypography-h6 svg {
+  color: rgba(0, 0, 0, 0.87) !important;
+  stroke: rgba(0, 0, 0, 0.87) !important;
+  stroke-width: 1.5 !important;
+}
+
+/* Close Button Icons */
+body.theme-light .MuiIconButton-root svg {
+  color: rgba(0, 0, 0, 0.7) !important;
+  stroke: rgba(0, 0, 0, 0.7) !important;
+  stroke-width: 1.5 !important;
+}
+
+body.theme-light .MuiIconButton-root:hover svg {
+  color: rgba(0, 0, 0, 0.9) !important;
+  stroke: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Tab Icons */
+body.theme-light .MuiTab-root svg {
+  color: rgba(0, 0, 0, 0.6) !important;
+  stroke: rgba(0, 0, 0, 0.6) !important;
+  stroke-width: 1.5 !important;
+}
+
+body.theme-light .MuiTab-root.Mui-selected svg {
+  color: var(--accent-primary) !important;
+  stroke: var(--accent-primary) !important;
+}
+
+/* ============================================
+   6. TOOLTIPS
+   ============================================ */
+
+/* MUI Tooltips */
+body.theme-light .MuiTooltip-tooltip {
+  color: rgba(0, 0, 0, 0.87) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+body.theme-light .MuiTooltip-arrow {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Custom Tooltips */
+body.theme-light [role="tooltip"],
+body.theme-light .tooltip,
+body.theme-light [class*="tooltip"] {
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+/* Popper Tooltips */
+body.theme-light .MuiTooltip-popper .MuiTooltip-tooltip {
+  color: rgba(0, 0, 0, 0.87) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* ============================================
+   7. AUDIT LOG STATISTIK-KARTEN
+   ============================================ */
+
+/* Icons in Statistik-Karten */
+body.theme-light .MuiCard-root .MuiCardContent-root svg {
+  color: rgba(0, 0, 0, 0.87) !important;
+  stroke: rgba(0, 0, 0, 0.87) !important;
+  stroke-width: 1.5 !important;
+}
+
+/* Aktive Karten behalten ihre Icon-Farbe */
+body.theme-light .MuiCard-root[style*="border: 2px solid"] .MuiCardContent-root svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+}
+
+/* ============================================
+   8. DROPDOWN MENUS
+   ============================================ */
+
+body.theme-light .edit-menu,
+body.theme-light .dropdown-menu {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: var(--text-primary) !important;
+}
+
+body.theme-light .edit-menu button,
+body.theme-light .dropdown-menu button {
+  color: var(--text-primary) !important;
+}
+
+body.theme-light .edit-menu button:hover,
+body.theme-light .dropdown-menu button:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ============================================
+   9. AUTO THEME SUPPORT
+   ============================================ */
+
+@media (prefers-color-scheme: light) {
+  /* Card Icons */
+  body.theme-auto .appliance-card .card-icon svg,
+  body.theme-auto .host-card .card-icon svg {
+    color: rgba(0, 0, 0, 0.9) !important;
+    stroke: rgba(0, 0, 0, 0.9) !important;
+    stroke-width: 2 !important;
+  }
+  
+  /* Card Texts bleiben weiß */
+  body.theme-auto .appliance-card .card-info .card-title,
+  body.theme-auto .host-card .card-info .card-title {
+    color: rgba(255, 255, 255, 0.95) !important;
+  }
+  
+  body.theme-auto .appliance-card .card-info .card-description,
+  body.theme-auto .host-card .card-info .card-description {
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+  
+  /* UI Icons */
+  body.theme-auto .sidebar-button svg,
+  body.theme-auto .content-header svg {
+    color: var(--text-primary) !important;
+    stroke: var(--text-primary) !important;
+    stroke-width: 1.5 !important;
+  }
+  
+  /* Panel Icons */
+  body.theme-auto .MuiTypography-root svg,
+  body.theme-auto .MuiIconButton-root svg {
+    color: rgba(0, 0, 0, 0.87) !important;
+    stroke: rgba(0, 0, 0, 0.87) !important;
+    stroke-width: 1.5 !important;
+  }
+  
+  /* Tooltips */
+  body.theme-auto .MuiTooltip-tooltip {
+    color: rgba(0, 0, 0, 0.87) !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  }
+}

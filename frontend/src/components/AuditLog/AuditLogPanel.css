@@ -185,3 +185,142 @@ body.resizing-panel .resize-handle {
   pointer-events: none;
   z-index: -1;
 }
+
+
+/* ============================================
+   ENHANCED GLOW EFFECTS FOR STAT CARDS
+   Verstärkter Glow-Effekt aus audit-log-glow-enhancement.css
+   ============================================ */
+
+/* Aktive Statistik-Karten - MAXIMALER Glow + Farbige Füllung */
+.audit-log-panel .MuiCard-root[style*="border: 2px solid"] {
+  /* Farbige Hintergrund-Füllung */
+  background: linear-gradient(135deg, 
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.25) 0%, 
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.15) 50%,
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.25) 100%) !important;
+  
+  /* MAXIMALER Glow-Effekt */
+  box-shadow: 
+    inset 0 0 40px currentColor,
+    inset 0 0 80px rgba(var(--current-color-rgb, 25, 118, 210), 0.5),
+    0 0 40px currentColor,
+    0 0 80px currentColor,
+    0 0 120px currentColor,
+    0 0 160px currentColor,
+    0 0 200px currentColor,
+    0 0 240px rgba(var(--current-color-rgb, 25, 118, 210), 0.8),
+    0 0 300px rgba(var(--current-color-rgb, 25, 118, 210), 0.6) !important;
+  
+  transform: scale(1.05) !important;
+  animation: intense-pulse-glow 1.5s ease-in-out infinite !important;
+  border-width: 3px !important;
+}
+
+/* Light Mode - MAXIMALER Glow */
+body.theme-light .audit-log-panel .MuiCard-root[style*="border: 2px solid"] {
+  background: linear-gradient(135deg, 
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.35) 0%, 
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.25) 50%,
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.35) 100%) !important;
+  
+  box-shadow: 
+    inset 0 0 50px currentColor,
+    inset 0 0 100px rgba(var(--current-color-rgb, 25, 118, 210), 0.6),
+    0 0 50px currentColor,
+    0 0 100px currentColor,
+    0 0 150px currentColor,
+    0 0 200px currentColor,
+    0 0 250px currentColor,
+    0 0 300px rgba(var(--current-color-rgb, 25, 118, 210), 0.9),
+    0 0 400px rgba(var(--current-color-rgb, 25, 118, 210), 0.7) !important;
+}
+
+/* Pseudo-Element Glow-Layer */
+.audit-log-panel .MuiCard-root[style*="border: 2px solid"]::after {
+  content: "";
+  position: absolute;
+  top: -15px;
+  left: -15px;
+  right: -15px;
+  bottom: -15px;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at center,
+    currentColor 0%,
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.6) 30%,
+    rgba(var(--current-color-rgb, 25, 118, 210), 0.3) 50%,
+    transparent 70%
+  );
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: -1;
+  animation: intense-pulse-opacity 1.5s ease-in-out infinite;
+  filter: blur(20px);
+}
+
+/* Intensive Glow-Animationen */
+@keyframes intense-pulse-glow {
+  0%, 100% {
+    box-shadow: 
+      inset 0 0 40px currentColor,
+      inset 0 0 80px rgba(var(--current-color-rgb, 25, 118, 210), 0.5),
+      0 0 40px currentColor,
+      0 0 80px currentColor,
+      0 0 120px currentColor,
+      0 0 160px currentColor,
+      0 0 200px currentColor,
+      0 0 240px rgba(var(--current-color-rgb, 25, 118, 210), 0.8),
+      0 0 300px rgba(var(--current-color-rgb, 25, 118, 210), 0.6);
+  }
+  50% {
+    box-shadow: 
+      inset 0 0 60px currentColor,
+      inset 0 0 120px rgba(var(--current-color-rgb, 25, 118, 210), 0.7),
+      0 0 60px currentColor,
+      0 0 120px currentColor,
+      0 0 180px currentColor,
+      0 0 240px currentColor,
+      0 0 300px currentColor,
+      0 0 360px rgba(var(--current-color-rgb, 25, 118, 210), 1),
+      0 0 450px rgba(var(--current-color-rgb, 25, 118, 210), 0.8);
+  }
+}
+
+@keyframes intense-pulse-opacity {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Farb-spezifische RGB-Werte */
+:root {
+  --color-blue-rgb: 25, 118, 210;
+  --color-green-rgb: 46, 125, 50;
+  --color-red-rgb: 211, 47, 47;
+  --color-orange-rgb: 255, 152, 0;
+}
+
+/* Farb-spezifische Hintergründe */
+.audit-log-panel .MuiCard-root[style*="border: 2px solid rgb(25, 118, 210)"] {
+  --current-color-rgb: 25, 118, 210;
+  background: linear-gradient(135deg, 
+    rgba(25, 118, 210, 0.3) 0%, 
+    rgba(25, 118, 210, 0.2) 50%,
+    rgba(25, 118, 210, 0.3) 100%) !important;
+}
+
+.audit-log-panel .MuiCard-root[style*="border: 2px solid rgb(46, 125, 50)"] {
+  --current-color-rgb: 46, 125, 50;
+  background: linear-gradient(135deg, 
+    rgba(46, 125, 50, 0.3) 0%, 
+    rgba(46, 125, 50, 0.2) 50%,
+    rgba(46, 125, 50, 0.3) 100%) !important;
+}
+
+.audit-log-panel .MuiCard-root[style*="border: 2px solid rgb(211, 47, 47)"] {
+  --current-color-rgb: 211, 47, 47;
+  background: linear-gradient(135deg, 
+    rgba(211, 47, 47, 0.3) 0%, 
+    rgba(211, 47, 47, 0.2) 50%,
+    rgba(211, 47, 47, 0.3) 100%) !important;
+}

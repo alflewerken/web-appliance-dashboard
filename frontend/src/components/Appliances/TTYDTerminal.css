@@ -188,19 +188,54 @@ body.theme-light .terminal-icon {
   color: #333333;
 }
 
-body.theme-light .terminal-controls button {
-  background-color: #ffffff;
-  border: 1px solid #d9d9d9;
-  color: #333333;
+body.theme-light .control-btn {
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #000000;
 }
 
-body.theme-light .terminal-controls button:hover {
-  background-color: #f5f5f5;
-  border-color: #cccccc;
+body.theme-light .control-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+body.theme-light .control-btn svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+body.theme-light .control-btn.new-window {
+  background: rgba(0, 122, 255, 0.15);
+  border-color: rgba(0, 122, 255, 0.4);
+}
+
+body.theme-light .control-btn.new-window:hover {
+  background: rgba(0, 122, 255, 0.25);
+  border-color: rgba(0, 122, 255, 0.5);
+}
+
+body.theme-light .control-btn.close {
+  background: rgba(255, 59, 48, 0.15);
+  border-color: rgba(255, 59, 48, 0.4);
+}
+
+body.theme-light .control-btn.close:hover {
+  background: rgba(255, 59, 48, 0.25);
+  border-color: rgba(255, 59, 48, 0.5);
 }
 
 body.theme-light .terminal-body {
   background-color: #ffffff;
+}
+
+body.theme-light .terminal-iframe {
+  background-color: #ffffff !important;
+}
+
+/* Inject styles into iframe for light mode terminal */
+body.theme-light .terminal-iframe {
+  /* Terminal colors will be handled by ttyd configuration */
+  background: white !important;
 }
 
 body.theme-light .terminal-loading,

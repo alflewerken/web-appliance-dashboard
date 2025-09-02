@@ -62,9 +62,9 @@ import './App.css';
 import './theme.css';
 import './mobile.css';
 import './styles/panel-layout.css'; // Multi-panel layout system
-import './styles/mobile-consolidated.css'; // CONSOLIDATED mobile styles (replaces 11 files)
+import './styles/mobile.css'; // Mobile styles
 import './styles/transparent-panels-mode.css'; // Transparent Panels Toggle
-import './styles/header-unification.css'; // Header height unification
+import './styles/header.css'; // Header styles
 import './styles/macos-input-fix.css'; // macOS input alignment fix (keep for now)
 import './styles/safari-theme-fix.css'; // Safari-specific fixes (keep for now)
 import './styles/mini-dashboard.css';
@@ -76,7 +76,8 @@ import './components/terminal-light-mode.css'; // Terminal Light Mode Styles
 import './styles/fixes/header-light-mode-fix.css'; // Fix für transparenten Header im Light Mode
 import './styles/fixes/tablet-scroll-fix.css'; // Fix für Tablet-Scrolling
 import './styles/sidebar-tooltips.css';
-import './styles/mui-dropdown-fix.css'; // Fix für Dropdown z-index auf Tablets // Sidebar Tooltip Styles
+import './styles/mui-dropdown-fix.css'; // Fix für Dropdown z-index auf Tablets
+import './styles/light-mode.css'; // Alle Light Mode Fixes konsolidiert
 
 // Dashboard Component - Only rendered when authenticated
 function Dashboard() {

@@ -266,15 +266,17 @@ body.theme-light .MuiTextField-root .MuiInputLabel-root {
 }
 
 /* User Management Modal - Light Mode */
-body.theme-light .MuiPaper-root {
+body.theme-light .MuiDialog-paper.MuiPaper-root {
   background-color: rgba(255, 255, 255, 0.9) !important;
   color: #000000 !important;
 }
 
+/* Removed hardcoded background - let UI config handle it
 body.theme-light .MuiCard-root {
   background-color: rgba(0, 0, 0, 0.05) !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
+*/
 
 body.theme-light .MuiTab-root {
   color: rgba(0, 0, 0, 0.6) !important;

@@ -112,8 +112,9 @@ const BackgroundSettingsMUI = ({
   const fileInputRef = useRef(null);
   
   // Local state for sliders (prevents SSE flooding during drag)
-  const [localOpacity, setLocalOpacity] = useState(backgroundSettings?.opacity || 30);
-  const [localBlur, setLocalBlur] = useState(backgroundSettings?.blur || 0);
+  const [localOpacity, setLocalOpacity] = useState(backgroundSettings?.opacity ?? 30);
+  const [localBlur, setLocalBlur] = useState(backgroundSettings?.blur ?? 0);
+  const [isDragging, setIsDragging] = useState(false);
   
   // UI customization states
   const [cardTransparency, setCardTransparency] = useState(
@@ -156,15 +157,19 @@ const BackgroundSettingsMUI = ({
 
   // Update local state when backgroundSettings change from SSE
   useEffect(() => {
-    setLocalOpacity(backgroundSettings?.opacity || 30);
-    setLocalBlur(backgroundSettings?.blur || 0);
-    setCardTransparency(backgroundSettings?.uiSettings?.cardTransparency || 85);
-    setCardTint(backgroundSettings?.uiSettings?.cardTint || 0);
-    setInputTransparency(backgroundSettings?.uiSettings?.inputTransparency || 95);
-    setInputTint(backgroundSettings?.uiSettings?.inputTint || 0);
+    // Don't update while dragging slider
+    if (!isDragging) {
+      setLocalOpacity(backgroundSettings?.opacity ?? 30);
+      setLocalBlur(backgroundSettings?.blur ?? 0);
+      setCardTransparency(backgroundSettings?.uiSettings?.cardTransparency || 85);
+      setCardTint(backgroundSettings?.uiSettings?.cardTint || 0);
+      setInputTransparency(backgroundSettings?.uiSettings?.inputTransparency || 95);
+      setInputTint(backgroundSettings?.uiSettings?.inputTint || 0);
+    }
   }, [backgroundSettings?.opacity, backgroundSettings?.blur, 
       backgroundSettings?.uiSettings?.cardTransparency, backgroundSettings?.uiSettings?.cardTint,
-      backgroundSettings?.uiSettings?.inputTransparency, backgroundSettings?.uiSettings?.inputTint]);
+      backgroundSettings?.uiSettings?.inputTransparency, backgroundSettings?.uiSettings?.inputTint,
+      isDragging]);
 
   // Funktion zum Speichern der Settings in der Datenbank
   const saveSettingsToDatabase = useCallback(async (settings) => {
@@ -357,8 +362,15 @@ const BackgroundSettingsMUI = ({
               </Typography>
               <Slider
                 value={localOpacity}
-                onChange={(e, value) => setLocalOpacity(value)}
-                onChangeCommitted={(e, value) => handleOpacityCommit(value)}
+                onChange={(e, value) => {
+                  setIsDragging(true);
+                  setLocalOpacity(value);
+                }}
+                onChangeCommitted={(e, value) => {
+                  handleOpacityCommit(value);
+                  // Reset flag after a short delay to allow state to settle
+                  setTimeout(() => setIsDragging(false), 200);
+                }}
                 min={0}
                 max={100}
                 step={5}
@@ -383,8 +395,15 @@ const BackgroundSettingsMUI = ({
               </Typography>
               <Slider
                 value={localBlur}
-                onChange={(e, value) => setLocalBlur(value)}
-                onChangeCommitted={(e, value) => handleBlurCommit(value)}
+                onChange={(e, value) => {
+                  setIsDragging(true);
+                  setLocalBlur(value);
+                }}
+                onChangeCommitted={(e, value) => {
+                  handleBlurCommit(value);
+                  // Reset flag after a short delay to allow state to settle
+                  setTimeout(() => setIsDragging(false), 200);
+                }}
                 min={0}
                 max={20}
                 step={1}
