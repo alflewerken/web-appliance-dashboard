@@ -2073,11 +2073,15 @@ const ServicePanel = ({
                                       <Typography
                                         variant="caption"
                                         sx={{
-                                          color: commandOutput[command.id]
-                                            .success
-                                            ? '#34C759'
-                                            : '#FF3B30',
+                                          color: currentTheme === 'light' 
+                                            ? '#ffffff'  // Always white text in light mode
+                                            : (commandOutput[command.id].success
+                                              ? '#34C759'
+                                              : '#FF3B30'),
                                           fontWeight: 600,
+                                          textShadow: currentTheme === 'light' 
+                                            ? '0 1px 2px rgba(0,0,0,0.3)' 
+                                            : 'none',
                                         }}
                                       >
                                         {commandOutput[command.id].success
@@ -2097,12 +2101,18 @@ const ServicePanel = ({
                                           setCommandOutput(newOutput);
                                         }}
                                         sx={{
-                                          color: 'var(--text-secondary)',
+                                          color: currentTheme === 'light' 
+                                            ? 'rgba(255, 255, 255, 0.9)' 
+                                            : 'var(--text-secondary)',
                                           padding: '4px',
                                           '&:hover': {
-                                            color: '#ff4444',
+                                            color: currentTheme === 'light'
+                                              ? '#ffffff'
+                                              : '#ff4444',
                                             backgroundColor:
-                                              'rgba(255, 68, 68, 0.1)',
+                                              currentTheme === 'light'
+                                                ? 'rgba(255, 255, 255, 0.2)'
+                                                : 'rgba(255, 68, 68, 0.1)',
                                           },
                                         }}
                                       >

@@ -283,19 +283,13 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
         c.*, 
         a.ssh_connection as appliance_ssh_connection,
         a.name as appliance_name,
-        a.ssh_host_id as appliance_host_id,
         h.hostname as command_ssh_host,
         h.username as command_ssh_username,
         h.port as command_ssh_port,
-        h.ssh_key_name as command_ssh_key_name,
-        ah.hostname as appliance_ssh_host,
-        ah.username as appliance_ssh_username,
-        ah.port as appliance_ssh_port,
-        ah.ssh_key_name as appliance_ssh_key_name
+        h.ssh_key_name as command_ssh_key_name
       FROM appliance_commands c 
       JOIN appliances a ON c.appliance_id = a.id 
       LEFT JOIN hosts h ON c.host_id = h.id
-      LEFT JOIN hosts ah ON a.ssh_host_id = ah.id
       WHERE c.id = ? AND c.appliance_id = ?`,
       [commandId, applianceId]
     );
@@ -312,11 +306,6 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
       command_ssh_username,
       command_ssh_port,
       command_ssh_key_name,
-      appliance_host_id,
-      appliance_ssh_host,
-      appliance_ssh_username,
-      appliance_ssh_port,
-      appliance_ssh_key_name,
       appliance_ssh_connection,
     } = commandData;
 
@@ -339,17 +328,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
         };
         console.log(`Using command-specific SSH host: ${command_ssh_username}@${command_ssh_host}:${command_ssh_port || 22}`);
       } 
-      // PRIORITY 2: Use appliance SSH host for status/control commands
-      else if (appliance_host_id && appliance_ssh_host) {
-        sshConnection = {
-          host: appliance_ssh_host,
-          username: appliance_ssh_username,
-          port: appliance_ssh_port || 22,
-          keyName: appliance_ssh_key_name || 'dashboard',
-        };
-        console.log(`Using appliance SSH host: ${appliance_ssh_username}@${appliance_ssh_host}:${appliance_ssh_port || 22}`);
-      }
-      // PRIORITY 3: Fall back to legacy appliance SSH connection string
+      // PRIORITY 2: Use appliance SSH connection string
       else if (appliance_ssh_connection) {
         const [userHost, port = '22'] = appliance_ssh_connection.split(':');
         const [username, host] = userHost.split('@');
@@ -359,7 +338,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
           port,
           keyName: 'dashboard',
         };
-        console.log(`Using legacy appliance SSH connection: ${appliance_ssh_connection}`);
+        console.log(`Using appliance SSH connection: ${appliance_ssh_connection}`);
       }
 
       if (sshConnection) {
