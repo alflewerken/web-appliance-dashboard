@@ -57,7 +57,8 @@
     "refresh": "Aktualisieren",
     "noData": "Keine Daten vorhanden",
     "addFirstService": "Fügen Sie Ihren ersten Service hinzu",
-    "import": "Importieren"
+    "import": "Importieren",
+    "saveAll": "Alle Speichern"
   },
   "auth": {
     "login": "Anmelden",
@@ -336,6 +337,8 @@
     "backgroundUpload": "Hochladen",
     "backgroundNoImages": "Noch keine Bilder hochgeladen",
     "backgroundPosition": "Position",
+    "backgroundSettings": "Hintergrund-Einstellungen",
+    "uiConfiguration": "UI Konfiguration",
     "backgroundOpacity": "Deckkraft",
     "backgroundBlur": "Unschärfe",
     "backgroundTransparentPanels": "Transparente Panels aktivieren",

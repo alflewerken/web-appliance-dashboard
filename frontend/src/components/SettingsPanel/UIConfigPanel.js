@@ -134,7 +134,7 @@ const UIConfigPanel = () => {
       {/* Header with action buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">
-          {t('settings.uiConfiguration', 'UI Konfiguration')}
+          {t('settings.uiConfiguration')}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           {hasChanges && (
@@ -147,7 +147,7 @@ const UIConfigPanel = () => {
                 '&:hover': { backgroundColor: '#45a049' }
               }}
             >
-              {t('common.saveAll', 'Alle Speichern')}
+              {t('common.saveAll')}
             </Button>
           )}
           <Tooltip title={t('settings.exportConfig')}>

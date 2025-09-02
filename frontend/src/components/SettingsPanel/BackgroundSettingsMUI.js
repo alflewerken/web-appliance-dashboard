@@ -345,7 +345,7 @@ const BackgroundSettingsMUI = ({
       <Card className="settings-card" sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            {t('settings.backgroundSettings', 'Hintergrund-Einstellungen')}
+            {t('settings.backgroundSettings')}
           </Typography>
           
           {/* Opacity und Blur in einer Zeile */}

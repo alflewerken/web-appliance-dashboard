@@ -57,7 +57,8 @@
     "refresh": "Refresh",
     "noData": "No data available",
     "addFirstService": "Add your first service",
-    "import": "Import"
+    "import": "Import",
+    "saveAll": "Save All"
   },
   "auth": {
     "login": "Sign in",
@@ -336,6 +337,8 @@
     "backgroundUpload": "Upload",
     "backgroundNoImages": "No images uploaded yet",
     "backgroundPosition": "Position",
+    "backgroundSettings": "Background Settings",
+    "uiConfiguration": "UI Configuration",
     "backgroundOpacity": "Opacity",
     "backgroundBlur": "Blur",
     "backgroundTransparentPanels": "Enable transparent panels",
