@@ -4,79 +4,204 @@ class SNMPMonitor {
   constructor(db) {
     this.db = db;
     this.sessions = new Map();
+    this.errorCounts = new Map(); // Track errors per host
+    this.maxRetries = 3;
     
-    // Standard OIDs die fast überall funktionieren
+    // Standard OIDs die fast überall funktionieren (RFC1213-MIB)
     this.standardOIDs = {
-      // System Info
+      // System Info (MIB-2 System Group - RFC1213)
       sysDescr: '1.3.6.1.2.1.1.1.0',
+      sysObjectID: '1.3.6.1.2.1.1.2.0',
       sysUpTime: '1.3.6.1.2.1.1.3.0',
+      sysContact: '1.3.6.1.2.1.1.4.0',
       sysName: '1.3.6.1.2.1.1.5.0',
       sysLocation: '1.3.6.1.2.1.1.6.0',
+      sysServices: '1.3.6.1.2.1.1.7.0',
       
-      // CPU/Load (Linux)
+      // CPU/Load (UCD-SNMP-MIB für Linux/Unix)
       load1min: '1.3.6.1.4.1.2021.10.1.3.1',
       load5min: '1.3.6.1.4.1.2021.10.1.3.2', 
       load15min: '1.3.6.1.4.1.2021.10.1.3.3',
       
-      // Memory (Linux)
+      // CPU Utilization (Alternative OIDs)
+      cpuUser: '1.3.6.1.4.1.2021.11.50.0',    // User CPU time
+      cpuSystem: '1.3.6.1.4.1.2021.11.52.0',  // System CPU time
+      cpuIdle: '1.3.6.1.4.1.2021.11.53.0',    // Idle CPU time
+      
+      // Memory (UCD-SNMP-MIB)
       memTotalReal: '1.3.6.1.4.1.2021.4.5.0',
       memAvailReal: '1.3.6.1.4.1.2021.4.6.0',
       memBuffer: '1.3.6.1.4.1.2021.4.14.0',
       memCached: '1.3.6.1.4.1.2021.4.15.0',
+      memTotalSwap: '1.3.6.1.4.1.2021.4.3.0',
+      memAvailSwap: '1.3.6.1.4.1.2021.4.4.0',
       
-      // Disk
+      // Disk (UCD-SNMP-MIB)
       diskTotal: '1.3.6.1.4.1.2021.9.1.6.1',
       diskUsed: '1.3.6.1.4.1.2021.9.1.8.1',
       diskPercent: '1.3.6.1.4.1.2021.9.1.9.1',
+      diskDevice: '1.3.6.1.4.1.2021.9.1.3.1',
       
-      // Process count
+      // Process count (HOST-RESOURCES-MIB)
       processCount: '1.3.6.1.2.1.25.1.6.0',
+      runningProcesses: '1.3.6.1.2.1.25.4.2.1.7',
       
       // Network Interfaces (Standard MIB-2)
       ifNumber: '1.3.6.1.2.1.2.1.0',
-      ifTable: '1.3.6.1.2.1.2.2.1'
+      ifTable: '1.3.6.1.2.1.2.2.1',
+      
+      // Temperature Sensors (wenn verfügbar - LM-SENSORS-MIB)
+      tempSensors: '1.3.6.1.4.1.2021.13.16.2.1.3'
     };
 
-    // Windows-spezifische OIDs
+    // Windows-spezifische OIDs (HOST-RESOURCES-MIB)
     this.windowsOIDs = {
-      cpuLoad: '1.3.6.1.2.1.25.3.3.1.2.1',
+      cpuLoad: '1.3.6.1.2.1.25.3.3.1.2',      // Processor Load
       physicalMemory: '1.3.6.1.2.1.25.2.2.0',
-      virtualMemory: '1.3.6.1.2.1.25.2.3.1.6.1'
+      virtualMemory: '1.3.6.1.2.1.25.2.3.1.6.1',
+      storageTable: '1.3.6.1.2.1.25.2.3.1',    // Storage devices
+      processTable: '1.3.6.1.2.1.25.4.2.1'     // Process table
+    };
+    
+    // Network Device OIDs (Cisco, Juniper, etc.)
+    this.networkDeviceOIDs = {
+      // Cisco specific
+      ciscoMemoryUsed: '1.3.6.1.4.1.9.9.48.1.1.1.5.1',
+      ciscoCpuAvg5min: '1.3.6.1.4.1.9.9.109.1.1.1.1.8.1',
+      
+      // Generic network device
+      sysUptime: '1.3.6.1.2.1.1.3.0',
+      ifOperStatus: '1.3.6.1.2.1.2.2.1.8'      // Interface operational status
+    };
+    
+    // Error types for better handling
+    this.errorTypes = {
+      TIMEOUT: 'TIMEOUT',
+      NO_RESPONSE: 'NO_RESPONSE',
+      AUTH_FAILED: 'AUTH_FAILED',
+      NO_SUCH_OBJECT: 'NO_SUCH_OBJECT',
+      NETWORK_ERROR: 'NETWORK_ERROR',
+      PARSE_ERROR: 'PARSE_ERROR',
+      UNKNOWN: 'UNKNOWN'
     };
   }
 
-  async pollHost(host) {
-    try {
-      const session = this.getSession(host);
-      
-      // Basis-Metriken abrufen
-      const basicMetrics = await this.getBasicMetrics(session, host);
-      
-      // Interface-Statistiken (optional)
-      const interfaces = await this.getInterfaceStats(session).catch(() => []);
-      
-      // In DB speichern
-      await this.saveMetrics(host, basicMetrics, interfaces);
-      
-      return { 
-        success: true, 
-        host: host.name,
-        metrics: basicMetrics, 
-        interfaces 
-      };
-      
-    } catch (error) {
-      console.error(`SNMP failed for ${host.name}:`, error.message);
-      
-      // Fehler in DB protokollieren
-      await this.saveError(host, error);
-      
-      return { 
-        success: false, 
-        host: host.name,
-        error: error.message 
-      };
+  // Enhanced error classification
+  classifyError(error) {
+    const errorMessage = error.message?.toLowerCase() || '';
+    const errorCode = error.code?.toUpperCase() || '';
+    
+    if (errorCode === 'ETIMEDOUT' || errorMessage.includes('timeout')) {
+      return this.errorTypes.TIMEOUT;
     }
+    if (errorCode === 'ENOTFOUND' || errorCode === 'EHOSTUNREACH') {
+      return this.errorTypes.NETWORK_ERROR;
+    }
+    if (errorMessage.includes('authentication') || errorMessage.includes('auth')) {
+      return this.errorTypes.AUTH_FAILED;
+    }
+    if (errorMessage.includes('no such object') || errorMessage.includes('nosuchobject')) {
+      return this.errorTypes.NO_SUCH_OBJECT;
+    }
+    if (errorMessage.includes('no response')) {
+      return this.errorTypes.NO_RESPONSE;
+    }
+    
+    return this.errorTypes.UNKNOWN;
+  }
+
+  // Get appropriate OIDs based on device type
+  getDeviceOIDs(host) {
+    const osType = host.osType?.toLowerCase() || 'linux';
+    const deviceType = host.deviceType?.toLowerCase() || 'server';
+    
+    let oidSet = { ...this.standardOIDs };
+    
+    if (osType === 'windows') {
+      oidSet = { ...oidSet, ...this.windowsOIDs };
+    } else if (deviceType === 'network' || deviceType === 'router' || deviceType === 'switch') {
+      oidSet = { ...oidSet, ...this.networkDeviceOIDs };
+    }
+    
+    return oidSet;
+  }
+
+  async pollHost(host) {
+    let retryCount = 0;
+    const hostKey = `${host.ip}:${host.snmpPort || 161}`;
+    
+    while (retryCount < this.maxRetries) {
+      try {
+        const session = this.getSession(host);
+        
+        // Reset error count on successful connection
+        this.errorCounts.set(hostKey, 0);
+        
+        // Get device-specific OIDs
+        const oidSet = this.getDeviceOIDs(host);
+        
+        // Basis-Metriken abrufen mit Fallback-Mechanismus
+        const basicMetrics = await this.getBasicMetrics(session, host, oidSet);
+        
+        // Interface-Statistiken (optional)
+        const interfaces = await this.getInterfaceStats(session).catch(() => []);
+        
+        // Disk metrics (optional)
+        const diskMetrics = await this.getDiskMetrics(session, oidSet).catch(() => []);
+        
+        // In DB speichern
+        await this.saveMetrics(host, basicMetrics, interfaces, diskMetrics);
+        
+        return { 
+          success: true, 
+          host: host.name || host.hostname,
+          metrics: basicMetrics, 
+          interfaces,
+          diskMetrics,
+          retryCount
+        };
+        
+      } catch (error) {
+        retryCount++;
+        
+        // Track error frequency
+        const errorCount = (this.errorCounts.get(hostKey) || 0) + 1;
+        this.errorCounts.set(hostKey, errorCount);
+        
+        const errorType = this.classifyError(error);
+        console.error(`SNMP failed for ${host.name || host.hostname} (attempt ${retryCount}/${this.maxRetries}):`, 
+                      `Type: ${errorType}, Message: ${error.message}`);
+        
+        // Don't retry on auth failures
+        if (errorType === this.errorTypes.AUTH_FAILED) {
+          await this.saveError(host, error, errorType);
+          return { 
+            success: false, 
+            host: host.name || host.hostname,
+            error: error.message,
+            errorType,
+            permanent: true
+          };
+        }
+        
+        // Wait before retry (exponential backoff)
+        if (retryCount < this.maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        }
+      }
+    }
+    
+    // All retries failed
+    const finalError = new Error(`Failed after ${this.maxRetries} retries`);
+    await this.saveError(host, finalError, this.errorTypes.NO_RESPONSE);
+    
+    return { 
+      success: false, 
+      host: host.name || host.hostname,
+      error: finalError.message,
+      errorType: this.errorTypes.NO_RESPONSE,
+      retriesExhausted: true
+    };
   }
 
   async pollAllHosts() {
@@ -142,18 +267,53 @@ class SNMPMonitor {
     return this.sessions.get(key);
   }
 
-  async getBasicMetrics(session, host) {
-    // OIDs basierend auf OS-Typ auswählen
+  async getBasicMetrics(session, host, oidSet) {
     const isWindows = host.osType === 'windows';
     
-    const oids = [
-      this.standardOIDs.sysUpTime,
-      this.standardOIDs.sysName,
-      isWindows ? this.windowsOIDs.cpuLoad : this.standardOIDs.load1min,
-      this.standardOIDs.memTotalReal,
-      this.standardOIDs.memAvailReal,
-      this.standardOIDs.processCount
-    ];
+    // Build OID list based on availability
+    const oids = [];
+    const oidMap = {};
+    
+    // Always try system OIDs
+    if (oidSet.sysUpTime) {
+      oids.push(oidSet.sysUpTime);
+      oidMap[oidSet.sysUpTime] = 'sysUpTime';
+    }
+    if (oidSet.sysName) {
+      oids.push(oidSet.sysName);
+      oidMap[oidSet.sysName] = 'sysName';
+    }
+    
+    // CPU metrics
+    if (isWindows && oidSet.cpuLoad) {
+      oids.push(oidSet.cpuLoad);
+      oidMap[oidSet.cpuLoad] = 'cpuLoad';
+    } else {
+      if (oidSet.load1min) {
+        oids.push(oidSet.load1min);
+        oidMap[oidSet.load1min] = 'load1min';
+      }
+      if (oidSet.cpuIdle) {
+        oids.push(oidSet.cpuIdle);
+        oidMap[oidSet.cpuIdle] = 'cpuIdle';
+      }
+    }
+    
+    // Memory metrics
+    if (oidSet.memTotalReal) {
+      oids.push(oidSet.memTotalReal);
+      oidMap[oidSet.memTotalReal] = 'memTotalReal';
+    }
+    if (oidSet.memAvailReal) {
+      oids.push(oidSet.memAvailReal);
+      oidMap[oidSet.memAvailReal] = 'memAvailReal';
+    }
+    
+    // Process count
+    if (oidSet.processCount) {
+      oids.push(oidSet.processCount);
+      oidMap[oidSet.processCount] = 'processCount';
+    }
     
     return new Promise((resolve, reject) => {
       session.get(oids, (error, varbinds) => {
@@ -161,7 +321,7 @@ class SNMPMonitor {
           reject(error);
         } else {
           try {
-            const metrics = this.parseMetrics(varbinds, isWindows);
+            const metrics = this.parseMetrics(varbinds, oidMap, isWindows);
             resolve(metrics);
           } catch (parseError) {
             reject(parseError);
@@ -171,46 +331,79 @@ class SNMPMonitor {
     });
   }
 
-  parseMetrics(varbinds, isWindows = false) {
-    // Sicheres Parsing mit Fallbacks
-    const safeValue = (varbind, defaultValue = 0) => {
-      if (!varbind || varbind.type === snmp.ErrorStatus.NoSuchObject) {
-        return defaultValue;
-      }
-      return varbind.value;
-    };
-
-    const uptime = safeValue(varbinds[0], 0);
-    const sysName = safeValue(varbinds[1], 'Unknown');
-    const cpuLoad = safeValue(varbinds[2], 0);
-    const memTotal = safeValue(varbinds[3], 0);
-    const memAvail = safeValue(varbinds[4], memTotal);
-    const processCount = safeValue(varbinds[5], 0);
-    
-    // Memory in KB umrechnen
-    const memTotalBytes = memTotal * 1024;
-    const memAvailBytes = memAvail * 1024;
-    const memUsedBytes = memTotalBytes - memAvailBytes;
-    const memUsedPercent = memTotal > 0 ? 
-      ((memUsedBytes / memTotalBytes) * 100) : 0;
-    
-    return {
-      uptime: this.parseUptime(uptime),
-      sysName: sysName.toString(),
+  parseMetrics(varbinds, oidMap, isWindows = false) {
+    // Sicheres Parsing mit Fallbacks und OID-Mapping
+    const metrics = {
+      uptime: null,
+      sysName: 'Unknown',
       cpu: {
-        load: isWindows ? cpuLoad : (cpuLoad / 100), // Load average normalisieren
-        percent: isWindows ? cpuLoad : Math.min((cpuLoad / 100) * 20, 100) // Approximation
+        load: 0,
+        percent: 0,
+        idle: null,
+        user: null,
+        system: null
       },
       memory: {
-        total: memTotalBytes,
-        available: memAvailBytes,
-        used: memUsedBytes,
-        usedPercent: parseFloat(memUsedPercent.toFixed(2))
+        total: 0,
+        available: 0,
+        used: 0,
+        usedPercent: 0
       },
-      processes: processCount,
+      processes: 0,
       timestamp: new Date().toISOString(),
       collectedAt: Date.now()
     };
+    
+    // Parse each varbind based on OID mapping
+    varbinds.forEach(varbind => {
+      const oidName = oidMap[varbind.oid];
+      
+      if (!oidName || varbind.type === snmp.ErrorStatus.NoSuchObject) {
+        return;
+      }
+      
+      switch (oidName) {
+        case 'sysUpTime':
+          metrics.uptime = this.parseUptime(varbind.value);
+          break;
+        case 'sysName':
+          metrics.sysName = varbind.value.toString();
+          break;
+        case 'cpuLoad':
+          metrics.cpu.load = varbind.value;
+          metrics.cpu.percent = varbind.value;
+          break;
+        case 'load1min':
+          metrics.cpu.load = varbind.value / 100;
+          metrics.cpu.percent = Math.min((varbind.value / 100) * 20, 100);
+          break;
+        case 'cpuIdle':
+          metrics.cpu.idle = varbind.value;
+          if (metrics.cpu.idle > 0) {
+            metrics.cpu.percent = Math.max(0, 100 - metrics.cpu.idle);
+          }
+          break;
+        case 'memTotalReal':
+          metrics.memory.total = varbind.value * 1024;
+          break;
+        case 'memAvailReal':
+          metrics.memory.available = varbind.value * 1024;
+          break;
+        case 'processCount':
+          metrics.processes = varbind.value;
+          break;
+      }
+    });
+    
+    // Calculate derived values
+    if (metrics.memory.total > 0) {
+      metrics.memory.used = metrics.memory.total - metrics.memory.available;
+      metrics.memory.usedPercent = parseFloat(
+        ((metrics.memory.used / metrics.memory.total) * 100).toFixed(2)
+      );
+    }
+    
+    return metrics;
   }
 
   parseUptime(timeticks) {
@@ -230,6 +423,58 @@ class SNMPMonitor {
       seconds,
       formatted: `${days}d ${hours}h ${minutes}m ${seconds}s`
     };
+  }
+
+  async getDiskMetrics(session, oidSet) {
+    if (!oidSet.diskDevice) {
+      return [];
+    }
+    
+    return new Promise((resolve) => {
+      const diskMetrics = [];
+      
+      session.subtree('1.3.6.1.4.1.2021.9.1', (varbinds) => {
+        varbinds.forEach(varbind => {
+          const oidParts = varbind.oid.split('.');
+          const column = parseInt(oidParts[oidParts.length - 2]);
+          const index = parseInt(oidParts[oidParts.length - 1]);
+          
+          if (!diskMetrics[index]) {
+            diskMetrics[index] = { index };
+          }
+          
+          switch (column) {
+            case 3: // Device
+              diskMetrics[index].device = varbind.value.toString();
+              break;
+            case 6: // Total size (KB)
+              diskMetrics[index].total = varbind.value * 1024;
+              break;
+            case 8: // Used (KB)
+              diskMetrics[index].used = varbind.value * 1024;
+              break;
+            case 9: // Percent used
+              diskMetrics[index].percentUsed = varbind.value;
+              break;
+          }
+        });
+      }, () => {
+        const filtered = diskMetrics
+          .filter(disk => disk && disk.device && disk.total > 0)
+          .map(disk => ({
+            device: disk.device,
+            total: disk.total || 0,
+            used: disk.used || 0,
+            free: (disk.total || 0) - (disk.used || 0),
+            percentUsed: disk.percentUsed || 0
+          }));
+        
+        resolve(filtered);
+      });
+      
+      // Timeout fallback
+      setTimeout(() => resolve([]), 5000);
+    });
   }
 
   async getInterfaceStats(session) {
@@ -287,61 +532,92 @@ class SNMPMonitor {
     });
   }
 
-  async saveMetrics(host, metrics, interfaces) {
-    // Metriken in Datenbank speichern
-    await this.db.insert('snmp_metrics', {
-      hostId: host.id,
-      uptime: metrics.uptime.totalSeconds,
-      cpuLoad: metrics.cpu.load,
-      cpuPercent: metrics.cpu.percent,
-      memoryTotal: metrics.memory.total,
-      memoryUsed: metrics.memory.used,
-      memoryPercent: metrics.memory.usedPercent,
-      processCount: metrics.processes,
-      collectedAt: new Date()
-    });
-
-    // Interface-Daten speichern (falls vorhanden)
-    if (interfaces && interfaces.length > 0) {
-      const interfaceData = interfaces.map(iface => ({
+  async saveMetrics(host, metrics, interfaces, diskMetrics) {
+    // Metriken in Datenbank speichern mit Error Handling
+    try {
+      await this.db.insert('snmp_metrics', {
         hostId: host.id,
-        interfaceName: iface.name,
-        status: iface.status,
-        bytesIn: iface.bytesIn,
-        bytesOut: iface.bytesOut,
+        uptime: metrics.uptime?.totalSeconds || 0,
+        cpuLoad: metrics.cpu.load,
+        cpuPercent: metrics.cpu.percent,
+        memoryTotal: metrics.memory.total,
+        memoryUsed: metrics.memory.used,
+        memoryPercent: metrics.memory.usedPercent,
+        processCount: metrics.processes,
         collectedAt: new Date()
-      }));
-      
-      await this.db.batchInsert('snmp_interfaces', interfaceData);
-    }
+      });
 
-    // Host-Status aktualisieren
-    await this.db.update('hosts', 
-      { id: host.id },
-      { 
-        lastSnmpCheck: new Date(),
-        snmpStatus: 'online',
-        lastMetrics: JSON.stringify(metrics)
+      // Interface-Daten speichern (falls vorhanden)
+      if (interfaces && interfaces.length > 0) {
+        const interfaceData = interfaces.map(iface => ({
+          hostId: host.id,
+          interfaceName: iface.name,
+          status: iface.status,
+          bytesIn: iface.bytesIn,
+          bytesOut: iface.bytesOut,
+          collectedAt: new Date()
+        }));
+        
+        await this.db.batchInsert('snmp_interfaces', interfaceData);
       }
-    );
+      
+      // Disk metrics speichern (falls vorhanden)
+      if (diskMetrics && diskMetrics.length > 0) {
+        for (const disk of diskMetrics) {
+          await this.db.insert('snmp_disk_metrics', {
+            hostId: host.id,
+            device: disk.device,
+            totalBytes: disk.total,
+            usedBytes: disk.used,
+            freeBytes: disk.free,
+            percentUsed: disk.percentUsed,
+            collectedAt: new Date()
+          });
+        }
+      }
+
+      // Host-Status aktualisieren
+      await this.db.update('hosts', 
+        { id: host.id },
+        { 
+          lastSnmpCheck: new Date(),
+          snmpStatus: 'online',
+          lastMetrics: JSON.stringify(metrics)
+        }
+      );
+    } catch (dbError) {
+      console.error(`Failed to save metrics for host ${host.id}:`, dbError);
+      throw dbError;
+    }
   }
 
-  async saveError(host, error) {
+  async saveError(host, error, errorType = null) {
+    const classifiedErrorType = errorType || this.classifyError(error);
+    
     // Fehler protokollieren
     await this.db.insert('snmp_errors', {
       hostId: host.id,
       errorMessage: error.message,
-      errorType: error.code || 'UNKNOWN',
+      errorType: classifiedErrorType,
       occurredAt: new Date()
     });
 
-    // Host-Status aktualisieren
+    // Host-Status basierend auf Fehlertyp aktualisieren
+    let snmpStatus = 'offline';
+    if (classifiedErrorType === this.errorTypes.AUTH_FAILED) {
+      snmpStatus = 'auth_failed';
+    } else if (classifiedErrorType === this.errorTypes.TIMEOUT) {
+      snmpStatus = 'timeout';
+    } else if (classifiedErrorType === this.errorTypes.NETWORK_ERROR) {
+      snmpStatus = 'unreachable';
+    }
+
     await this.db.update('hosts',
       { id: host.id },
       {
         lastSnmpCheck: new Date(),
-        snmpStatus: 'offline',
-        lastSnmpError: error.message
+        snmpStatus: snmpStatus,
+        lastSnmpError: `[${classifiedErrorType}] ${error.message}`
       }
     );
   }

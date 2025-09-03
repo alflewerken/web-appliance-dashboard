@@ -99,11 +99,11 @@ router.get('/history/:hostId', async (req, res) => {
 
 /**
  * POST /api/snmp/test
- * SNMP-Verbindung testen
+ * SNMP-Verbindung testen mit verbessertem Error Handling
  */
 router.post('/test', async (req, res) => {
   try {
-    const { ip, port = 161, community = 'public' } = req.body;
+    const { ip, port = 161, community = 'public', version = 'v2c', osType = 'linux' } = req.body;
     
     if (!ip) {
       return res.status(400).json({ error: 'IP address required' });
@@ -113,10 +113,13 @@ router.post('/test', async (req, res) => {
     const testHost = {
       id: 'test',
       name: 'Test Host',
+      hostname: 'Test Host',
       ip,
       snmpPort: port,
       snmpCommunity: community,
-      snmpEnabled: true
+      snmpVersion: version,
+      snmpEnabled: true,
+      osType: osType
     };
     
     const result = await snmpMonitor.pollHost(testHost);
@@ -125,8 +128,9 @@ router.post('/test', async (req, res) => {
       success: result.success,
       message: result.success ? 
         'SNMP connection successful' : 
-        'SNMP connection failed',
-      data: result
+        `SNMP connection failed: ${result.errorType || 'Unknown error'}`,
+      data: result,
+      recommendations: result.success ? null : getErrorRecommendations(result.errorType)
     });
     
   } catch (error) {
@@ -137,6 +141,40 @@ router.post('/test', async (req, res) => {
     });
   }
 });
+
+// Helper function for error recommendations
+function getErrorRecommendations(errorType) {
+  const recommendations = {
+    'TIMEOUT': [
+      'Check if the host is reachable (ping)',
+      'Verify SNMP port (default: 161)',
+      'Check firewall rules',
+      'Increase timeout value'
+    ],
+    'AUTH_FAILED': [
+      'Verify SNMP community string',
+      'Check SNMP version compatibility',
+      'For SNMPv3, verify username and auth protocols'
+    ],
+    'NO_SUCH_OBJECT': [
+      'Device may not support requested OIDs',
+      'Try different OS type setting',
+      'Check if SNMP agent is properly configured'
+    ],
+    'NETWORK_ERROR': [
+      'Verify IP address is correct',
+      'Check network connectivity',
+      'Ensure device is powered on'
+    ],
+    'NO_RESPONSE': [
+      'SNMP service may not be running',
+      'Check if SNMP is enabled on the device',
+      'Verify SNMP configuration on target device'
+    ]
+  };
+  
+  return recommendations[errorType] || ['Check device SNMP configuration'];
+}
 
 /**
  * PUT /api/snmp/hosts/:hostId/enable
@@ -196,6 +234,48 @@ router.put('/hosts/:hostId/disable', async (req, res) => {
     console.error(`Error disabling SNMP for host ${req.params.hostId}:`, error);
     res.status(500).json({ 
       error: 'Failed to disable SNMP',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/snmp/metrics/:hostId/detailed
+ * Detaillierte Metriken inklusive Disk und Network für einen Host
+ */
+router.get('/metrics/:hostId/detailed', async (req, res) => {
+  try {
+    const { hostId } = req.params;
+    
+    // Host aus DB laden
+    const host = await db.findOne('hosts', { id: hostId });
+    
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    if (!host.snmpEnabled) {
+      return res.status(400).json({ 
+        error: 'SNMP not enabled for this host' 
+      });
+    }
+    
+    // Detaillierte Metriken abrufen
+    const result = await snmpMonitor.pollHost(host);
+    
+    // Zusätzlich historische Daten laden
+    const history = await snmpMonitor.getHistoricalData(hostId, 1); // Letzte Stunde
+    
+    res.json({
+      current: result,
+      history: history,
+      errorCount: snmpMonitor.errorCounts.get(`${host.ip}:${host.snmpPort || 161}`) || 0
+    });
+    
+  } catch (error) {
+    console.error(`Error fetching detailed metrics for host ${req.params.hostId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to fetch detailed metrics',
       message: error.message 
     });
   }

@@ -33,11 +33,17 @@ import {
   CheckCircle,
   AlertCircle,
   Save,
+  Zap,
+  Download,
 } from 'lucide-react';
 import axios from '../../utils/axiosConfig';
+import SNMPSetupWizard from '../SNMP/SNMPSetupWizard';
 
 const HostMonitoringTab = ({ host, getInputStyles }) => {
   const { t } = useTranslation();
+  
+  // State for Setup Wizard
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
   
   // State for SNMP configuration
   const [snmpConfig, setSnmpConfig] = useState({
@@ -361,6 +367,32 @@ const HostMonitoringTab = ({ host, getInputStyles }) => {
         </>
       )}
 
+      {/* Auto-Setup Button - Prominent display when SNMP is not configured */}
+      {!snmpConfig.enabled && !loading && (
+        <Box sx={{ mt: 3, textAlign: 'center', p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
+          <Zap size={48} style={{ marginBottom: '16px', color: '#1976d2' }} />
+          <Typography variant="h6" gutterBottom>
+            SNMP Not Configured
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enable monitoring with our automatic SNMP setup wizard.
+            No manual configuration required!
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<Download />}
+            onClick={() => setShowSetupWizard(true)}
+            sx={{ 
+              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+              boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
+            }}
+          >
+            Auto-Setup SNMP
+          </Button>
+        </Box>
+      )}
+
       {/* Status Messages */}
       {error && (
         <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError('')}>
@@ -373,6 +405,19 @@ const HostMonitoringTab = ({ host, getInputStyles }) => {
           {success}
         </Alert>
       )}
+
+      {/* SNMP Setup Wizard Dialog */}
+      <SNMPSetupWizard
+        open={showSetupWizard}
+        onClose={() => setShowSetupWizard(false)}
+        host={host}
+        onSuccess={() => {
+          setShowSetupWizard(false);
+          setSuccess('SNMP setup completed successfully!');
+          // Reload SNMP config
+          fetchSnmpConfig();
+        }}
+      />
     </Box>
   );
 };
