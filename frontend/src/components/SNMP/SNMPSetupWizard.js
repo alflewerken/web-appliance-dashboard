@@ -151,8 +151,15 @@ includeDir /etc/snmp/snmpd.conf.d
       setProgress(10);
       addLog('🔍 Checking system requirements...', 'info');
 
+      // Debug: Log host object
+      console.log('Host object:', host);
+      
+      if (!host || !host.id) {
+        throw new Error('Host ID is missing. Host object: ' + JSON.stringify(host));
+      }
+
       // Step 1: Check OS and requirements
-      const checkResponse = await axios.post(`${window.location.origin}/api/ssh/execute`, {
+      const checkResponse = await axios.post('/api/ssh/execute', {
         hostId: host.id,
         command: 'uname -s && cat /etc/os-release 2>/dev/null || sw_vers 2>/dev/null',
         useSudo: false
@@ -172,7 +179,7 @@ includeDir /etc/snmp/snmpd.conf.d
         const cmd = installCommands[i];
         addLog(`Running: ${cmd}`, 'info');
         
-        const response = await axios.post(`${window.location.origin}/api/ssh/execute`, {
+        const response = await axios.post('/api/ssh/execute', {
           hostId: host.id,
           command: `sudo ${cmd}`,
           timeout: 60000
@@ -193,7 +200,7 @@ includeDir /etc/snmp/snmpd.conf.d
       addLog('⚙️ Configuring SNMP...', 'info');
 
       // Backup existing config
-      await axios.post(`${window.location.origin}/api/ssh/execute`, {
+      await axios.post('/api/ssh/execute', {
         hostId: host.id,
         command: `sudo cp /etc/snmp/snmpd.conf /etc/snmp/snmpd.conf.backup.${Date.now()} 2>/dev/null || true`
       });
@@ -203,12 +210,12 @@ includeDir /etc/snmp/snmpd.conf.d
       const snmpConfig = generateSNMPConfig();
       const writeConfigCmd = `cat > /tmp/snmpd.conf << 'EOF'${snmpConfig}EOF`;
       
-      await axios.post(`${window.location.origin}/api/ssh/execute`, {
+      await axios.post('/api/ssh/execute', {
         hostId: host.id,
         command: writeConfigCmd
       });
       
-      await axios.post(`${window.location.origin}/api/ssh/execute`, {
+      await axios.post('/api/ssh/execute', {
         hostId: host.id,
         command: `sudo mv /tmp/snmpd.conf /etc/snmp/snmpd.conf`
       });
@@ -228,7 +235,7 @@ includeDir /etc/snmp/snmpd.conf.d
       
       for (const cmd of firewallCommands) {
         try {
-          await axios.post(`${window.location.origin}/api/ssh/execute`, {
+          await axios.post('/api/ssh/execute', {
             hostId: host.id,
             command: `sudo ${cmd}`,
             timeout: 10000
@@ -249,7 +256,7 @@ includeDir /etc/snmp/snmpd.conf.d
         : ['systemctl start snmpd', 'systemctl enable snmpd'];
       
       for (const cmd of startCommands) {
-        await axios.post(`${window.location.origin}/api/ssh/execute`, {
+        await axios.post('/api/ssh/execute', {
           hostId: host.id,
           command: `sudo ${cmd}`
         });
@@ -262,7 +269,7 @@ includeDir /etc/snmp/snmpd.conf.d
       setSetupStatus('testing');
       addLog('🧪 Testing SNMP connection...', 'info');
       
-      const testResponse = await axios.post(`${window.location.origin}/api/snmp/test`, {
+      const testResponse = await axios.post('/api/snmp/test', {
         ip: host.ip,
         port: config.port,
         community: config.community,
@@ -276,7 +283,7 @@ includeDir /etc/snmp/snmpd.conf.d
         setSetupStatus('success');
         
         // Save SNMP configuration to database
-        await axios.put(`${window.location.origin}/api/hosts/${host.id}/snmp-config`, {
+        await axios.put(`/api/hosts/${host.id}/snmp-config`, {
           snmpEnabled: true,
           snmpCommunity: config.community,
           snmpPort: config.port,
