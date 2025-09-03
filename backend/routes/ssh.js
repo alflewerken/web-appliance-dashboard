@@ -8,7 +8,7 @@ const db = new QueryBuilder(pool);
 const { NodeSSH } = require('node-ssh');
 const { verifyToken } = require('../utils/auth');
 const { logger } = require('../utils/logger');
-const { decrypt } = require('../utils/encryption');
+const { decrypt, isEncrypted } = require('../utils/encryption');
 
 // Configure multer for file uploads
 const multerStorage = multer.diskStorage({
@@ -154,14 +154,36 @@ router.post('/execute', verifyToken, async (req, res) => {
   const { hostId, command, useSudo = false, timeout = 30000 } = req.body;
   let ssh = null;
 
+  // Debug logging
+  logger.info('SSH Execute Request:', { hostId, command: command?.substring(0, 50), useSudo });
+
+  // Validate required parameters
+  if (!hostId) {
+    logger.error('SSH Execute: Missing hostId');
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Host ID is required' 
+    });
+  }
+
+  if (!command) {
+    logger.error('SSH Execute: Missing command');
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Command is required' 
+    });
+  }
+
   try {
     // Get host details from database
+    logger.info('Fetching host from database with ID:', hostId);
     const [hostResult] = await pool.execute(
       'SELECT * FROM hosts WHERE id = ?',
       [hostId]
     );
 
     if (hostResult.length === 0) {
+      logger.error('Host not found with ID:', hostId);
       return res.status(404).json({ 
         success: false, 
         error: 'Host not found' 
@@ -169,31 +191,55 @@ router.post('/execute', verifyToken, async (req, res) => {
     }
 
     const host = hostResult[0];
+    logger.info('Host found:', { 
+      id: host.id, 
+      name: host.name, 
+      username: host.username,
+      ssh_key_name: host.ssh_key_name,
+      has_ssh_password: !!host.ssh_password 
+    });
 
     // Get SSH credentials
     let sshCredentials = {};
     
-    // Check if host has stored SSH key
-    if (host.ssh_key_id) {
+    // Check if host has stored SSH key by name
+    if (host.ssh_key_name) {
+      logger.info('Looking for SSH key with name:', host.ssh_key_name);
       const [keyResult] = await pool.execute(
-        'SELECT * FROM ssh_keys WHERE id = ?',
-        [host.ssh_key_id]
+        'SELECT * FROM ssh_keys WHERE key_name = ?',
+        [host.ssh_key_name]
       );
       
       if (keyResult.length > 0) {
         const sshKey = keyResult[0];
-        const decryptedKey = decrypt(sshKey.private_key);
+        logger.info('SSH key found:', sshKey.key_name);
+        
+        // Check if the key is encrypted or plain text
+        const { isEncrypted } = require('../utils/encryption');
+        let decryptedKey;
+        
+        if (isEncrypted(sshKey.private_key)) {
+          logger.info('SSH key is encrypted, decrypting...');
+          decryptedKey = decrypt(sshKey.private_key);
+        } else {
+          logger.info('SSH key is already in plain text');
+          decryptedKey = sshKey.private_key;
+        }
+        
         sshCredentials = {
           privateKey: decryptedKey,
-          username: host.ssh_user || sshKey.username || 'root'
+          username: host.username || sshKey.username || 'root'
         };
+      } else {
+        logger.warn('SSH key not found:', host.ssh_key_name);
       }
     }
     
     // Fall back to password if no key
     if (!sshCredentials.privateKey && host.ssh_password) {
+      logger.info('Using password authentication');
       sshCredentials = {
-        username: host.ssh_user || 'root',
+        username: host.username || 'root',
         password: decrypt(host.ssh_password)
       };
     }
@@ -214,10 +260,18 @@ router.post('/execute', verifyToken, async (req, res) => {
     }
 
     // Connect via SSH
+    logger.info('Connecting to host:', { 
+      host: host.hostname || host.ip,
+      port: host.port || 22,
+      username: sshCredentials.username,
+      hasKey: !!sshCredentials.privateKey,
+      hasPassword: !!sshCredentials.password
+    });
+    
     ssh = new NodeSSH();
     await ssh.connect({
-      host: host.ip || host.hostname,
-      port: host.ssh_port || 22,
+      host: host.hostname || host.ip,
+      port: host.port || 22,
       username: sshCredentials.username,
       password: sshCredentials.password,
       privateKey: sshCredentials.privateKey,
@@ -269,9 +323,17 @@ router.post('/execute', verifyToken, async (req, res) => {
       ssh.dispose();
     }
     
-    logger.error('SSH execute error:', error);
+    logger.error('SSH execute error:', {
+      error: error.message,
+      stack: error.stack,
+      hostId,
+      command: command?.substring(0, 50)
+    });
     
-    res.status(500).json({
+    // Return 400 for missing credentials, 500 for other errors
+    const statusCode = error.message?.includes('credentials') ? 400 : 500;
+    
+    res.status(statusCode).json({
       success: false,
       error: error.message || 'Failed to execute SSH command'
     });

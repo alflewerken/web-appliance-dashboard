@@ -66,7 +66,7 @@ const SNMPSetupWizard = ({ open, onClose, host, onSuccess }) => {
   });
 
   // OS-spezifische Befehle
-  const getInstallCommands = (osType) => {
+  const getInstallCommands = (osType, brewPath = '/usr/local') => {
     const commands = {
       'ubuntu': [
         'apt-get update',
@@ -91,9 +91,10 @@ const SNMPSetupWizard = ({ open, onClose, host, onSuccess }) => {
         'systemctl stop snmpd'
       ],
       'macos': [
-        'which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
-        'brew install net-snmp',
-        'sudo launchctl unload -w /Library/LaunchDaemons/org.net-snmp.snmpd.plist 2>/dev/null'
+        `which brew || echo "Please install Homebrew first at https://brew.sh"`,
+        `${brewPath}/bin/brew install net-snmp || brew install net-snmp`,
+        `sudo mkdir -p ${brewPath}/etc/snmp`,
+        'sudo killall snmpd 2>/dev/null || true'
       ]
     };
 
@@ -161,27 +162,61 @@ includeDir /etc/snmp/snmpd.conf.d
       // Step 1: Check OS and requirements
       const checkResponse = await axios.post('/api/ssh/execute', {
         hostId: host.id,
-        command: 'uname -s && cat /etc/os-release 2>/dev/null || sw_vers 2>/dev/null',
+        command: 'uname -s && uname -m && cat /etc/os-release 2>/dev/null || sw_vers 2>/dev/null',
         useSudo: false
       });
 
       const osInfo = checkResponse.data.output;
-      addLog('✅ System detected: ' + osInfo.split('\n')[0], 'success');
+      const lines = osInfo.split('\n');
+      const osType = lines[0].toLowerCase(); // uname -s (Darwin for macOS)
+      const arch = lines[1]?.toLowerCase() || ''; // uname -m (arm64 for M-series, x86_64 for Intel)
+      
+      addLog('✅ System detected: ' + osType + ' (' + arch + ')', 'success');
       setProgress(20);
+
+      // Determine the actual OS type for installation commands
+      let detectedOS = 'ubuntu'; // default
+      let homebrewPath = '/usr/local'; // default for Intel Macs
+      
+      if (osType === 'darwin') {
+        detectedOS = 'macos';
+        // Check if it's Apple Silicon (M1/M2/M3) or Intel
+        if (arch === 'arm64') {
+          homebrewPath = '/opt/homebrew';
+          addLog('📱 Apple Silicon Mac detected (M-series)', 'info');
+        } else {
+          homebrewPath = '/usr/local';
+          addLog('💻 Intel Mac detected', 'info');
+        }
+      } else if (osInfo.includes('ubuntu')) {
+        detectedOS = 'ubuntu';
+      } else if (osInfo.includes('debian')) {
+        detectedOS = 'debian';
+      } else if (osInfo.includes('centos')) {
+        detectedOS = 'centos';
+      } else if (osInfo.includes('rhel') || osInfo.includes('red hat')) {
+        detectedOS = 'rhel';
+      } else if (osInfo.includes('rocky')) {
+        detectedOS = 'rocky';
+      }
 
       // Step 2: Install SNMP packages
       setSetupStatus('installing');
       addLog('📦 Installing SNMP packages...', 'info');
       
-      const installCommands = getInstallCommands(host.osType || 'ubuntu');
+      const installCommands = getInstallCommands(detectedOS, homebrewPath);
       
       for (let i = 0; i < installCommands.length; i++) {
         const cmd = installCommands[i];
         addLog(`Running: ${cmd}`, 'info');
         
+        // For macOS/homebrew, don't use sudo for brew commands
+        const needsSudo = detectedOS !== 'macos' || !cmd.includes('brew');
+        const fullCommand = needsSudo ? `sudo -S ${cmd}` : cmd;
+        
         const response = await axios.post('/api/ssh/execute', {
           hostId: host.id,
-          command: `sudo ${cmd}`,
+          command: fullCommand,
           timeout: 60000
         });
         
@@ -199,10 +234,16 @@ includeDir /etc/snmp/snmpd.conf.d
       setProgress(50);
       addLog('⚙️ Configuring SNMP...', 'info');
 
+      // Determine config path based on OS and architecture
+      let configPath = '/etc/snmp/snmpd.conf'; // default for Linux
+      if (detectedOS === 'macos') {
+        configPath = `${homebrewPath}/etc/snmp/snmpd.conf`;
+      }
+
       // Backup existing config
       await axios.post('/api/ssh/execute', {
         hostId: host.id,
-        command: `sudo cp /etc/snmp/snmpd.conf /etc/snmp/snmpd.conf.backup.${Date.now()} 2>/dev/null || true`
+        command: `sudo cp ${configPath} ${configPath}.backup.${Date.now()} 2>/dev/null || true`
       });
       addLog('📋 Backed up existing configuration', 'info');
 
@@ -215,9 +256,17 @@ includeDir /etc/snmp/snmpd.conf.d
         command: writeConfigCmd
       });
       
+      // Create directory if it doesn't exist (for macOS)
+      if (detectedOS === 'macos') {
+        await axios.post('/api/ssh/execute', {
+          hostId: host.id,
+          command: `sudo mkdir -p ${homebrewPath}/etc/snmp`
+        });
+      }
+      
       await axios.post('/api/ssh/execute', {
         hostId: host.id,
-        command: `sudo mv /tmp/snmpd.conf /etc/snmp/snmpd.conf`
+        command: `sudo mv /tmp/snmpd.conf ${configPath}`
       });
       
       addLog('✅ SNMP configuration written', 'success');
@@ -251,9 +300,13 @@ includeDir /etc/snmp/snmpd.conf.d
       // Step 5: Start SNMP service
       addLog('🚀 Starting SNMP service...', 'info');
       
-      const startCommands = host.osType === 'macos' 
-        ? ['launchctl load -w /Library/LaunchDaemons/org.net-snmp.snmpd.plist']
-        : ['systemctl start snmpd', 'systemctl enable snmpd'];
+      let startCommands;
+      if (detectedOS === 'macos') {
+        // For macOS, start snmpd directly with the config file
+        startCommands = [`sudo ${homebrewPath}/sbin/snmpd -c ${homebrewPath}/etc/snmp/snmpd.conf -Lf /dev/null &`];
+      } else {
+        startCommands = ['systemctl start snmpd', 'systemctl enable snmpd'];
+      }
       
       for (const cmd of startCommands) {
         await axios.post('/api/ssh/execute', {
