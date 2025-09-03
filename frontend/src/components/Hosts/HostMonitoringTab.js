@@ -371,7 +371,16 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false }) => {
 
       {/* Auto-Setup Button - Prominent display when SNMP is not configured */}
       {!snmpConfig.enabled && !loading && (
-        <Box sx={{ mt: 3, textAlign: 'center', p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
+        <Box sx={{ 
+          mt: 3, 
+          textAlign: 'center', 
+          p: 3, 
+          bgcolor: 'var(--modal-bg)', 
+          backdropFilter: 'blur(var(--modal-blur))',
+          WebkitBackdropFilter: 'blur(var(--modal-blur))',
+          border: '1px solid var(--card-border)',
+          borderRadius: 2 
+        }}>
           <Zap size={48} style={{ marginBottom: '16px', color: '#1976d2' }} />
           <Typography variant="h6" gutterBottom>
             SNMP Not Configured
