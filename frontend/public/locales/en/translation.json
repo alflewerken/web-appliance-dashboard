@@ -574,7 +574,8 @@
       "connectionSettings": "Connection Settings",
       "authentication": "Authentication",
       "remoteDesktop": "Remote Desktop",
-      "appearance": "Appearance"
+      "appearance": "Appearance",
+      "monitoring": "SNMP Monitoring"
     },
     "placeholders": {
       "name": "e.g. My Server",

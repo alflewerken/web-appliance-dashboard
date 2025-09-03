@@ -1013,7 +1013,6 @@ const HostPanel = ({
         >
           <Tab label={t('hosts.tabs.general')} />
           <Tab label={t('hosts.tabs.sshKeys')} />
-          <Tab label={t('hosts.tabs.monitoring')} />
         </Tabs>
       </Box>
 
@@ -1297,6 +1296,20 @@ const HostPanel = ({
               </CardContent>
             </Card>
 
+            {/* SNMP Monitoring Card */}
+            <Card className="settings-card" sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
+                  {t('hosts.sections.monitoring')}
+                </Typography>
+                <HostMonitoringTab 
+                  host={host} 
+                  getInputStyles={getInputStyles}
+                  asCard={true}
+                />
+              </CardContent>
+            </Card>
+
             {/* Remote Desktop Card */}
             <Card className="settings-card" sx={{ mb: 3 }}>
               <CardContent>
@@ -1509,16 +1522,7 @@ const HostPanel = ({
               adminMode={adminMode}
             />
           </Box>
-        )}
-
-        {/* Tab 2: Monitoring */}
-        {activeTab === 2 && (
-          <HostMonitoringTab 
-            host={host}
-            getInputStyles={getInputStyles}
-          />
-        )}
-      </Box>
+        )}      </Box>
 
       {/* Success/Error Messages */}
       <Snackbar

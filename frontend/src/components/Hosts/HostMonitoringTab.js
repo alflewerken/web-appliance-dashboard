@@ -39,7 +39,7 @@ import {
 import axios from '../../utils/axiosConfig';
 import SNMPSetupWizard from '../SNMP/SNMPSetupWizard';
 
-const HostMonitoringTab = ({ host, getInputStyles }) => {
+const HostMonitoringTab = ({ host, getInputStyles, asCard = false }) => {
   const { t } = useTranslation();
   
   // State for Setup Wizard
@@ -171,10 +171,12 @@ const HostMonitoringTab = ({ host, getInputStyles }) => {
   };
 
   return (
-    <Box sx={{ padding: '24px 24px 16px 24px' }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        SNMP Monitoring Configuration
-      </Typography>
+    <Box sx={{ padding: asCard ? 0 : '24px 24px 16px 24px' }}>
+      {!asCard && (
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          SNMP Monitoring Configuration
+        </Typography>
+      )}
 
       <FormControlLabel
         control={
@@ -415,7 +417,7 @@ const HostMonitoringTab = ({ host, getInputStyles }) => {
           setShowSetupWizard(false);
           setSuccess('SNMP setup completed successfully!');
           // Reload SNMP config
-          fetchSnmpConfig();
+          loadSNMPConfig();
         }}
       />
     </Box>

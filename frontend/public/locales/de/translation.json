@@ -655,7 +655,8 @@
       "connectionSettings": "Verbindungseinstellungen",
       "authentication": "Authentifizierung",
       "remoteDesktop": "Remote Desktop",
-      "appearance": "Darstellung"
+      "appearance": "Darstellung",
+      "monitoring": "SNMP Monitoring"
     },
     "placeholders": {
       "name": "z.B. Mein Server",
