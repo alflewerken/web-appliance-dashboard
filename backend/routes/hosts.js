@@ -1085,7 +1085,7 @@ router.get('/:id/snmp-config', async (req, res) => {
     }
     
     // Get SNMP config from database
-    const config = await db.findOne('host_snmp_configs', { hostId });
+    const config = await db.findOne('host_snmp_configs', { host_id: hostId });
     
     if (!config) {
       // Return default config if none exists
@@ -1125,20 +1125,20 @@ router.put('/:id/snmp-config', async (req, res) => {
     }
     
     // Check if config exists
-    const existingConfig = await db.findOne('host_snmp_configs', { hostId });
+    const existingConfig = await db.findOne('host_snmp_configs', { host_id: hostId });
     
     const configData = {
       ...config,
-      hostId,
-      updatedAt: new Date()
+      host_id: hostId,
+      updated_at: new Date()
     };
     
     if (existingConfig) {
       // Update existing config
-      await db.update('host_snmp_configs', { hostId }, configData);
+      await db.update('host_snmp_configs', { host_id: hostId }, configData);
     } else {
       // Insert new config
-      configData.createdAt = new Date();
+      configData.created_at = new Date();
       await db.insert('host_snmp_configs', configData);
     }
     
