@@ -256,12 +256,17 @@ includeDir /etc/snmp/snmpd.conf.d
         command: writeConfigCmd
       });
       
-      // Create directory if it doesn't exist (for macOS)
+      // Create directory if it doesn't exist (for macOS) - try without sudo first
       if (detectedOS === 'macos') {
-        await axios.post('/api/ssh/execute', {
-          hostId: host.id,
-          command: `sudo mkdir -p ${homebrewPath}/etc/snmp`
-        });
+        try {
+          await axios.post('/api/ssh/execute', {
+            hostId: host.id,
+            command: `mkdir -p ${homebrewPath}/etc/snmp 2>/dev/null || sudo mkdir -p ${homebrewPath}/etc/snmp`
+          });
+        } catch (e) {
+          // Directory might already exist or we don't have permissions, continue anyway
+          addLog('⚠️ Could not create config directory, it may already exist', 'warning');
+        }
       }
       
       await axios.post('/api/ssh/execute', {
@@ -322,12 +327,15 @@ includeDir /etc/snmp/snmpd.conf.d
       setSetupStatus('testing');
       addLog('🧪 Testing SNMP connection...', 'info');
       
+      // Wait a bit for SNMP service to fully start
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const testResponse = await axios.post('/api/snmp/test', {
-        ip: host.ip,
+        ip: host.hostname || host.ip,  // Use hostname which contains the IP
         port: config.port,
         community: config.community,
-        version: 'v2c',
-        osType: host.osType
+        version: '2c',  // v2c not v2c
+        osType: detectedOS  // Use detected OS, not host.osType
       });
       
       if (testResponse.data.success) {
@@ -337,10 +345,16 @@ includeDir /etc/snmp/snmpd.conf.d
         
         // Save SNMP configuration to database
         await axios.put(`/api/hosts/${host.id}/snmp-config`, {
-          snmpEnabled: true,
-          snmpCommunity: config.community,
-          snmpPort: config.port,
-          snmpVersion: 'v2c'
+          enabled: true,
+          version: '2c',
+          community: config.community,
+          port: config.port,
+          username: '',
+          authProtocol: 'SHA',
+          authPassword: '',
+          privProtocol: 'AES',
+          privPassword: '',
+          pollInterval: 60
         });
         
         setTimeout(() => {
