@@ -284,14 +284,32 @@ class SNMPMonitor {
       oidMap[oidSet.sysName] = 'sysName';
     }
     
-    // CPU metrics
+    // CPU metrics - get ALL load averages and CPU counters
     if (isWindows && oidSet.cpuLoad) {
       oids.push(oidSet.cpuLoad);
       oidMap[oidSet.cpuLoad] = 'cpuLoad';
     } else {
+      // Load averages
       if (oidSet.load1min) {
         oids.push(oidSet.load1min);
         oidMap[oidSet.load1min] = 'load1min';
+      }
+      if (oidSet.load5min) {
+        oids.push(oidSet.load5min);
+        oidMap[oidSet.load5min] = 'load5min';
+      }
+      if (oidSet.load15min) {
+        oids.push(oidSet.load15min);
+        oidMap[oidSet.load15min] = 'load15min';
+      }
+      // CPU counters for detailed calculation
+      if (oidSet.cpuUser) {
+        oids.push(oidSet.cpuUser);
+        oidMap[oidSet.cpuUser] = 'cpuUser';
+      }
+      if (oidSet.cpuSystem) {
+        oids.push(oidSet.cpuSystem);
+        oidMap[oidSet.cpuSystem] = 'cpuSystem';
       }
       if (oidSet.cpuIdle) {
         oids.push(oidSet.cpuIdle);
@@ -299,7 +317,7 @@ class SNMPMonitor {
       }
     }
     
-    // Memory metrics
+    // Memory metrics - get ALL memory info
     if (oidSet.memTotalReal) {
       oids.push(oidSet.memTotalReal);
       oidMap[oidSet.memTotalReal] = 'memTotalReal';
@@ -307,6 +325,22 @@ class SNMPMonitor {
     if (oidSet.memAvailReal) {
       oids.push(oidSet.memAvailReal);
       oidMap[oidSet.memAvailReal] = 'memAvailReal';
+    }
+    if (oidSet.memBuffer) {
+      oids.push(oidSet.memBuffer);
+      oidMap[oidSet.memBuffer] = 'memBuffer';
+    }
+    if (oidSet.memCached) {
+      oids.push(oidSet.memCached);
+      oidMap[oidSet.memCached] = 'memCached';
+    }
+    if (oidSet.memTotalSwap) {
+      oids.push(oidSet.memTotalSwap);
+      oidMap[oidSet.memTotalSwap] = 'memTotalSwap';
+    }
+    if (oidSet.memAvailSwap) {
+      oids.push(oidSet.memAvailSwap);
+      oidMap[oidSet.memAvailSwap] = 'memAvailSwap';
     }
     
     // Process count
@@ -337,7 +371,9 @@ class SNMPMonitor {
       uptime: null,
       sysName: 'Unknown',
       cpu: {
-        load: 0,
+        load1: 0,
+        load5: 0,
+        load15: 0,
         percent: 0,
         idle: null,
         user: null,
@@ -347,7 +383,18 @@ class SNMPMonitor {
         total: 0,
         available: 0,
         used: 0,
-        usedPercent: 0
+        usedPercent: 0,
+        buffer: 0,
+        cached: 0,
+        swapTotal: 0,
+        swapAvailable: 0,
+        swapUsed: 0,
+        swapPercent: 0
+      },
+      disk: [],
+      network: {
+        interfaceCount: 0,
+        interfaces: []
       },
       processes: 0,
       timestamp: new Date().toISOString(),
@@ -374,8 +421,57 @@ class SNMPMonitor {
           metrics.cpu.percent = varbind.value;
           break;
         case 'load1min':
-          metrics.cpu.load = varbind.value / 100;
-          metrics.cpu.percent = Math.min((varbind.value / 100) * 20, 100);
+          // Load average is already a decimal (e.g., 1.26)
+          // It comes as a Buffer from SNMP, needs to be converted to string first
+          console.log('load1min raw value:', varbind.value, 'type:', typeof varbind.value);
+          
+          let loadValue;
+          if (Buffer.isBuffer(varbind.value)) {
+            // Convert Buffer to string, then parse
+            const loadString = varbind.value.toString('utf8');
+            console.log('Converted Buffer to string:', loadString);
+            loadValue = parseFloat(loadString);
+          } else if (typeof varbind.value === 'string') {
+            loadValue = parseFloat(varbind.value);
+          } else {
+            // Fallback for numeric values
+            loadValue = varbind.value / 100;
+          }
+          
+          console.log('Parsed load value:', loadValue);
+          metrics.cpu.load1 = loadValue;
+          // Rough approximation: 1.0 load = ~25% on a 4-core system
+          // Adjust based on actual core count if available
+          metrics.cpu.percent = Math.min(Math.round(loadValue * 25), 100);
+          console.log('CPU percent calculated:', metrics.cpu.percent);
+          break;
+        
+        case 'load5min':
+          if (Buffer.isBuffer(varbind.value)) {
+            metrics.cpu.load5 = parseFloat(varbind.value.toString('utf8'));
+          } else if (typeof varbind.value === 'string') {
+            metrics.cpu.load5 = parseFloat(varbind.value);
+          } else {
+            metrics.cpu.load5 = varbind.value / 100;
+          }
+          break;
+          
+        case 'load15min':
+          if (Buffer.isBuffer(varbind.value)) {
+            metrics.cpu.load15 = parseFloat(varbind.value.toString('utf8'));
+          } else if (typeof varbind.value === 'string') {
+            metrics.cpu.load15 = parseFloat(varbind.value);
+          } else {
+            metrics.cpu.load15 = varbind.value / 100;
+          }
+          break;
+        
+        case 'cpuUser':
+          metrics.cpu.user = varbind.value;
+          break;
+          
+        case 'cpuSystem':
+          metrics.cpu.system = varbind.value;
           break;
         case 'cpuIdle':
           metrics.cpu.idle = varbind.value;
@@ -389,8 +485,23 @@ class SNMPMonitor {
         case 'memAvailReal':
           metrics.memory.available = varbind.value * 1024;
           break;
+        case 'memBuffer':
+          metrics.memory.buffer = varbind.value * 1024;
+          break;
+        case 'memCached':
+          metrics.memory.cached = varbind.value * 1024;
+          break;
+        case 'memTotalSwap':
+          metrics.memory.swapTotal = varbind.value * 1024;
+          break;
+        case 'memAvailSwap':
+          metrics.memory.swapAvailable = varbind.value * 1024;
+          break;
         case 'processCount':
           metrics.processes = varbind.value;
+          break;
+        case 'ifNumber':
+          metrics.network.interfaceCount = varbind.value;
           break;
       }
     });
@@ -401,6 +512,31 @@ class SNMPMonitor {
       metrics.memory.usedPercent = parseFloat(
         ((metrics.memory.used / metrics.memory.total) * 100).toFixed(2)
       );
+      
+      // Calculate effective memory (includes buffer/cache)
+      if (metrics.memory.buffer > 0 || metrics.memory.cached > 0) {
+        metrics.memory.effectiveAvailable = metrics.memory.available + 
+          metrics.memory.buffer + metrics.memory.cached;
+        metrics.memory.effectiveUsed = metrics.memory.total - metrics.memory.effectiveAvailable;
+        metrics.memory.effectivePercent = parseFloat(
+          ((metrics.memory.effectiveUsed / metrics.memory.total) * 100).toFixed(2)
+        );
+      }
+    }
+    
+    // Calculate swap usage if available
+    if (metrics.memory.swapTotal > 0) {
+      metrics.memory.swapUsed = metrics.memory.swapTotal - metrics.memory.swapAvailable;
+      metrics.memory.swapPercent = parseFloat(
+        ((metrics.memory.swapUsed / metrics.memory.swapTotal) * 100).toFixed(2)
+      );
+    }
+    
+    // macOS workaround: If CPU is 0, try to use load average
+    if (metrics.cpu.percent === 0 || metrics.cpu.percent === null) {
+      if (metrics.cpu.load1 && metrics.cpu.load1 > 0) {
+        metrics.cpu.percent = Math.min(Math.round(metrics.cpu.load1 * 25), 100);
+      }
     }
     
     return metrics;
@@ -533,6 +669,12 @@ class SNMPMonitor {
   }
 
   async saveMetrics(host, metrics, interfaces, diskMetrics) {
+    // Skip database operations for test hosts
+    if (!host.id || host.id === 0 || host.id === 'test') {
+      console.log(`SNMP test metrics for ${host.name}: CPU ${metrics.cpu.percent}%, Memory ${metrics.memory.usedPercent}%`);
+      return;
+    }
+    
     // Metriken in Datenbank speichern mit Error Handling
     try {
       await this.db.insert('snmp_metrics', {
@@ -549,16 +691,17 @@ class SNMPMonitor {
 
       // Interface-Daten speichern (falls vorhanden)
       if (interfaces && interfaces.length > 0) {
-        const interfaceData = interfaces.map(iface => ({
-          hostId: host.id,
-          interfaceName: iface.name,
-          status: iface.status,
-          bytesIn: iface.bytesIn,
-          bytesOut: iface.bytesOut,
-          collectedAt: new Date()
-        }));
-        
-        await this.db.batchInsert('snmp_interfaces', interfaceData);
+        // Insert each interface separately (QueryBuilder has no batchInsert)
+        for (const iface of interfaces) {
+          await this.db.insert('snmp_interfaces', {
+            hostId: host.id,
+            interfaceName: iface.name,
+            status: iface.status,
+            bytesIn: iface.bytesIn,
+            bytesOut: iface.bytesOut,
+            collectedAt: new Date()
+          });
+        }
       }
       
       // Disk metrics speichern (falls vorhanden)
@@ -578,12 +721,12 @@ class SNMPMonitor {
 
       // Host-Status aktualisieren
       await this.db.update('hosts', 
-        { id: host.id },
         { 
           lastSnmpCheck: new Date(),
           snmpStatus: 'online',
           lastMetrics: JSON.stringify(metrics)
-        }
+        },
+        { id: host.id }
       );
     } catch (dbError) {
       console.error(`Failed to save metrics for host ${host.id}:`, dbError);
@@ -592,6 +735,12 @@ class SNMPMonitor {
   }
 
   async saveError(host, error, errorType = null) {
+    // Skip database operations for test hosts
+    if (!host.id || host.id === 0 || host.id === 'test') {
+      console.log(`SNMP test error for ${host.name}: ${error.message}`);
+      return;
+    }
+    
     const classifiedErrorType = errorType || this.classifyError(error);
     
     // Fehler protokollieren

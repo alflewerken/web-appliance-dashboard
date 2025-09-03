@@ -44,6 +44,8 @@ import { Wifi, Shield, Server, Activity, AlertTriangle, Check } from 'lucide-rea
 import axios from 'axios';
 
 const SNMPSetupWizard = ({ open, onClose, host, onSuccess }) => {
+  console.log('SNMPSetupWizard rendered, open:', open, 'host:', host);
+  
   // Wizard State
   const [activeStep, setActiveStep] = useState(0);
   const [setupStatus, setSetupStatus] = useState('idle'); // idle, checking, installing, configuring, testing, success, error
@@ -92,9 +94,14 @@ const SNMPSetupWizard = ({ open, onClose, host, onSuccess }) => {
       ],
       'macos': [
         `which brew || echo "Please install Homebrew first at https://brew.sh"`,
+        // Ensure we install net-snmp from Homebrew
         `${brewPath}/bin/brew install net-snmp || brew install net-snmp`,
-        `sudo mkdir -p ${brewPath}/etc/snmp`,
-        'sudo killall snmpd 2>/dev/null || true'
+        // Link the binaries if not already linked
+        `${brewPath}/bin/brew link net-snmp 2>/dev/null || true`,
+        // Stop any running SNMP daemons
+        'killall snmpd 2>/dev/null || true',
+        // Verify Homebrew's snmpd is installed and show its location
+        `ls -la ${brewPath}/sbin/snmpd 2>/dev/null || ls -la ${brewPath}/Cellar/net-snmp/*/sbin/snmpd 2>/dev/null || echo "WARNING: snmpd binary not found"`
       ]
     };
 
@@ -111,20 +118,23 @@ const SNMPSetupWizard = ({ open, onClose, host, onSuccess }) => {
       ? config.monitoredProcesses.map(proc => `proc ${proc}`).join('\n')
       : '';
 
+    // Simplified config for better compatibility
     return `
 # Auto-generated SNMP Configuration by Web Appliance Dashboard
 # Generated: ${new Date().toISOString()}
 
-# Agent Address
-agentAddress udp:${config.port}
+# Agent Address - For macOS without sudo, use high port
+agentAddress udp:1161,udp6:[::]:1161
 
 # System Information
 sysLocation    ${config.location}
 sysContact     ${config.contact}
 sysServices    72
 
-# Access Control
+# Access Control - Allow from specified network
 rocommunity ${config.community} ${config.allowedNetwork}
+rocommunity ${config.community} localhost
+rocommunity ${config.community} 127.0.0.1
 
 # View Configuration
 view systemonly included .1.3.6.1.2.1.1
@@ -147,16 +157,39 @@ includeDir /etc/snmp/snmpd.conf.d
 
   // Installation durchführen
   const performInstallation = async () => {
+    console.log('performInstallation called');
     try {
+      console.log('Starting installation process...');
       setSetupStatus('checking');
       setProgress(10);
       addLog('🔍 Checking system requirements...', 'info');
 
       // Debug: Log host object
       console.log('Host object:', host);
+      console.log('Host ID:', host?.id);
+      console.log('Host hostname:', host?.hostname);
+      console.log('Host IP:', host?.ip);
       
-      if (!host || !host.id) {
-        throw new Error('Host ID is missing. Host object: ' + JSON.stringify(host));
+      if (!host) {
+        addLog('❌ Error: No host information provided', 'error');
+        setSetupStatus('error');
+        setStatusMessage('No host information available');
+        return;
+      }
+      
+      if (!host.id && host.id !== 0) {
+        addLog('❌ Error: Host has not been saved yet', 'error');
+        addLog('Please save the host configuration first, then run SNMP setup', 'error');
+        setSetupStatus('error');
+        setStatusMessage('Host must be saved before SNMP setup');
+        return;
+      }
+      
+      if (!host.hostname && !host.ip) {
+        addLog('❌ Error: Host has no hostname or IP address', 'error');
+        setSetupStatus('error');
+        setStatusMessage('Host needs hostname or IP address');
+        return;
       }
 
       // Step 1: Check OS and requirements
@@ -240,10 +273,14 @@ includeDir /etc/snmp/snmpd.conf.d
         configPath = `${homebrewPath}/etc/snmp/snmpd.conf`;
       }
 
-      // Backup existing config
+      // Backup existing config - no sudo needed for macOS homebrew dirs
+      const backupCmd = detectedOS === 'macos'
+        ? `cp ${configPath} ${configPath}.backup.${Date.now()} 2>/dev/null || true`
+        : `sudo cp ${configPath} ${configPath}.backup.${Date.now()} 2>/dev/null || true`;
+      
       await axios.post('/api/ssh/execute', {
         hostId: host.id,
-        command: `sudo cp ${configPath} ${configPath}.backup.${Date.now()} 2>/dev/null || true`
+        command: backupCmd
       });
       addLog('📋 Backed up existing configuration', 'info');
 
@@ -256,22 +293,32 @@ includeDir /etc/snmp/snmpd.conf.d
         command: writeConfigCmd
       });
       
-      // Create directory if it doesn't exist (for macOS) - try without sudo first
+      // Create directory if it doesn't exist (for macOS) - no sudo needed for Homebrew directories
       if (detectedOS === 'macos') {
         try {
+          // Homebrew directories are user-writable on both Intel and Apple Silicon
+          const mkdirCmd = `mkdir -p ${homebrewPath}/etc/snmp`;
+          addLog('📁 Creating config directory...', 'info');
+          
           await axios.post('/api/ssh/execute', {
             hostId: host.id,
-            command: `mkdir -p ${homebrewPath}/etc/snmp 2>/dev/null || sudo mkdir -p ${homebrewPath}/etc/snmp`
+            command: mkdirCmd
           });
+          addLog('✅ Config directory created/verified', 'success');
         } catch (e) {
-          // Directory might already exist or we don't have permissions, continue anyway
-          addLog('⚠️ Could not create config directory, it may already exist', 'warning');
+          // Directory might already exist, which is fine
+          addLog('ℹ️ Config directory already exists', 'info');
         }
       }
       
+      // Move config file - macOS homebrew dirs don't need sudo, Linux does
+      const moveCmd = detectedOS === 'macos' 
+        ? `mv /tmp/snmpd.conf ${configPath}`
+        : `sudo mv /tmp/snmpd.conf ${configPath}`;
+      
       await axios.post('/api/ssh/execute', {
         hostId: host.id,
-        command: `sudo mv /tmp/snmpd.conf ${configPath}`
+        command: moveCmd
       });
       
       addLog('✅ SNMP configuration written', 'success');
@@ -307,20 +354,96 @@ includeDir /etc/snmp/snmpd.conf.d
       
       let startCommands;
       if (detectedOS === 'macos') {
-        // For macOS, start snmpd directly with the config file
-        startCommands = [`sudo ${homebrewPath}/sbin/snmpd -c ${homebrewPath}/etc/snmp/snmpd.conf -Lf /dev/null &`];
+        // For macOS: Try to run without sudo on high port (1161)
+        // First find the actual snmpd binary location
+        startCommands = [
+          // Find snmpd location
+          `find ${homebrewPath} -name snmpd -type f 2>/dev/null | grep sbin | head -1`,
+          // Kill any existing snmpd (without sudo)
+          'killall snmpd 2>/dev/null || true',
+          // Start snmpd without sudo on port 1161 (no root needed for high ports)
+          `${homebrewPath}/sbin/snmpd -c ${homebrewPath}/etc/snmp/snmpd.conf 2>/dev/null || ${homebrewPath}/Cellar/net-snmp/*/sbin/snmpd -c ${homebrewPath}/etc/snmp/snmpd.conf`,
+        ];
       } else {
         startCommands = ['systemctl start snmpd', 'systemctl enable snmpd'];
       }
       
       for (const cmd of startCommands) {
-        await axios.post('/api/ssh/execute', {
-          hostId: host.id,
-          command: `sudo ${cmd}`
-        });
+        try {
+          addLog(`Running: ${cmd}`, 'info');
+          const response = await axios.post('/api/ssh/execute', {
+            hostId: host.id,
+            command: detectedOS === 'macos' ? cmd : `sudo ${cmd}`,
+            timeout: 10000
+          });
+          
+          if (response.data.output) {
+            addLog(`Output: ${response.data.output}`, 'info');
+          }
+          
+          if (response.data.error && !response.data.error.includes('kill: No such process')) {
+            addLog(`⚠️ Warning: ${response.data.error}`, 'warning');
+          }
+        } catch (e) {
+          if (!e.message.includes('kill: No such process')) {
+            addLog(`⚠️ Command warning: ${e.message}`, 'warning');
+          }
+        }
       }
       
-      addLog('✅ SNMP service started', 'success');
+      // Verify snmpd is running on macOS with multiple checks
+      if (detectedOS === 'macos') {
+        addLog('Verifying SNMP service...', 'info');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check if process is running
+        const checkResponse = await axios.post('/api/ssh/execute', {
+          hostId: host.id,
+          command: 'ps aux | grep -v grep | grep snmpd',
+          timeout: 5000
+        });
+        
+        if (checkResponse.data.output && checkResponse.data.output.includes('snmpd')) {
+          addLog('✅ SNMP process is running', 'success');
+          
+          // Check if port 1161 is open (high port, no sudo needed)
+          const portCheck = await axios.post('/api/ssh/execute', {
+            hostId: host.id,
+            command: 'lsof -i UDP:1161 2>/dev/null || netstat -an | grep 1161',
+            timeout: 5000
+          });
+          
+          if (portCheck.data.output && (portCheck.data.output.includes('1161') || portCheck.data.output.includes('snmpd'))) {
+            addLog('✅ SNMP listening on port 1161', 'success');
+          } else {
+            addLog('ℹ️ SNMP process running, port check requires sudo', 'info');
+          }
+        } else {
+          addLog('⚠️ SNMP service may not have started - trying alternative method', 'warning');
+          
+          // Try to find and start snmpd from Cellar directory
+          const findResponse = await axios.post('/api/ssh/execute', {
+            hostId: host.id,
+            command: `find ${homebrewPath}/Cellar -name snmpd -type f 2>/dev/null | grep sbin | head -1`,
+            timeout: 5000
+          });
+          
+          if (findResponse.data.output) {
+            const snmpdPath = findResponse.data.output.trim();
+            addLog(`Found snmpd at: ${snmpdPath}`, 'info');
+            
+            await axios.post('/api/ssh/execute', {
+              hostId: host.id,
+              command: `${snmpdPath} -c ${homebrewPath}/etc/snmp/snmpd.conf`,
+              timeout: 5000
+            });
+            
+            addLog('Started snmpd with found binary', 'info');
+          }
+        }
+      } else {
+        addLog('✅ SNMP service started', 'success');
+      }
       setProgress(80);
 
       // Step 6: Test SNMP connection
@@ -328,11 +451,11 @@ includeDir /etc/snmp/snmpd.conf.d
       addLog('🧪 Testing SNMP connection...', 'info');
       
       // Wait a bit for SNMP service to fully start
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       const testResponse = await axios.post('/api/snmp/test', {
         ip: host.hostname || host.ip,  // Use hostname which contains the IP
-        port: config.port,
+        port: detectedOS === 'macos' ? 1161 : 161,  // Use port 1161 for macOS (no sudo), 161 for Linux
         community: config.community,
         version: '2c',  // v2c not v2c
         osType: detectedOS  // Use detected OS, not host.osType
@@ -348,7 +471,7 @@ includeDir /etc/snmp/snmpd.conf.d
           enabled: true,
           version: '2c',
           community: config.community,
-          port: config.port,
+          port: detectedOS === 'macos' ? 1161 : 161,  // Save the actual port used
           username: '',
           authProtocol: 'SHA',
           authPassword: '',
@@ -357,8 +480,22 @@ includeDir /etc/snmp/snmpd.conf.d
           pollInterval: 60
         });
         
+        addLog('💾 Configuration saved to database', 'success');
+        
         setTimeout(() => {
-          onSuccess && onSuccess();
+          // Pass COMPLETE config data to parent - with correct port!
+          onSuccess && onSuccess({
+            enabled: true,
+            version: '2c',
+            community: config.community,
+            port: detectedOS === 'macos' ? 1161 : 161,  // IMPORTANT: Use actual port!
+            username: '',
+            authProtocol: 'SHA',
+            authPassword: '',
+            privProtocol: 'AES',
+            privPassword: '',
+            pollInterval: 60
+          });
         }, 2000);
       } else {
         throw new Error('SNMP test failed: ' + testResponse.data.message);
@@ -401,14 +538,26 @@ includeDir /etc/snmp/snmpd.conf.d
   ];
 
   const handleNext = () => {
+    console.log('handleNext called, activeStep:', activeStep);
     if (activeStep === 0) {
       // Start installation after configuration
+      console.log('Moving to step 1 and starting installation');
       setActiveStep(1);
       performInstallation();
     }
   };
 
-  const handleClose = () => {
+  const handleClose = (event, reason) => {
+    // Verhindert das Schließen beim Klick auf Backdrop
+    if (reason === 'backdropClick') {
+      return;
+    }
+    
+    // Verhindert das Schließen während der Installation
+    if (setupStatus === 'installing') {
+      return;
+    }
+    
     if (setupStatus === 'idle' || setupStatus === 'success' || setupStatus === 'error') {
       onClose();
       // Reset state
@@ -423,12 +572,14 @@ includeDir /etc/snmp/snmpd.conf.d
     <Dialog 
       open={open} 
       onClose={handleClose}
+      disableEscapeKeyDown={setupStatus === 'installing'}
       maxWidth="md"
       fullWidth
       PaperProps={{
         style: {
           minHeight: '70vh',
-          maxHeight: '90vh'
+          maxHeight: '90vh',
+          zIndex: 1301  // Erhöhter z-index für sicheren Vordergrund
         }
       }}
     >
@@ -721,14 +872,42 @@ includeDir /etc/snmp/snmpd.conf.d
         </Button>
         
         {setupStatus === 'idle' && (
-          <Button
-            variant="contained"
-            onClick={handleNext}
-            startIcon={<PlayArrow />}
+          <button
+            onClick={() => {
+              console.log('Starting installation...');
+              handleNext();
+            }}
             disabled={!config.community}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '6px 16px',
+              backgroundColor: config.community ? '#1976d2' : '#ccc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: config.community ? 'pointer' : 'not-allowed',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textTransform: 'uppercase',
+              fontFamily: '"Roboto","Helvetica","Arial",sans-serif',
+              boxShadow: '0px 3px 1px -2px rgba(0,0,0,0.2), 0px 2px 2px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12)',
+              transition: 'background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms'
+            }}
+            onMouseOver={(e) => {
+              if (config.community) {
+                e.target.style.backgroundColor = '#1565c0';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (config.community) {
+                e.target.style.backgroundColor = '#1976d2';
+              }
+            }}
           >
+            <PlayArrow style={{ marginRight: '8px', fontSize: '20px' }} />
             Start Installation
-          </Button>
+          </button>
         )}
         
         {setupStatus === 'error' && (

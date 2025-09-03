@@ -93,6 +93,7 @@ const HostPanel = ({
 
   // Store original data for comparison
   const [originalFormData, setOriginalFormData] = useState(null);
+  const [originalSnmpConfig, setOriginalSnmpConfig] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -164,10 +165,16 @@ const HostPanel = ({
   const loadSNMPConfig = async () => {
     if (!host?.id) return;
     
+    console.log('=== LOADING SNMP CONFIG ===');
+    console.log('Host ID:', host.id);
+    
     try {
       const response = await axios.get(`/api/hosts/${host.id}/snmp-config`);
+      console.log('SNMP Config loaded:', response.data?.config);
       if (response.data?.config) {
         setSnmpConfig(response.data.config);
+        setOriginalSnmpConfig(response.data.config);  // Save original for comparison
+        console.log('Original SNMP Config set:', response.data.config);
         if (response.data.config.enabled) {
           loadMonitoringData();
         }
@@ -469,11 +476,12 @@ const HostPanel = ({
       // Set selected key if host has one - wird in fetchSSHKeys nochmal validiert
       if (host.sshKeyName) {
         setSelectedKey(host.sshKeyName);
-
       } else {
         setSelectedKey(null);
-
       }
+      
+      // Load SNMP configuration for existing hosts
+      loadSNMPConfig();
     } else if (host?.isNew) {
       // Bei neuen Hosts: Default-Werte setzen
       // Dashboard-Schlüssel wird in fetchSSHKeys gesetzt
@@ -881,15 +889,49 @@ const HostPanel = ({
         // For existing hosts, get only changed fields
         const changedFields = getChangedFields(originalFormData, formData);
         
-        // Debug: Log what getChangedFields returns
-
-        // Check if there are any changes
-        if (Object.keys(changedFields).length === 0) {
+        // Check if SNMP config has changed (separate from host fields)
+        console.log('=== CHECKING SNMP CONFIG CHANGES ===');
+        console.log('Current snmpConfig:', snmpConfig);
+        console.log('Original snmpConfig:', originalSnmpConfig);
+        
+        const snmpConfigChanged = snmpConfig && (
+          snmpConfig.enabled !== originalSnmpConfig?.enabled ||
+          snmpConfig.version !== originalSnmpConfig?.version ||
+          snmpConfig.community !== originalSnmpConfig?.community ||
+          snmpConfig.port !== originalSnmpConfig?.port ||
+          snmpConfig.pollInterval !== originalSnmpConfig?.pollInterval
+        );
+        
+        console.log('SNMP Config changed?', snmpConfigChanged);
+        
+        // Check if there are any changes (host fields OR SNMP config)
+        if (Object.keys(changedFields).length === 0 && !snmpConfigChanged) {
           setSuccess(true);
           setError('Keine Änderungen vorhanden');
           setTimeout(() => setError(null), 2000);
           setLoading(false);
           return;
+        }
+        
+        // If only SNMP config changed, we still need to save it
+        if (Object.keys(changedFields).length === 0 && snmpConfigChanged) {
+          // Just save SNMP config
+          try {
+            console.log('=== SAVING ONLY SNMP CONFIG ===');
+            console.log('Host ID:', host.id);
+            console.log('SNMP Config:', snmpConfig);
+            
+            await axios.put(`/api/hosts/${host.id}/snmp-config`, snmpConfig);
+            setSuccess(true);
+            setOriginalSnmpConfig({ ...snmpConfig });
+            setLoading(false);
+            return;
+          } catch (snmpErr) {
+            console.error('Failed to save SNMP config:', snmpErr);
+            setError('Failed to save SNMP configuration');
+            setLoading(false);
+            return;
+          }
         }
         
         // Transform changed fields to backend format
@@ -919,7 +961,17 @@ const HostPanel = ({
       if (host?.isNew) {
         const response = await axios.post('/api/hosts', dataToSave);
         if (response.data.success) {
+          // Save SNMP config for new host if enabled
+          if (snmpConfig.enabled) {
+            try {
+              await axios.put(`/api/hosts/${response.data.host.id}/snmp-config`, snmpConfig);
+            } catch (snmpErr) {
+              console.error('Failed to save SNMP config:', snmpErr);
+              // Don't fail the whole save, just log the error
+            }
+          }
           setSuccess(true);
+          setOriginalSnmpConfig({ ...snmpConfig });  // Save SNMP config as original
           onSave(response.data.host.id, response.data.host);
           // Panel bleibt offen - kein onClose()
         }
@@ -927,9 +979,17 @@ const HostPanel = ({
         // Use PATCH for partial updates
         const response = await axios.patch(`/api/hosts/${host.id}`, dataToSave);
         if (response.data.success) {
+          // Save SNMP config for existing host
+          try {
+            await axios.put(`/api/hosts/${host.id}/snmp-config`, snmpConfig);
+          } catch (snmpErr) {
+            console.error('Failed to save SNMP config:', snmpErr);
+            // Don't fail the whole save, just log the error
+          }
           setSuccess(true);
           // Update original data after successful save
           setOriginalFormData({ ...formData, sshKeyName: selectedKey });
+          setOriginalSnmpConfig({ ...snmpConfig });  // Update original SNMP config too
           const updatedHost = response.data.host || { ...host, ...dataToSave };
           onSave(host.id, updatedHost);
           // Panel bleibt offen - kein onClose()
@@ -1306,6 +1366,8 @@ const HostPanel = ({
                   host={host} 
                   getInputStyles={getInputStyles}
                   asCard={true}
+                  snmpConfig={snmpConfig}
+                  onConfigChange={setSnmpConfig}
                 />
               </CardContent>
             </Card>

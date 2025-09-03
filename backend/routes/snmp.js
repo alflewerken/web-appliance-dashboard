@@ -111,7 +111,7 @@ router.post('/test', async (req, res) => {
     
     // Temporären Host für Test erstellen
     const testHost = {
-      id: 'test',
+      id: 0,  // Use 0 instead of 'test' to avoid DB errors
       name: 'Test Host',
       hostname: 'Test Host',
       ip,

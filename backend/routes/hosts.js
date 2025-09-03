@@ -1105,7 +1105,21 @@ router.get('/:id/snmp-config', async (req, res) => {
       });
     }
     
-    res.json({ config });
+    // Map database fields to camelCase for frontend
+    const mappedConfig = {
+      enabled: config.enabled,
+      version: config.version,
+      community: config.community,
+      port: config.port,
+      username: config.username || '',
+      authProtocol: config.auth_protocol || 'SHA',
+      authPassword: config.auth_password || '',
+      privProtocol: config.priv_protocol || 'AES',
+      privPassword: config.priv_password || '',
+      pollInterval: config.poll_interval || 60,
+    };
+    
+    res.json({ config: mappedConfig });
   } catch (error) {
     logger.error('Error fetching SNMP config:', error);
     res.status(500).json({ error: 'Failed to fetch SNMP configuration' });
@@ -1127,15 +1141,25 @@ router.put('/:id/snmp-config', async (req, res) => {
     // Check if config exists
     const existingConfig = await db.findOne('host_snmp_configs', { host_id: hostId });
     
+    // Only include the fields that should be updated
     const configData = {
-      ...config,
       host_id: hostId,
+      enabled: config.enabled || false,
+      version: config.version || '2c',
+      community: config.community || 'public',
+      port: config.port || 161,
+      username: config.username || '',
+      auth_protocol: config.authProtocol || 'SHA',
+      auth_password: config.authPassword || '',
+      priv_protocol: config.privProtocol || 'AES',
+      priv_password: config.privPassword || '',
+      poll_interval: config.pollInterval || 60,
       updated_at: new Date()
     };
     
     if (existingConfig) {
-      // Update existing config
-      await db.update('host_snmp_configs', { host_id: hostId }, configData);
+      // Update existing config - use only the ID as WHERE condition
+      await db.update('host_snmp_configs', { id: existingConfig.id }, configData);
     } else {
       // Insert new config
       configData.created_at = new Date();
@@ -1172,34 +1196,71 @@ router.post('/:id/snmp-test', async (req, res) => {
       return res.status(404).json({ error: 'Host not found' });
     }
     
-    // For now, return mock success
-    // In production, you would implement actual SNMP testing here
-    // using net-snmp or similar library
+    // Use the real SNMP Monitor service
+    const SNMPMonitor = require('../services/SNMPMonitor');
+    const snmpMonitor = new SNMPMonitor(db);
     
     logger.info(`Testing SNMP connection for host ${host.name} (${host.hostname})`);
     
-    // Simulate test delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Prepare test host with config
+    const testHost = {
+      id: hostId,
+      name: host.name,
+      hostname: host.hostname,
+      ip: host.hostname, // Use hostname as IP
+      snmpPort: config.port || 161,
+      snmpCommunity: config.community || 'public',
+      snmpVersion: config.version || '2c',
+      snmpEnabled: true,
+      osType: host.osType || 'linux'
+    };
     
-    // Mock response - always successful for testing
-    res.json({
-      success: true,
-      message: 'SNMP connection test successful',
-      details: {
-        host: host.hostname,
-        port: config.port || 161,
-        version: config.version,
-        responseTime: '45ms'
-      }
-    });
+    // Perform real SNMP test
+    const result = await snmpMonitor.pollHost(testHost);
+    
+    if (result.success) {
+      // Store the real metrics in database
+      await db.insert('host_monitoring_data', {
+        host_id: hostId,  // snake_case for DB
+        status: 'online',
+        last_update: new Date(),
+        metrics: JSON.stringify({  // Store as JSON string
+          cpu: result.metrics?.cpu?.percent || 0,
+          memory: result.metrics?.memory || null,
+          disk: result.metrics?.disks || [],
+          network: result.metrics?.interfaces || [],
+          temperature: null,
+          uptime: result.metrics?.uptime?.totalSeconds || 0
+        }),
+        created_at: new Date()
+      });
+      
+      res.json({
+        success: true,
+        message: 'SNMP connection test successful',
+        details: {
+          host: host.hostname,
+          port: config.port || 161,
+          version: config.version,
+          metrics: result.metrics
+        }
+      });
+    } else {
+      res.json({
+        success: false,
+        error: result.error,
+        errorType: result.errorType,
+        message: `SNMP test failed: ${result.error}`
+      });
+    }
     
     // Create audit log
     await createAuditLog(
-      1, // Default user ID - in production, get from auth
+      req.user?.id || 1, // Use actual user ID from auth
       'snmp_test',
       'hosts',
       hostId,
-      { config, success: true },
+      { config, success: result.success },
       getClientIp(req),
       host.name
     );
@@ -1221,42 +1282,47 @@ router.get('/:id/monitoring-data', async (req, res) => {
       return res.status(404).json({ error: 'Host not found' });
     }
     
-    // For now, return mock data
-    // In production, you would fetch real metrics from your monitoring system
-    
-    const mockData = {
-      status: 'online',
-      lastUpdate: new Date().toISOString(),
-      metrics: {
-        cpu: Math.floor(Math.random() * 100),
-        memory: {
-          used: 4294967296, // 4GB in bytes
-          total: 8589934592, // 8GB in bytes
-          percentage: 50
-        },
-        disk: [
-          {
-            mount: '/',
-            used: 53687091200, // 50GB
-            total: 107374182400, // 100GB
-            percentage: 50
-          }
-        ],
-        network: [
-          {
-            interface: 'eth0',
-            rxBytes: 1073741824, // 1GB
-            txBytes: 536870912, // 512MB
-            rxRate: 1048576, // 1MB/s
-            txRate: 524288 // 512KB/s
-          }
-        ],
-        temperature: 45,
-        uptime: 864000 // 10 days in seconds
+    // Get latest monitoring data from database using QueryBuilder
+    const latestData = await db.select('host_monitoring_data', 
+      { host_id: hostId },
+      { 
+        orderBy: 'created_at', 
+        order: 'desc', 
+        limit: 1 
       }
-    };
+    );
     
-    res.json(mockData);
+    if (latestData && latestData.length > 0) {
+      // Parse the metrics JSON if stored as string
+      let metrics = latestData[0].metrics;
+      if (typeof metrics === 'string') {
+        try {
+          metrics = JSON.parse(metrics);
+        } catch (e) {
+          logger.error('Failed to parse metrics JSON:', e);
+        }
+      }
+      
+      res.json({
+        status: latestData[0].status || 'online',
+        lastUpdate: latestData[0].last_update || latestData[0].created_at,
+        metrics: metrics
+      });
+    } else {
+      // No data available - return empty metrics
+      res.json({
+        status: 'offline',
+        lastUpdate: null,
+        metrics: {
+          cpu: null,
+          memory: null,
+          disk: [],
+          network: [],
+          temperature: null,
+          uptime: null
+        }
+      });
+    }
   } catch (error) {
     logger.error('Error fetching monitoring data:', error);
     res.status(500).json({ error: 'Failed to fetch monitoring data' });
