@@ -326,7 +326,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
           port: command_ssh_port || 22,
           keyName: command_ssh_key_name || 'dashboard',
         };
-        console.log(`Using command-specific SSH host: ${command_ssh_username}@${command_ssh_host}:${command_ssh_port || 22}`);
+
       } 
       // PRIORITY 2: Use appliance SSH connection string
       else if (appliance_ssh_connection) {
@@ -338,7 +338,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
           port,
           keyName: 'dashboard',
         };
-        console.log(`Using appliance SSH connection: ${appliance_ssh_connection}`);
+
       }
 
       if (sshConnection) {

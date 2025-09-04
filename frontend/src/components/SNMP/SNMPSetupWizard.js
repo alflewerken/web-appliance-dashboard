@@ -44,8 +44,7 @@ import { Wifi, Shield, Server, Activity, AlertTriangle, Check } from 'lucide-rea
 import axios from 'axios';
 
 const SNMPSetupWizard = ({ open, onClose, host, onSuccess }) => {
-  console.log('SNMPSetupWizard rendered, open:', open, 'host:', host);
-  
+
   // Wizard State
   const [activeStep, setActiveStep] = useState(0);
   const [setupStatus, setSetupStatus] = useState('idle'); // idle, checking, installing, configuring, testing, success, error
@@ -157,19 +156,15 @@ includeDir /etc/snmp/snmpd.conf.d
 
   // Installation durchführen
   const performInstallation = async () => {
-    console.log('performInstallation called');
+
     try {
-      console.log('Starting installation process...');
+
       setSetupStatus('checking');
       setProgress(10);
       addLog('🔍 Checking system requirements...', 'info');
 
       // Debug: Log host object
-      console.log('Host object:', host);
-      console.log('Host ID:', host?.id);
-      console.log('Host hostname:', host?.hostname);
-      console.log('Host IP:', host?.ip);
-      
+
       if (!host) {
         addLog('❌ Error: No host information provided', 'error');
         setSetupStatus('error');
@@ -538,10 +533,10 @@ includeDir /etc/snmp/snmpd.conf.d
   ];
 
   const handleNext = () => {
-    console.log('handleNext called, activeStep:', activeStep);
+
     if (activeStep === 0) {
       // Start installation after configuration
-      console.log('Moving to step 1 and starting installation');
+
       setActiveStep(1);
       performInstallation();
     }
@@ -874,7 +869,7 @@ includeDir /etc/snmp/snmpd.conf.d
         {setupStatus === 'idle' && (
           <button
             onClick={() => {
-              console.log('Starting installation...');
+
               handleNext();
             }}
             disabled={!config.community}

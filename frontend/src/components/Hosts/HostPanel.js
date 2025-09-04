@@ -83,6 +83,11 @@ const HostPanel = ({
   const [registeringKey, setRegisteringKey] = useState(false);
   const [checkingRustDeskStatus, setCheckingRustDeskStatus] = useState(false);
   const [showRustDeskInstaller, setShowRustDeskInstaller] = useState(false);
+  const [metricsHasChanges, setMetricsHasChanges] = useState(false);
+  const [pendingMetricsConfig, setPendingMetricsConfig] = useState(null);
+  
+  // Ref for HostMonitoringTab to access save method
+  const monitoringTabRef = useRef();
   
   // Use the unified resize hook
   const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
@@ -164,17 +169,14 @@ const HostPanel = ({
   // Load SNMP configuration for host
   const loadSNMPConfig = async () => {
     if (!host?.id) return;
-    
-    console.log('=== LOADING SNMP CONFIG ===');
-    console.log('Host ID:', host.id);
-    
+
     try {
       const response = await axios.get(`/api/hosts/${host.id}/snmp-config`);
-      console.log('SNMP Config loaded:', response.data?.config);
+
       if (response.data?.config) {
         setSnmpConfig(response.data.config);
         setOriginalSnmpConfig(response.data.config);  // Save original for comparison
-        console.log('Original SNMP Config set:', response.data.config);
+
         if (response.data.config.enabled) {
           loadMonitoringData();
         }
@@ -216,6 +218,25 @@ const HostPanel = ({
     } finally {
       setTestingConnection(false);
     }
+  };
+
+  // Handle SNMP config changes without updating original
+  const handleSnmpConfigChange = (newConfig) => {
+    // Check if this is a metrics change
+    if (newConfig.type === 'metrics') {
+
+      setMetricsHasChanges(newConfig.hasChanges);
+      // Store the pending config
+      setPendingMetricsConfig({
+        config: newConfig.config,
+        customNames: newConfig.customNames
+      });
+    } else {
+      // Regular SNMP config change
+
+      setSnmpConfig(newConfig);
+    }
+    // Don't update originalSnmpConfig here - only after save!
   };
 
   // Save SNMP configuration
@@ -852,6 +873,45 @@ const HostPanel = ({
         return;
       }
 
+      // Save metrics configuration if there are changes
+      if (metricsHasChanges && pendingMetricsConfig && host?.id) {
+
+        try {
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          
+          if (!token) {
+            console.error('❌ No token found for metrics save');
+            setError('Authentication required for metrics configuration');
+          } else {
+            const headers = {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            };
+
+            const response = await fetch(`/api/hosts/${host.id}/metrics-logging`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(pendingMetricsConfig)
+            });
+
+            if (response.ok) {
+
+              setMetricsHasChanges(false);
+              setPendingMetricsConfig(null);
+            } else {
+              const error = await response.text();
+              console.error('❌ Failed to save metrics:', error);
+              setError('Failed to save metrics configuration');
+            }
+          }
+        } catch (err) {
+          console.error('❌ Error saving metrics configuration:', err);
+          setError('Failed to save metrics configuration');
+        }
+      } else {
+
+      }
+
       let dataToSave;
       
       if (host?.isNew) {
@@ -890,10 +950,7 @@ const HostPanel = ({
         const changedFields = getChangedFields(originalFormData, formData);
         
         // Check if SNMP config has changed (separate from host fields)
-        console.log('=== CHECKING SNMP CONFIG CHANGES ===');
-        console.log('Current snmpConfig:', snmpConfig);
-        console.log('Original snmpConfig:', originalSnmpConfig);
-        
+
         const snmpConfigChanged = snmpConfig && (
           snmpConfig.enabled !== originalSnmpConfig?.enabled ||
           snmpConfig.version !== originalSnmpConfig?.version ||
@@ -901,11 +958,9 @@ const HostPanel = ({
           snmpConfig.port !== originalSnmpConfig?.port ||
           snmpConfig.pollInterval !== originalSnmpConfig?.pollInterval
         );
-        
-        console.log('SNMP Config changed?', snmpConfigChanged);
-        
-        // Check if there are any changes (host fields OR SNMP config)
-        if (Object.keys(changedFields).length === 0 && !snmpConfigChanged) {
+
+        // Check if there are any changes (host fields OR SNMP config OR metrics)
+        if (Object.keys(changedFields).length === 0 && !snmpConfigChanged && !metricsHasChanges) {
           setSuccess(true);
           setError('Keine Änderungen vorhanden');
           setTimeout(() => setError(null), 2000);
@@ -917,10 +972,7 @@ const HostPanel = ({
         if (Object.keys(changedFields).length === 0 && snmpConfigChanged) {
           // Just save SNMP config
           try {
-            console.log('=== SAVING ONLY SNMP CONFIG ===');
-            console.log('Host ID:', host.id);
-            console.log('SNMP Config:', snmpConfig);
-            
+
             await axios.put(`/api/hosts/${host.id}/snmp-config`, snmpConfig);
             setSuccess(true);
             setOriginalSnmpConfig({ ...snmpConfig });
@@ -972,6 +1024,8 @@ const HostPanel = ({
           }
           setSuccess(true);
           setOriginalSnmpConfig({ ...snmpConfig });  // Save SNMP config as original
+          setMetricsHasChanges(false);  // Reset metrics change flag
+          setPendingMetricsConfig(null);  // Clear pending config
           onSave(response.data.host.id, response.data.host);
           // Panel bleibt offen - kein onClose()
         }
@@ -990,6 +1044,8 @@ const HostPanel = ({
           // Update original data after successful save
           setOriginalFormData({ ...formData, sshKeyName: selectedKey });
           setOriginalSnmpConfig({ ...snmpConfig });  // Update original SNMP config too
+          setMetricsHasChanges(false);  // Reset metrics change flag
+          setPendingMetricsConfig(null);  // Clear pending config
           const updatedHost = response.data.host || { ...host, ...dataToSave };
           onSave(host.id, updatedHost);
           // Panel bleibt offen - kein onClose()
@@ -1363,11 +1419,12 @@ const HostPanel = ({
                   {t('hosts.sections.monitoring')}
                 </Typography>
                 <HostMonitoringTab 
+                  ref={monitoringTabRef}
                   host={host} 
                   getInputStyles={getInputStyles}
                   asCard={true}
                   snmpConfig={snmpConfig}
-                  onConfigChange={setSnmpConfig}
+                  onConfigChange={handleSnmpConfigChange}
                 />
               </CardContent>
             </Card>

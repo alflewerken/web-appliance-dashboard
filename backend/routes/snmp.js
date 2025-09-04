@@ -109,34 +109,120 @@ router.post('/test', async (req, res) => {
       return res.status(400).json({ error: 'IP address required' });
     }
     
-    // Temporären Host für Test erstellen
-    const testHost = {
-      id: 0,  // Use 0 instead of 'test' to avoid DB errors
-      name: 'Test Host',
-      hostname: 'Test Host',
-      ip,
-      snmpPort: port,
-      snmpCommunity: community,
-      snmpVersion: version,
-      snmpEnabled: true,
-      osType: osType
+    // Use testConnection method for simple connectivity test
+    const config = {
+      ip: ip,
+      port: port,
+      community: community,
+      version: version,
+      timeout: 5000
     };
     
-    const result = await snmpMonitor.pollHost(testHost);
+    const result = await snmpMonitor.testConnection(config);
     
     res.json({
       success: result.success,
-      message: result.success ? 
+      message: result.message || (result.success ? 
         'SNMP connection successful' : 
-        `SNMP connection failed: ${result.errorType || 'Unknown error'}`,
-      data: result,
-      recommendations: result.success ? null : getErrorRecommendations(result.errorType)
+        'SNMP connection failed'),
+      systemName: result.systemName || null,
+      error: result.error || null
     });
     
   } catch (error) {
     console.error('Error testing SNMP connection:', error);
     res.status(500).json({ 
       error: 'Test failed',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/snmp/poll
+ * SNMP-Metriken für einen Host manuell abrufen mit erweiterten Metriken
+ */
+router.post('/poll', async (req, res) => {
+  try {
+    const { 
+      hostId, 
+      ip, 
+      port = 161, 
+      community = 'public', 
+      version = 'v2c',
+      osType = 'linux',
+      storeMetrics = false
+    } = req.body;
+    
+    if (!ip && !hostId) {
+      return res.status(400).json({ error: 'Host ID or IP address required' });
+    }
+    
+    // Create config object for SNMP polling
+    const config = {
+      ip: ip || undefined,
+      port: port,
+      community: community,
+      version: version,
+      timeout: 5000,
+      storeMetrics: storeMetrics
+    };
+    
+    // Load host from DB if hostId provided
+    if (hostId) {
+      const host = await db.findOne('hosts', { id: hostId });
+      if (!host) {
+        return res.status(404).json({ error: 'Host not found' });
+      }
+      
+      // Use host configuration
+      config.ip = host.hostname || host.ip;
+      config.port = host.snmpPort || host.snmpPort || port;
+      config.community = host.snmpCommunity || community;
+      config.version = host.snmpVersion || version;
+      config.hostId = hostId;
+    } else {
+      // Use provided IP for temporary polling
+      config.hostId = ip;
+    }
+    
+    // Poll the host with comprehensive metrics
+    const result = await snmpMonitor.pollHost(config);
+    
+    // Save metrics if successful and hostId provided
+    if (result.success && hostId) {
+      await db.update('hosts',
+        { id: hostId },
+        {
+          snmpStatus: 'success',
+          lastSnmpCheck: new Date(),
+          lastSnmpError: null,
+          lastMetrics: JSON.stringify(result.metrics)
+        }
+      );
+    } else if (!result.success && hostId) {
+      // Update error status
+      await db.update('hosts',
+        { id: hostId },
+        {
+          snmpStatus: 'failed',
+          lastSnmpCheck: new Date(),
+          lastSnmpError: JSON.stringify(result.error)
+        }
+      );
+    }
+    
+    res.json({
+      success: result.success,
+      metrics: result.metrics || null,
+      error: result.error || null,
+      timestamp: result.timestamp || new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error polling SNMP host:', error);
+    res.status(500).json({ 
+      error: 'Polling failed',
       message: error.message 
     });
   }

@@ -844,7 +844,7 @@ router.post('/restore', verifyToken, async (req, res) => {
     
     // Extract the decryption key from the request
     const backupDecryptionKey = backupData.encryption_key || backupData.decryption_key || null;
-    console.log('🔑 Restore started with key:', backupDecryptionKey ? backupDecryptionKey.substring(0, 20) + '...' : 'NO KEY PROVIDED');
+
     delete backupData.encryption_key; // Remove from backup data
     delete backupData.decryption_key; // Remove from backup data
     
@@ -891,8 +891,7 @@ router.post('/restore', verifyToken, async (req, res) => {
         // Use encryptionManager's reEncrypt function to handle the conversion
         // From backup key to system key
         const systemKey = encryptionManager.getSystemKey();
-        console.log('🔐 Re-encrypting: backup key:', backupDecryptionKey.substring(0, 20) + '..., system key:', systemKey.substring(0, 20) + '...');
-        
+
         const result = encryptionManager.reEncrypt(encryptedData, backupDecryptionKey, systemKey);
         
         if (!result) {
@@ -903,11 +902,11 @@ router.post('/restore', verifyToken, async (req, res) => {
         
         // Check if the result is the same as input (re-encryption failed silently)
         if (result === encryptedData) {
-          console.warn('⚠️  Re-encryption returned original data (decryption likely failed)');
+
           // Try to decrypt manually and re-encrypt
           const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
           if (decrypted) {
-            console.log('📝 Manual decrypt successful, re-encrypting...');
+
             const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
             return reEncrypted || encryptedData;
           } else {
@@ -917,7 +916,7 @@ router.post('/restore', verifyToken, async (req, res) => {
             return null;
           }
         } else {
-          console.log('✅ Successfully re-encrypted (data changed)');
+
         }
         
         return result;
@@ -1162,7 +1161,7 @@ router.post('/restore', verifyToken, async (req, res) => {
           // Re-encrypt remote password using the same function as hosts
           const remotePasswordEnc = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
           if (remotePasswordEnc) {
-            console.log(`🔐 Re-encrypting password for appliance ${appliance.name}`);
+
             dbAppliance.remote_password_encrypted = reEncryptFromBackup(remotePasswordEnc);
             if (!dbAppliance.remote_password_encrypted) {
               console.error(`❌ Failed to re-encrypt password for ${appliance.name} - will be NULL in database`);
@@ -1246,7 +1245,7 @@ router.post('/restore', verifyToken, async (req, res) => {
         );
         
         // WICHTIG: Nach dem Import müssen alle Guacamole-Verbindungen für Appliances synchronisiert werden
-        console.log('🔄 Synchronizing Guacamole connections for restored appliances...');
+
         const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
         
         // Get all imported appliances from DB with remote desktop enabled
@@ -1270,7 +1269,7 @@ router.post('/restore', verifyToken, async (req, res) => {
             };
             
             await syncGuacamoleConnection(guacamoleData);
-            console.log(`✅ Synced Guacamole connection for appliance: ${appliance.name}`);
+
           } catch (syncError) {
             console.error(`❌ Failed to sync Guacamole for appliance ${appliance.name}:`, syncError.message);
             // Don't throw - continue with other appliances
@@ -1513,11 +1512,6 @@ router.post('/restore', verifyToken, async (req, res) => {
             }
 
             // Debug: Check what we have from backup
-            console.log(`🔍 Host ${host.name} from backup:`, {
-              hasRemotePassword: !!(host.remote_password || host.remotePassword),
-              remotePasswordField: host.remote_password ? 'remote_password' : (host.remotePassword ? 'remotePassword' : 'none'),
-              remoteDesktopEnabled: host.remote_desktop_enabled || host.remoteDesktopEnabled
-            });
 
             const hostData = {
               id: host.id,
@@ -1551,11 +1545,6 @@ router.post('/restore', verifyToken, async (req, res) => {
             };
             
             // Debug: Check what we're writing to DB
-            console.log(`🔍 Host ${host.name} data to DB:`, {
-              hasRemotePassword: !!hostData.remotePassword,
-              remotePasswordLength: hostData.remotePassword ? hostData.remotePassword.length : 0,
-              remoteDesktopEnabled: hostData.remoteDesktopEnabled
-            });
 
             const { sql, values } = prepareInsert('hosts', hostData);
             await connection.execute(sql, values);
@@ -1572,7 +1561,7 @@ router.post('/restore', verifyToken, async (req, res) => {
           );
 
           // WICHTIG: Nach dem Import müssen alle Guacamole-Verbindungen synchronisiert werden
-          console.log('🔄 Synchronizing Guacamole connections for restored hosts...');
+
           const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
           
           // Get all imported hosts from DB (need to fetch them again to get the encrypted passwords)
@@ -1583,14 +1572,7 @@ router.post('/restore', verifyToken, async (req, res) => {
           for (const host of importedHosts) {
             try {
               // Debug: Check what we read from DB
-              console.log(`🔍 Host ${host.name} from DB:`, {
-                hasRemotePassword: !!host.remote_password,
-                remotePasswordLength: host.remote_password ? host.remote_password.length : 0,
-                remoteDesktopEnabled: host.remote_desktop_enabled,
-                remoteProtocol: host.remote_protocol,
-                hostname: host.hostname
-              });
-              
+
               // Convert snake_case to camelCase for syncGuacamoleConnection
               const guacamoleData = {
                 id: host.id,
@@ -1611,14 +1593,9 @@ router.post('/restore', verifyToken, async (req, res) => {
               };
               
               // Debug: Check what we pass to Guacamole
-              console.log(`🔍 Guacamole data for ${host.name}:`, {
-                hasRemotePasswordEncrypted: !!guacamoleData.remote_password_encrypted,
-                hasRemotePassword: !!guacamoleData.remotePassword,
-                remotePasswordLength: guacamoleData.remotePassword ? guacamoleData.remotePassword.length : 0
-              });
-              
+
               await syncGuacamoleConnection(guacamoleData);
-              console.log(`✅ Synced Guacamole connection for host: ${host.name}`);
+
             } catch (syncError) {
               console.error(`❌ Failed to sync Guacamole for host ${host.name}:`, syncError.message);
               // Don't throw - continue with other hosts

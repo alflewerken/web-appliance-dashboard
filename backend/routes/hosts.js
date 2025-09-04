@@ -1158,8 +1158,8 @@ router.put('/:id/snmp-config', async (req, res) => {
     };
     
     if (existingConfig) {
-      // Update existing config - use only the ID as WHERE condition
-      await db.update('host_snmp_configs', { id: existingConfig.id }, configData);
+      // Update existing config - correct parameter order: table, data, where
+      await db.update('host_snmp_configs', configData, { id: existingConfig.id });
     } else {
       // Insert new config
       configData.created_at = new Date();
@@ -1202,72 +1202,81 @@ router.post('/:id/snmp-test', async (req, res) => {
     
     logger.info(`Testing SNMP connection for host ${host.name} (${host.hostname})`);
     
-    // Prepare test host with config
-    const testHost = {
-      id: hostId,
-      name: host.name,
-      hostname: host.hostname,
-      ip: host.hostname, // Use hostname as IP
-      snmpPort: config.port || 161,
-      snmpCommunity: config.community || 'public',
-      snmpVersion: config.version || '2c',
-      snmpEnabled: true,
-      osType: host.osType || 'linux'
+    // Prepare config object for new SNMP implementation
+    const testConfig = {
+      ip: host.hostname,
+      port: config.port || 161,
+      community: config.community || 'public',
+      version: config.version || '2c',
+      timeout: 5000,
+      hostId: hostId
     };
     
-    // Perform real SNMP test
-    const result = await snmpMonitor.pollHost(testHost);
+    // Use testConnection for simple connectivity test
+    const testResult = await snmpMonitor.testConnection(testConfig);
     
-    if (result.success) {
-      // Store the real metrics in database
-      await db.insert('host_monitoring_data', {
-        host_id: hostId,  // snake_case for DB
-        status: 'online',
-        last_update: new Date(),
-        metrics: JSON.stringify({  // Store as JSON string
-          cpu: result.metrics?.cpu?.percent || 0,
-          memory: result.metrics?.memory || null,
-          disk: result.metrics?.disks || [],
-          network: result.metrics?.interfaces || [],
-          temperature: null,
-          uptime: result.metrics?.uptime?.totalSeconds || 0
-        }),
-        created_at: new Date()
-      });
+    if (testResult.success) {
+      // If test successful, get full metrics
+      const metricsResult = await snmpMonitor.pollHost(testConfig);
       
-      res.json({
-        success: true,
-        message: 'SNMP connection test successful',
-        details: {
-          host: host.hostname,
-          port: config.port || 161,
-          version: config.version,
-          metrics: result.metrics
+      if (metricsResult.success) {
+        // Store the metrics in database
+        try {
+          await db.insert('host_monitoring_data', {
+            host_id: hostId,
+            status: 'online',
+            last_update: new Date(),
+            metrics: JSON.stringify(metricsResult.metrics),
+            created_at: new Date()
+          });
+        } catch (dbErr) {
+          logger.error('Failed to store metrics:', dbErr);
         }
-      });
+        
+        res.json({
+          success: true,
+          message: testResult.message,
+          systemName: testResult.systemName,
+          details: {
+            metrics: metricsResult.metrics,
+            timestamp: metricsResult.timestamp
+          }
+        });
+      } else {
+        // Test succeeded but metrics failed
+        res.json({
+          success: true,
+          message: testResult.message,
+          systemName: testResult.systemName,
+          warning: 'Connection successful but could not retrieve full metrics'
+        });
+      }
     } else {
+      // Test failed
       res.json({
         success: false,
-        error: result.error,
-        errorType: result.errorType,
-        message: `SNMP test failed: ${result.error}`
+        error: testResult.error,
+        message: 'SNMP connection failed'
       });
     }
     
     // Create audit log
     await createAuditLog(
-      req.user?.id || 1, // Use actual user ID from auth
+      req.user?.id || 1,
       'snmp_test',
       'hosts',
       hostId,
-      { config, success: result.success },
+      { config, success: testResult.success },
       getClientIp(req),
       host.name
     );
     
   } catch (error) {
-    logger.error('Error testing SNMP connection:', error);
-    res.status(500).json({ error: 'Failed to test SNMP connection' });
+    logger.error(`Error testing SNMP for host ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'SNMP test failed', 
+      message: error.message 
+    });
   }
 });
 
@@ -1326,6 +1335,94 @@ router.get('/:id/monitoring-data', async (req, res) => {
   } catch (error) {
     logger.error('Error fetching monitoring data:', error);
     res.status(500).json({ error: 'Failed to fetch monitoring data' });
+  }
+});
+
+// Get metrics logging configuration
+router.get('/:id/metrics-logging', verifyToken, async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+
+    // Check if user has access to this host
+    const host = await db.findOne('hosts', {
+      id: hostId,
+      createdBy: req.user.id
+    });
+    
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // Get logging config from database
+    const config = await db.findOne('host_metrics_logging', { host_id: hostId });
+    
+    if (config) {
+
+    }
+    
+    // The fields are already parsed by the field mapping
+    res.json({
+      config: config?.config || {},
+      customNames: config?.customNames || {}
+    });
+  } catch (error) {
+    logger.error('Error fetching metrics logging config:', error);
+    res.status(500).json({ error: 'Failed to fetch logging configuration' });
+  }
+});
+
+// Update metrics logging configuration
+router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    const { config, customNames } = req.body;
+
+    // Check if user has access to this host
+    const host = await db.findOne('hosts', {
+      id: hostId,
+      createdBy: req.user.id
+    });
+    
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // Check if config exists
+    const existingConfig = await db.findOne('host_metrics_logging', { host_id: hostId });
+    
+    const configData = {
+      host_id: hostId,
+      config: JSON.stringify(config || {}),
+      custom_names: JSON.stringify(customNames || {}),
+      updated_at: new Date()
+    };
+    
+    if (existingConfig) {
+      // Update existing config
+
+      await db.update('host_metrics_logging', configData, { id: existingConfig.id });
+    } else {
+      // Insert new config
+
+      configData.created_at = new Date();
+      await db.insert('host_metrics_logging', configData);
+    }
+    
+    // Create audit log
+    await createAuditLog(
+      req.user.id,
+      'metrics_logging_updated',
+      'hosts',
+      hostId,
+      configData,
+      getClientIp(req),
+      host.name
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error updating metrics logging config:', error);
+    res.status(500).json({ error: 'Failed to update logging configuration' });
   }
 });
 

@@ -34,8 +34,7 @@ const initHostMonitoring = (db) => {
       if (config.enabled !== undefined) {
         config.enabled = Boolean(config.enabled);
       }
-      
-      console.log('Loaded SNMP config for host', id, ':', config);
+
       res.json({ config });
     } catch (error) {
       console.error('Error fetching SNMP config:', error);
@@ -48,15 +47,10 @@ const initHostMonitoring = (db) => {
     try {
       const { id } = req.params;
       const config = req.body;
-      
-      console.log('=== SNMP CONFIG UPDATE ===');
-      console.log('Host ID:', id);
-      console.log('Received config:', JSON.stringify(config, null, 2));
-      
+
       // QueryBuilder handles the mapping automatically!
       const existing = await db.findOne('host_snmp_configs', { hostId: id });
-      console.log('Existing config found:', !!existing, existing?.id);
-      
+
       // Prepare config data in camelCase - QueryBuilder will convert to snake_case
       const configData = {
         hostId: id,
@@ -76,12 +70,12 @@ const initHostMonitoring = (db) => {
       if (existing) {
         // Update existing config - QueryBuilder handles mapping
         await db.update('host_snmp_configs', configData, { id: existing.id });
-        console.log('Updated SNMP config for host', id);
+
       } else {
         // Create new config - QueryBuilder handles mapping
         configData.createdAt = new Date();
         await db.insert('host_snmp_configs', configData);
-        console.log('Created SNMP config for host', id);
+
       }
       
       res.json({ success: true });

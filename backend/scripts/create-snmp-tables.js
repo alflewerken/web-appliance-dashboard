@@ -17,8 +17,6 @@ async function createSNMPTables() {
       database: process.env.DB_NAME || 'appliance_dashboard'
     });
 
-    console.log('Connected to database');
-
     // Create host_snmp_configs table
     const createTableSQL = `
       CREATE TABLE IF NOT EXISTS host_snmp_configs (
@@ -42,7 +40,6 @@ async function createSNMPTables() {
     `;
 
     await connection.execute(createTableSQL);
-    console.log('✅ Created host_snmp_configs table');
 
     // Create host_monitoring_data table for storing historical metrics
     const createMetricsTableSQL = `
@@ -66,9 +63,6 @@ async function createSNMPTables() {
     `;
 
     await connection.execute(createMetricsTableSQL);
-    console.log('✅ Created host_monitoring_data table');
-
-    console.log('✅ SNMP tables migration completed successfully');
 
   } catch (error) {
     console.error('❌ Error creating SNMP tables:', error);

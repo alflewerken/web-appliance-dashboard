@@ -4,77 +4,126 @@ class SNMPMonitor {
   constructor(db) {
     this.db = db;
     this.sessions = new Map();
-    this.errorCounts = new Map(); // Track errors per host
+    this.errorCounts = new Map();
     this.maxRetries = 3;
     
-    // Standard OIDs die fast überall funktionieren (RFC1213-MIB)
-    this.standardOIDs = {
-      // System Info (MIB-2 System Group - RFC1213)
-      sysDescr: '1.3.6.1.2.1.1.1.0',
-      sysObjectID: '1.3.6.1.2.1.1.2.0',
-      sysUpTime: '1.3.6.1.2.1.1.3.0',
-      sysContact: '1.3.6.1.2.1.1.4.0',
-      sysName: '1.3.6.1.2.1.1.5.0',
-      sysLocation: '1.3.6.1.2.1.1.6.0',
-      sysServices: '1.3.6.1.2.1.1.7.0',
+    // Store previous CPU counter values for delta calculation
+    this.previousCpuValues = new Map();
+    
+    // Comprehensive OID definitions for all metrics
+    this.oidDefinitions = {
+      // System Information (RFC1213-MIB)
+      system: {
+        sysDescr: '1.3.6.1.2.1.1.1.0',
+        sysObjectID: '1.3.6.1.2.1.1.2.0',
+        sysUpTime: '1.3.6.1.2.1.1.3.0',
+        sysContact: '1.3.6.1.2.1.1.4.0',
+        sysName: '1.3.6.1.2.1.1.5.0',
+        sysLocation: '1.3.6.1.2.1.1.6.0',
+        sysServices: '1.3.6.1.2.1.1.7.0',
+        hrSystemUptime: '1.3.6.1.2.1.25.1.1.0'  // HOST-RESOURCES-MIB: Real system uptime
+      },
       
-      // CPU/Load (UCD-SNMP-MIB für Linux/Unix)
-      load1min: '1.3.6.1.4.1.2021.10.1.3.1',
-      load5min: '1.3.6.1.4.1.2021.10.1.3.2', 
-      load15min: '1.3.6.1.4.1.2021.10.1.3.3',
+      // CPU Metrics (UCD-SNMP-MIB)
+      cpu: {
+        // Load averages
+        load1min: '1.3.6.1.4.1.2021.10.1.3.1',
+        load5min: '1.3.6.1.4.1.2021.10.1.3.2',
+        load15min: '1.3.6.1.4.1.2021.10.1.3.3',
+        
+        // CPU time counters (for accurate CPU% calculation)
+        ssCpuRawUser: '1.3.6.1.4.1.2021.11.50.0',     // User CPU ticks
+        ssCpuRawNice: '1.3.6.1.4.1.2021.11.51.0',     // Nice CPU ticks
+        ssCpuRawSystem: '1.3.6.1.4.1.2021.11.52.0',   // System CPU ticks
+        ssCpuRawIdle: '1.3.6.1.4.1.2021.11.53.0',     // Idle CPU ticks
+        ssCpuRawWait: '1.3.6.1.4.1.2021.11.54.0',     // IO Wait ticks
+        ssCpuRawKernel: '1.3.6.1.4.1.2021.11.55.0',   // Kernel ticks
+        ssCpuRawInterrupt: '1.3.6.1.4.1.2021.11.56.0', // Interrupt ticks
+        
+        // Percentage values (if available)
+        cpuUser: '1.3.6.1.4.1.2021.11.9.0',           // User CPU %
+        cpuSystem: '1.3.6.1.4.1.2021.11.10.0',        // System CPU %
+        cpuIdle: '1.3.6.1.4.1.2021.11.11.0',          // Idle CPU %
+        
+        // Core count (HOST-RESOURCES-MIB)
+        hrProcessorCount: '1.3.6.1.2.1.25.3.3.1.0'
+      },
       
-      // CPU Utilization (Alternative OIDs)
-      cpuUser: '1.3.6.1.4.1.2021.11.50.0',    // User CPU time
-      cpuSystem: '1.3.6.1.4.1.2021.11.52.0',  // System CPU time
-      cpuIdle: '1.3.6.1.4.1.2021.11.53.0',    // Idle CPU time
+      // Memory Metrics (UCD-SNMP-MIB)
+      memory: {
+        memTotalReal: '1.3.6.1.4.1.2021.4.5.0',       // Total RAM in KB
+        memAvailReal: '1.3.6.1.4.1.2021.4.6.0',       // Available RAM in KB
+        memTotalFree: '1.3.6.1.4.1.2021.4.11.0',      // Total Free in KB
+        memShared: '1.3.6.1.4.1.2021.4.13.0',         // Shared Memory in KB
+        memBuffer: '1.3.6.1.4.1.2021.4.14.0',         // Buffer Memory in KB
+        memCached: '1.3.6.1.4.1.2021.4.15.0',         // Cached Memory in KB
+        memTotalSwap: '1.3.6.1.4.1.2021.4.3.0',       // Total Swap in KB
+        memAvailSwap: '1.3.6.1.4.1.2021.4.4.0',       // Available Swap in KB
+        
+        // HOST-RESOURCES-MIB alternative
+        hrMemorySize: '1.3.6.1.2.1.25.2.2.0',         // Physical memory
+        hrStorageTable: '1.3.6.1.2.1.25.2.3.1'        // Storage table
+      },
       
-      // Memory (UCD-SNMP-MIB)
-      memTotalReal: '1.3.6.1.4.1.2021.4.5.0',
-      memAvailReal: '1.3.6.1.4.1.2021.4.6.0',
-      memBuffer: '1.3.6.1.4.1.2021.4.14.0',
-      memCached: '1.3.6.1.4.1.2021.4.15.0',
-      memTotalSwap: '1.3.6.1.4.1.2021.4.3.0',
-      memAvailSwap: '1.3.6.1.4.1.2021.4.4.0',
+      // Disk Metrics (UCD-SNMP-MIB)
+      disk: {
+        dskTable: '1.3.6.1.4.1.2021.9.1',             // Disk table
+        dskPath: '1.3.6.1.4.1.2021.9.1.2',            // Mount path
+        dskDevice: '1.3.6.1.4.1.2021.9.1.3',          // Device name
+        dskTotal: '1.3.6.1.4.1.2021.9.1.6',           // Total size (KB)
+        dskAvail: '1.3.6.1.4.1.2021.9.1.7',           // Available (KB)
+        dskUsed: '1.3.6.1.4.1.2021.9.1.8',            // Used (KB)
+        dskPercent: '1.3.6.1.4.1.2021.9.1.9',         // Used percentage
+        
+        // HOST-RESOURCES-MIB storage
+        hrStorageDescr: '1.3.6.1.2.1.25.2.3.1.3',     // Storage description
+        hrStorageSize: '1.3.6.1.2.1.25.2.3.1.5',      // Storage size
+        hrStorageUsed: '1.3.6.1.2.1.25.2.3.1.6'       // Storage used
+      },
       
-      // Disk (UCD-SNMP-MIB)
-      diskTotal: '1.3.6.1.4.1.2021.9.1.6.1',
-      diskUsed: '1.3.6.1.4.1.2021.9.1.8.1',
-      diskPercent: '1.3.6.1.4.1.2021.9.1.9.1',
-      diskDevice: '1.3.6.1.4.1.2021.9.1.3.1',
+      // Network Metrics (IF-MIB)
+      network: {
+        ifNumber: '1.3.6.1.2.1.2.1.0',                // Number of interfaces
+        ifTable: '1.3.6.1.2.1.2.2.1',                 // Interface table
+        ifDescr: '1.3.6.1.2.1.2.2.1.2',               // Interface description
+        ifType: '1.3.6.1.2.1.2.2.1.3',                // Interface type
+        ifSpeed: '1.3.6.1.2.1.2.2.1.5',               // Interface speed
+        ifPhysAddress: '1.3.6.1.2.1.2.2.1.6',         // MAC address
+        ifOperStatus: '1.3.6.1.2.1.2.2.1.8',          // Operational status
+        ifInOctets: '1.3.6.1.2.1.2.2.1.10',           // Bytes received
+        ifOutOctets: '1.3.6.1.2.1.2.2.1.16',          // Bytes sent
+        ifInErrors: '1.3.6.1.2.1.2.2.1.14',           // Input errors
+        ifOutErrors: '1.3.6.1.2.1.2.2.1.20',          // Output errors
+        
+        // 64-bit counters (IF-MIB)
+        ifHCInOctets: '1.3.6.1.2.1.31.1.1.1.6',       // 64-bit bytes in
+        ifHCOutOctets: '1.3.6.1.2.1.31.1.1.1.10'      // 64-bit bytes out
+      },
       
-      // Process count (HOST-RESOURCES-MIB)
-      processCount: '1.3.6.1.2.1.25.1.6.0',
-      runningProcesses: '1.3.6.1.2.1.25.4.2.1.7',
+      // Process Metrics (HOST-RESOURCES-MIB)
+      process: {
+        hrSystemProcesses: '1.3.6.1.2.1.25.1.6.0',    // Number of processes
+        hrSWRunTable: '1.3.6.1.2.1.25.4.2.1',         // Running software table
+        hrSWRunName: '1.3.6.1.2.1.25.4.2.1.2',        // Process name
+        hrSWRunPath: '1.3.6.1.2.1.25.4.2.1.4',        // Process path
+        hrSWRunStatus: '1.3.6.1.2.1.25.4.2.1.7',      // Process status
+        hrSWRunPerfCPU: '1.3.6.1.2.1.25.4.2.1.5',     // CPU used by process
+        hrSWRunPerfMem: '1.3.6.1.2.1.25.4.2.1.6',     // Memory used by process
+        
+        // UCD-SNMP-MIB process monitoring
+        prTable: '1.3.6.1.4.1.2021.2.1',              // Process table
+        prCount: '1.3.6.1.4.1.2021.2.1.5'             // Process count
+      },
       
-      // Network Interfaces (Standard MIB-2)
-      ifNumber: '1.3.6.1.2.1.2.1.0',
-      ifTable: '1.3.6.1.2.1.2.2.1',
-      
-      // Temperature Sensors (wenn verfügbar - LM-SENSORS-MIB)
-      tempSensors: '1.3.6.1.4.1.2021.13.16.2.1.3'
-    };
-
-    // Windows-spezifische OIDs (HOST-RESOURCES-MIB)
-    this.windowsOIDs = {
-      cpuLoad: '1.3.6.1.2.1.25.3.3.1.2',      // Processor Load
-      physicalMemory: '1.3.6.1.2.1.25.2.2.0',
-      virtualMemory: '1.3.6.1.2.1.25.2.3.1.6.1',
-      storageTable: '1.3.6.1.2.1.25.2.3.1',    // Storage devices
-      processTable: '1.3.6.1.2.1.25.4.2.1'     // Process table
+      // Temperature sensors (LM-SENSORS-MIB - if available)
+      sensors: {
+        lmTempSensorsTable: '1.3.6.1.4.1.2021.13.16.2.1',
+        lmTempSensorsDevice: '1.3.6.1.4.1.2021.13.16.2.1.2',
+        lmTempSensorsValue: '1.3.6.1.4.1.2021.13.16.2.1.3'
+      }
     };
     
-    // Network Device OIDs (Cisco, Juniper, etc.)
-    this.networkDeviceOIDs = {
-      // Cisco specific
-      ciscoMemoryUsed: '1.3.6.1.4.1.9.9.48.1.1.1.5.1',
-      ciscoCpuAvg5min: '1.3.6.1.4.1.9.9.109.1.1.1.1.8.1',
-      
-      // Generic network device
-      sysUptime: '1.3.6.1.2.1.1.3.0',
-      ifOperStatus: '1.3.6.1.2.1.2.2.1.8'      // Interface operational status
-    };
-    
-    // Error types for better handling
+    // Error types for classification
     this.errorTypes = {
       TIMEOUT: 'TIMEOUT',
       NO_RESPONSE: 'NO_RESPONSE',
@@ -84,6 +133,25 @@ class SNMPMonitor {
       PARSE_ERROR: 'PARSE_ERROR',
       UNKNOWN: 'UNKNOWN'
     };
+  }
+
+  // Create or get SNMP session
+  getSession(config) {
+    const sessionKey = `${config.ip}:${config.port}:${config.community}`;
+    
+    if (!this.sessions.has(sessionKey)) {
+      const options = {
+        port: config.port || 161,
+        retries: this.maxRetries,
+        timeout: config.timeout || 5000,
+        version: config.version === 'v1' ? snmp.Version1 : snmp.Version2c
+      };
+      
+      const session = snmp.createSession(config.ip, config.community || 'public', options);
+      this.sessions.set(sessionKey, session);
+    }
+    
+    return this.sessions.get(sessionKey);
   }
 
   // Enhanced error classification
@@ -110,694 +178,1018 @@ class SNMPMonitor {
     return this.errorTypes.UNKNOWN;
   }
 
-  // Get appropriate OIDs based on device type
-  getDeviceOIDs(host) {
-    const osType = host.osType?.toLowerCase() || 'linux';
-    const deviceType = host.deviceType?.toLowerCase() || 'server';
-    
-    let oidSet = { ...this.standardOIDs };
-    
-    if (osType === 'windows') {
-      oidSet = { ...oidSet, ...this.windowsOIDs };
-    } else if (deviceType === 'network' || deviceType === 'router' || deviceType === 'switch') {
-      oidSet = { ...oidSet, ...this.networkDeviceOIDs };
-    }
-    
-    return oidSet;
-  }
-
-  async pollHost(host) {
-    let retryCount = 0;
-    const hostKey = `${host.ip}:${host.snmpPort || 161}`;
-    
-    while (retryCount < this.maxRetries) {
-      try {
-        const session = this.getSession(host);
-        
-        // Reset error count on successful connection
-        this.errorCounts.set(hostKey, 0);
-        
-        // Get device-specific OIDs
-        const oidSet = this.getDeviceOIDs(host);
-        
-        // Basis-Metriken abrufen mit Fallback-Mechanismus
-        const basicMetrics = await this.getBasicMetrics(session, host, oidSet);
-        
-        // Interface-Statistiken (optional)
-        const interfaces = await this.getInterfaceStats(session).catch(() => []);
-        
-        // Disk metrics (optional)
-        const diskMetrics = await this.getDiskMetrics(session, oidSet).catch(() => []);
-        
-        // In DB speichern
-        await this.saveMetrics(host, basicMetrics, interfaces, diskMetrics);
-        
-        return { 
-          success: true, 
-          host: host.name || host.hostname,
-          metrics: basicMetrics, 
-          interfaces,
-          diskMetrics,
-          retryCount
-        };
-        
-      } catch (error) {
-        retryCount++;
-        
-        // Track error frequency
-        const errorCount = (this.errorCounts.get(hostKey) || 0) + 1;
-        this.errorCounts.set(hostKey, errorCount);
-        
-        const errorType = this.classifyError(error);
-        console.error(`SNMP failed for ${host.name || host.hostname} (attempt ${retryCount}/${this.maxRetries}):`, 
-                      `Type: ${errorType}, Message: ${error.message}`);
-        
-        // Don't retry on auth failures
-        if (errorType === this.errorTypes.AUTH_FAILED) {
-          await this.saveError(host, error, errorType);
-          return { 
-            success: false, 
-            host: host.name || host.hostname,
-            error: error.message,
-            errorType,
-            permanent: true
-          };
-        }
-        
-        // Wait before retry (exponential backoff)
-        if (retryCount < this.maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-        }
-      }
-    }
-    
-    // All retries failed
-    const finalError = new Error(`Failed after ${this.maxRetries} retries`);
-    await this.saveError(host, finalError, this.errorTypes.NO_RESPONSE);
-    
-    return { 
-      success: false, 
-      host: host.name || host.hostname,
-      error: finalError.message,
-      errorType: this.errorTypes.NO_RESPONSE,
-      retriesExhausted: true
+  // Get comprehensive error details with recommendations
+  getErrorDetails(error, config) {
+    const errorType = this.classifyError(error);
+    const details = {
+      type: errorType,
+      message: error.message || 'Unknown error',
+      timestamp: new Date().toISOString(),
+      config: {
+        ip: config.ip,
+        port: config.port,
+        version: config.version,
+        community: config.community ? '***' : undefined
+      },
+      recommendations: []
     };
-  }
 
-  async pollAllHosts() {
-    // Alle SNMP-fähigen Hosts abrufen
-    const hosts = await this.db.select('hosts', { snmp_enabled: 1 });
-    
-    if (hosts.length === 0) {
-      return { message: 'No SNMP-enabled hosts found', results: [] };
+    // Add specific recommendations based on error type
+    switch (errorType) {
+      case this.errorTypes.TIMEOUT:
+        details.recommendations = [
+          'Check if SNMP service is running on the target host',
+          'Verify firewall settings allow SNMP traffic',
+          'Ensure the correct SNMP port is configured',
+          'Try increasing the timeout value'
+        ];
+        break;
+      case this.errorTypes.AUTH_FAILED:
+        details.recommendations = [
+          'Verify the SNMP community string is correct',
+          'Check SNMP version compatibility',
+          'Ensure SNMP access control allows queries from this IP'
+        ];
+        break;
+      case this.errorTypes.NETWORK_ERROR:
+        details.recommendations = [
+          'Verify the host IP address is correct',
+          'Check network connectivity to the target host',
+          'Ensure no network devices are blocking SNMP traffic'
+        ];
+        break;
+      case this.errorTypes.NO_SUCH_OBJECT:
+        details.recommendations = [
+          'The requested OID may not be supported by this device',
+          'Try using a different SNMP MIB for this device type',
+          'Check if the SNMP agent supports this metric'
+        ];
+        break;
     }
     
-    // Batch-Processing mit Limit
-    const batchSize = 10;
-    const results = [];
-    
-    for (let i = 0; i < hosts.length; i += batchSize) {
-      const batch = hosts.slice(i, i + batchSize);
-      const batchResults = await Promise.allSettled(
-        batch.map(host => this.pollHost(host))
-      );
-      
-      results.push(...batchResults.map(r => 
-        r.status === 'fulfilled' ? r.value : { 
-          success: false, 
-          error: r.reason?.message || 'Unknown error' 
-        }
-      ));
-    }
-    
-    return { 
-      total: hosts.length,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
-      results 
-    };
+    return details;
   }
 
-  getSession(host) {
-    const key = `${host.ip}:${host.snmpPort || 161}`;
+  // Calculate CPU percentage from counter deltas
+  calculateCpuPercentage(currentValues, hostId) {
+    const prevKey = `cpu_${hostId}`;
+    const previous = this.previousCpuValues.get(prevKey);
     
-    if (!this.sessions.has(key)) {
-      // SNMPv2c für Einfachheit (später v3 für Sicherheit)
-      const session = snmp.createSession(
-        host.ip, 
-        host.snmpCommunity || 'public',
-        {
-          port: host.snmpPort || 161,
-          retries: 1,
-          timeout: 5000,
-          version: snmp.Version2c,
-          transport: 'udp4'
-        }
-      );
-      
-      // Session Error Handler
-      session.on('error', (error) => {
-        console.error(`SNMP Session error for ${host.ip}:`, error);
-        this.sessions.delete(key);
+    if (!previous) {
+      // Store for next calculation
+      this.previousCpuValues.set(prevKey, {
+        values: currentValues,
+        timestamp: Date.now()
       });
-      
-      this.sessions.set(key, session);
+      return null;
     }
     
-    return this.sessions.get(key);
+    const timeDiff = (Date.now() - previous.timestamp) / 1000; // Convert to seconds
+    
+    // Calculate deltas
+    const userDelta = (currentValues.user || 0) - (previous.values.user || 0);
+    const niceDelta = (currentValues.nice || 0) - (previous.values.nice || 0);
+    const systemDelta = (currentValues.system || 0) - (previous.values.system || 0);
+    const idleDelta = (currentValues.idle || 0) - (previous.values.idle || 0);
+    const waitDelta = (currentValues.wait || 0) - (previous.values.wait || 0);
+    const kernelDelta = (currentValues.kernel || 0) - (previous.values.kernel || 0);
+    const interruptDelta = (currentValues.interrupt || 0) - (previous.values.interrupt || 0);
+    
+    const totalDelta = userDelta + niceDelta + systemDelta + idleDelta + 
+                      waitDelta + kernelDelta + interruptDelta;
+    
+    // Store current values for next calculation
+    this.previousCpuValues.set(prevKey, {
+      values: currentValues,
+      timestamp: Date.now()
+    });
+    
+    if (totalDelta === 0) {
+      return {
+        total: 0,
+        user: 0,
+        system: 0,
+        idle: 100,
+        wait: 0,
+        nice: 0
+      };
+    }
+    
+    // Calculate percentages
+    return {
+      total: Math.round(((totalDelta - idleDelta) / totalDelta) * 100),
+      user: Math.round((userDelta / totalDelta) * 100),
+      system: Math.round((systemDelta / totalDelta) * 100),
+      idle: Math.round((idleDelta / totalDelta) * 100),
+      wait: Math.round((waitDelta / totalDelta) * 100),
+      nice: Math.round((niceDelta / totalDelta) * 100),
+      kernel: Math.round((kernelDelta / totalDelta) * 100),
+      interrupt: Math.round((interruptDelta / totalDelta) * 100)
+    };
   }
 
-  async getBasicMetrics(session, host, oidSet) {
-    const isWindows = host.osType === 'windows';
-    
-    // Build OID list based on availability
-    const oids = [];
-    const oidMap = {};
-    
-    // Always try system OIDs
-    if (oidSet.sysUpTime) {
-      oids.push(oidSet.sysUpTime);
-      oidMap[oidSet.sysUpTime] = 'sysUpTime';
-    }
-    if (oidSet.sysName) {
-      oids.push(oidSet.sysName);
-      oidMap[oidSet.sysName] = 'sysName';
-    }
-    
-    // CPU metrics - get ALL load averages and CPU counters
-    if (isWindows && oidSet.cpuLoad) {
-      oids.push(oidSet.cpuLoad);
-      oidMap[oidSet.cpuLoad] = 'cpuLoad';
-    } else {
-      // Load averages
-      if (oidSet.load1min) {
-        oids.push(oidSet.load1min);
-        oidMap[oidSet.load1min] = 'load1min';
+  // Get all metrics with table walks for complete data
+  async getAllMetrics(session, hostId) {
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      system: {},
+      cpu: {},
+      memory: {},
+      disk: [],
+      network: [],
+      processes: {},
+      sensors: []
+    };
+
+    try {
+      // Get basic system info
+      const systemOids = Object.values(this.oidDefinitions.system);
+      const systemData = await this.getOidValues(session, systemOids);
+      metrics.system = this.parseSystemInfo(systemData);
+
+      // Get CPU metrics
+      const cpuOids = Object.values(this.oidDefinitions.cpu).filter(oid => !oid.includes('25.3.3'));
+      const cpuData = await this.getOidValues(session, cpuOids);
+      
+      // Count processor cores by walking the processor table
+      let processorCount = 1; // Default to 1 if not available
+      try {
+        // Try HOST-RESOURCES-MIB processor table first
+        // Walk hrProcessorLoad to count processors
+        const processorLoad = await this.walkOid(session, '1.3.6.1.2.1.25.3.3.1.2');
+        if (processorLoad && Object.keys(processorLoad).length > 0) {
+          processorCount = Object.keys(processorLoad).length;
+
+        }
+      } catch (e) {
+
+        // Try UCD-SNMP-MIB for number of CPUs (Linux)
+        try {
+          const ssCpuNumCpus = await this.getOidValues(session, ['1.3.6.1.4.1.2021.13.16.6.0']);
+          if (ssCpuNumCpus && ssCpuNumCpus['1.3.6.1.4.1.2021.13.16.6.0']) {
+            processorCount = parseInt(ssCpuNumCpus['1.3.6.1.4.1.2021.13.16.6.0']);
+
+          }
+        } catch (e2) {
+          // Try to detect from system description for macOS
+          if (metrics.system && metrics.system.description) {
+            const desc = metrics.system.description.toLowerCase();
+            
+            // Try to extract from macOS sysDescr
+            const macCpuMatch = desc.match(/(\d+)-core/i);
+            if (macCpuMatch) {
+              processorCount = parseInt(macCpuMatch[1]);
+
+            } else {
+              // Check for specific processor models
+              if (desc.includes('m1') || desc.includes('m2') || desc.includes('m3')) {
+                // Apple Silicon detection
+                if (desc.includes('pro')) processorCount = 10; // M1/M2 Pro typical
+                else if (desc.includes('max')) processorCount = 12; // M1/M2 Max typical
+                else if (desc.includes('ultra')) processorCount = 20; // M1/M2 Ultra typical
+                else processorCount = 8; // Base M1/M2/M3
+
+              }
+            }
+          }
+
+        }
       }
-      if (oidSet.load5min) {
-        oids.push(oidSet.load5min);
-        oidMap[oidSet.load5min] = 'load5min';
+      
+      metrics.cpu = await this.parseCpuInfo(cpuData, hostId);
+      metrics.cpu.cores = processorCount;
+
+      // Get memory metrics
+      const memoryOids = Object.values(this.oidDefinitions.memory);
+      const memoryData = await this.getOidValues(session, memoryOids);
+      metrics.memory = this.parseMemoryInfo(memoryData);
+
+      // Walk disk table for all mounted filesystems
+      metrics.disk = await this.walkDiskTable(session);
+
+      // Walk network interfaces
+      metrics.network = await this.walkNetworkInterfaces(session);
+
+      // Get process information
+      metrics.processes = await this.getProcessInfo(session);
+
+      // Try to get temperature sensors (may not be available)
+      try {
+        metrics.sensors = await this.walkSensorTable(session);
+      } catch (e) {
+        // Sensors not available, ignore
+
       }
-      if (oidSet.load15min) {
-        oids.push(oidSet.load15min);
-        oidMap[oidSet.load15min] = 'load15min';
-      }
-      // CPU counters for detailed calculation
-      if (oidSet.cpuUser) {
-        oids.push(oidSet.cpuUser);
-        oidMap[oidSet.cpuUser] = 'cpuUser';
-      }
-      if (oidSet.cpuSystem) {
-        oids.push(oidSet.cpuSystem);
-        oidMap[oidSet.cpuSystem] = 'cpuSystem';
-      }
-      if (oidSet.cpuIdle) {
-        oids.push(oidSet.cpuIdle);
-        oidMap[oidSet.cpuIdle] = 'cpuIdle';
-      }
+
+    } catch (error) {
+      console.error('Error getting metrics:', error);
+      throw error;
     }
-    
-    // Memory metrics - get ALL memory info
-    if (oidSet.memTotalReal) {
-      oids.push(oidSet.memTotalReal);
-      oidMap[oidSet.memTotalReal] = 'memTotalReal';
-    }
-    if (oidSet.memAvailReal) {
-      oids.push(oidSet.memAvailReal);
-      oidMap[oidSet.memAvailReal] = 'memAvailReal';
-    }
-    if (oidSet.memBuffer) {
-      oids.push(oidSet.memBuffer);
-      oidMap[oidSet.memBuffer] = 'memBuffer';
-    }
-    if (oidSet.memCached) {
-      oids.push(oidSet.memCached);
-      oidMap[oidSet.memCached] = 'memCached';
-    }
-    if (oidSet.memTotalSwap) {
-      oids.push(oidSet.memTotalSwap);
-      oidMap[oidSet.memTotalSwap] = 'memTotalSwap';
-    }
-    if (oidSet.memAvailSwap) {
-      oids.push(oidSet.memAvailSwap);
-      oidMap[oidSet.memAvailSwap] = 'memAvailSwap';
-    }
-    
-    // Process count
-    if (oidSet.processCount) {
-      oids.push(oidSet.processCount);
-      oidMap[oidSet.processCount] = 'processCount';
-    }
-    
+
+    return metrics;
+  }
+
+  // Get values for specific OIDs
+  getOidValues(session, oids) {
     return new Promise((resolve, reject) => {
       session.get(oids, (error, varbinds) => {
         if (error) {
           reject(error);
         } else {
-          try {
-            const metrics = this.parseMetrics(varbinds, oidMap, isWindows);
-            resolve(metrics);
-          } catch (parseError) {
-            reject(parseError);
-          }
-        }
-      });
-    });
-  }
-
-  parseMetrics(varbinds, oidMap, isWindows = false) {
-    // Sicheres Parsing mit Fallbacks und OID-Mapping
-    const metrics = {
-      uptime: null,
-      sysName: 'Unknown',
-      cpu: {
-        load1: 0,
-        load5: 0,
-        load15: 0,
-        percent: 0,
-        idle: null,
-        user: null,
-        system: null
-      },
-      memory: {
-        total: 0,
-        available: 0,
-        used: 0,
-        usedPercent: 0,
-        buffer: 0,
-        cached: 0,
-        swapTotal: 0,
-        swapAvailable: 0,
-        swapUsed: 0,
-        swapPercent: 0
-      },
-      disk: [],
-      network: {
-        interfaceCount: 0,
-        interfaces: []
-      },
-      processes: 0,
-      timestamp: new Date().toISOString(),
-      collectedAt: Date.now()
-    };
-    
-    // Parse each varbind based on OID mapping
-    varbinds.forEach(varbind => {
-      const oidName = oidMap[varbind.oid];
-      
-      if (!oidName || varbind.type === snmp.ErrorStatus.NoSuchObject) {
-        return;
-      }
-      
-      switch (oidName) {
-        case 'sysUpTime':
-          metrics.uptime = this.parseUptime(varbind.value);
-          break;
-        case 'sysName':
-          metrics.sysName = varbind.value.toString();
-          break;
-        case 'cpuLoad':
-          metrics.cpu.load = varbind.value;
-          metrics.cpu.percent = varbind.value;
-          break;
-        case 'load1min':
-          // Load average is already a decimal (e.g., 1.26)
-          // It comes as a Buffer from SNMP, needs to be converted to string first
-          console.log('load1min raw value:', varbind.value, 'type:', typeof varbind.value);
-          
-          let loadValue;
-          if (Buffer.isBuffer(varbind.value)) {
-            // Convert Buffer to string, then parse
-            const loadString = varbind.value.toString('utf8');
-            console.log('Converted Buffer to string:', loadString);
-            loadValue = parseFloat(loadString);
-          } else if (typeof varbind.value === 'string') {
-            loadValue = parseFloat(varbind.value);
-          } else {
-            // Fallback for numeric values
-            loadValue = varbind.value / 100;
-          }
-          
-          console.log('Parsed load value:', loadValue);
-          metrics.cpu.load1 = loadValue;
-          // Rough approximation: 1.0 load = ~25% on a 4-core system
-          // Adjust based on actual core count if available
-          metrics.cpu.percent = Math.min(Math.round(loadValue * 25), 100);
-          console.log('CPU percent calculated:', metrics.cpu.percent);
-          break;
-        
-        case 'load5min':
-          if (Buffer.isBuffer(varbind.value)) {
-            metrics.cpu.load5 = parseFloat(varbind.value.toString('utf8'));
-          } else if (typeof varbind.value === 'string') {
-            metrics.cpu.load5 = parseFloat(varbind.value);
-          } else {
-            metrics.cpu.load5 = varbind.value / 100;
-          }
-          break;
-          
-        case 'load15min':
-          if (Buffer.isBuffer(varbind.value)) {
-            metrics.cpu.load15 = parseFloat(varbind.value.toString('utf8'));
-          } else if (typeof varbind.value === 'string') {
-            metrics.cpu.load15 = parseFloat(varbind.value);
-          } else {
-            metrics.cpu.load15 = varbind.value / 100;
-          }
-          break;
-        
-        case 'cpuUser':
-          metrics.cpu.user = varbind.value;
-          break;
-          
-        case 'cpuSystem':
-          metrics.cpu.system = varbind.value;
-          break;
-        case 'cpuIdle':
-          metrics.cpu.idle = varbind.value;
-          if (metrics.cpu.idle > 0) {
-            metrics.cpu.percent = Math.max(0, 100 - metrics.cpu.idle);
-          }
-          break;
-        case 'memTotalReal':
-          metrics.memory.total = varbind.value * 1024;
-          break;
-        case 'memAvailReal':
-          metrics.memory.available = varbind.value * 1024;
-          break;
-        case 'memBuffer':
-          metrics.memory.buffer = varbind.value * 1024;
-          break;
-        case 'memCached':
-          metrics.memory.cached = varbind.value * 1024;
-          break;
-        case 'memTotalSwap':
-          metrics.memory.swapTotal = varbind.value * 1024;
-          break;
-        case 'memAvailSwap':
-          metrics.memory.swapAvailable = varbind.value * 1024;
-          break;
-        case 'processCount':
-          metrics.processes = varbind.value;
-          break;
-        case 'ifNumber':
-          metrics.network.interfaceCount = varbind.value;
-          break;
-      }
-    });
-    
-    // Calculate derived values
-    if (metrics.memory.total > 0) {
-      metrics.memory.used = metrics.memory.total - metrics.memory.available;
-      metrics.memory.usedPercent = parseFloat(
-        ((metrics.memory.used / metrics.memory.total) * 100).toFixed(2)
-      );
-      
-      // Calculate effective memory (includes buffer/cache)
-      if (metrics.memory.buffer > 0 || metrics.memory.cached > 0) {
-        metrics.memory.effectiveAvailable = metrics.memory.available + 
-          metrics.memory.buffer + metrics.memory.cached;
-        metrics.memory.effectiveUsed = metrics.memory.total - metrics.memory.effectiveAvailable;
-        metrics.memory.effectivePercent = parseFloat(
-          ((metrics.memory.effectiveUsed / metrics.memory.total) * 100).toFixed(2)
-        );
-      }
-    }
-    
-    // Calculate swap usage if available
-    if (metrics.memory.swapTotal > 0) {
-      metrics.memory.swapUsed = metrics.memory.swapTotal - metrics.memory.swapAvailable;
-      metrics.memory.swapPercent = parseFloat(
-        ((metrics.memory.swapUsed / metrics.memory.swapTotal) * 100).toFixed(2)
-      );
-    }
-    
-    // macOS workaround: If CPU is 0, try to use load average
-    if (metrics.cpu.percent === 0 || metrics.cpu.percent === null) {
-      if (metrics.cpu.load1 && metrics.cpu.load1 > 0) {
-        metrics.cpu.percent = Math.min(Math.round(metrics.cpu.load1 * 25), 100);
-      }
-    }
-    
-    return metrics;
-  }
-
-  parseUptime(timeticks) {
-    // Timeticks sind in 1/100 Sekunden
-    const totalSeconds = Math.floor(timeticks / 100);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    return {
-      ticks: timeticks,
-      totalSeconds,
-      days,
-      hours,
-      minutes,
-      seconds,
-      formatted: `${days}d ${hours}h ${minutes}m ${seconds}s`
-    };
-  }
-
-  async getDiskMetrics(session, oidSet) {
-    if (!oidSet.diskDevice) {
-      return [];
-    }
-    
-    return new Promise((resolve) => {
-      const diskMetrics = [];
-      
-      session.subtree('1.3.6.1.4.1.2021.9.1', (varbinds) => {
-        varbinds.forEach(varbind => {
-          const oidParts = varbind.oid.split('.');
-          const column = parseInt(oidParts[oidParts.length - 2]);
-          const index = parseInt(oidParts[oidParts.length - 1]);
-          
-          if (!diskMetrics[index]) {
-            diskMetrics[index] = { index };
-          }
-          
-          switch (column) {
-            case 3: // Device
-              diskMetrics[index].device = varbind.value.toString();
-              break;
-            case 6: // Total size (KB)
-              diskMetrics[index].total = varbind.value * 1024;
-              break;
-            case 8: // Used (KB)
-              diskMetrics[index].used = varbind.value * 1024;
-              break;
-            case 9: // Percent used
-              diskMetrics[index].percentUsed = varbind.value;
-              break;
-          }
-        });
-      }, () => {
-        const filtered = diskMetrics
-          .filter(disk => disk && disk.device && disk.total > 0)
-          .map(disk => ({
-            device: disk.device,
-            total: disk.total || 0,
-            used: disk.used || 0,
-            free: (disk.total || 0) - (disk.used || 0),
-            percentUsed: disk.percentUsed || 0
-          }));
-        
-        resolve(filtered);
-      });
-      
-      // Timeout fallback
-      setTimeout(() => resolve([]), 5000);
-    });
-  }
-
-  async getInterfaceStats(session) {
-    // Interface-Tabelle abrufen
-    const baseOid = '1.3.6.1.2.1.2.2.1';
-    const columns = {
-      index: 1,
-      descr: 2,
-      type: 3,
-      speed: 5,
-      adminStatus: 7,
-      operStatus: 8,
-      inOctets: 10,
-      outOctets: 16
-    };
-
-    return new Promise((resolve) => {
-      const interfaces = [];
-      
-      session.subtree(baseOid, (varbinds) => {
-        // Parse interface data
-        varbinds.forEach(varbind => {
-          const oidParts = varbind.oid.split('.');
-          const column = parseInt(oidParts[oidParts.length - 2]);
-          const index = parseInt(oidParts[oidParts.length - 1]);
-          
-          if (!interfaces[index]) {
-            interfaces[index] = { index };
-          }
-          
-          // Map column to property
-          Object.entries(columns).forEach(([key, col]) => {
-            if (column === col) {
-              interfaces[index][key] = varbind.value;
+          const result = {};
+          varbinds.forEach(varbind => {
+            if (varbind.type !== snmp.ErrorStatus.NoSuchObject) {
+              result[varbind.oid] = varbind.value;
             }
           });
-        });
-      }, () => {
-        // Done callback - Filter und formatieren
-        const filtered = interfaces
-          .filter(iface => iface && iface.descr && iface.operStatus === 1)
-          .map(iface => ({
-            name: iface.descr.toString(),
-            status: iface.operStatus === 1 ? 'up' : 'down',
-            speed: iface.speed || 0,
-            bytesIn: iface.inOctets || 0,
-            bytesOut: iface.outOctets || 0
-          }));
-        
-        resolve(filtered);
+          resolve(result);
+        }
       });
-      
-      // Timeout fallback
-      setTimeout(() => resolve([]), 10000);
     });
   }
 
-  async saveMetrics(host, metrics, interfaces, diskMetrics) {
-    // Skip database operations for test hosts
-    if (!host.id || host.id === 0 || host.id === 'test') {
-      console.log(`SNMP test metrics for ${host.name}: CPU ${metrics.cpu.percent}%, Memory ${metrics.memory.usedPercent}%`);
-      return;
+  // Walk a specific OID and return key-value pairs
+  walkOid(session, oid) {
+    return new Promise((resolve, reject) => {
+      const results = {};
+      
+      session.walk(oid, (error, varbinds) => {
+        if (error) {
+          // Don't reject, just return empty object
+
+          resolve({});
+        } else {
+          varbinds.forEach(varbind => {
+            if (varbind.type !== snmp.ErrorStatus.NoSuchObject) {
+              // Extract the index from the OID
+              const index = varbind.oid.substring(oid.length + 1);
+              results[index] = varbind.value;
+            }
+          });
+        }
+      }, () => {
+        // Done callback
+        resolve(results);
+      });
+    });
+  }
+
+  // Walk an SNMP table
+  walkTable(session, tableOid) {
+    return new Promise((resolve, reject) => {
+      const results = [];
+      
+      session.tableColumns(tableOid, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], (error, table) => {
+        if (error) {
+          // Try simple walk if tableColumns fails
+          const walkResults = [];
+          session.walk(tableOid, (error, varbinds) => {
+            if (error) {
+              reject(error);
+            } else {
+              varbinds.forEach(varbind => {
+                if (varbind.type !== snmp.ErrorStatus.NoSuchObject) {
+                  walkResults.push({
+                    oid: varbind.oid,
+                    value: varbind.value
+                  });
+                }
+              });
+            }
+          }, () => {
+            resolve(walkResults);
+          });
+        } else {
+          // Convert table to array
+          for (let index in table) {
+            results.push(table[index]);
+          }
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Parse system information
+  parseSystemInfo(data) {
+    const info = {
+      description: '',
+      name: '',
+      uptime: 0,
+      agentUptime: 0,
+      contact: '',
+      location: '',
+      osType: '',
+      osVersion: '',
+      osDetails: ''
+    };
+
+    Object.keys(data).forEach(oid => {
+      const value = data[oid];
+      
+      if (oid === this.oidDefinitions.system.sysDescr) {
+        info.description = this.parseStringValue(value);
+        
+        // Parse OS type and version from description with improved detection
+        const desc = info.description.toLowerCase();
+        const originalDesc = info.description;
+        
+        if (desc.includes('darwin')) {
+          info.osType = 'macOS';
+          // Extract macOS version from Darwin kernel version
+          const match = desc.match(/darwin kernel version (\d+\.\d+)/);
+          if (match) {
+            const darwinVersion = parseFloat(match[1]);
+            // Updated Darwin to macOS version mapping for 2025
+            if (darwinVersion >= 24) {
+              info.osVersion = 'Sequoia';  // macOS 15
+            } else if (darwinVersion >= 23) {
+              info.osVersion = 'Sonoma';    // macOS 14
+            } else if (darwinVersion >= 22) {
+              info.osVersion = 'Ventura';   // macOS 13
+            } else if (darwinVersion >= 21) {
+              info.osVersion = 'Monterey';  // macOS 12
+            } else if (darwinVersion >= 20) {
+              info.osVersion = 'Big Sur';   // macOS 11
+            } else if (darwinVersion >= 19) {
+              info.osVersion = 'Catalina';  // macOS 10.15
+            } else if (darwinVersion >= 18) {
+              info.osVersion = 'Mojave';    // macOS 10.14
+            } else if (darwinVersion >= 17) {
+              info.osVersion = 'High Sierra'; // macOS 10.13
+            } else {
+              info.osVersion = `Darwin ${darwinVersion}`;
+            }
+            
+            // Extract build number
+            const buildMatch = originalDesc.match(/(\d+[A-Z]\d+[a-z]?)/);
+            if (buildMatch) {
+              info.osDetails = `Build ${buildMatch[1]}`;
+            }
+          }
+        } else if (desc.includes('linux')) {
+          info.osType = 'Linux';
+          
+          // Enhanced Linux distribution detection with version extraction
+          if (desc.includes('ubuntu')) {
+            const ubuntuMatch = originalDesc.match(/ubuntu[^\d]*([\d.]+)/i);
+            if (ubuntuMatch) {
+              const version = ubuntuMatch[1];
+              // Map Ubuntu version numbers to codenames
+              if (version.startsWith('24.04')) info.osVersion = 'Ubuntu 24.04 LTS (Noble Numbat)';
+              else if (version.startsWith('23.10')) info.osVersion = 'Ubuntu 23.10 (Mantic Minotaur)';
+              else if (version.startsWith('22.04')) info.osVersion = 'Ubuntu 22.04 LTS (Jammy Jellyfish)';
+              else if (version.startsWith('20.04')) info.osVersion = 'Ubuntu 20.04 LTS (Focal Fossa)';
+              else info.osVersion = `Ubuntu ${version}`;
+            } else {
+              info.osVersion = 'Ubuntu';
+            }
+          } else if (desc.includes('debian')) {
+            const debianMatch = originalDesc.match(/debian[^\d]*([\d.]+)/i);
+            if (debianMatch) {
+              const version = debianMatch[1];
+              // Map Debian version numbers to codenames
+              if (version === '12') info.osVersion = 'Debian 12 (Bookworm)';
+              else if (version === '11') info.osVersion = 'Debian 11 (Bullseye)';
+              else if (version === '10') info.osVersion = 'Debian 10 (Buster)';
+              else info.osVersion = `Debian ${version}`;
+            } else {
+              info.osVersion = 'Debian';
+            }
+          } else if (desc.includes('centos')) {
+            const centosMatch = originalDesc.match(/centos[^\d]*([\d.]+)/i);
+            info.osVersion = centosMatch ? `CentOS ${centosMatch[1]}` : 'CentOS';
+          } else if (desc.includes('rocky')) {
+            const rockyMatch = originalDesc.match(/rocky[^\d]*([\d.]+)/i);
+            info.osVersion = rockyMatch ? `Rocky Linux ${rockyMatch[1]}` : 'Rocky Linux';
+          } else if (desc.includes('alma')) {
+            const almaMatch = originalDesc.match(/alma[^\d]*([\d.]+)/i);
+            info.osVersion = almaMatch ? `AlmaLinux ${almaMatch[1]}` : 'AlmaLinux';
+          } else if (desc.includes('fedora')) {
+            const fedoraMatch = originalDesc.match(/fedora[^\d]*([\d.]+)/i);
+            info.osVersion = fedoraMatch ? `Fedora ${fedoraMatch[1]}` : 'Fedora';
+          } else if (desc.includes('red hat') || desc.includes('redhat') || desc.includes('rhel')) {
+            const rhelMatch = originalDesc.match(/(?:red hat|redhat|rhel)[^\d]*([\d.]+)/i);
+            info.osVersion = rhelMatch ? `RHEL ${rhelMatch[1]}` : 'Red Hat Enterprise Linux';
+          } else if (desc.includes('suse')) {
+            const suseMatch = originalDesc.match(/suse[^\d]*([\d.]+)/i);
+            info.osVersion = suseMatch ? `SUSE ${suseMatch[1]}` : 'SUSE Linux';
+          } else if (desc.includes('opensuse')) {
+            const opensuseMatch = originalDesc.match(/opensuse[^\d]*([\d.]+|leap|tumbleweed)/i);
+            if (opensuseMatch) {
+              const variant = opensuseMatch[1];
+              if (variant.toLowerCase() === 'tumbleweed') info.osVersion = 'openSUSE Tumbleweed';
+              else if (variant.toLowerCase() === 'leap') info.osVersion = 'openSUSE Leap';
+              else info.osVersion = `openSUSE ${variant}`;
+            } else {
+              info.osVersion = 'openSUSE';
+            }
+          } else if (desc.includes('arch')) {
+            info.osVersion = 'Arch Linux';
+          } else if (desc.includes('alpine')) {
+            const alpineMatch = originalDesc.match(/alpine[^\d]*([\d.]+)/i);
+            info.osVersion = alpineMatch ? `Alpine ${alpineMatch[1]}` : 'Alpine Linux';
+          } else if (desc.includes('gentoo')) {
+            info.osVersion = 'Gentoo Linux';
+          } else if (desc.includes('manjaro')) {
+            info.osVersion = 'Manjaro Linux';
+          } else if (desc.includes('mint')) {
+            const mintMatch = originalDesc.match(/mint[^\d]*([\d.]+)/i);
+            if (mintMatch) {
+              const version = mintMatch[1];
+              // Map Linux Mint versions to codenames
+              if (version === '21') info.osVersion = 'Linux Mint 21 (Vanessa)';
+              else if (version === '20') info.osVersion = 'Linux Mint 20 (Ulyana)';
+              else info.osVersion = `Linux Mint ${version}`;
+            } else {
+              info.osVersion = 'Linux Mint';
+            }
+          } else if (desc.includes('elementary')) {
+            const elementaryMatch = originalDesc.match(/elementary[^\d]*([\d.]+)/i);
+            info.osVersion = elementaryMatch ? `elementary OS ${elementaryMatch[1]}` : 'elementary OS';
+          } else if (desc.includes('kali')) {
+            const kaliMatch = originalDesc.match(/kali[^\d]*([\d.]+)/i);
+            info.osVersion = kaliMatch ? `Kali Linux ${kaliMatch[1]}` : 'Kali Linux';
+          } else if (desc.includes('raspbian')) {
+            const raspbianMatch = originalDesc.match(/raspbian[^\d]*([\d.]+)/i);
+            info.osVersion = raspbianMatch ? `Raspbian ${raspbianMatch[1]}` : 'Raspbian';
+          } else if (desc.includes('raspberry pi os')) {
+            info.osVersion = 'Raspberry Pi OS';
+          } else {
+            // Try to extract kernel version as fallback
+            const kernelMatch = originalDesc.match(/linux[^\d]*([\d.]+[\d.-]+)/i);
+            info.osVersion = kernelMatch ? `Linux (Kernel ${kernelMatch[1]})` : 'Linux';
+          }
+          
+          // Extract kernel version as additional detail
+          const kernelMatch = originalDesc.match(/(\d+\.\d+\.\d+[\d.-]*)/);
+          if (kernelMatch && !info.osDetails) {
+            info.osDetails = `Kernel ${kernelMatch[1]}`;
+          }
+        } else if (desc.includes('windows')) {
+          info.osType = 'Windows';
+          // Enhanced Windows version detection
+          if (desc.includes('windows 11')) info.osVersion = 'Windows 11';
+          else if (desc.includes('windows 10')) info.osVersion = 'Windows 10';
+          else if (desc.includes('server 2022')) info.osVersion = 'Server 2022';
+          else if (desc.includes('server 2019')) info.osVersion = 'Server 2019';
+          else if (desc.includes('server 2016')) info.osVersion = 'Server 2016';
+          else if (desc.includes('server 2012')) info.osVersion = 'Server 2012';
+          else {
+            const winMatch = originalDesc.match(/windows[^\d]*(\S+)/i);
+            if (winMatch) info.osVersion = `Windows ${winMatch[1]}`;
+            else info.osVersion = 'Windows';
+          }
+          
+          // Extract build number if available
+          const buildMatch = originalDesc.match(/build[^\d]*([\d.]+)/i);
+          if (buildMatch) {
+            info.osDetails = `Build ${buildMatch[1]}`;
+          }
+        } else if (desc.includes('freebsd')) {
+          info.osType = 'FreeBSD';
+          const bsdMatch = originalDesc.match(/freebsd[^\d]*([\d.]+)/i);
+          info.osVersion = bsdMatch ? `FreeBSD ${bsdMatch[1]}` : 'FreeBSD';
+        } else if (desc.includes('openbsd')) {
+          info.osType = 'OpenBSD';
+          const bsdMatch = originalDesc.match(/openbsd[^\d]*([\d.]+)/i);
+          info.osVersion = bsdMatch ? `OpenBSD ${bsdMatch[1]}` : 'OpenBSD';
+        } else if (desc.includes('netbsd')) {
+          info.osType = 'NetBSD';
+          const bsdMatch = originalDesc.match(/netbsd[^\d]*([\d.]+)/i);
+          info.osVersion = bsdMatch ? `NetBSD ${bsdMatch[1]}` : 'NetBSD';
+        } else {
+          // Unknown OS - try to extract some info
+          info.osType = 'Unknown';
+          info.osVersion = originalDesc.substring(0, 50);
+        }
+      } else if (oid === this.oidDefinitions.system.sysName) {
+        info.name = this.parseStringValue(value);
+      } else if (oid === this.oidDefinitions.system.sysUpTime) {
+        info.agentUptime = this.parseUptime(value);
+      } else if (oid === this.oidDefinitions.system.hrSystemUptime) {
+        info.uptime = this.parseUptime(value);
+      } else if (oid === this.oidDefinitions.system.sysContact) {
+        info.contact = this.parseStringValue(value);
+      } else if (oid === this.oidDefinitions.system.sysLocation) {
+        info.location = this.parseStringValue(value);
+      }
+    });
+
+    // If hrSystemUptime is not available, fall back to sysUpTime
+    if (!info.uptime && info.agentUptime) {
+      info.uptime = info.agentUptime;
+    }
+
+    return info;
+  }
+
+  // Parse CPU information with proper counter calculation
+  async parseCpuInfo(data, hostId) {
+    const cpuInfo = {
+      load1: 0,
+      load5: 0,
+      load15: 0,
+      cores: 1,
+      usage: {},
+      raw: {}
+    };
+
+    // Parse load averages
+    Object.keys(data).forEach(oid => {
+      const value = data[oid];
+      
+      if (oid === this.oidDefinitions.cpu.load1min) {
+        cpuInfo.load1 = this.parseLoadValue(value);
+      } else if (oid === this.oidDefinitions.cpu.load5min) {
+        cpuInfo.load5 = this.parseLoadValue(value);
+      } else if (oid === this.oidDefinitions.cpu.load15min) {
+        cpuInfo.load15 = this.parseLoadValue(value);
+      } else if (oid === this.oidDefinitions.cpu.hrProcessorCount) {
+        cpuInfo.cores = parseInt(value) || 1;
+      }
+      
+      // Raw CPU counters
+      else if (oid === this.oidDefinitions.cpu.ssCpuRawUser) {
+        cpuInfo.raw.user = parseInt(value) || 0;
+      } else if (oid === this.oidDefinitions.cpu.ssCpuRawNice) {
+        cpuInfo.raw.nice = parseInt(value) || 0;
+      } else if (oid === this.oidDefinitions.cpu.ssCpuRawSystem) {
+        cpuInfo.raw.system = parseInt(value) || 0;
+      } else if (oid === this.oidDefinitions.cpu.ssCpuRawIdle) {
+        cpuInfo.raw.idle = parseInt(value) || 0;
+      } else if (oid === this.oidDefinitions.cpu.ssCpuRawWait) {
+        cpuInfo.raw.wait = parseInt(value) || 0;
+      } else if (oid === this.oidDefinitions.cpu.ssCpuRawKernel) {
+        cpuInfo.raw.kernel = parseInt(value) || 0;
+      } else if (oid === this.oidDefinitions.cpu.ssCpuRawInterrupt) {
+        cpuInfo.raw.interrupt = parseInt(value) || 0;
+      }
+    });
+
+    // Calculate CPU percentages from raw counters
+    if (Object.keys(cpuInfo.raw).length > 0) {
+      cpuInfo.usage = this.calculateCpuPercentage(cpuInfo.raw, hostId) || {
+        total: Math.min(Math.round(cpuInfo.load1 * 100 / cpuInfo.cores), 100)
+      };
+    } else {
+      // Fallback: estimate from load average
+      cpuInfo.usage = {
+        total: Math.min(Math.round(cpuInfo.load1 * 100 / cpuInfo.cores), 100)
+      };
+    }
+
+    return cpuInfo;
+  }
+
+  // Parse memory information
+  parseMemoryInfo(data) {
+    const memory = {
+      totalRam: 0,
+      availableRam: 0,
+      usedRam: 0,
+      percentRam: 0,
+      buffer: 0,
+      cache: 0,
+      shared: 0,
+      totalSwap: 0,
+      availableSwap: 0,
+      usedSwap: 0,
+      percentSwap: 0
+    };
+
+    Object.keys(data).forEach(oid => {
+      const value = parseInt(data[oid]) || 0;
+      
+      if (oid === this.oidDefinitions.memory.memTotalReal) {
+        memory.totalRam = value * 1024; // Convert KB to bytes
+      } else if (oid === this.oidDefinitions.memory.memAvailReal) {
+        memory.availableRam = value * 1024;
+      } else if (oid === this.oidDefinitions.memory.memBuffer) {
+        memory.buffer = value * 1024;
+      } else if (oid === this.oidDefinitions.memory.memCached) {
+        memory.cache = value * 1024;
+      } else if (oid === this.oidDefinitions.memory.memShared) {
+        memory.shared = value * 1024;
+      } else if (oid === this.oidDefinitions.memory.memTotalSwap) {
+        memory.totalSwap = value * 1024;
+      } else if (oid === this.oidDefinitions.memory.memAvailSwap) {
+        memory.availableSwap = value * 1024;
+      }
+    });
+
+    // Calculate used and percentages
+    memory.usedRam = memory.totalRam - memory.availableRam - memory.buffer - memory.cache;
+    memory.percentRam = memory.totalRam > 0 ? 
+      Math.round((memory.usedRam / memory.totalRam) * 100) : 0;
+    
+    memory.usedSwap = memory.totalSwap - memory.availableSwap;
+    memory.percentSwap = memory.totalSwap > 0 ? 
+      Math.round((memory.usedSwap / memory.totalSwap) * 100) : 0;
+
+    return memory;
+  }
+
+  // Walk disk table for all mounted filesystems
+  async walkDiskTable(session) {
+    const disks = [];
+    
+    try {
+      // Try UCD-SNMP-MIB disk table first
+      const diskPaths = await this.walkOid(session, this.oidDefinitions.disk.dskPath);
+      const diskDevices = await this.walkOid(session, this.oidDefinitions.disk.dskDevice);
+      const diskTotals = await this.walkOid(session, this.oidDefinitions.disk.dskTotal);
+      const diskUsed = await this.walkOid(session, this.oidDefinitions.disk.dskUsed);
+      const diskAvail = await this.walkOid(session, this.oidDefinitions.disk.dskAvail);
+      const diskPercent = await this.walkOid(session, this.oidDefinitions.disk.dskPercent);
+      
+      // Combine results by index
+      const indexes = new Set([
+        ...Object.keys(diskPaths),
+        ...Object.keys(diskTotals)
+      ]);
+      
+      indexes.forEach(index => {
+        if (diskPaths[index] && diskTotals[index]) {
+          disks.push({
+            path: this.parseStringValue(diskPaths[index]),
+            device: this.parseStringValue(diskDevices[index] || 'unknown'),
+            total: parseInt(diskTotals[index] || 0) * 1024, // Convert KB to bytes
+            used: parseInt(diskUsed[index] || 0) * 1024,
+            available: parseInt(diskAvail[index] || 0) * 1024,
+            percent: parseInt(diskPercent[index] || 0)
+          });
+        }
+      });
+    } catch (error) {
+
+      // Fallback to HOST-RESOURCES-MIB
+      try {
+        const storageDescr = await this.walkOid(session, this.oidDefinitions.disk.hrStorageDescr);
+        const storageSize = await this.walkOid(session, this.oidDefinitions.disk.hrStorageSize);
+        const storageUsed = await this.walkOid(session, this.oidDefinitions.disk.hrStorageUsed);
+        
+        Object.keys(storageDescr).forEach(index => {
+          const descr = this.parseStringValue(storageDescr[index]);
+          // Filter out non-disk entries
+          if (!descr.includes('Memory') && !descr.includes('Swap')) {
+            const total = parseInt(storageSize[index] || 0) * 4096; // Usually 4KB blocks
+            const used = parseInt(storageUsed[index] || 0) * 4096;
+            
+            disks.push({
+              path: descr,
+              device: descr,
+              total: total,
+              used: used,
+              available: total - used,
+              percent: total > 0 ? Math.round((used / total) * 100) : 0
+            });
+          }
+        });
+      } catch (e) {
+
+      }
     }
     
-    // Metriken in Datenbank speichern mit Error Handling
+    return disks;
+  }
+
+  // Walk network interfaces
+  async walkNetworkInterfaces(session) {
+    const interfaces = [];
+    
+    try {
+      // Get interface descriptions
+      const ifDescr = await this.walkOid(session, this.oidDefinitions.network.ifDescr);
+      const ifType = await this.walkOid(session, this.oidDefinitions.network.ifType);
+      const ifSpeed = await this.walkOid(session, this.oidDefinitions.network.ifSpeed);
+      const ifOperStatus = await this.walkOid(session, this.oidDefinitions.network.ifOperStatus);
+      const ifInOctets = await this.walkOid(session, this.oidDefinitions.network.ifInOctets);
+      const ifOutOctets = await this.walkOid(session, this.oidDefinitions.network.ifOutOctets);
+      const ifInErrors = await this.walkOid(session, this.oidDefinitions.network.ifInErrors);
+      const ifOutErrors = await this.walkOid(session, this.oidDefinitions.network.ifOutErrors);
+      const ifPhysAddress = await this.walkOid(session, this.oidDefinitions.network.ifPhysAddress);
+      
+      // Try to get 64-bit counters if available
+      const ifHCInOctets = await this.walkOid(session, this.oidDefinitions.network.ifHCInOctets).catch(() => ({}));
+      const ifHCOutOctets = await this.walkOid(session, this.oidDefinitions.network.ifHCOutOctets).catch(() => ({}));
+      
+      Object.keys(ifDescr).forEach(index => {
+        const bytesIn = ifHCInOctets[index] || ifInOctets[index] || 0;
+        const bytesOut = ifHCOutOctets[index] || ifOutOctets[index] || 0;
+        
+        interfaces.push({
+          index: parseInt(index),
+          name: this.parseStringValue(ifDescr[index]),
+          type: this.getInterfaceType(parseInt(ifType[index] || 0)),
+          speed: parseInt(ifSpeed[index] || 0),
+          status: this.getOperStatus(parseInt(ifOperStatus[index] || 0)),
+          mac: this.parseMacAddress(ifPhysAddress[index]),
+          statistics: {
+            bytesReceived: parseInt(bytesIn),
+            bytesSent: parseInt(bytesOut),
+            errorsIn: parseInt(ifInErrors[index] || 0),
+            errorsOut: parseInt(ifOutErrors[index] || 0)
+          }
+        });
+      });
+    } catch (error) {
+
+    }
+    
+    return interfaces;
+  }
+
+  // Get process information
+  async getProcessInfo(session) {
+    const processInfo = {
+      count: 0,
+      running: 0,
+      sleeping: 0,
+      stopped: 0,
+      zombie: 0,
+      user: 0,
+      system: 0,
+      top: []
+    };
+    
+    try {
+      // Get total process count
+      const processCount = await this.getOidValues(session, [this.oidDefinitions.process.hrSystemProcesses]);
+      processInfo.count = parseInt(processCount[this.oidDefinitions.process.hrSystemProcesses] || 0);
+
+      // Try to get process details
+      const swRunName = await this.walkOid(session, this.oidDefinitions.process.hrSWRunName);
+      const swRunPath = await this.walkOid(session, this.oidDefinitions.process.hrSWRunPath);
+      const swRunStatus = await this.walkOid(session, this.oidDefinitions.process.hrSWRunStatus);
+      const swRunPerfCPU = await this.walkOid(session, this.oidDefinitions.process.hrSWRunPerfCPU);
+      const swRunPerfMem = await this.walkOid(session, this.oidDefinitions.process.hrSWRunPerfMem);
+
+      // Count process states and get top processes
+      const processes = [];
+      Object.keys(swRunName).forEach(index => {
+        const name = this.parseStringValue(swRunName[index]);
+        const path = swRunPath[index] ? this.parseStringValue(swRunPath[index]) : '';
+        const status = parseInt(swRunStatus[index] || 1);
+        
+        // Try to categorize user vs system processes
+        // Since paths are often empty on macOS, categorize by name
+        if (name) {
+          const lowerName = name.toLowerCase();
+          // System processes typically include these patterns
+          if (lowerName.includes('kernel') || 
+              lowerName.includes('daemon') || 
+              lowerName.includes('systemd') || 
+              lowerName.startsWith('k') ||
+              lowerName.includes('syslog') || 
+              lowerName.includes('launchd') ||
+              lowerName === 'logd' ||
+              lowerName === 'smd' ||
+              lowerName.includes('agent') ||
+              lowerName.includes('helper') ||
+              lowerName.includes('service') ||
+              lowerName.startsWith('com.apple') ||
+              lowerName.startsWith('com.docker') ||
+              lowerName.includes('coreaudio') ||
+              lowerName.includes('mdns') ||
+              lowerName.includes('spotlight') ||
+              lowerName.includes('windowserver') ||
+              lowerName.includes('loginwindow') ||
+              lowerName.includes('cfprefsd') ||
+              lowerName.includes('coreservices') ||
+              lowerName.includes('distnoted') ||
+              lowerName.includes('usereventagent')) {
+            processInfo.system++;
+          } else {
+            processInfo.user++;
+          }
+        }
+        
+        // Status: 1=running, 2=runnable, 3=notRunnable, 4=invalid
+        switch (status) {
+          case 1:
+          case 2:
+            processInfo.running++;
+            break;
+          case 3:
+            processInfo.sleeping++;
+            break;
+          case 4:
+            processInfo.stopped++;
+            break;
+        }
+        
+        processes.push({
+          name: name,
+          path: path,
+          cpu: parseInt(swRunPerfCPU[index] || 0),
+          memory: parseInt(swRunPerfMem[index] || 0) * 1024 // Convert to bytes
+        });
+      });
+      
+      // Get top 10 processes by CPU usage
+      processInfo.top = processes
+        .sort((a, b) => b.cpu - a.cpu)
+        .slice(0, 10);
+
+    } catch (error) {
+
+    }
+    
+    return processInfo;
+  }
+
+  // Walk temperature sensor table
+  async walkSensorTable(session) {
+    const sensors = [];
+    
+    try {
+      const sensorDevices = await this.walkOid(session, this.oidDefinitions.sensors.lmTempSensorsDevice);
+      const sensorValues = await this.walkOid(session, this.oidDefinitions.sensors.lmTempSensorsValue);
+      
+      Object.keys(sensorDevices).forEach(index => {
+        const value = parseInt(sensorValues[index] || 0);
+        if (value > 0) {
+          sensors.push({
+            name: this.parseStringValue(sensorDevices[index]),
+            temperature: value / 1000 // Usually in millidegrees
+          });
+        }
+      });
+    } catch (error) {
+      // Sensors not available
+    }
+    
+    return sensors;
+  }
+
+  // Walk a specific OID and return indexed results
+  walkOid(session, oidBase) {
+    return new Promise((resolve, reject) => {
+      const results = {};
+      
+      session.subtree(oidBase, (varbinds) => {
+        varbinds.forEach(varbind => {
+          if (varbind.type !== snmp.ErrorStatus.NoSuchObject) {
+            // Extract index from OID
+            const index = varbind.oid.replace(oidBase + '.', '');
+            results[index] = varbind.value;
+          }
+        });
+      }, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Helper functions for parsing values
+  parseStringValue(value) {
+    if (Buffer.isBuffer(value)) {
+      return value.toString('utf8').trim();
+    }
+    return String(value || '').trim();
+  }
+
+  parseLoadValue(value) {
+    if (Buffer.isBuffer(value)) {
+      const str = value.toString('utf8');
+      return parseFloat(str) || 0;
+    }
+    if (typeof value === 'string') {
+      return parseFloat(value) || 0;
+    }
+    return value || 0;
+  }
+
+  parseUptime(value) {
+    // SNMP uptime is in hundredths of seconds
+    return Math.floor((parseInt(value) || 0) / 100);
+  }
+
+  parseMacAddress(value) {
+    if (Buffer.isBuffer(value)) {
+      return Array.from(value)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join(':')
+        .toUpperCase();
+    }
+    return '';
+  }
+
+  getInterfaceType(type) {
+    const types = {
+      1: 'other',
+      6: 'ethernet',
+      24: 'loopback',
+      53: 'virtual',
+      131: 'tunnel'
+    };
+    return types[type] || `type-${type}`;
+  }
+
+  getOperStatus(status) {
+    const statuses = {
+      1: 'up',
+      2: 'down',
+      3: 'testing',
+      4: 'unknown',
+      5: 'dormant',
+      6: 'notPresent',
+      7: 'lowerLayerDown'
+    };
+    return statuses[status] || 'unknown';
+  }
+
+  // Main poll function
+  async pollHost(config) {
+    const session = this.getSession(config);
+    const hostId = config.hostId || config.ip;
+    
+    try {
+      const metrics = await this.getAllMetrics(session, hostId);
+      
+      // Store metrics in database if needed
+      if (this.db && config.storeMetrics) {
+        await this.storeMetrics(hostId, metrics);
+      }
+      
+      return {
+        success: true,
+        metrics: metrics,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      const errorDetails = this.getErrorDetails(error, config);
+      
+      // Track error count
+      const errorCount = (this.errorCounts.get(hostId) || 0) + 1;
+      this.errorCounts.set(hostId, errorCount);
+      
+      return {
+        success: false,
+        error: errorDetails,
+        errorCount: errorCount
+      };
+    }
+  }
+
+  // Store metrics in database
+  async storeMetrics(hostId, metrics) {
     try {
       await this.db.insert('snmp_metrics', {
-        hostId: host.id,
-        uptime: metrics.uptime?.totalSeconds || 0,
-        cpuLoad: metrics.cpu.load,
-        cpuPercent: metrics.cpu.percent,
-        memoryTotal: metrics.memory.total,
-        memoryUsed: metrics.memory.used,
-        memoryPercent: metrics.memory.usedPercent,
-        processCount: metrics.processes,
-        collectedAt: new Date()
+        host_id: hostId,
+        timestamp: new Date(),
+        cpu_percent: metrics.cpu.usage?.total || 0,
+        memory_percent: metrics.memory.percentRam || 0,
+        swap_percent: metrics.memory.percentSwap || 0,
+        disk_usage: JSON.stringify(metrics.disk),
+        network_stats: JSON.stringify(metrics.network),
+        process_count: metrics.processes.total || 0,
+        raw_metrics: JSON.stringify(metrics)
       });
+    } catch (error) {
+      console.error('Error storing metrics:', error);
+    }
+  }
 
-      // Interface-Daten speichern (falls vorhanden)
-      if (interfaces && interfaces.length > 0) {
-        // Insert each interface separately (QueryBuilder has no batchInsert)
-        for (const iface of interfaces) {
-          await this.db.insert('snmp_interfaces', {
-            hostId: host.id,
-            interfaceName: iface.name,
-            status: iface.status,
-            bytesIn: iface.bytesIn,
-            bytesOut: iface.bytesOut,
-            collectedAt: new Date()
-          });
-        }
-      }
+  // Test SNMP connection
+  async testConnection(config) {
+    const session = this.getSession(config);
+    
+    try {
+      // Try to get system name as a simple test
+      const testOid = [this.oidDefinitions.system.sysName];
+      const result = await this.getOidValues(session, testOid);
       
-      // Disk metrics speichern (falls vorhanden)
-      if (diskMetrics && diskMetrics.length > 0) {
-        for (const disk of diskMetrics) {
-          await this.db.insert('snmp_disk_metrics', {
-            hostId: host.id,
-            device: disk.device,
-            totalBytes: disk.total,
-            usedBytes: disk.used,
-            freeBytes: disk.free,
-            percentUsed: disk.percentUsed,
-            collectedAt: new Date()
-          });
-        }
+      if (result[this.oidDefinitions.system.sysName]) {
+        return {
+          success: true,
+          message: `Connected to: ${this.parseStringValue(result[this.oidDefinitions.system.sysName])}`,
+          systemName: this.parseStringValue(result[this.oidDefinitions.system.sysName])
+        };
+      } else {
+        throw new Error('No response from SNMP agent');
       }
-
-      // Host-Status aktualisieren
-      await this.db.update('hosts', 
-        { 
-          lastSnmpCheck: new Date(),
-          snmpStatus: 'online',
-          lastMetrics: JSON.stringify(metrics)
-        },
-        { id: host.id }
-      );
-    } catch (dbError) {
-      console.error(`Failed to save metrics for host ${host.id}:`, dbError);
-      throw dbError;
+    } catch (error) {
+      return {
+        success: false,
+        error: this.getErrorDetails(error, config)
+      };
     }
   }
 
-  async saveError(host, error, errorType = null) {
-    // Skip database operations for test hosts
-    if (!host.id || host.id === 0 || host.id === 'test') {
-      console.log(`SNMP test error for ${host.name}: ${error.message}`);
-      return;
-    }
-    
-    const classifiedErrorType = errorType || this.classifyError(error);
-    
-    // Fehler protokollieren
-    await this.db.insert('snmp_errors', {
-      hostId: host.id,
-      errorMessage: error.message,
-      errorType: classifiedErrorType,
-      occurredAt: new Date()
-    });
-
-    // Host-Status basierend auf Fehlertyp aktualisieren
-    let snmpStatus = 'offline';
-    if (classifiedErrorType === this.errorTypes.AUTH_FAILED) {
-      snmpStatus = 'auth_failed';
-    } else if (classifiedErrorType === this.errorTypes.TIMEOUT) {
-      snmpStatus = 'timeout';
-    } else if (classifiedErrorType === this.errorTypes.NETWORK_ERROR) {
-      snmpStatus = 'unreachable';
-    }
-
-    await this.db.update('hosts',
-      { id: host.id },
-      {
-        lastSnmpCheck: new Date(),
-        snmpStatus: snmpStatus,
-        lastSnmpError: `[${classifiedErrorType}] ${error.message}`
-      }
-    );
-  }
-
-  async getHistoricalData(hostId, hours = 24) {
-    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-    
-    const metrics = await this.db.raw(`
-      SELECT 
-        collected_at as timestamp,
-        cpu_percent as cpu,
-        memory_percent as memory,
-        process_count as processes
-      FROM snmp_metrics
-      WHERE host_id = ? AND collected_at >= ?
-      ORDER BY collected_at ASC
-    `, [hostId, since]);
-    
-    return metrics;
-  }
-
-  // Cleanup
-  closeAllSessions() {
+  // Cleanup sessions
+  cleanup() {
     this.sessions.forEach(session => {
-      try {
-        session.close();
-      } catch (e) {
-        console.error('Error closing SNMP session:', e);
-      }
+      session.close();
     });
     this.sessions.clear();
+    this.previousCpuValues.clear();
+    this.errorCounts.clear();
   }
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import './HostMonitoringTab.css';
 import {
@@ -39,9 +39,11 @@ import {
 import axios from '../../utils/axiosConfig';
 import SNMPSetupWizard from '../SNMP/SNMPSetupWizard';
 import MetricsDetailView from './MetricsDetailView';
+import MetricsTable from './MetricsTable';
 
-const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: parentConfig, onConfigChange }) => {
+const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, snmpConfig: parentConfig, onConfigChange }, ref) => {
   const { t } = useTranslation();
+  const metricsTableRef = useRef();
   
   // State for Setup Wizard
   const [showSetupWizard, setShowSetupWizard] = useState(false);
@@ -94,6 +96,170 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [testResult, setTestResult] = useState(null); // 'success' or 'error'
+  const [lastPollTime, setLastPollTime] = useState(null);
+  const [pollStatus, setPollStatus] = useState('idle'); // 'idle', 'polling', 'success', 'error'
+  
+  // Polling interval reference
+  const pollIntervalRef = useRef(null);
+  const pollCountRef = useRef(0);
+
+  // Expose save method to parent
+  useImperativeHandle(ref, () => ({
+    saveMetricsConfiguration: async () => {
+      if (metricsTableRef.current) {
+        return await metricsTableRef.current.saveConfiguration();
+      }
+      return { success: true, message: 'No metrics configuration to save' };
+    },
+    hasUnsavedChanges: () => {
+      if (metricsTableRef.current) {
+        return metricsTableRef.current.hasUnsavedChanges();
+      }
+      return false;
+    }
+  }));
+
+  // Auto-polling function
+  const pollSNMPData = async () => {
+    if (!snmpConfig.enabled || !host?.id) {
+      return;
+    }
+    
+    setPollStatus('polling');
+    pollCountRef.current += 1;
+    
+    try {
+      const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, snmpConfig);
+      
+      if (response.data?.success) {
+        const metrics = response.data?.details?.metrics;
+        
+        if (metrics) {
+          // Transform metrics to the format expected by MetricsTable
+          const transformedMetrics = {
+            // System with OS info
+            sysName: metrics.system?.name,
+            sysDescr: metrics.system?.description,
+            sysContact: metrics.system?.contact,
+            sysLocation: metrics.system?.location,
+            osType: metrics.system?.osType,
+            osVersion: metrics.system?.osVersion,
+            osDetails: metrics.system?.osDetails,
+            uptime: {
+              totalSeconds: metrics.system?.uptime,
+              formatted: formatUptime(metrics.system?.uptime)
+            },
+            agentUptime: metrics.system?.agentUptime,
+            
+            // CPU - transform to percentage format
+            cpu: {
+              percent: metrics.cpu?.usage?.total || 0,
+              user: metrics.cpu?.raw ? (metrics.cpu.raw.user / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+              system: metrics.cpu?.raw ? (metrics.cpu.raw.system / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+              idle: metrics.cpu?.raw ? (metrics.cpu.raw.idle / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+              load1: metrics.cpu?.load1,
+              load5: metrics.cpu?.load5,
+              load15: metrics.cpu?.load15,
+              cores: metrics.cpu?.cores
+            },
+            
+            // Memory - transform field names
+            memory: {
+              total: metrics.memory?.totalRam,
+              used: metrics.memory?.usedRam,
+              available: metrics.memory?.availableRam,
+              usedPercent: metrics.memory?.percentRam,
+              buffered: metrics.memory?.buffer,
+              cached: metrics.memory?.cache,
+              shared: metrics.memory?.shared,
+              swapTotal: metrics.memory?.totalSwap,
+              swapUsed: metrics.memory?.usedSwap,
+              swapUsedPercent: metrics.memory?.percentSwap
+            },
+            
+            // Disk - correct field name (not disks!)
+            disk: metrics.disk?.map(d => ({
+              path: d.path,
+              device: d.device,
+              total: d.total,
+              used: d.used,
+              available: d.available,
+              percent: d.percent
+            })) || [],
+            
+            // Network interfaces - transform array
+            interfaces: metrics.network?.map(n => ({
+              name: n.name || n.descr,
+              descr: n.descr || n.name,
+              type: n.type,
+              speed: n.speed,
+              operStatus: n.status === 'up' ? 1 : (n.operStatus || 2),
+              status: n.status,
+              inOctets: n.statistics?.bytesReceived || n.inOctets || 0,
+              outOctets: n.statistics?.bytesSent || n.outOctets || 0,
+              inErrors: n.statistics?.errorsIn || n.inErrors || 0,
+              outErrors: n.statistics?.errorsOut || n.outErrors || 0
+            })) || [],
+            
+            // Process info - complete mapping
+            processes: {
+              count: metrics.processes?.count || metrics.processCount || 0,
+              user: metrics.processes?.user || 0,
+              system: metrics.processes?.system || 0,
+              running: metrics.processes?.running || 0,
+              sleeping: metrics.processes?.sleeping || 0,
+              stopped: metrics.processes?.stopped || 0,
+              zombie: metrics.processes?.zombie || 0,
+              top: metrics.processes?.top || []
+            }
+          };
+          
+          setMonitoringData({
+            status: 'online',
+            lastUpdate: new Date(),
+            metrics: transformedMetrics
+          });
+          
+          setLastPollTime(new Date());
+          setPollStatus('success');
+        }
+      } else {
+        setPollStatus('error');
+        console.error('SNMP poll failed:', response.data?.error);
+      }
+    } catch (err) {
+      setPollStatus('error');
+      console.error('SNMP poll error:', err);
+    }
+  };
+  
+  // Start/stop polling based on config
+  useEffect(() => {
+    if (!snmpConfig.enabled || !host?.id) {
+      // Stop polling if disabled
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        setPollStatus('idle');
+      }
+      return;
+    }
+    
+    // Initial poll
+    pollSNMPData();
+    
+    // Set up interval polling
+    const intervalMs = (snmpConfig.pollInterval || 60) * 1000;
+    pollIntervalRef.current = setInterval(pollSNMPData, intervalMs);
+    
+    // Cleanup on unmount or config change
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [snmpConfig.enabled, snmpConfig.pollInterval, host?.id]);
 
   // Load SNMP configuration
   useEffect(() => {
@@ -101,6 +267,135 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
       loadSNMPConfig();
     }
   }, [host?.id]);
+
+  // Auto-polling effect for SNMP data
+  useEffect(() => {
+    if (!snmpConfig.enabled || !host?.id) {
+      return;
+    }
+
+    // Function to fetch monitoring data via SNMP
+    const fetchMonitoringData = async () => {
+      try {
+        const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, snmpConfig);
+        if (response.data?.success) {
+          const metrics = response.data?.details?.metrics;
+          
+          if (metrics) {
+            // Transform metrics to the format expected by MetricsTable
+            const transformedMetrics = {
+              // System - including OS information
+              sysName: metrics.system?.name,
+              sysDescr: metrics.system?.description,
+              sysContact: metrics.system?.contact,
+              sysLocation: metrics.system?.location,
+              osType: metrics.system?.osType,
+              osVersion: metrics.system?.osVersion,
+              osDetails: metrics.system?.osDetails,
+              uptime: {
+                totalSeconds: metrics.system?.uptime,
+                formatted: formatUptime(metrics.system?.uptime)
+              },
+              agentUptime: metrics.system?.agentUptime,
+              
+              // CPU - transform to percentage format
+              cpu: {
+                percent: metrics.cpu?.usage?.total || 0,
+                user: metrics.cpu?.raw ? (metrics.cpu.raw.user / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+                system: metrics.cpu?.raw ? (metrics.cpu.raw.system / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+                idle: metrics.cpu?.raw ? (metrics.cpu.raw.idle / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+                load1: metrics.cpu?.load1,
+                load5: metrics.cpu?.load5,
+                load15: metrics.cpu?.load15,
+                cores: metrics.cpu?.cores
+              },
+              
+              // Memory - transform field names
+              memory: {
+                total: metrics.memory?.totalRam,
+                used: metrics.memory?.usedRam,
+                available: metrics.memory?.availableRam,
+                usedPercent: metrics.memory?.percentRam,
+                buffered: metrics.memory?.buffer,
+                cached: metrics.memory?.cache,
+                shared: metrics.memory?.shared,
+                swapTotal: metrics.memory?.totalSwap,
+                swapUsed: metrics.memory?.usedSwap,
+                swapUsedPercent: metrics.memory?.percentSwap
+              },
+              
+              // Disk storage - correct field name
+              disk: metrics.disk?.map(d => ({
+                path: d.path,
+                device: d.device,
+                total: d.total,
+                used: d.used,
+                available: d.available,
+                percent: d.percent
+              })) || [],
+              
+              // Network interfaces - transform array
+              interfaces: metrics.network?.map(n => ({
+                name: n.name || n.descr,
+                descr: n.descr || n.name,
+                type: n.type,
+                speed: n.speed,
+                operStatus: n.status === 'up' ? 1 : (n.operStatus || 2),
+                status: n.status,
+                inOctets: n.statistics?.bytesReceived || n.inOctets || 0,
+                outOctets: n.statistics?.bytesSent || n.outOctets || 0,
+                inErrors: n.statistics?.errorsIn || n.inErrors || 0,
+                outErrors: n.statistics?.errorsOut || n.outErrors || 0
+              })) || [],
+              
+              // Process info - complete mapping
+              processes: {
+                count: metrics.processes?.count || metrics.processCount || 0,
+                user: metrics.processes?.user || 0,
+                system: metrics.processes?.system || 0,
+                running: metrics.processes?.running || 0,
+                sleeping: metrics.processes?.sleeping || 0,
+                stopped: metrics.processes?.stopped || 0,
+                zombie: metrics.processes?.zombie || 0,
+                top: metrics.processes?.top || []
+              }
+            };
+            
+            setMonitoringData({
+              status: 'online',
+              lastUpdate: new Date(),
+              metrics: transformedMetrics
+            });
+          }
+        } else {
+          setMonitoringData(prev => ({
+            ...prev,
+            status: 'error',
+            lastUpdate: new Date()
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch monitoring data:', err);
+        setMonitoringData(prev => ({
+          ...prev,
+          status: 'error',
+          lastUpdate: new Date()
+        }));
+      }
+    };
+
+    // Initial fetch
+    fetchMonitoringData();
+
+    // Set up polling interval (convert seconds to milliseconds)
+    const pollInterval = (snmpConfig.pollInterval || 60) * 1000;
+    const intervalId = setInterval(fetchMonitoringData, pollInterval);
+
+    // Cleanup on unmount or when config changes
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [snmpConfig.enabled, snmpConfig.pollInterval, snmpConfig.community, snmpConfig.port, host?.id]);
 
   const loadSNMPConfig = async () => {
     try {
@@ -142,70 +437,124 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
         if (metrics) {
           successMsg += '📊 Retrieved Metrics:\n';
           
+          // System Info
+          if (metrics.system) {
+            successMsg += `• System: ${metrics.system.name || 'Unknown'}\n`;
+            if (metrics.system.uptime) {
+              const uptimeStr = formatUptime(metrics.system.uptime);
+              successMsg += `• Uptime: ${uptimeStr}\n`;
+            }
+          }
+          
           // CPU Info
           if (metrics.cpu) {
-            successMsg += `• CPU Usage: ${metrics.cpu.percent || 0}%`;
-            if (metrics.cpu.load !== undefined) {
-              successMsg += ` (Load: ${metrics.cpu.load})`;
+            if (metrics.cpu.usage?.total !== undefined) {
+              successMsg += `• CPU Usage: ${metrics.cpu.usage.total}%\n`;
             }
-            successMsg += '\n';
+            if (metrics.cpu.load1) {
+              successMsg += `• Load: ${metrics.cpu.load1.toFixed(2)} / ${metrics.cpu.load5?.toFixed(2)} / ${metrics.cpu.load15?.toFixed(2)}\n`;
+            }
           }
           
           // Memory Info
           if (metrics.memory) {
-            const memUsed = formatBytes(metrics.memory.used);
-            const memTotal = formatBytes(metrics.memory.total);
-            const memPercent = metrics.memory.usedPercent || 0;
-            successMsg += `• Memory: ${memUsed} / ${memTotal} (${memPercent.toFixed(1)}%)\n`;
-          }
-          
-          // Uptime Info
-          if (metrics.uptime) {
-            const uptimeStr = formatUptime(metrics.uptime.totalSeconds);
-            successMsg += `• Uptime: ${uptimeStr}`;
-            if (metrics.uptime.formatted) {
-              successMsg += ` (${metrics.uptime.formatted})`;
-            }
-            successMsg += '\n';
-          }
-          
-          // System Info
-          if (metrics.sysName) {
-            successMsg += `• System: ${metrics.sysName}\n`;
+            const memUsed = formatBytes(metrics.memory.usedRam);
+            const memTotal = formatBytes(metrics.memory.totalRam);
+            const memPercent = metrics.memory.percentRam || 0;
+            successMsg += `• Memory: ${memUsed} / ${memTotal} (${memPercent}%)\n`;
           }
           
           // Disk Info
-          if (metrics.disks && metrics.disks.length > 0) {
-            successMsg += `• Disks: ${metrics.disks.length} mounted\n`;
-            metrics.disks.forEach(disk => {
+          if (metrics.disk && metrics.disk.length > 0) {
+            successMsg += `• Disks: ${metrics.disk.length} mounted\n`;
+            metrics.disk.forEach(disk => {
               const diskUsed = formatBytes(disk.used);
               const diskTotal = formatBytes(disk.total);
-              successMsg += `  - ${disk.device}: ${diskUsed} / ${diskTotal} (${disk.percentUsed}%)\n`;
+              successMsg += `  - ${disk.path}: ${diskUsed} / ${diskTotal} (${disk.percent}%)\n`;
             });
           }
           
-          // Interface Info
-          if (metrics.interfaces && metrics.interfaces.length > 0) {
-            successMsg += `• Network Interfaces: ${metrics.interfaces.length} found\n`;
+          // Network Info
+          if (metrics.network && metrics.network.length > 0) {
+            const upInterfaces = metrics.network.filter(n => n.status === 'up').length;
+            successMsg += `• Network: ${upInterfaces}/${metrics.network.length} interfaces up\n`;
           }
         }
         
         setSuccess(successMsg);
         setTestResult('success');
         
-        // Update monitoring data directly with fresh test results
+        // Transform metrics to the format expected by MetricsTable
         if (metrics) {
+          const transformedMetrics = {
+            // System
+            sysName: metrics.system?.name,
+            sysDescr: metrics.system?.description,
+            sysContact: metrics.system?.contact,
+            sysLocation: metrics.system?.location,
+            uptime: {
+              totalSeconds: metrics.system?.uptime,
+              formatted: formatUptime(metrics.system?.uptime)
+            },
+            agentUptime: metrics.system?.agentUptime,  // SNMP agent uptime
+            
+            // CPU - transform to percentage format
+            cpu: {
+              percent: metrics.cpu?.usage?.total || 0,
+              user: metrics.cpu?.raw ? (metrics.cpu.raw.user / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+              system: metrics.cpu?.raw ? (metrics.cpu.raw.system / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+              idle: metrics.cpu?.raw ? (metrics.cpu.raw.idle / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+              load1: metrics.cpu?.load1,
+              load5: metrics.cpu?.load5,
+              load15: metrics.cpu?.load15,
+              cores: metrics.cpu?.cores
+            },
+            
+            // Memory - transform field names
+            memory: {
+              total: metrics.memory?.totalRam,
+              used: metrics.memory?.usedRam,
+              available: metrics.memory?.availableRam,
+              usedPercent: metrics.memory?.percentRam,
+              buffered: metrics.memory?.buffer,
+              cached: metrics.memory?.cache,
+              shared: metrics.memory?.shared,
+              swapTotal: metrics.memory?.totalSwap,
+              swapUsed: metrics.memory?.usedSwap,
+              swapPercent: metrics.memory?.percentSwap
+            },
+            
+            // Disks - transform array
+            disks: metrics.disk?.map(d => ({
+              path: d.path,
+              device: d.device,
+              total: d.total,
+              used: d.used,
+              available: d.available,
+              percentUsed: d.percent
+            })) || [],
+            
+            // Network interfaces - transform array
+            interfaces: metrics.network?.map(n => ({
+              name: n.name,
+              type: n.type,
+              speed: n.speed,
+              operStatus: n.status === 'up' ? 1 : 2,
+              inOctets: n.statistics?.bytesReceived,
+              outOctets: n.statistics?.bytesSent,
+              inErrors: n.statistics?.errorsIn,
+              outErrors: n.statistics?.errorsOut
+            })) || [],
+            
+            // Process info if available
+            processes: metrics.processes || [],
+            processCount: metrics.processCount
+          };
+          
           setMonitoringData({
             status: 'online',
             lastUpdate: new Date(),
-            metrics: {
-              cpu: metrics.cpu?.percent || 0,
-              memory: metrics.memory || null,
-              disk: metrics.disk || [],
-              network: metrics.network || [],
-              temperature: metrics.temperature || null,
-              uptime: metrics.uptime?.totalSeconds || null,
-            }
+            metrics: transformedMetrics
           });
         } else {
           loadMonitoringData(); // Fallback to loading from DB
@@ -214,13 +563,46 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
         // Längere Anzeigezeit für detaillierte Metriken
         setTimeout(() => setTestResult(null), 5000);
       } else {
-        setError(response.data?.error || response.data?.message || 'Test failed');
+        // Handle error response - extract message if error is an object
+        let errorMessage = 'Test failed';
+        if (response.data?.error) {
+          if (typeof response.data.error === 'object') {
+            // If error is an object (e.g., with type, message, recommendations)
+            errorMessage = response.data.error.message || response.data.error.type || 'Connection failed';
+            
+            // Add recommendations if available
+            if (response.data.error.recommendations && Array.isArray(response.data.error.recommendations)) {
+              errorMessage += '\n\nRecommendations:\n• ' + response.data.error.recommendations.join('\n• ');
+            }
+          } else {
+            errorMessage = response.data.error;
+          }
+        } else if (response.data?.message) {
+          errorMessage = response.data.message;
+        }
+        
+        setError(errorMessage);
         setTestResult('error');
         setTimeout(() => setTestResult(null), 3000);
       }
     } catch (err) {
       console.error('SNMP test error:', err);
-      setError(`Connection test failed: ${err.response?.data?.error || err.message}`);
+      let errorMessage = 'Connection test failed';
+      
+      // Extract error message properly
+      if (err.response?.data?.error) {
+        if (typeof err.response.data.error === 'object') {
+          errorMessage = `${errorMessage}: ${err.response.data.error.message || err.response.data.error.type || 'Unknown error'}`;
+        } else {
+          errorMessage = `${errorMessage}: ${err.response.data.error}`;
+        }
+      } else if (err.response?.data?.message) {
+        errorMessage = `${errorMessage}: ${err.response.data.message}`;
+      } else if (err.message) {
+        errorMessage = `${errorMessage}: ${err.message}`;
+      }
+      
+      setError(errorMessage);
       setTestResult('error');
       setTimeout(() => setTestResult(null), 3000);
     } finally {
@@ -377,46 +759,78 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
             sx={{ mt: 2, ...getInputStyles() }}
           />
 
-          <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-            <Button
-              variant="outlined"
-              onClick={handleTest}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <Activity />}
-              sx={{
-                ...(testResult === 'success' && {
-                  borderColor: 'success.main',
-                  color: 'success.main',
-                  boxShadow: '0 0 10px rgba(76, 175, 80, 0.5)',
-                  animation: 'pulse-green 2s ease-out',
-                  '&:hover': {
-                    borderColor: 'success.dark',
-                    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-                  }
-                }),
-                ...(testResult === 'error' && {
-                  borderColor: 'error.main',
-                  color: 'error.main',
-                  boxShadow: '0 0 10px rgba(244, 67, 54, 0.5)',
-                  animation: 'pulse-red 2s ease-out',
-                  '&:hover': {
-                    borderColor: 'error.dark',
-                    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-                  }
-                })
-              }}
-            >
-              Test Connection
-            </Button>
-          </Box>
+          {/* Polling Status Display */}
+          {snmpConfig.enabled && (
+            <Box sx={{ 
+              mt: 3, 
+              p: 2, 
+              bgcolor: 'var(--modal-bg)',
+              border: '1px solid var(--card-border)',
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {pollStatus === 'polling' && (
+                  <>
+                    <CircularProgress size={20} />
+                    <Typography variant="body2">Updating metrics...</Typography>
+                  </>
+                )}
+                {pollStatus === 'success' && (
+                  <>
+                    <CheckCircle size={20} style={{ color: '#4caf50' }} />
+                    <Typography variant="body2" sx={{ color: 'success.main' }}>
+                      Connected - Auto-refresh every {snmpConfig.pollInterval}s
+                    </Typography>
+                  </>
+                )}
+                {pollStatus === 'error' && (
+                  <>
+                    <AlertCircle size={20} style={{ color: '#f44336' }} />
+                    <Typography variant="body2" sx={{ color: 'error.main' }}>
+                      Connection failed - Retrying...
+                    </Typography>
+                  </>
+                )}
+                {pollStatus === 'idle' && (
+                  <>
+                    <Activity size={20} />
+                    <Typography variant="body2">Initializing...</Typography>
+                  </>
+                )}
+              </Box>
+              
+              {lastPollTime && (
+                <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
+                  Last update: {lastPollTime.toLocaleTimeString()}
+                </Typography>
+              )}
+            </Box>
+          )}
 
-          {/* Monitoring Data Display */}
+          {/* Monitoring Data Display - Now using MetricsTable */}
           {monitoringData.status === 'online' && monitoringData.metrics && (
-            <MetricsDetailView 
-              metrics={monitoringData.metrics}
-              formatBytes={formatBytes}
-              formatUptime={formatUptime}
-            />
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" sx={{ mb: 2, color: 'var(--text-primary)' }}>
+                📊 System Metrics Overview
+              </Typography>
+              <MetricsTable 
+                ref={metricsTableRef}
+                metrics={monitoringData.metrics}
+                host={host}
+                onLoggingChange={(metricKey, enabled) => {
+
+                }}
+                onConfigChange={(data) => {
+                  // Pass metrics changes up to parent
+                  if (onConfigChange && data.type === 'metrics') {
+                    onConfigChange(data);
+                  }
+                }}
+              />
+            </Box>
           )}
         </>
       )}
@@ -446,8 +860,7 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
             size="large"
             startIcon={<Download />}
             onClick={() => {
-              console.log('Auto-Setup SNMP button clicked');
-              console.log('Current host:', host);
+
               setShowSetupWizard(true);
             }}
             sx={{ 
@@ -459,63 +872,13 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
           </Button>
         </Box>
       )}
-
-      {/* Status Messages */}
-      {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mt: 2,
-            backgroundColor: 'rgba(211, 47, 47, 0.95) !important',
-            color: 'white !important',
-            border: '1px solid rgba(211, 47, 47, 1) !important',
-            '& .MuiAlert-icon': {
-              color: 'white !important'
-            },
-            '& .MuiAlert-message': {
-              color: 'white !important'
-            },
-            '& .MuiAlert-action': {
-              color: 'white !important'
-            }
-          }} 
-          onClose={() => setError('')}
-        >
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert 
-          severity="success" 
-          sx={{ 
-            mt: 2,
-            backgroundColor: 'rgba(76, 175, 80, 0.95) !important',
-            color: 'white !important',
-            border: '1px solid rgba(76, 175, 80, 1) !important',
-            '& .MuiAlert-icon': {
-              color: 'white !important'
-            },
-            '& .MuiAlert-message': {
-              color: 'white !important'
-            },
-            '& .MuiAlert-action': {
-              color: 'white !important'
-            }
-          }} 
-          onClose={() => setSuccess('')}
-        >
-          {success}
-        </Alert>
-      )}
-
       {/* SNMP Setup Wizard Dialog */}
       <SNMPSetupWizard
         open={showSetupWizard}
         onClose={() => setShowSetupWizard(false)}
         host={host}
         onSuccess={(wizardConfig) => {
-          console.log('Wizard success, config:', wizardConfig);
+
           setShowSetupWizard(false);
           setSuccess('SNMP setup completed successfully!');
           
@@ -533,7 +896,7 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
               privPassword: '',
               pollInterval: 60
             };
-            console.log('Setting new config:', newConfig);
+
             updateParentConfig(newConfig);  // Use updateParentConfig instead
           }
           
@@ -545,6 +908,6 @@ const HostMonitoringTab = ({ host, getInputStyles, asCard = false, snmpConfig: p
       />
     </Box>
   );
-};
+});
 
 export default HostMonitoringTab;
