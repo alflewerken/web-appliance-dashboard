@@ -870,7 +870,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     // Fetch SNMP configuration before deletion
     let snmpConfig = null;
     try {
-      snmpConfig = await db.findOne('host_snmp_configs', { host_id: hostId });
+      snmpConfig = await db.findOne('host_snmp_configs', { hostId: hostId });
     } catch (err) {
       logger.warn('Could not fetch SNMP config for deletion audit:', err);
     }
@@ -878,7 +878,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     // Fetch metrics logging configuration before deletion
     let metricsLogging = null;
     try {
-      metricsLogging = await db.findOne('host_metrics_logging', { host_id: hostId });
+      metricsLogging = await db.findOne('host_metrics_logging', { hostId: hostId });
     } catch (err) {
       logger.warn('Could not fetch metrics logging config for deletion audit:', err);
     }
