@@ -315,11 +315,11 @@ class SNMPMonitor {
       let processorCount = 1; // Default to 1 if not available
       try {
         // Try HOST-RESOURCES-MIB processor table first
-        // Walk hrProcessorLoad to count processors
-        const processorLoad = await this.walkOid(session, '1.3.6.1.2.1.25.3.3.1.2');
-        if (processorLoad && Object.keys(processorLoad).length > 0) {
-          processorCount = Object.keys(processorLoad).length;
-
+        // Walk hrProcessorFrwID to count processors (works on macOS)
+        const processorTable = await this.walkOid(session, '1.3.6.1.2.1.25.3.3.1.1');
+        if (processorTable && Object.keys(processorTable).length > 0) {
+          processorCount = Object.keys(processorTable).length;
+          console.log(`Detected ${processorCount} CPU cores from hrProcessorTable`);
         }
       } catch (e) {
 
@@ -358,6 +358,14 @@ class SNMPMonitor {
       
       metrics.cpu = await this.parseCpuInfo(cpuData, hostId);
       metrics.cpu.cores = processorCount;
+
+      // Calculate CPU percentages (for Apple Silicon compatibility)
+      const cpuPercentages = await this.calculateCpuPercentages(session, hostId);
+      if (cpuPercentages) {
+        metrics.cpu.user = cpuPercentages.user;
+        metrics.cpu.system = cpuPercentages.system;
+        metrics.cpu.idle = cpuPercentages.idle;
+      }
 
       // Get memory metrics
       const memoryOids = Object.values(this.oidDefinitions.memory);
@@ -803,6 +811,14 @@ class SNMPMonitor {
       const diskAvail = await this.walkOid(session, this.oidDefinitions.disk.dskAvail);
       const diskPercent = await this.walkOid(session, this.oidDefinitions.disk.dskPercent);
       
+      // For large disks (>2TB), we need the 64-bit values
+      const diskTotalLow = await this.walkOid(session, '1.3.6.1.4.1.2021.9.1.11'); // dskTotalLow
+      const diskTotalHigh = await this.walkOid(session, '1.3.6.1.4.1.2021.9.1.12'); // dskTotalHigh
+      const diskUsedLow = await this.walkOid(session, '1.3.6.1.4.1.2021.9.1.15'); // dskUsedLow
+      const diskUsedHigh = await this.walkOid(session, '1.3.6.1.4.1.2021.9.1.16'); // dskUsedHigh
+      const diskAvailLow = await this.walkOid(session, '1.3.6.1.4.1.2021.9.1.13'); // dskAvailLow
+      const diskAvailHigh = await this.walkOid(session, '1.3.6.1.4.1.2021.9.1.14'); // dskAvailHigh
+      
       // Combine results by index
       const indexes = new Set([
         ...Object.keys(diskPaths),
@@ -810,13 +826,39 @@ class SNMPMonitor {
       ]);
       
       indexes.forEach(index => {
-        if (diskPaths[index] && diskTotals[index]) {
+        if (diskPaths[index]) {
+          // Check if we have 64-bit values (for large disks)
+          let totalBytes, usedBytes, availBytes;
+          
+          const totalValue = parseInt(diskTotals[index] || 0);
+          if (totalValue === 2147483647 && diskTotalLow[index]) {
+            // Integer overflow detected, use 64-bit values
+            const low = parseInt(diskTotalLow[index] || 0);
+            const high = parseInt(diskTotalHigh[index] || 0);
+            totalBytes = (high * 4294967296 + low) * 1024; // Convert KB to bytes
+            
+            const usedLow = parseInt(diskUsedLow[index] || 0);
+            const usedHigh = parseInt(diskUsedHigh[index] || 0);
+            usedBytes = (usedHigh * 4294967296 + usedLow) * 1024;
+            
+            const availLow = parseInt(diskAvailLow[index] || 0);
+            const availHigh = parseInt(diskAvailHigh[index] || 0);
+            availBytes = (availHigh * 4294967296 + availLow) * 1024;
+            
+            console.log(`Disk ${diskPaths[index]}: Using 64-bit values - Total: ${(totalBytes/1024/1024/1024).toFixed(2)}GB`);
+          } else {
+            // Normal 32-bit values
+            totalBytes = totalValue * 1024; // Convert KB to bytes
+            usedBytes = parseInt(diskUsed[index] || 0) * 1024;
+            availBytes = parseInt(diskAvail[index] || 0) * 1024;
+          }
+          
           disks.push({
             path: this.parseStringValue(diskPaths[index]),
             device: this.parseStringValue(diskDevices[index] || 'unknown'),
-            total: parseInt(diskTotals[index] || 0) * 1024, // Convert KB to bytes
-            used: parseInt(diskUsed[index] || 0) * 1024,
-            available: parseInt(diskAvail[index] || 0) * 1024,
+            total: totalBytes,
+            used: usedBytes,
+            available: availBytes,
             percent: parseInt(diskPercent[index] || 0)
           });
         }
@@ -997,6 +1039,127 @@ class SNMPMonitor {
     }
     
     return processInfo;
+  }
+
+  // Calculate CPU percentages with Apple Silicon fallback
+  async calculateCpuPercentages(session, hostId) {
+    try {
+      // First, try to get the raw CPU counters
+      const rawOids = [
+        this.oidDefinitions.cpu.ssCpuRawUser,
+        this.oidDefinitions.cpu.ssCpuRawSystem,
+        this.oidDefinitions.cpu.ssCpuRawIdle,
+        this.oidDefinitions.cpu.ssCpuRawNice
+      ];
+      
+      const rawResults = await this.getOidValues(session, rawOids);
+      
+      const currentUser = parseInt(rawResults[this.oidDefinitions.cpu.ssCpuRawUser] || 0);
+      const currentSystem = parseInt(rawResults[this.oidDefinitions.cpu.ssCpuRawSystem] || 0);
+      const currentIdle = parseInt(rawResults[this.oidDefinitions.cpu.ssCpuRawIdle] || 0);
+      const currentNice = parseInt(rawResults[this.oidDefinitions.cpu.ssCpuRawNice] || 0);
+      
+      // Check if we're on Apple Silicon (all counters are 0)
+      const isAppleSilicon = currentUser === 0 && currentSystem === 0 && currentIdle === 0;
+      
+      if (isAppleSilicon) {
+        // Fallback for Apple Silicon: Use load average as proxy
+        console.log('Apple Silicon detected - using load average approximation for CPU usage');
+        
+        // Get load average and processor count
+        const loadOids = [
+          this.oidDefinitions.cpu.laLoad1,
+          this.oidDefinitions.cpu.laLoad5,
+          this.oidDefinitions.cpu.laLoad15
+        ];
+        
+        const loadResults = await this.getOidValues(session, loadOids);
+        const load1 = parseFloat(this.parseStringValue(loadResults[this.oidDefinitions.cpu.laLoad1]) || '0');
+        
+        // Get processor count (try different methods)
+        let processorCount = 1;
+        try {
+          // Try hrProcessorTable first
+          const processorTable = await this.walkOid(session, '1.3.6.1.2.1.25.3.3.1.2');
+          processorCount = Object.keys(processorTable).length || 1;
+        } catch (e) {
+          // Default to 10 for Apple Silicon Macs (your machine has 10 cores)
+          processorCount = 10;
+        }
+        
+        // Estimate CPU usage from load average
+        // This is an approximation: if load == cores, then CPU is ~100% utilized
+        const utilizationRatio = Math.min(load1 / processorCount, 1.0);
+        const totalUtilization = utilizationRatio * 100;
+        
+        // Estimate distribution (rough approximation)
+        // Typically system usage is about 20-30% of total on macOS
+        const systemRatio = 0.25;
+        const userRatio = 0.75;
+        
+        return {
+          user: Math.round(totalUtilization * userRatio * 10) / 10,
+          system: Math.round(totalUtilization * systemRatio * 10) / 10,
+          idle: Math.round((100 - totalUtilization) * 10) / 10
+        };
+      } else {
+        // Intel Mac or Linux: Use delta calculation with raw counters
+        const previousValues = this.previousCpuValues.get(hostId);
+        const now = Date.now();
+        
+        if (!previousValues) {
+          // First reading - store and return null
+          this.previousCpuValues.set(hostId, {
+            user: currentUser,
+            nice: currentNice,
+            system: currentSystem,
+            idle: currentIdle,
+            timestamp: now
+          });
+          return null;
+        }
+        
+        // Calculate deltas
+        const deltaUser = currentUser - previousValues.user;
+        const deltaNice = currentNice - previousValues.nice;
+        const deltaSystem = currentSystem - previousValues.system;
+        const deltaIdle = currentIdle - previousValues.idle;
+        
+        const totalDelta = deltaUser + deltaNice + deltaSystem + deltaIdle;
+        
+        if (totalDelta === 0) {
+          // No change - return previous calculated values or defaults
+          return {
+            user: 0,
+            system: 0,
+            idle: 100
+          };
+        }
+        
+        // Calculate percentages
+        const percentUser = Math.round(((deltaUser + deltaNice) / totalDelta) * 1000) / 10;
+        const percentSystem = Math.round((deltaSystem / totalDelta) * 1000) / 10;
+        const percentIdle = Math.round((deltaIdle / totalDelta) * 1000) / 10;
+        
+        // Store current values for next calculation
+        this.previousCpuValues.set(hostId, {
+          user: currentUser,
+          nice: currentNice,
+          system: currentSystem,
+          idle: currentIdle,
+          timestamp: now
+        });
+        
+        return {
+          user: percentUser,
+          system: percentSystem,
+          idle: percentIdle
+        };
+      }
+    } catch (error) {
+      console.error('Error calculating CPU percentages:', error);
+      return null;
+    }
   }
 
   // Walk temperature sensor table

@@ -1421,7 +1421,7 @@ router.get('/:id/live-monitoring', async (req, res) => {
           await db.insert('host_monitoring_data', {
             hostId: hostId,
             status: 'online',
-            timestamp: new Date(),
+            lastUpdate: new Date(),
             metrics: JSON.stringify(metricsResult.metrics)
           });
         }

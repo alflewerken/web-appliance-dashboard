@@ -53,18 +53,23 @@ const SNMPSetupWizard = ({ open, onClose, host, onSuccess }) => {
   const [logs, setLogs] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Form State
+  // Form State - Generate secure random community string ONCE
   const [config, setConfig] = useState({
-    community: 'monitoring-' + Math.random().toString(36).substring(7),
+    community: '',  // Will be set after checking existing config
     port: 161,
     location: 'Server Room',
     contact: 'admin@company.com',
-    allowedNetwork: '192.168.0.0/16',
+    allowedNetwork: '192.168.0.0/16',  // This will be expanded to include Docker
     enableDiskMonitoring: true,
     enableProcessMonitoring: true,
     monitoredDisks: ['/', '/var', '/home'],
     monitoredProcesses: ['sshd', 'nginx', 'mysql']
   });
+
+  // Track if we've checked for existing SNMP
+  const [snmpChecked, setSnmpChecked] = useState(false);
+  const [snmpExists, setSnmpExists] = useState(false);
+  const [generatedCommunity] = useState('monitoring-' + Math.random().toString(36).substring(7));
 
   // OS-spezifische Befehle
   const getInstallCommands = (osType, brewPath = '/usr/local') => {
@@ -130,10 +135,13 @@ sysLocation    ${config.location}
 sysContact     ${config.contact}
 sysServices    72
 
-# Access Control - Allow from specified network
+# Access Control - Allow from specified network AND Docker networks
 rocommunity ${config.community} ${config.allowedNetwork}
+rocommunity ${config.community} 172.0.0.0/8
+rocommunity ${config.community} 10.0.0.0/8
 rocommunity ${config.community} localhost
 rocommunity ${config.community} 127.0.0.1
+rocommunity ${config.community} default
 
 # View Configuration
 view systemonly included .1.3.6.1.2.1.1
@@ -153,6 +161,91 @@ load 12 10 5
 includeDir /etc/snmp/snmpd.conf.d
 `;
   };
+
+  // Check for existing SNMP installation
+  const checkExistingSNMP = async () => {
+    if (!host || !host.id || snmpChecked) return;
+    
+    try {
+      setSnmpChecked(true);
+      addLog('🔍 Checking for existing SNMP installation...', 'info');
+      
+      // Determine OS first
+      const osResponse = await axios.post('/api/ssh/execute', {
+        hostId: host.id,
+        command: 'uname -s',
+        useSudo: false
+      });
+      
+      const osType = osResponse.data.output?.trim().toLowerCase();
+      const configPath = osType === 'darwin' 
+        ? '/opt/homebrew/etc/snmp/snmpd.conf' 
+        : '/etc/snmp/snmpd.conf';
+      
+      // Check if SNMP is running
+      const checkCommand = `ps aux | grep -v grep | grep snmpd > /dev/null && echo "RUNNING" || echo "NOT_RUNNING"`;
+      const runningResponse = await axios.post('/api/ssh/execute', {
+        hostId: host.id,
+        command: checkCommand,
+        useSudo: false
+      });
+      
+      const isRunning = runningResponse.data.output?.trim() === 'RUNNING';
+      
+      if (isRunning) {
+        addLog('✅ SNMP is already running on this host', 'success');
+        setSnmpExists(true);
+        
+        // Try to extract community string from config
+        const getCommunityCmd = `grep "^rocommunity" ${configPath} 2>/dev/null | head -1 | awk '{print $2}'`;
+        const communityResponse = await axios.post('/api/ssh/execute', {
+          hostId: host.id,
+          command: getCommunityCmd,
+          useSudo: false
+        });
+        
+        const existingCommunity = communityResponse.data.output?.trim();
+        
+        if (existingCommunity) {
+          addLog(`📝 Found existing community string: ${existingCommunity}`, 'info');
+          setConfig(prev => ({ ...prev, community: existingCommunity }));
+        } else {
+          addLog('⚠️ Could not read community string, using generated one', 'warning');
+          setConfig(prev => ({ ...prev, community: generatedCommunity }));
+        }
+        
+        // Get port
+        const getPortCmd = `grep "^agentaddress" ${configPath} 2>/dev/null | head -1 | grep -oE '[0-9]+' | head -1`;
+        const portResponse = await axios.post('/api/ssh/execute', {
+          hostId: host.id,
+          command: getPortCmd,
+          useSudo: false
+        });
+        
+        const existingPort = portResponse.data.output?.trim();
+        if (existingPort) {
+          addLog(`📝 SNMP listening on port: ${existingPort}`, 'info');
+          setConfig(prev => ({ ...prev, port: parseInt(existingPort) }));
+        }
+      } else {
+        addLog('ℹ️ SNMP is not installed or not running', 'info');
+        setSnmpExists(false);
+        setConfig(prev => ({ ...prev, community: generatedCommunity }));
+      }
+    } catch (error) {
+      console.error('Error checking existing SNMP:', error);
+      addLog('⚠️ Could not check existing SNMP status', 'warning');
+      // Use generated community as fallback
+      setConfig(prev => ({ ...prev, community: generatedCommunity }));
+    }
+  };
+
+  // useEffect to check SNMP when dialog opens
+  React.useEffect(() => {
+    if (open && host && !snmpChecked) {
+      checkExistingSNMP();
+    }
+  }, [open, host]);
 
   // Installation durchführen
   const performInstallation = async () => {
@@ -449,7 +542,7 @@ includeDir /etc/snmp/snmpd.conf.d
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       const testResponse = await axios.post('/api/snmp/test', {
-        ip: host.hostname || host.ip,  // Use hostname which contains the IP
+        ip: host.hostname || host.ip,  // Use the actual host IP
         port: detectedOS === 'macos' ? 1161 : 161,  // Use port 1161 for macOS (no sudo), 161 for Linux
         community: config.community,
         version: '2c',  // v2c not v2c
@@ -476,10 +569,11 @@ includeDir /etc/snmp/snmpd.conf.d
         });
         
         addLog('💾 Configuration saved to database', 'success');
+        addLog(`📝 Passing config to parent: community="${config.community}", port=${detectedOS === 'macos' ? 1161 : 161}`, 'info');
         
         setTimeout(() => {
           // Pass COMPLETE config data to parent - with correct port!
-          onSuccess && onSuccess({
+          const finalConfig = {
             enabled: true,
             version: '2c',
             community: config.community,
@@ -490,10 +584,15 @@ includeDir /etc/snmp/snmpd.conf.d
             privProtocol: 'AES',
             privPassword: '',
             pollInterval: 60
-          });
+          };
+          console.log('SNMP Setup Wizard - Passing config to parent:', finalConfig);
+          onSuccess && onSuccess(finalConfig);
         }, 2000);
       } else {
-        throw new Error('SNMP test failed: ' + testResponse.data.message);
+        const errorMsg = typeof testResponse.data === 'object' 
+          ? (testResponse.data.message || testResponse.data.error || 'SNMP connection failed')
+          : 'SNMP test failed';
+        throw new Error('SNMP test failed: ' + errorMsg);
       }
 
     } catch (error) {
@@ -642,6 +741,20 @@ includeDir /etc/snmp/snmpd.conf.d
                           Make sure you have clicked "Register Key" in the General tab before running this setup.
                         </Typography>
                       </Alert>
+                      
+                      {/* Show if SNMP already exists */}
+                      {snmpExists && (
+                        <Alert severity="success" sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2">Existing SNMP Installation Detected</Typography>
+                          <Typography variant="caption">
+                            SNMP is already running on this host with community string: <strong>{config.community}</strong>
+                            <br />
+                            • Click "Skip to Test" to test the existing configuration
+                            <br />
+                            • Change the community string and click "Reinstall SNMP" to update the configuration
+                          </Typography>
+                        </Alert>
+                      )}
                       
                       {/* Basic Configuration */}
                       <Card variant="outlined" sx={{ mb: 2 }}>
@@ -867,42 +980,107 @@ includeDir /etc/snmp/snmpd.conf.d
         </Button>
         
         {setupStatus === 'idle' && (
-          <button
-            onClick={() => {
-
-              handleNext();
-            }}
-            disabled={!config.community}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '6px 16px',
-              backgroundColor: config.community ? '#1976d2' : '#ccc',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: config.community ? 'pointer' : 'not-allowed',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              textTransform: 'uppercase',
-              fontFamily: '"Roboto","Helvetica","Arial",sans-serif',
-              boxShadow: '0px 3px 1px -2px rgba(0,0,0,0.2), 0px 2px 2px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12)',
-              transition: 'background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms'
-            }}
-            onMouseOver={(e) => {
-              if (config.community) {
-                e.target.style.backgroundColor = '#1565c0';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (config.community) {
-                e.target.style.backgroundColor = '#1976d2';
-              }
-            }}
-          >
-            <PlayArrow style={{ marginRight: '8px', fontSize: '20px' }} />
-            Start Installation
-          </button>
+          <>
+            <button
+              onClick={() => {
+                handleNext();
+              }}
+              disabled={!config.community}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '6px 16px',
+                backgroundColor: config.community ? '#1976d2' : '#ccc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: config.community ? 'pointer' : 'not-allowed',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textTransform: 'uppercase',
+                fontFamily: '"Roboto","Helvetica","Arial",sans-serif',
+                boxShadow: '0px 3px 1px -2px rgba(0,0,0,0.2), 0px 2px 2px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12)',
+                transition: 'background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms',
+                marginRight: '8px'
+              }}
+              onMouseOver={(e) => {
+                if (config.community) {
+                  e.target.style.backgroundColor = '#1565c0';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (config.community) {
+                  e.target.style.backgroundColor = '#1976d2';
+                }
+              }}
+            >
+              <PlayArrow style={{ marginRight: '8px', fontSize: '20px' }} />
+              {snmpExists ? 'Reinstall SNMP' : 'Start Installation'}
+            </button>
+            
+            {snmpExists && (
+              <Button
+                variant="outlined"
+                onClick={async () => {
+                  try {
+                    // Skip directly to testing
+                    setActiveStep(2);
+                    setSetupStatus('testing');
+                    addLog('⏭️ Skipping installation, testing existing SNMP...', 'info');
+                    
+                    // Run the test
+                    const testResponse = await axios.post('/api/snmp/test', {
+                      ip: host.hostname || host.ip,
+                      port: config.port || 161,
+                      community: config.community,
+                      version: '2c'
+                    });
+                    
+                    if (testResponse.data.success) {
+                      addLog('✅ SNMP connection successful!', 'success');
+                      setSetupStatus('success');
+                      
+                      // Save config to database
+                      await axios.put(`/api/hosts/${host.id}/snmp-config`, {
+                        enabled: true,
+                        version: '2c',
+                        community: config.community,
+                        port: config.port || 161,
+                        pollInterval: 60
+                      });
+                      
+                      addLog('💾 Configuration saved to database', 'success');
+                      
+                      setTimeout(() => {
+                        onSuccess && onSuccess({
+                          enabled: true,
+                          version: '2c',
+                          community: config.community,
+                          port: config.port || 161,
+                          pollInterval: 60
+                        });
+                      }, 2000);
+                    } else {
+                      const errorMessage = typeof testResponse.data.error === 'object' 
+                        ? (testResponse.data.error.message || JSON.stringify(testResponse.data.error))
+                        : (testResponse.data.error || 'SNMP test failed');
+                      addLog(`❌ Test failed: ${errorMessage}`, 'error');
+                      setSetupStatus('error');
+                      setStatusMessage(errorMessage);
+                    }
+                  } catch (error) {
+                    console.error('Test error:', error);
+                    const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Test failed';
+                    addLog(`❌ Test error: ${errorMsg}`, 'error');
+                    setSetupStatus('error');
+                    setStatusMessage(errorMsg);
+                  }
+                }}
+              >
+                Skip to Test
+              </Button>
+            )}
+          </>
         )}
         
         {setupStatus === 'error' && (

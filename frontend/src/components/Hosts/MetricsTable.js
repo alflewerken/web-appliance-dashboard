@@ -270,63 +270,92 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
       icon: <Cpu size={20} />,
       label: 'CPU Metrics',
       color: '#4caf50',
-      metrics: [
-        {
-          key: 'cpu.usage',
-          name: 'CPU Usage',
-          value: metrics?.cpu?.percent !== undefined ? metrics.cpu.percent.toFixed(1) : 'N/A',
-          description: 'Current CPU utilization percentage',
-          unit: '%',
-          loggable: true
-        },
-        {
-          key: 'cpu.user',
-          name: 'CPU User Time',
-          value: metrics?.cpu?.user !== undefined ? metrics.cpu.user.toFixed(1) : 'N/A',
-          description: 'Time spent in user mode',
-          unit: '%',
-          loggable: true
-        },
-        {
-          key: 'cpu.system',
-          name: 'CPU System Time',
-          value: metrics?.cpu?.system !== undefined ? metrics.cpu.system.toFixed(1) : 'N/A',
-          description: 'Time spent in system mode',
-          unit: '%',
-          loggable: true
-        },
-        {
-          key: 'cpu.idle',
-          name: 'CPU Idle Time',
-          value: metrics?.cpu?.idle !== undefined ? metrics.cpu.idle.toFixed(1) : 'N/A',
-          description: 'Time spent idle',
-          unit: '%',
-          loggable: true
-        },        {
-          key: 'cpu.load1',
-          name: 'Load Average (1 min)',
-          value: metrics?.cpu?.load1 !== undefined ? (metrics.cpu.load1 * 100 / (metrics?.cpu?.cores || 1)).toFixed(0) : 'N/A',
-          description: 'System load average over 1 minute',
-          unit: '%',
-          loggable: true
-        },
-        {
-          key: 'cpu.load5',
-          name: 'Load Average (5 min)',
-          value: metrics?.cpu?.load5 !== undefined ? (metrics.cpu.load5 * 100 / (metrics?.cpu?.cores || 1)).toFixed(0) : 'N/A',
-          description: 'System load average over 5 minutes',
-          unit: '%',
-          loggable: true
-        },
-        {
-          key: 'cpu.load15',
-          name: 'Load Average (15 min)',
-          value: metrics?.cpu?.load15 !== undefined ? (metrics.cpu.load15 * 100 / (metrics?.cpu?.cores || 1)).toFixed(0) : 'N/A',
-          description: 'System load average over 15 minutes',
-          unit: '%',
-          loggable: true
-        }
-      ]
+      metrics: (() => {
+        // Debug logging
+        console.log('CPU Metrics Debug:', {
+          'cpu.user': metrics?.cpu?.user,
+          'cpu.system': metrics?.cpu?.system,
+          'cpu.idle': metrics?.cpu?.idle,
+          'typeof cpu.user': typeof metrics?.cpu?.user,
+          'typeof cpu.system': typeof metrics?.cpu?.system,
+          'typeof cpu.idle': typeof metrics?.cpu?.idle,
+        });
+        
+        return [
+          // CPU Usage - only if available
+          ...(metrics?.cpu?.percent !== undefined && !isNaN(metrics.cpu.percent) ? [{
+            key: 'cpu.usage',
+            name: 'CPU Usage',
+            value: metrics.cpu.percent.toFixed(1),
+            description: 'Current CPU utilization percentage',
+            unit: '%',
+            loggable: true
+          }] : []),
+          // CPU User - only if available and not NaN
+          ...(metrics?.cpu?.user !== undefined && !isNaN(metrics.cpu.user) ? [{
+            key: 'cpu.user',
+            name: 'CPU User Time',
+            value: metrics.cpu.user.toFixed(1),
+            description: 'Time spent in user mode',
+            unit: '%',
+            loggable: true
+          }] : []),
+          // CPU System - only if available and not NaN
+          ...(metrics?.cpu?.system !== undefined && !isNaN(metrics.cpu.system) ? [{
+            key: 'cpu.system',
+            name: 'CPU System Time',
+            value: metrics.cpu.system.toFixed(1),
+            description: 'Time spent in system mode',
+            unit: '%',
+            loggable: true
+          }] : []),
+          // CPU Idle - only if available and not NaN
+          ...(metrics?.cpu?.idle !== undefined && !isNaN(metrics.cpu.idle) ? [{
+            key: 'cpu.idle',
+            name: 'CPU Idle Time',
+            value: metrics.cpu.idle.toFixed(1),
+            description: 'Time spent idle',
+            unit: '%',
+            loggable: true
+          }] : []),
+          // Always show load averages (works on all systems)
+          {
+            key: 'cpu.load1',
+            name: 'Load Average (1 min)',
+            value: metrics?.cpu?.load1 !== undefined ? (metrics.cpu.load1 * 100 / (metrics?.cpu?.cores || 1)).toFixed(0) : 'N/A',
+            description: 'System load average over 1 minute',
+            unit: '%',
+            loggable: true
+          },
+          {
+            key: 'cpu.load5',
+            name: 'Load Average (5 min)',
+            value: metrics?.cpu?.load5 !== undefined ? (metrics.cpu.load5 * 100 / (metrics?.cpu?.cores || 1)).toFixed(0) : 'N/A',
+            description: 'System load average over 5 minutes',
+            unit: '%',
+            loggable: true
+          },
+          {
+            key: 'cpu.load15',
+            name: 'Load Average (15 min)',
+            value: metrics?.cpu?.load15 !== undefined ? (metrics.cpu.load15 * 100 / (metrics?.cpu?.cores || 1)).toFixed(0) : 'N/A',
+            description: 'System load average over 15 minutes',
+            unit: '%',
+            loggable: true
+          },
+          // Add info message for Apple Silicon
+          ...(metrics?.cpu?.user === undefined && 
+              metrics?.system?.description?.includes('Darwin') && 
+              metrics?.system?.description?.includes('ARM64') ? [{
+            key: 'cpu.info',
+            name: 'Note',
+            value: 'CPU usage metrics not available on Apple Silicon',
+            description: 'Load averages shown above indicate system activity',
+            unit: '',
+            loggable: false
+          }] : [])
+        ];
+      })()  // Call the IIFE to execute it
     },
     memory: {
       icon: <Activity size={20} />,
