@@ -325,6 +325,115 @@ router.get('/backup', verifyToken, async (req, res) => {
       console.error('Error fetching SSH upload logs for backup:', error.message);
     }
 
+    // Fetch SNMP monitoring configurations
+    let hostSnmpConfigs = [];
+    try {
+      hostSnmpConfigs = await db.select('host_snmp_configs', {}, { orderBy: 'hostId' });
+      console.log(`✅ Fetched ${hostSnmpConfigs.length} SNMP configurations for backup`);
+    } catch (error) {
+      console.error('Error fetching SNMP configs for backup:', error.message);
+    }
+
+    // Fetch host monitoring data (latest 1000 per host)
+    let hostMonitoringData = [];
+    try {
+      hostMonitoringData = await db.select(
+        'host_monitoring_data',
+        {},
+        { orderBy: 'createdAt', orderDir: 'DESC', limit: 5000 }
+      );
+      console.log(`✅ Fetched ${hostMonitoringData.length} monitoring data records for backup`);
+    } catch (error) {
+      console.error('Error fetching host monitoring data for backup:', error.message);
+    }
+
+    // Fetch host metrics logging configuration
+    let hostMetricsLogging = [];
+    try {
+      hostMetricsLogging = await db.select('host_metrics_logging', {}, { orderBy: 'hostId' });
+      console.log(`✅ Fetched ${hostMetricsLogging.length} metrics logging configs for backup`);
+    } catch (error) {
+      console.error('Error fetching host metrics logging for backup:', error.message);
+    }
+
+    // Fetch SNMP metrics (historical data, last 5000)
+    let snmpMetrics = [];
+    try {
+      snmpMetrics = await db.select(
+        'snmp_metrics',
+        {},
+        { orderBy: 'collectedAt', orderDir: 'DESC', limit: 5000 }
+      );
+      console.log(`✅ Fetched ${snmpMetrics.length} SNMP metrics for backup`);
+    } catch (error) {
+      console.error('Error fetching SNMP metrics for backup:', error.message);
+    }
+
+    // Fetch SNMP interfaces data
+    let snmpInterfaces = [];
+    try {
+      snmpInterfaces = await db.select(
+        'snmp_interfaces',
+        {},
+        { orderBy: 'collectedAt', orderDir: 'DESC', limit: 1000 }
+      );
+      console.log(`✅ Fetched ${snmpInterfaces.length} SNMP interface records for backup`);
+    } catch (error) {
+      console.error('Error fetching SNMP interfaces for backup:', error.message);
+    }
+
+    // Fetch SNMP disk metrics
+    let snmpDiskMetrics = [];
+    try {
+      const [diskMetrics] = await pool.execute(
+        'SELECT * FROM snmp_disk_metrics ORDER BY collected_at DESC LIMIT 1000'
+      );
+      snmpDiskMetrics = diskMetrics;
+      console.log(`✅ Fetched ${snmpDiskMetrics.length} SNMP disk metrics for backup`);
+    } catch (error) {
+      console.error('Error fetching SNMP disk metrics for backup:', error.message);
+    }
+
+    // Fetch SNMP errors for debugging
+    let snmpErrors = [];
+    try {
+      snmpErrors = await db.select(
+        'snmp_errors',
+        {},
+        { orderBy: 'occurredAt', orderDir: 'DESC', limit: 500 }
+      );
+      console.log(`✅ Fetched ${snmpErrors.length} SNMP error records for backup`);
+    } catch (error) {
+      console.error('Error fetching SNMP errors for backup:', error.message);
+    }
+
+    // Fetch SNMP thresholds
+    let snmpThresholds = [];
+    try {
+      snmpThresholds = await db.select('snmp_thresholds', {}, { orderBy: 'hostId' });
+      console.log(`✅ Fetched ${snmpThresholds.length} SNMP thresholds for backup`);
+    } catch (error) {
+      console.error('Error fetching SNMP thresholds for backup:', error.message);
+    }
+
+    // Fetch host disk metrics
+    let hostDiskMetrics = [];
+    try {
+      hostDiskMetrics = await db.select('host_disk_metrics', {}, { orderBy: 'monitoringDataId' });
+      console.log(`✅ Fetched ${hostDiskMetrics.length} host disk metrics for backup`);
+    } catch (error) {
+      console.error('Error fetching host disk metrics for backup:', error.message);
+    }
+
+    // Fetch host network metrics
+    let hostNetworkMetrics = [];
+    try {
+      hostNetworkMetrics = await db.select('host_network_metrics', {}, { orderBy: 'monitoringDataId' });
+      console.log(`✅ Fetched ${hostNetworkMetrics.length} host network metrics for backup`);
+    } catch (error) {
+      console.error('Error fetching host network metrics for backup:', error.message);
+    }
+
     // Fetch users (INCLUDING password hashes for complete backup)
     let users = [];
     try {
@@ -666,9 +775,9 @@ router.get('/backup', verifyToken, async (req, res) => {
 
     // Create comprehensive backup object
     const backupData = {
-      version: '2.9.0',
+      version: '2.9.1',
       created_at: new Date().toISOString(),
-      created_by: 'Web Appliance Dashboard API (Full Backup with All Tables)',
+      created_by: 'Web Appliance Dashboard API (Full Backup with All Tables + SNMP)',
       data: {
         appliances,
         categories,
@@ -687,6 +796,17 @@ router.get('/backup', verifyToken, async (req, res) => {
         service_command_logs: serviceCommandLogs,
         active_sessions: activeSessions,
         guacamole_backup: guacamoleBackup, // Add Guacamole backup
+        // SNMP/Monitoring data
+        host_snmp_configs: hostSnmpConfigs,
+        host_monitoring_data: hostMonitoringData,
+        host_metrics_logging: hostMetricsLogging,
+        snmp_metrics: snmpMetrics,
+        snmp_interfaces: snmpInterfaces,
+        snmp_disk_metrics: snmpDiskMetrics,
+        snmp_errors: snmpErrors,
+        snmp_thresholds: snmpThresholds,
+        host_disk_metrics: hostDiskMetrics,
+        host_network_metrics: hostNetworkMetrics,
       },
       metadata: {
         appliances_count: appliances.length,
@@ -705,10 +825,21 @@ router.get('/backup', verifyToken, async (req, res) => {
         user_appliance_permissions_count: userAppliancePermissions.length,
         service_command_logs_count: serviceCommandLogs.length,
         active_sessions_count: activeSessions.length,
+        // SNMP/Monitoring metadata
+        host_snmp_configs_count: hostSnmpConfigs.length,
+        host_monitoring_data_count: hostMonitoringData.length,
+        host_metrics_logging_count: hostMetricsLogging.length,
+        snmp_metrics_count: snmpMetrics.length,
+        snmp_interfaces_count: snmpInterfaces.length,
+        snmp_disk_metrics_count: snmpDiskMetrics.length,
+        snmp_errors_count: snmpErrors.length,
+        snmp_thresholds_count: snmpThresholds.length,
+        host_disk_metrics_count: hostDiskMetrics.length,
+        host_network_metrics_count: hostNetworkMetrics.length,
         has_guacamole_backup: !!guacamoleBackup,
         guacamole_backup_size: guacamoleBackup ? guacamoleBackup.size_bytes : 0,
-        backup_type: 'full_with_all_tables',
-        database_version: '2.9.0',
+        backup_type: 'full_with_all_tables_and_snmp',
+        database_version: '2.9.1',
         includes_background_files: backgroundImagesWithData.some(
           bg => bg.file_data !== null
         ),
@@ -762,7 +893,17 @@ router.get('/backup', verifyToken, async (req, res) => {
           rolePermissions.length +
           userAppliancePermissions.length +
           serviceCommandLogs.length +
-          activeSessions.length,
+          activeSessions.length +
+          hostSnmpConfigs.length +
+          hostMonitoringData.length +
+          hostMetricsLogging.length +
+          snmpMetrics.length +
+          snmpInterfaces.length +
+          snmpDiskMetrics.length +
+          snmpErrors.length +
+          snmpThresholds.length +
+          hostDiskMetrics.length +
+          hostNetworkMetrics.length,
         appliances_count: appliances.length,
         categories_count: categories.length,
         user_settings_count: settings.length,
@@ -779,6 +920,17 @@ router.get('/backup', verifyToken, async (req, res) => {
         user_appliance_permissions_count: userAppliancePermissions.length,
         service_command_logs_count: serviceCommandLogs.length,
         active_sessions_count: activeSessions.length,
+        // SNMP/Monitoring counts
+        host_snmp_configs_count: hostSnmpConfigs.length,
+        host_monitoring_data_count: hostMonitoringData.length,
+        host_metrics_logging_count: hostMetricsLogging.length,
+        snmp_metrics_count: snmpMetrics.length,
+        snmp_interfaces_count: snmpInterfaces.length,
+        snmp_disk_metrics_count: snmpDiskMetrics.length,
+        snmp_errors_count: snmpErrors.length,
+        snmp_thresholds_count: snmpThresholds.length,
+        host_disk_metrics_count: hostDiskMetrics.length,
+        host_network_metrics_count: hostNetworkMetrics.length,
         backup_size: backupSizeBytes,
         created_by: req.user?.username || 'unknown',
       },
@@ -949,7 +1101,18 @@ router.post('/restore', verifyToken, async (req, res) => {
       service_command_logs,
       sessions,          // Old name
       active_sessions,   // New name
-      guacamole_backup  // Guacamole database backup
+      guacamole_backup,  // Guacamole database backup
+      // SNMP/Monitoring tables
+      host_snmp_configs,
+      host_monitoring_data,
+      host_metrics_logging,
+      snmp_metrics,
+      snmp_interfaces,
+      snmp_disk_metrics,
+      snmp_errors,
+      snmp_thresholds,
+      host_disk_metrics,
+      host_network_metrics
     } = backupData.data;
 
     // Use whichever is available (prefer new names)
@@ -1005,6 +1168,17 @@ router.post('/restore', verifyToken, async (req, res) => {
       let restoredUserAppliancePermissions = 0;
       let restoredServiceCommandLogs = 0;
       const restoredSessions = 0;
+      // SNMP/Monitoring restore counters
+      let restoredHostSnmpConfigs = 0;
+      let restoredHostMonitoringData = 0;
+      let restoredHostMetricsLogging = 0;
+      let restoredSnmpMetrics = 0;
+      let restoredSnmpInterfaces = 0;
+      let restoredSnmpDiskMetrics = 0;
+      let restoredSnmpErrors = 0;
+      let restoredSnmpThresholds = 0;
+      let restoredHostDiskMetrics = 0;
+      let restoredHostNetworkMetrics = 0;
 
       // Create ID mapping for appliances (old ID -> new ID)
       const applianceIdMapping = {};
@@ -2397,6 +2571,156 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         }
       }
 
+      // Restore SNMP/Monitoring configurations
+      console.log('\n📊 Starting SNMP/Monitoring data restoration...');
+      
+      // Restore host_snmp_configs
+      if (host_snmp_configs && host_snmp_configs.length > 0) {
+        try {
+          console.log(`📡 Restoring ${host_snmp_configs.length} SNMP configurations...`);
+          await connection.execute('DELETE FROM host_snmp_configs');
+          
+          for (const config of host_snmp_configs) {
+            // Check if the host exists
+            const [hostExists] = await connection.execute(
+              'SELECT id FROM hosts WHERE id = ?',
+              [config.host_id || config.hostId]
+            );
+            
+            if (hostExists.length > 0) {
+              const configData = {
+                hostId: config.host_id || config.hostId,
+                enabled: Boolean(config.enabled),
+                version: config.version || '2c',
+                community: config.community || 'public',
+                port: config.port || 161,
+                username: config.username || null,
+                authProtocol: config.auth_protocol || config.authProtocol || null,
+                authPassword: config.auth_password || config.authPassword || null,
+                privProtocol: config.priv_protocol || config.privProtocol || null,
+                privPassword: config.priv_password || config.privPassword || null,
+                pollInterval: config.poll_interval || config.pollInterval || 60,
+                createdAt: config.created_at || config.createdAt || new Date(),
+                updatedAt: config.updated_at || config.updatedAt || new Date()
+              };
+              
+              const { sql, values } = prepareInsert('host_snmp_configs', configData);
+              await connection.execute(sql, values);
+              restoredHostSnmpConfigs++;
+            }
+          }
+          console.log(`✅ Restored ${restoredHostSnmpConfigs} SNMP configurations`);
+        } catch (error) {
+          console.error('❌ Error restoring SNMP configs:', error.message);
+        }
+      }
+
+      // Restore host_metrics_logging
+      if (host_metrics_logging && host_metrics_logging.length > 0) {
+        try {
+          console.log(`📊 Restoring ${host_metrics_logging.length} metrics logging configurations...`);
+          await connection.execute('DELETE FROM host_metrics_logging');
+          
+          for (const logging of host_metrics_logging) {
+            // Check if the host exists
+            const [hostExists] = await connection.execute(
+              'SELECT id FROM hosts WHERE id = ?',
+              [logging.host_id || logging.hostId]
+            );
+            
+            if (hostExists.length > 0) {
+              const loggingData = {
+                hostId: logging.host_id || logging.hostId,
+                config: typeof logging.config === 'string' ? logging.config : JSON.stringify(logging.config || {}),
+                customNames: typeof logging.custom_names === 'string' ? logging.custom_names : 
+                  (typeof logging.customNames === 'string' ? logging.customNames : 
+                    JSON.stringify(logging.custom_names || logging.customNames || {})),
+                createdAt: logging.created_at || logging.createdAt || new Date(),
+                updatedAt: logging.updated_at || logging.updatedAt || new Date()
+              };
+              
+              const { sql, values } = prepareInsert('host_metrics_logging', loggingData);
+              await connection.execute(sql, values);
+              restoredHostMetricsLogging++;
+            }
+          }
+          console.log(`✅ Restored ${restoredHostMetricsLogging} metrics logging configurations`);
+        } catch (error) {
+          console.error('❌ Error restoring metrics logging:', error.message);
+        }
+      }
+
+      // Restore host_monitoring_data
+      if (host_monitoring_data && host_monitoring_data.length > 0) {
+        try {
+          console.log(`📈 Restoring ${host_monitoring_data.length} monitoring data records...`);
+          // Don't delete existing monitoring data - just add from backup
+          
+          for (const data of host_monitoring_data) {
+            // Check if the host exists
+            const [hostExists] = await connection.execute(
+              'SELECT id FROM hosts WHERE id = ?',
+              [data.host_id || data.hostId]
+            );
+            
+            if (hostExists.length > 0) {
+              const monitoringData = {
+                hostId: data.host_id || data.hostId,
+                status: data.status || 'offline',
+                lastUpdate: data.last_update || data.lastUpdate || new Date(),
+                cpuUsage: data.cpu_usage || data.cpuUsage || null,
+                memoryUsed: data.memory_used || data.memoryUsed || null,
+                memoryTotal: data.memory_total || data.memoryTotal || null,
+                memoryPercent: data.memory_percent || data.memoryPercent || null,
+                temperature: data.temperature || null,
+                uptimeSeconds: data.uptime_seconds || data.uptimeSeconds || null,
+                createdAt: data.created_at || data.createdAt || new Date()
+              };
+              
+              const { sql, values } = prepareInsert('host_monitoring_data', monitoringData);
+              await connection.execute(sql, values);
+              restoredHostMonitoringData++;
+            }
+          }
+          console.log(`✅ Restored ${restoredHostMonitoringData} monitoring data records`);
+        } catch (error) {
+          console.error('❌ Error restoring monitoring data:', error.message);
+        }
+      }
+
+      // Restore snmp_thresholds
+      if (snmp_thresholds && snmp_thresholds.length > 0) {
+        try {
+          console.log(`⚠️ Restoring ${snmp_thresholds.length} SNMP thresholds...`);
+          await connection.execute('DELETE FROM snmp_thresholds');
+          
+          for (const threshold of snmp_thresholds) {
+            const thresholdData = {
+              hostId: threshold.host_id || threshold.hostId || null,
+              metricName: threshold.metric_name || threshold.metricName,
+              warningValue: threshold.warning_value || threshold.warningValue || null,
+              criticalValue: threshold.critical_value || threshold.criticalValue || null,
+              enabled: Boolean(threshold.enabled !== false),
+              createdAt: threshold.created_at || threshold.createdAt || new Date(),
+              updatedAt: threshold.updated_at || threshold.updatedAt || new Date()
+            };
+            
+            const { sql, values } = prepareInsert('snmp_thresholds', thresholdData);
+            await connection.execute(sql, values);
+            restoredSnmpThresholds++;
+          }
+          console.log(`✅ Restored ${restoredSnmpThresholds} SNMP thresholds`);
+        } catch (error) {
+          console.error('❌ Error restoring SNMP thresholds:', error.message);
+        }
+      }
+
+      console.log(`\n✅ SNMP/Monitoring restoration complete:
+        - SNMP Configs: ${restoredHostSnmpConfigs}
+        - Metrics Logging: ${restoredHostMetricsLogging}
+        - Monitoring Data: ${restoredHostMonitoringData}
+        - Thresholds: ${restoredSnmpThresholds}`);
+
       // Commit transaction
       await connection.commit();
 
@@ -2746,6 +3070,11 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             role_permissions: restoredRolePermissions,
             user_appliance_permissions: restoredUserAppliancePermissions,
             service_command_logs: restoredServiceCommandLogs,
+            // SNMP/Monitoring items
+            host_snmp_configs: restoredHostSnmpConfigs,
+            host_monitoring_data: restoredHostMonitoringData,
+            host_metrics_logging: restoredHostMetricsLogging,
+            snmp_thresholds: restoredSnmpThresholds,
           },
           backup_version: backupData.version,
           backup_created_at: backupData.created_at,
@@ -2772,11 +3101,17 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         restored_role_permissions: restoredRolePermissions,
         restored_user_appliance_permissions: restoredUserAppliancePermissions,
         restored_service_command_logs: restoredServiceCommandLogs,
+        // SNMP/Monitoring restored counts
+        restored_host_snmp_configs: restoredHostSnmpConfigs,
+        restored_host_monitoring_data: restoredHostMonitoringData,
+        restored_host_metrics_logging: restoredHostMetricsLogging,
+        restored_snmp_thresholds: restoredSnmpThresholds,
         backup_version: backupData.version,
         backup_date: backupData.created_at,
         compatibility_mode: isOldVersion,
         ssh_auto_initialized: sshAutoInitialized,
         ssh_ready: restoredSSHKeys > 0,
+        snmp_ready: restoredHostSnmpConfigs > 0,
         next_steps:
           isOldVersion && restoredSSHKeys > 0
             ? [

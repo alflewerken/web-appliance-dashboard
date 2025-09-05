@@ -547,7 +547,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                         }}
                       />
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                        {customNames[metricKey] || iface.name || iface.descr || `Interface ${index}`}
+                        {iface.name || iface.descr || `Interface ${index}`}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -647,7 +647,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight="medium">
-                    {customNames[metricKey] || disk.name}
+                    {disk.name}
                   </Typography>
                   <Typography variant="caption" color="textSecondary">
                     {disk.description}
@@ -859,7 +859,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                                   ) : (
                                     <>
                                       <Typography variant="body2" fontWeight="medium">
-                                        {customNames[metric.key] || metric.name}
+                                        {metric.name}
                                       </Typography>
                                       <Typography variant="caption" color="textSecondary">
                                         {metric.description}
