@@ -1271,8 +1271,8 @@ class SNMPMonitor {
         for (const metric of diskMetrics) {
           const diskIndex = parseInt(metric.split('.')[1]);
           if (disks[diskIndex]) {
-            // Store disk usage percentage - use 'percent' not 'percentUsed'
-            collectedMetrics[metric] = disks[diskIndex].percent || 0;
+            // Store disk usage percentage
+            collectedMetrics[metric] = disks[diskIndex].percentUsed || 0;
           }
         }
       }
@@ -1387,8 +1387,9 @@ class SNMPMonitor {
     
     return null; // No delta available yet
   }
-  
-  // Get memory metrics for collectMetrics
+}
+
+module.exports = SNMPMonitor;  // Get memory metrics for collectMetrics
   async getMemoryMetrics(session) {
     const memoryOids = [
       this.oidDefinitions.memory.memTotalReal,
@@ -1424,8 +1425,10 @@ class SNMPMonitor {
 
   // Get network interfaces for collectMetrics  
   async getNetworkInterfaces(session) {
-    return await this.walkNetworkInterfaces(session);
+    return await this.walkInterfaceTable(session);
   }
+
+
 }
 
 module.exports = SNMPMonitor;

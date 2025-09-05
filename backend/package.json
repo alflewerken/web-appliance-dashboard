@@ -11,6 +11,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "polling": "node polling-worker.js",
+    "polling:start": "nohup node polling-worker.js > /dev/null 2>&1 &",
+    "polling:stop": "pkill -f polling-worker || true",
     "test": "cross-env NODE_ENV=test jest --coverage --forceExit",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
     "test:unit": "cross-env NODE_ENV=test jest --testPathPattern=unit --coverage=false",

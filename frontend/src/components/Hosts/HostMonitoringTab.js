@@ -129,10 +129,11 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
     pollCountRef.current += 1;
     
     try {
-      const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, snmpConfig);
+      // Use live-monitoring endpoint that doesn't create audit logs
+      const response = await axios.get(`/api/hosts/${host.id}/live-monitoring`);
       
-      if (response.data?.success) {
-        const metrics = response.data?.details?.metrics;
+      if (response.data?.success || response.data?.metrics) {
+        const metrics = response.data?.metrics;
         
         if (metrics) {
           // Transform metrics to the format expected by MetricsTable
@@ -277,9 +278,10 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
     // Function to fetch monitoring data via SNMP
     const fetchMonitoringData = async () => {
       try {
-        const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, snmpConfig);
-        if (response.data?.success) {
-          const metrics = response.data?.details?.metrics;
+        // Use new live-monitoring endpoint that doesn't create audit logs
+        const response = await axios.get(`/api/hosts/${host.id}/live-monitoring`);
+        if (response.data?.success || response.data?.metrics) {
+          const metrics = response.data?.metrics;
           
           if (metrics) {
             // Transform metrics to the format expected by MetricsTable
@@ -428,7 +430,11 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
     setTestResult(null);
 
     try {
-      const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, snmpConfig);
+      // Add skipAudit parameter to prevent audit log for UI testing
+      const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, {
+        ...snmpConfig,
+        skipAudit: true  // Don't log UI tests in audit log
+      });
       if (response.data?.success) {
         // Zeige detaillierte Metriken in der Success-Meldung
         const metrics = response.data?.details?.metrics;

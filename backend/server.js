@@ -148,6 +148,10 @@ app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware becau
 
 // Configuration Routes
 const configRouter = require('./routes/config');
+
+// Polling Service Routes
+const pollingServiceRouter = require('./routes/pollingService');
+app.use('/api/polling', verifyToken, pollingServiceRouter);
 app.use('/api/config', verifyToken, configRouter);
 
 app.use('/api/terminal', verifyToken, terminalRouter);
@@ -243,9 +247,26 @@ server.listen(PORT, async () => {
 
   // Use robust initialization sequence
   initializeServices()
-    .then(success => {
+    .then(async success => {
       if (success) {
         logger.info('All services initialized successfully');
+        
+        // Start SNMP Polling Service if enabled
+        if (process.env.ENABLE_SNMP_POLLING !== 'false') {
+          try {
+            const { spawn } = require('child_process');
+            const pollingProcess = spawn('node', ['polling-worker.js'], {
+              detached: true,
+              stdio: 'ignore',
+              env: process.env
+            });
+            pollingProcess.unref();
+            logger.info('SNMP Polling Service started in background');
+          } catch (error) {
+            logger.error('Failed to start SNMP Polling Service:', error);
+            // Not critical - main app continues
+          }
+        }
       } else {
         logger.warn('Some services failed to initialize');
       }

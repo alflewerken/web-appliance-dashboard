@@ -1,0 +1,33 @@
+[Unit]
+Description=SNMP Polling Service for Web Appliance Dashboard
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/web-appliance-dashboard/backend
+Environment="NODE_ENV=production"
+EnvironmentFile=/opt/web-appliance-dashboard/.env
+ExecStart=/usr/bin/node /opt/web-appliance-dashboard/backend/polling-worker.js
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/snmp-polling.log
+StandardError=append:/var/log/snmp-polling-error.log
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log
+ReadWritePaths=/opt/web-appliance-dashboard/data
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
