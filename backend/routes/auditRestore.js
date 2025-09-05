@@ -899,6 +899,55 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
 
       const restoredHostId = insertResult.insertId;
 
+      // Restore SNMP configuration if it existed
+      if (details.snmpConfig) {
+        try {
+          const snmpConfig = details.snmpConfig;
+          await trx.insert('host_snmp_configs', {
+            host_id: restoredHostId,
+            enabled: snmpConfig.enabled || false,
+            version: snmpConfig.version || '2c',
+            community: snmpConfig.community || 'public',
+            port: snmpConfig.port || 161,
+            username: snmpConfig.username || '',
+            auth_protocol: snmpConfig.authProtocol || snmpConfig.auth_protocol || 'SHA',
+            auth_password: snmpConfig.authPassword || snmpConfig.auth_password || '',
+            priv_protocol: snmpConfig.privProtocol || snmpConfig.priv_protocol || 'AES',
+            priv_password: snmpConfig.privPassword || snmpConfig.priv_password || '',
+            poll_interval: snmpConfig.pollInterval || snmpConfig.poll_interval || 60,
+            created_at: new Date(),
+            updated_at: new Date()
+          });
+          console.log(`Restored SNMP configuration for host ${hostName}`);
+        } catch (snmpError) {
+          console.error('Failed to restore SNMP configuration:', snmpError);
+          // Don't fail the entire restoration if SNMP config fails
+        }
+      }
+
+      // Restore metrics logging configuration if it existed
+      if (details.metricsLogging) {
+        try {
+          const metricsLogging = details.metricsLogging;
+          await trx.insert('host_metrics_logging', {
+            host_id: restoredHostId,
+            config: typeof metricsLogging.config === 'string' ? 
+              metricsLogging.config : JSON.stringify(metricsLogging.config || {}),
+            custom_names: typeof metricsLogging.customNames === 'string' ? 
+              metricsLogging.customNames : 
+              (typeof metricsLogging.custom_names === 'string' ? 
+                metricsLogging.custom_names : 
+                JSON.stringify(metricsLogging.customNames || metricsLogging.custom_names || {})),
+            created_at: new Date(),
+            updated_at: new Date()
+          });
+          console.log(`Restored metrics logging configuration for host ${hostName}`);
+        } catch (metricsError) {
+          console.error('Failed to restore metrics logging configuration:', metricsError);
+          // Don't fail the entire restoration if metrics logging config fails
+        }
+      }
+
       // Restore Guacamole connection if Remote Desktop was enabled
       const remoteEnabled = details.remoteDesktopEnabled ?? details.remote_desktop_enabled;
       const remoteDesktopType = details.remoteDesktopType || details.remote_desktop_type || 'guacamole';
@@ -944,6 +993,8 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
         {
           restoredFromLogId: req.params.logId,
           restoredHostData: details,
+          snmpConfigRestored: !!details.snmpConfig,
+          metricsLoggingRestored: !!details.metricsLogging,
           newName: hostName !== details.name ? hostName : undefined,  // Log new name if changed
           restoredBy: req.user.username
         },
@@ -962,7 +1013,9 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
         success: true,
         message: 'Host restored successfully',
         hostId: restoredHostId,
-        hostName: hostName  // Return new name
+        hostName: hostName,  // Return new name
+        snmpConfigRestored: !!details.snmpConfig,
+        metricsLoggingRestored: !!details.metricsLogging
       };
     });
 
@@ -1092,6 +1145,112 @@ router.post('/revert/host/:logId', requireAdmin, async (req, res) => {
     console.error('Error reverting host:', error);
     res.status(error.message.includes('not found') ? 404 : 500)
       .json({ error: error.message || 'Failed to revert host' });
+  }
+});
+
+// Revert SNMP configuration to previous state
+router.post('/revert/snmp/:logId', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.transaction(async (trx) => {
+      // Get the audit log
+      const logs = await trx.select('audit_logs', {
+        id: req.params.logId
+      }, { limit: 1 });
+
+      if (logs.length === 0) {
+        throw new Error('Audit log not found');
+      }
+
+      const log = logs[0];
+      const details = typeof log.details === 'string' 
+        ? JSON.parse(log.details || '{}')
+        : log.details || {};
+
+      // Check if this is a SNMP config update with old values
+      if (log.action !== 'snmp_config_updated' || !details.oldValues) {
+        throw new Error('This audit log does not contain SNMP configuration changes that can be reverted');
+      }
+
+      const hostId = log.resource_id;
+      const oldConfig = details.oldValues;
+
+      // Check if host still exists
+      const hosts = await trx.select('hosts', { id: hostId }, { limit: 1 });
+      if (hosts.length === 0) {
+        throw new Error('Host no longer exists');
+      }
+
+      const host = hosts[0];
+
+      // Get current config to save for potential re-revert
+      const currentConfigs = await trx.select('host_snmp_configs', 
+        { host_id: hostId }, 
+        { limit: 1 }
+      );
+
+      const currentConfig = currentConfigs[0];
+
+      // Prepare reverted config data
+      const revertedConfig = {
+        host_id: hostId,
+        enabled: oldConfig.enabled || false,
+        version: oldConfig.version || '2c',
+        community: oldConfig.community || 'public',
+        port: oldConfig.port || 161,
+        username: oldConfig.username || '',
+        auth_protocol: oldConfig.auth_protocol || oldConfig.authProtocol || 'SHA',
+        auth_password: oldConfig.auth_password || oldConfig.authPassword || '',
+        priv_protocol: oldConfig.priv_protocol || oldConfig.privProtocol || 'AES',
+        priv_password: oldConfig.priv_password || oldConfig.privPassword || '',
+        poll_interval: oldConfig.poll_interval || oldConfig.pollInterval || 60,
+        updated_at: new Date()
+      };
+
+      if (currentConfig) {
+        // Update existing config
+        await trx.update('host_snmp_configs', revertedConfig, { id: currentConfig.id });
+      } else {
+        // Create new config if it doesn't exist
+        revertedConfig.created_at = new Date();
+        await trx.insert('host_snmp_configs', revertedConfig);
+      }
+
+      // Create audit log for the revert
+      await createAuditLog(
+        req.user.id,
+        'snmp_config_reverted',
+        'hosts',
+        hostId,
+        {
+          revertedFromLogId: req.params.logId,
+          oldValues: currentConfig || null,
+          newValues: revertedConfig,
+          revertedBy: req.user.username
+        },
+        getClientIp(req),
+        host.name
+      );
+
+      // Broadcast the revert
+      broadcast('snmp_config_reverted', {
+        hostId: hostId,
+        hostName: host.name,
+        revertedBy: req.user.username
+      });
+
+      return {
+        success: true,
+        message: 'SNMP configuration reverted successfully',
+        hostId: hostId,
+        hostName: host.name
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error reverting SNMP configuration:', error);
+    res.status(error.message.includes('not found') ? 404 : 500)
+      .json({ error: error.message || 'Failed to revert SNMP configuration' });
   }
 });
 

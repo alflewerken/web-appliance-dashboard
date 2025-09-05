@@ -867,7 +867,23 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
 
-    // Delete the host
+    // Fetch SNMP configuration before deletion
+    let snmpConfig = null;
+    try {
+      snmpConfig = await db.findOne('host_snmp_configs', { hostId: hostId });
+    } catch (err) {
+      logger.warn('Could not fetch SNMP config for deletion audit:', err);
+    }
+
+    // Fetch metrics logging configuration before deletion
+    let metricsLogging = null;
+    try {
+      metricsLogging = await db.findOne('host_metrics_logging', { hostId: hostId });
+    } catch (err) {
+      logger.warn('Could not fetch metrics logging config for deletion audit:', err);
+    }
+
+    // Delete the host (will cascade delete SNMP configs due to foreign key)
     await db.delete('hosts', { id: hostId });
 
     // Delete Guacamole connection if it exists
@@ -877,13 +893,21 @@ router.delete('/:id', verifyToken, async (req, res) => {
       logger.error('Failed to delete Guacamole connection:', guacError);
     }
 
-    // Create audit log with full host data for restoration
+    // Create audit log with full host data AND SNMP data for restoration
+    const auditDetails = {
+      ...existingHost,
+      // Add SNMP configuration
+      snmpConfig: snmpConfig || null,
+      // Add metrics logging configuration
+      metricsLogging: metricsLogging || null
+    };
+
     await createAuditLog(
       req.user.id,
       'host_delete',
       'hosts',
       hostId,
-      existingHost,
+      auditDetails,
       getClientIp(req),
       existingHost.name
     );
@@ -1138,7 +1162,7 @@ router.put('/:id/snmp-config', async (req, res) => {
       return res.status(404).json({ error: 'Host not found' });
     }
     
-    // Check if config exists
+    // Check if config exists and save old values for audit
     const existingConfig = await db.findOne('host_snmp_configs', { host_id: hostId });
     
     // Only include the fields that should be updated
@@ -1157,22 +1181,47 @@ router.put('/:id/snmp-config', async (req, res) => {
       updated_at: new Date()
     };
     
+    let auditDetails;
     if (existingConfig) {
       // Update existing config - correct parameter order: table, data, where
       await db.update('host_snmp_configs', configData, { id: existingConfig.id });
+      
+      // Prepare audit details with old and new values
+      auditDetails = {
+        action: 'snmp_config_updated',
+        oldValues: existingConfig,
+        newValues: configData,
+        changes: {
+          enabled: existingConfig.enabled !== configData.enabled ? 
+            { old: existingConfig.enabled, new: configData.enabled } : undefined,
+          version: existingConfig.version !== configData.version ?
+            { old: existingConfig.version, new: configData.version } : undefined,
+          community: existingConfig.community !== configData.community ?
+            { old: '***', new: '***' } : undefined,  // Don't log sensitive data
+          port: existingConfig.port !== configData.port ?
+            { old: existingConfig.port, new: configData.port } : undefined,
+          poll_interval: existingConfig.poll_interval !== configData.poll_interval ?
+            { old: existingConfig.poll_interval, new: configData.poll_interval } : undefined
+        }
+      };
     } else {
       // Insert new config
       configData.created_at = new Date();
       await db.insert('host_snmp_configs', configData);
+      
+      auditDetails = {
+        action: 'snmp_config_created',
+        newValues: configData
+      };
     }
     
-    // Create audit log
+    // Create audit log with old and new values
     await createAuditLog(
       1, // Default user ID - in production, get from auth
-      'snmp_config_updated',
+      existingConfig ? 'snmp_config_updated' : 'snmp_config_created',
       'hosts',
       hostId,
-      configData,
+      auditDetails,
       getClientIp(req),
       host.name
     );
