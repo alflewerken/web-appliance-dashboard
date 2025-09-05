@@ -1141,15 +1141,15 @@ class SNMPMonitor {
   async storeMetrics(hostId, metrics) {
     try {
       await this.db.insert('snmp_metrics', {
-        host_id: hostId,
+        hostId: hostId,
         timestamp: new Date(),
-        cpu_percent: metrics.cpu.usage?.total || 0,
-        memory_percent: metrics.memory.percentRam || 0,
-        swap_percent: metrics.memory.percentSwap || 0,
-        disk_usage: JSON.stringify(metrics.disk),
-        network_stats: JSON.stringify(metrics.network),
-        process_count: metrics.processes.total || 0,
-        raw_metrics: JSON.stringify(metrics)
+        cpuPercent: metrics.cpu.usage?.total || 0,
+        memoryPercent: metrics.memory.percentRam || 0,
+        swapPercent: metrics.memory.percentSwap || 0,
+        diskUsage: JSON.stringify(metrics.disk),
+        networkStats: JSON.stringify(metrics.network),
+        processCount: metrics.processes.total || 0,
+        rawMetrics: JSON.stringify(metrics)
       });
     } catch (error) {
       console.error('Error storing metrics:', error);

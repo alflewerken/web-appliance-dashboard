@@ -904,19 +904,19 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
         try {
           const snmpConfig = details.snmpConfig;
           await trx.insert('host_snmp_configs', {
-            host_id: restoredHostId,
+            hostId: restoredHostId,
             enabled: snmpConfig.enabled || false,
             version: snmpConfig.version || '2c',
             community: snmpConfig.community || 'public',
             port: snmpConfig.port || 161,
             username: snmpConfig.username || '',
-            auth_protocol: snmpConfig.authProtocol || snmpConfig.auth_protocol || 'SHA',
-            auth_password: snmpConfig.authPassword || snmpConfig.auth_password || '',
-            priv_protocol: snmpConfig.privProtocol || snmpConfig.priv_protocol || 'AES',
-            priv_password: snmpConfig.privPassword || snmpConfig.priv_password || '',
-            poll_interval: snmpConfig.pollInterval || snmpConfig.poll_interval || 60,
-            created_at: new Date(),
-            updated_at: new Date()
+            authProtocol: snmpConfig.authProtocol || snmpConfig.auth_protocol || 'SHA',
+            authPassword: snmpConfig.authPassword || snmpConfig.auth_password || '',
+            privProtocol: snmpConfig.privProtocol || snmpConfig.priv_protocol || 'AES',
+            privPassword: snmpConfig.privPassword || snmpConfig.priv_password || '',
+            pollInterval: snmpConfig.pollInterval || snmpConfig.poll_interval || 60,
+            createdAt: new Date(),
+            updatedAt: new Date()
           });
           console.log(`Restored SNMP configuration for host ${hostName}`);
         } catch (snmpError) {
@@ -930,16 +930,16 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
         try {
           const metricsLogging = details.metricsLogging;
           await trx.insert('host_metrics_logging', {
-            host_id: restoredHostId,
+            hostId: restoredHostId,
             config: typeof metricsLogging.config === 'string' ? 
               metricsLogging.config : JSON.stringify(metricsLogging.config || {}),
-            custom_names: typeof metricsLogging.customNames === 'string' ? 
+            customNames: typeof metricsLogging.customNames === 'string' ? 
               metricsLogging.customNames : 
               (typeof metricsLogging.custom_names === 'string' ? 
                 metricsLogging.custom_names : 
                 JSON.stringify(metricsLogging.customNames || metricsLogging.custom_names || {})),
-            created_at: new Date(),
-            updated_at: new Date()
+            createdAt: new Date(),
+            updatedAt: new Date()
           });
           console.log(`Restored metrics logging configuration for host ${hostName}`);
         } catch (metricsError) {
@@ -1184,7 +1184,7 @@ router.post('/revert/snmp/:logId', requireAdmin, async (req, res) => {
 
       // Get current config to save for potential re-revert
       const currentConfigs = await trx.select('host_snmp_configs', 
-        { host_id: hostId }, 
+        { hostId: hostId }, 
         { limit: 1 }
       );
 
@@ -1192,18 +1192,18 @@ router.post('/revert/snmp/:logId', requireAdmin, async (req, res) => {
 
       // Prepare reverted config data
       const revertedConfig = {
-        host_id: hostId,
+        hostId: hostId,
         enabled: oldConfig.enabled || false,
         version: oldConfig.version || '2c',
         community: oldConfig.community || 'public',
         port: oldConfig.port || 161,
         username: oldConfig.username || '',
-        auth_protocol: oldConfig.auth_protocol || oldConfig.authProtocol || 'SHA',
-        auth_password: oldConfig.auth_password || oldConfig.authPassword || '',
-        priv_protocol: oldConfig.priv_protocol || oldConfig.privProtocol || 'AES',
-        priv_password: oldConfig.priv_password || oldConfig.privPassword || '',
-        poll_interval: oldConfig.poll_interval || oldConfig.pollInterval || 60,
-        updated_at: new Date()
+        authProtocol: oldConfig.auth_protocol || oldConfig.authProtocol || 'SHA',
+        authPassword: oldConfig.auth_password || oldConfig.authPassword || '',
+        privProtocol: oldConfig.priv_protocol || oldConfig.privProtocol || 'AES',
+        privPassword: oldConfig.priv_password || oldConfig.privPassword || '',
+        pollInterval: oldConfig.poll_interval || oldConfig.pollInterval || 60,
+        updatedAt: new Date()
       };
 
       if (currentConfig) {
@@ -1211,7 +1211,7 @@ router.post('/revert/snmp/:logId', requireAdmin, async (req, res) => {
         await trx.update('host_snmp_configs', revertedConfig, { id: currentConfig.id });
       } else {
         // Create new config if it doesn't exist
-        revertedConfig.created_at = new Date();
+        revertedConfig.createdAt = new Date();
         await trx.insert('host_snmp_configs', revertedConfig);
       }
 

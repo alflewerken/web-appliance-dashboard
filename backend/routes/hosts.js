@@ -1109,7 +1109,7 @@ router.get('/:id/snmp-config', async (req, res) => {
     }
     
     // Get SNMP config from database
-    const config = await db.findOne('host_snmp_configs', { host_id: hostId });
+    const config = await db.findOne('host_snmp_configs', { hostId: hostId });
     
     if (!config) {
       // Return default config if none exists
@@ -1163,22 +1163,22 @@ router.put('/:id/snmp-config', async (req, res) => {
     }
     
     // Check if config exists and save old values for audit
-    const existingConfig = await db.findOne('host_snmp_configs', { host_id: hostId });
+    const existingConfig = await db.findOne('host_snmp_configs', { hostId: hostId });
     
     // Only include the fields that should be updated
     const configData = {
-      host_id: hostId,
+      hostId: hostId,
       enabled: config.enabled || false,
       version: config.version || '2c',
       community: config.community || 'public',
       port: config.port || 161,
       username: config.username || '',
-      auth_protocol: config.authProtocol || 'SHA',
-      auth_password: config.authPassword || '',
-      priv_protocol: config.privProtocol || 'AES',
-      priv_password: config.privPassword || '',
-      poll_interval: config.pollInterval || 60,
-      updated_at: new Date()
+      authProtocol: config.authProtocol || 'SHA',
+      authPassword: config.authPassword || '',
+      privProtocol: config.privProtocol || 'AES',
+      privPassword: config.privPassword || '',
+      pollInterval: config.pollInterval || 60,
+      updatedAt: new Date()
     };
     
     let auditDetails;
@@ -1200,13 +1200,13 @@ router.put('/:id/snmp-config', async (req, res) => {
             { old: '***', new: '***' } : undefined,  // Don't log sensitive data
           port: existingConfig.port !== configData.port ?
             { old: existingConfig.port, new: configData.port } : undefined,
-          poll_interval: existingConfig.poll_interval !== configData.poll_interval ?
-            { old: existingConfig.poll_interval, new: configData.poll_interval } : undefined
+          pollInterval: existingConfig.pollInterval !== configData.pollInterval ?
+            { old: existingConfig.pollInterval, new: configData.pollInterval } : undefined
         }
       };
     } else {
       // Insert new config
-      configData.created_at = new Date();
+      configData.createdAt = new Date();
       await db.insert('host_snmp_configs', configData);
       
       auditDetails = {
@@ -1272,11 +1272,11 @@ router.post('/:id/snmp-test', async (req, res) => {
         // Store the metrics in database
         try {
           await db.insert('host_monitoring_data', {
-            host_id: hostId,
+            hostId: hostId,
             status: 'online',
-            last_update: new Date(),
+            lastUpdate: new Date(),
             metrics: JSON.stringify(metricsResult.metrics),
-            created_at: new Date()
+            createdAt: new Date()
           });
         } catch (dbErr) {
           logger.error('Failed to store metrics:', dbErr);
@@ -1342,9 +1342,9 @@ router.get('/:id/monitoring-data', async (req, res) => {
     
     // Get latest monitoring data from database using QueryBuilder
     const latestData = await db.select('host_monitoring_data', 
-      { host_id: hostId },
+      { hostId: hostId },
       { 
-        orderBy: 'created_at', 
+        orderBy: 'createdAt', 
         order: 'desc', 
         limit: 1 
       }
@@ -1403,7 +1403,7 @@ router.get('/:id/metrics-logging', verifyToken, async (req, res) => {
     }
     
     // Get logging config from database
-    const config = await db.findOne('host_metrics_logging', { host_id: hostId });
+    const config = await db.findOne('host_metrics_logging', { hostId: hostId });
     
     if (config) {
 
@@ -1437,13 +1437,13 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
     }
     
     // Check if config exists
-    const existingConfig = await db.findOne('host_metrics_logging', { host_id: hostId });
+    const existingConfig = await db.findOne('host_metrics_logging', { hostId: hostId });
     
     const configData = {
-      host_id: hostId,
+      hostId: hostId,
       config: JSON.stringify(config || {}),
-      custom_names: JSON.stringify(customNames || {}),
-      updated_at: new Date()
+      customNames: JSON.stringify(customNames || {}),
+      updatedAt: new Date()
     };
     
     if (existingConfig) {
@@ -1453,7 +1453,7 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
     } else {
       // Insert new config
 
-      configData.created_at = new Date();
+      configData.createdAt = new Date();
       await db.insert('host_metrics_logging', configData);
     }
     

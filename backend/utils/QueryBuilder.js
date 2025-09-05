@@ -538,10 +538,7 @@ class QueryBuilder {
    * @private
    */
   _mapFieldToDb(table, field) {
-    const mappingInfo = require('./universalFieldMapping').fieldMappings[table];
-    if (!mappingInfo) return field;
-    
-    // Convert camelCase to snake_case
+    // Always convert camelCase to snake_case
     return field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
   }
 
@@ -550,10 +547,7 @@ class QueryBuilder {
    * @private
    */
   _mapFieldToJs(table, column) {
-    const mappingInfo = require('./universalFieldMapping').fieldMappings[table];
-    if (!mappingInfo) return column;
-    
-    // Convert snake_case to camelCase
+    // Always convert snake_case to camelCase
     return column.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase());
   }
 }
