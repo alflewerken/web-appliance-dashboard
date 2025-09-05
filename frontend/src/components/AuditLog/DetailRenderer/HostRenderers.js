@@ -7,6 +7,7 @@ import {
   Chip,
   Alert,
 } from '@mui/material';
+import { CheckCircle } from '@mui/icons-material';
 
 // Renderer for host restored actions
 export const renderHostRestored = (log, details, isDarkMode) => {
@@ -46,6 +47,23 @@ export const renderHostRestored = (log, details, isDarkMode) => {
   
   // RustDesk Details
   const rustdeskId = restoredData.rustdeskId || restoredData.rustdesk_id || '-';
+  
+  // SNMP Configuration (aus restoredData wenn vorhanden)
+  const snmpConfig = restoredData.snmpConfig || null;
+  const snmpEnabled = snmpConfig?.enabled ? 'Aktiviert' : 'Deaktiviert';
+  const snmpVersion = snmpConfig?.version || '-';
+  const snmpCommunity = snmpConfig?.community ? '***' : '-'; // Maskiert aus Sicherheitsgründen
+  const snmpPort = snmpConfig?.port || '-';
+  const snmpPollInterval = snmpConfig?.pollInterval || snmpConfig?.poll_interval || '-';
+  
+  // Metrics Logging Configuration
+  const metricsLogging = restoredData.metricsLogging || null;
+  const metricsConfig = metricsLogging?.config || {};
+  const customNames = metricsLogging?.customNames || metricsLogging?.custom_names || {};
+  
+  // Check if SNMP was restored (from details)
+  const snmpConfigRestored = details.snmpConfigRestored || false;
+  const metricsLoggingRestored = details.metricsLoggingRestored || false;
   
   // Timestamps
   const createdAt = restoredData.createdAt || restoredData.created_at || '-';
@@ -269,6 +287,98 @@ export const renderHostRestored = (log, details, isDarkMode) => {
                 />
               )}
             </Stack>
+          </Box>
+        )}
+        
+        {/* SNMP-Konfiguration (wenn wiederhergestellt) */}
+        {(snmpConfig || snmpConfigRestored) && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              SNMP-Monitoring {snmpConfigRestored && '(wiederhergestellt)'}
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              {snmpConfig ? (
+                <>
+                  <Chip 
+                    label={`SNMP: ${snmpEnabled}`}
+                    size="small"
+                    color={snmpEnabled === 'Aktiviert' ? 'success' : 'default'}
+                    variant={snmpEnabled === 'Aktiviert' ? 'filled' : 'outlined'}
+                  />
+                  {snmpVersion !== '-' && (
+                    <Chip 
+                      label={`Version: ${snmpVersion}`}
+                      size="small"
+                    />
+                  )}
+                  {snmpPort !== '-' && (
+                    <Chip 
+                      label={`SNMP Port: ${snmpPort}`}
+                      size="small"
+                    />
+                  )}
+                  {snmpCommunity !== '-' && (
+                    <Chip 
+                      label={`Community: ${snmpCommunity}`}
+                      size="small"
+                      color="warning"
+                      variant="outlined"
+                    />
+                  )}
+                  {snmpPollInterval !== '-' && (
+                    <Chip 
+                      label={`Poll-Intervall: ${snmpPollInterval}s`}
+                      size="small"
+                    />
+                  )}
+                </>
+              ) : (
+                <Chip 
+                  label="SNMP-Konfiguration wurde wiederhergestellt"
+                  size="small"
+                  color="success"
+                  icon={<CheckCircle size={16} />}
+                />
+              )}
+            </Stack>
+          </Box>
+        )}
+        
+        {/* Metrics Logging (wenn wiederhergestellt) */}
+        {(metricsLogging || metricsLoggingRestored) && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              Metrics Logging {metricsLoggingRestored && '(wiederhergestellt)'}
+            </Typography>
+            {metricsLogging && Object.keys(metricsConfig).length > 0 ? (
+              <Stack spacing={1}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                  {Object.entries(metricsConfig).filter(([_, enabled]) => enabled).map(([metric]) => (
+                    <Chip 
+                      key={metric}
+                      label={customNames[metric] || metric}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  ))}
+                </Stack>
+                {Object.keys(customNames).length > 0 && (
+                  <Box sx={{ pl: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                      Custom Names: {Object.entries(customNames).map(([key, name]) => `${key} → ${name}`).join(', ')}
+                    </Typography>
+                  </Box>
+                )}
+              </Stack>
+            ) : metricsLoggingRestored ? (
+              <Chip 
+                label="Metrics-Logging-Konfiguration wurde wiederhergestellt"
+                size="small"
+                color="success"
+                icon={<CheckCircle size={16} />}
+              />
+            ) : null}
           </Box>
         )}
         
