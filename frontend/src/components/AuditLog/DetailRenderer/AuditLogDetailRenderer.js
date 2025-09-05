@@ -9,6 +9,7 @@ import { renderHostRestored, renderHostReverted, renderHostUpdate, renderHostDel
 import { renderUserStatusChange, renderUserRestored, renderUserReverted, renderUserDeleted, renderUserUpdate } from './UserRenderers';
 import { renderApplianceUpdate, renderApplianceDeleted, renderApplianceReverted, renderApplianceRestored } from './ApplianceRenderers';
 import { renderFileTransfer } from './FileTransferRenderer';
+import { renderSNMPConfigCreated, renderSNMPConfigUpdated, renderSNMPConfigReverted, renderMetricsLoggingUpdated } from './SNMPRenderers';
 import { renderDefault } from './DefaultRenderer';
 import RestoreSection from './RestoreSection';
 import { canRestore, getResourceName, handleRestore } from '../AuditLogRestore';
@@ -159,6 +160,23 @@ const AuditLogDetailRenderer = ({ log, onRestoreComplete }) => {
 
     if (log.action === 'appliance_restored' || log.action === 'applianceRestored') {
       return renderApplianceRestored(log, details, isDarkMode);
+    }
+
+    // SNMP actions
+    if (log.action === 'snmp_config_created' || log.action === 'snmpConfigCreated') {
+      return renderSNMPConfigCreated(log, details, isDarkMode);
+    }
+
+    if (log.action === 'snmp_config_updated' || log.action === 'snmpConfigUpdated') {
+      return renderSNMPConfigUpdated(log, details, isDarkMode);
+    }
+
+    if (log.action === 'snmp_config_reverted' || log.action === 'snmpConfigReverted') {
+      return renderSNMPConfigReverted(log, details, isDarkMode);
+    }
+
+    if (log.action === 'metrics_logging_updated' || log.action === 'metricsLoggingUpdated') {
+      return renderMetricsLoggingUpdated(log, details, isDarkMode);
     }
 
     // Default renderer for all other cases

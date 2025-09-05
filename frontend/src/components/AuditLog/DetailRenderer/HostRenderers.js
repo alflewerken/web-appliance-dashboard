@@ -621,6 +621,19 @@ export const renderHostDeleted = (log, details, isDarkMode) => {
   // RustDesk Details
   const rustdeskId = hostData.rustdeskId || hostData.rustdesk_id || '-';
   
+  // SNMP Configuration
+  const snmpConfig = hostData.snmpConfig || null;
+  const snmpEnabled = snmpConfig?.enabled ? 'Aktiviert' : 'Deaktiviert';
+  const snmpVersion = snmpConfig?.version || '-';
+  const snmpCommunity = snmpConfig?.community ? '***' : '-'; // Maskiert aus Sicherheitsgründen
+  const snmpPort = snmpConfig?.port || '-';
+  const snmpPollInterval = snmpConfig?.pollInterval || snmpConfig?.poll_interval || '-';
+  
+  // Metrics Logging Configuration
+  const metricsLogging = hostData.metricsLogging || null;
+  const metricsConfig = metricsLogging?.config || {};
+  const customNames = metricsLogging?.customNames || metricsLogging?.custom_names || {};
+  
   // Timestamps
   const createdAt = hostData.createdAt || hostData.created_at || '-';
   const updatedAt = hostData.updatedAt || hostData.updated_at || '-';
@@ -809,6 +822,78 @@ export const renderHostDeleted = (log, details, isDarkMode) => {
                 color="info"
                 sx={{ fontFamily: 'monospace' }}
               />
+            </Stack>
+          </Box>
+        )}
+        
+        {/* SNMP-Konfiguration (wenn vorhanden) */}
+        {snmpConfig && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              SNMP-Monitoring
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+              <Chip 
+                label={`SNMP: ${snmpEnabled}`}
+                size="small"
+                color={snmpEnabled === 'Aktiviert' ? 'success' : 'default'}
+                variant={snmpEnabled === 'Aktiviert' ? 'filled' : 'outlined'}
+              />
+              {snmpVersion !== '-' && (
+                <Chip 
+                  label={`Version: ${snmpVersion}`}
+                  size="small"
+                />
+              )}
+              {snmpPort !== '-' && (
+                <Chip 
+                  label={`SNMP Port: ${snmpPort}`}
+                  size="small"
+                />
+              )}
+              {snmpCommunity !== '-' && (
+                <Chip 
+                  label={`Community: ${snmpCommunity}`}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                />
+              )}
+              {snmpPollInterval !== '-' && (
+                <Chip 
+                  label={`Poll-Intervall: ${snmpPollInterval}s`}
+                  size="small"
+                />
+              )}
+            </Stack>
+          </Box>
+        )}
+        
+        {/* Metrics Logging (wenn vorhanden) */}
+        {metricsLogging && Object.keys(metricsConfig).length > 0 && (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+              Metrics Logging
+            </Typography>
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                {Object.entries(metricsConfig).filter(([_, enabled]) => enabled).map(([metric]) => (
+                  <Chip 
+                    key={metric}
+                    label={customNames[metric] || metric}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
+              </Stack>
+              {Object.keys(customNames).length > 0 && (
+                <Box sx={{ pl: 1 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                    Custom Names: {Object.entries(customNames).map(([key, name]) => `${key} → ${name}`).join(', ')}
+                  </Typography>
+                </Box>
+              )}
             </Stack>
           </Box>
         )}
