@@ -192,11 +192,36 @@ router.get('/hosts/:hostId/history', verifyToken, async (req, res) => {
       params.push(metricKey);
     }
     
-    query += ' ORDER BY timestamp DESC LIMIT 1000';
+    // Für kurze Zeiträume brauchen wir eine sinnvolle Begrenzung
+    // Bei 10-Sekunden-Intervall und multiplen Metriken:
+    // 1h = 360 Datenpunkte pro Metrik, aber wir holen ALLE Metriken
+    // Wenn wir z.B. 20 verschiedene Metriken haben, wären das 360 * 20 = 7200 Punkte!
+    const pointsPerHour = 360; // bei 10-Sekunden-Intervall
+    const expectedPointsPerMetric = pointsPerHour * parseInt(hours);
+    // Wir setzen ein vernünftiges Maximum für ALLE Metriken zusammen
+    const limit = Math.min(expectedPointsPerMetric * 50, 50000); // max 50 Metriken * Punkte oder 50k total
+    
+    query += ` ORDER BY timestamp ASC LIMIT ${limit}`;
     
     const [metrics] = await pool.execute(query, params);
     
+    // Debug logging
+    console.log(`[METRICS-HISTORY] Fetched ${metrics.length} data points for ${hours} hours`);
+    if (metrics.length > 0) {
+      const uniqueMetrics = [...new Set(metrics.map(m => m.metric_key))];
+      console.log(`[METRICS-HISTORY] Unique metrics: ${uniqueMetrics.length} - ${uniqueMetrics.join(', ')}`);
+      
+      // Zeitspanne prüfen
+      const timestamps = metrics.map(m => new Date(m.timestamp));
+      const minTime = Math.min(...timestamps);
+      const maxTime = Math.max(...timestamps);
+      const actualHours = (maxTime - minTime) / (1000 * 60 * 60);
+      console.log(`[METRICS-HISTORY] Actual time span: ${actualHours.toFixed(2)} hours`);
+      console.log(`[METRICS-HISTORY] From: ${new Date(minTime).toISOString()} To: ${new Date(maxTime).toISOString()}`);
+    }
+    
     res.json({
+      success: true,
       hostId: parseInt(hostId),
       metrics,
       count: metrics.length,

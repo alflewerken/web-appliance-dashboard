@@ -1,4 +1,5 @@
 const SNMPMonitor = require('./SNMPMonitor');
+const SSEManager = require('./SSEManager');
 const mysql = require('mysql2/promise');
 const winston = require('winston');
 require('dotenv').config();
@@ -28,6 +29,7 @@ class BackgroundPollingService {
     this.snmpMonitor = null;
     this.isRunning = false;
     this.pollingIntervals = new Map(); // Store intervals per host
+    this.signalCheckInterval = null; // Interval for checking reload signals
     this.defaultPollInterval = parseInt(process.env.SNMP_POLL_INTERVAL) || 60; // seconds
   }
 
@@ -170,6 +172,11 @@ class BackgroundPollingService {
       for (const host of hosts) {
         await this.startHostPolling(host);
       }
+      
+      // Start checking for reload signals every 30 seconds
+      this.signalCheckInterval = setInterval(async () => {
+        await this.checkReloadSignals();
+      }, 30000);
 
       logger.info('Background Polling Service started successfully');
     } catch (error) {
@@ -186,6 +193,12 @@ class BackgroundPollingService {
     }
 
     logger.info('Stopping Background Polling Service...');
+    
+    // Clear signal check interval
+    if (this.signalCheckInterval) {
+      clearInterval(this.signalCheckInterval);
+      this.signalCheckInterval = null;
+    }
     
     // Clear all polling intervals
     for (const [hostId, intervalId] of this.pollingIntervals) {
@@ -238,15 +251,19 @@ class BackgroundPollingService {
   async startHostPolling(host) {
     const pollInterval = host.snmpConfig.pollInterval * 1000; // Convert to milliseconds
     
-    logger.info(`Starting polling for host ${host.name} (${host.ip}) every ${host.snmpConfig.pollInterval} seconds`);
+    logger.info(`Starting polling for host ${host.name} (${host.ip}) every ${host.snmpConfig.pollInterval} seconds (${pollInterval}ms)`);
+    console.log(`[POLL-DEBUG] Host ${host.name}: poll_interval=${host.snmpConfig.pollInterval}s, actual_ms=${pollInterval}`);
     
     // Perform initial poll
     await this.pollHost(host);
     
     // Set up recurring poll
     const intervalId = setInterval(async () => {
+      const pollStart = Date.now();
       try {
+        console.log(`[POLL-DEBUG] Polling ${host.name} at ${new Date().toISOString()}`);
         await this.pollHost(host);
+        console.log(`[POLL-DEBUG] Poll completed for ${host.name} in ${Date.now() - pollStart}ms`);
       } catch (error) {
         logger.error(`Polling error for host ${host.name}:`, error);
       }
@@ -259,6 +276,9 @@ class BackgroundPollingService {
     const startTime = Date.now();
     
     try {
+      // First, update interface mappings for this host
+      await this.updateInterfaceMappings(host);
+      
       // Get enabled metrics for this host
       const enabledMetrics = this.getEnabledMetrics(host.metricsConfig);
       
@@ -269,6 +289,11 @@ class BackgroundPollingService {
       
       logger.debug(`Polling ${enabledMetrics.length} metrics for host ${host.name}`);
       
+      // Debug for MacbookPro
+      if (host.name === 'MacbookPro') {
+        console.log('[DEBUG] Enabled metrics for MacbookPro:', enabledMetrics);
+      }
+      
       // Collect metrics via SNMP
       const metrics = await this.snmpMonitor.collectMetrics(
         host.ip,
@@ -277,6 +302,13 @@ class BackgroundPollingService {
         host.snmpConfig.version,
         enabledMetrics
       );
+      
+      // Debug collected metrics
+      if (host.name === 'MacbookPro') {
+        console.log('[DEBUG] Collected metrics:', Object.keys(metrics));
+        const networkMetrics = Object.keys(metrics).filter(k => k.startsWith('network'));
+        console.log('[DEBUG] Network metrics:', networkMetrics.map(k => `${k}=${metrics[k]}`));
+      }
       
       // Store metrics in database
       await this.storeMetrics(host.id, metrics, host.customNames);
@@ -342,6 +374,9 @@ class BackgroundPollingService {
         logger.error(`Failed to store metric ${metricKey} for host ${hostId}:`, error);
       }
     }
+    
+    // Send SSE event to connected clients
+    SSEManager.sendMetricsUpdate(hostId, metrics);
     
     // Also update host_monitoring_data for real-time display
     try {
@@ -437,6 +472,72 @@ class BackgroundPollingService {
     }
     
     return units[metricKey] || 'value';
+  }
+
+  async updateInterfaceMappings(host) {
+    try {
+      const snmp = require('net-snmp');
+      const session = snmp.createSession(host.ip, host.snmpConfig.community);
+      
+      // OIDs for interface information
+      const oids = {
+        ifIndex: '1.3.6.1.2.1.2.2.1.1',     // Interface index
+        ifDescr: '1.3.6.1.2.1.2.2.1.2',     // Interface description/name
+        ifType: '1.3.6.1.2.1.2.2.1.3',      // Interface type
+        ifSpeed: '1.3.6.1.2.1.2.2.1.5',     // Interface speed
+      };
+      
+      // Collect all interface information
+      const interfaces = new Map();
+      
+      // Helper function to walk SNMP table
+      const walkOid = (oid) => {
+        return new Promise((resolve, reject) => {
+          const results = [];
+          session.subtree(oid, 20, (varbinds) => {
+            varbinds.forEach(vb => {
+              if (!snmp.isVarbindError(vb)) {
+                const index = vb.oid.split('.').pop();
+                results.push({ index: parseInt(index), value: vb.value });
+              }
+            });
+          }, (error) => {
+            if (error) reject(error);
+            else resolve(results);
+          });
+        });
+      };
+      
+      // Get interface descriptions
+      const descriptions = await walkOid(oids.ifDescr);
+      
+      for (const desc of descriptions) {
+        if (!interfaces.has(desc.index)) {
+          interfaces.set(desc.index, {});
+        }
+        interfaces.get(desc.index).name = desc.value.toString();
+        interfaces.get(desc.index).descr = desc.value.toString();
+      }
+      
+      // Store mappings in database
+      for (const [index, iface] of interfaces) {
+        await this.pool.execute(`
+          INSERT INTO host_interface_mappings 
+          (host_id, interface_index, interface_name, interface_descr, last_seen)
+          VALUES (?, ?, ?, ?, NOW())
+          ON DUPLICATE KEY UPDATE
+            interface_name = VALUES(interface_name),
+            interface_descr = VALUES(interface_descr),
+            last_seen = NOW()
+        `, [host.id, index, iface.name, iface.descr]);
+      }
+      
+      session.close();
+      logger.debug(`Updated interface mappings for host ${host.name}: ${interfaces.size} interfaces`);
+      
+    } catch (error) {
+      logger.error(`Failed to update interface mappings for host ${host.name}:`, error);
+    }
   }
 
   async logError(hostId, error) {
@@ -536,6 +637,72 @@ class BackgroundPollingService {
 
   isHostActive(hostId) {
     return this.pollingIntervals.has(hostId);
+  }
+  
+  async checkReloadSignals() {
+    try {
+      // Create table if it doesn't exist
+      await this.pool.execute(`
+        CREATE TABLE IF NOT EXISTS snmp_reload_signals (
+          host_id INT PRIMARY KEY,
+          signal_type ENUM('reload', 'stop', 'add') DEFAULT 'reload',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          processed_at TIMESTAMP NULL,
+          FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+        )
+      `);
+      
+      // Get unprocessed signals
+      const [signals] = await this.pool.execute(`
+        SELECT host_id, signal_type 
+        FROM snmp_reload_signals 
+        WHERE processed_at IS NULL
+      `);
+      
+      if (signals.length > 0) {
+        logger.info(`Processing ${signals.length} reload signals`);
+        
+        for (const signal of signals) {
+          try {
+            switch (signal.signal_type) {
+              case 'reload':
+                logger.info(`Reloading SNMP configuration for host ${signal.host_id}`);
+                await this.updateHost(signal.host_id);
+                break;
+                
+              case 'stop':
+                logger.info(`Stopping SNMP polling for host ${signal.host_id}`);
+                await this.removeHost(signal.host_id);
+                break;
+                
+              case 'add':
+                logger.info(`Adding SNMP polling for host ${signal.host_id}`);
+                await this.addHost(signal.host_id);
+                break;
+            }
+            
+            // Mark signal as processed
+            await this.pool.execute(`
+              UPDATE snmp_reload_signals 
+              SET processed_at = NOW() 
+              WHERE host_id = ?
+            `, [signal.host_id]);
+            
+          } catch (error) {
+            logger.error(`Failed to process signal for host ${signal.host_id}:`, error);
+          }
+        }
+        
+        // Clean up old processed signals (older than 1 day)
+        await this.pool.execute(`
+          DELETE FROM snmp_reload_signals 
+          WHERE processed_at IS NOT NULL 
+          AND processed_at < DATE_SUB(NOW(), INTERVAL 1 DAY)
+        `);
+      }
+    } catch (error) {
+      logger.error('Error checking reload signals:', error);
+    }
   }
 }
 

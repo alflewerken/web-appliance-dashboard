@@ -164,9 +164,13 @@ app.use('/api/auditRestore', verifyToken, auditRestoreRouter);
 
 // Import QueryBuilder
 const QueryBuilder = require('./utils/QueryBuilder');
+const SSEManager = require('./services/SSEManager');
 
 // Initialize QueryBuilder with pool
 const queryBuilder = new QueryBuilder(pool);
+
+// Start SSE heartbeat
+SSEManager.startHeartbeat();
 
 // Hosts routes
 const hostsRouter = require('./routes/hosts');
@@ -255,22 +259,8 @@ server.listen(PORT, async () => {
       if (success) {
         logger.info('All services initialized successfully');
         
-        // Start SNMP Polling Service if enabled
-        if (process.env.ENABLE_SNMP_POLLING !== 'false') {
-          try {
-            const { spawn } = require('child_process');
-            const pollingProcess = spawn('node', ['polling-worker.js'], {
-              detached: true,
-              stdio: 'ignore',
-              env: process.env
-            });
-            pollingProcess.unref();
-            logger.info('SNMP Polling Service started in background');
-          } catch (error) {
-            logger.error('Failed to start SNMP Polling Service:', error);
-            // Not critical - main app continues
-          }
-        }
+        // SNMP Polling Service is started by docker-startup.sh
+        // Don't start it here to avoid duplicate processes
       } else {
         logger.warn('Some services failed to initialize');
       }

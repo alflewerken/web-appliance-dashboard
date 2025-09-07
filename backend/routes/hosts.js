@@ -9,6 +9,7 @@ const { logger } = require('../utils/logger');
 const bcrypt = require('bcryptjs');
 const { encrypt, decrypt, isEncrypted } = require('../utils/encryption');
 const sseManager = require('../utils/sseManager');
+const SSEManager = require('../services/SSEManager');
 const { getClientIp } = require('../utils/getClientIp');
 const { syncGuacamoleConnection, deleteGuacamoleConnection } = require('../utils/guacamoleHelper');
 const GuacamoleDBManager = require('../utils/guacamole/GuacamoleDBManager');
@@ -1136,11 +1137,11 @@ router.get('/:id/snmp-config', async (req, res) => {
       community: config.community,
       port: config.port,
       username: config.username || '',
-      authProtocol: config.auth_protocol || 'SHA',
-      authPassword: config.auth_password || '',
-      privProtocol: config.priv_protocol || 'AES',
-      privPassword: config.priv_password || '',
-      pollInterval: config.poll_interval || 60,
+      authProtocol: config.authProtocol || config.auth_protocol || 'SHA',
+      authPassword: config.authPassword || config.auth_password || '',
+      privProtocol: config.privProtocol || config.priv_protocol || 'AES',
+      privPassword: config.privPassword || config.priv_password || '',
+      pollInterval: config.pollInterval || config.poll_interval || 60,
     };
     
     res.json({ config: mappedConfig });
@@ -1226,7 +1227,50 @@ router.put('/:id/snmp-config', async (req, res) => {
       host.name
     );
     
-    res.json({ success: true, config: configData });
+    // Signal the polling worker to reload this host's configuration
+    // The worker checks this table periodically and reloads configurations
+    try {
+      await pool.execute(
+        `INSERT INTO snmp_reload_signals (host_id, signal_type, created_at) 
+         VALUES (?, ?, NOW())
+         ON DUPLICATE KEY UPDATE created_at = NOW()`,
+        [hostId, configData.enabled ? 'reload' : 'stop']
+      );
+      
+      logger.info(`SNMP reload signal sent for host ${hostId} (${host.name})`);
+    } catch (signalError) {
+      // If the table doesn't exist, create it
+      if (signalError.code === 'ER_NO_SUCH_TABLE') {
+        await pool.execute(`
+          CREATE TABLE IF NOT EXISTS snmp_reload_signals (
+            host_id INT PRIMARY KEY,
+            signal_type ENUM('reload', 'stop', 'add') DEFAULT 'reload',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed_at TIMESTAMP NULL,
+            FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+          )
+        `);
+        
+        // Retry the insert
+        await pool.execute(
+          `INSERT INTO snmp_reload_signals (host_id, signal_type, created_at) 
+           VALUES (?, ?, NOW())`,
+          [hostId, configData.enabled ? 'reload' : 'stop']
+        );
+        
+        logger.info(`Created snmp_reload_signals table and sent reload signal for host ${hostId}`);
+      } else {
+        logger.error(`Failed to send reload signal for host ${hostId}:`, signalError);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      config: configData,
+      message: configData.enabled 
+        ? 'SNMP configuration saved. Polling will restart within 60 seconds.' 
+        : 'SNMP configuration saved and polling stopped.'
+    });
   } catch (error) {
     logger.error('Error updating SNMP config:', error);
     res.status(500).json({ error: 'Failed to update SNMP configuration' });
@@ -1329,6 +1373,127 @@ router.post('/:id/snmp-test', async (req, res) => {
       error: 'SNMP test failed', 
       message: error.message 
     });
+  }
+});
+
+// Debug endpoint for interface mapping
+router.get('/:id/debug-interfaces', async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    
+    const host = await db.findOne('hosts', { id: hostId });
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // Get SNMP config
+    const snmpConfig = await db.findOne('host_snmp_configs', { hostId: hostId });
+    if (!snmpConfig || !snmpConfig.enabled) {
+      return res.status(400).json({ error: 'SNMP not configured for this host' });
+    }
+    
+    const SNMPMonitor = require('../services/SNMPMonitor');
+    const snmpMonitor = new SNMPMonitor(db);
+    
+    // Create SNMP session
+    const snmp = require('net-snmp');
+    const session = snmp.createSession(
+      host.hostname,
+      snmpConfig.community || 'public',
+      {
+        port: snmpConfig.port || 161,
+        version: snmpConfig.version === '1' ? snmp.Version1 : snmp.Version2c,
+        timeout: 10000
+      }
+    );
+    
+    // Walk all interfaces
+    const interfaces = await snmpMonitor.walkNetworkInterfaces(session);
+    session.close();
+    
+    // Get current config
+    const metricsConfig = await db.findOne('host_metrics_logging', { hostId: hostId });
+    const loggingConfig = metricsConfig?.config || {};
+    const customNames = metricsConfig?.customNames || {};
+    
+    // Create detailed mapping
+    const interfaceMapping = interfaces.map(iface => ({
+      index: iface.index,
+      name: iface.name,
+      status: iface.status,
+      speed: iface.speed,
+      bytesIn: iface.statistics?.bytesReceived || 0,
+      bytesOut: iface.statistics?.bytesSent || 0,
+      isConfigured: !!loggingConfig[`network.interface.${iface.index}`],
+      customName: customNames[`network.interface.${iface.index}`] || '',
+      configKey: `network.interface.${iface.index}`
+    }));
+    
+    // Find specific interfaces
+    const en0 = interfaceMapping.find(i => i.name === 'en0');
+    const en5 = interfaceMapping.find(i => i.name === 'en5');
+    const awdl0 = interfaceMapping.find(i => i.name === 'awdl0');
+    
+    res.json({
+      host: host.name,
+      totalInterfaces: interfaces.length,
+      configuredInterfaces: Object.keys(loggingConfig).filter(k => k.startsWith('network.interface.')),
+      mapping: {
+        en0: en0 || 'not found',
+        en5: en5 || 'not found',
+        awdl0: awdl0 || 'not found'
+      },
+      allInterfaces: interfaceMapping.sort((a, b) => a.index - b.index)
+    });
+    
+  } catch (error) {
+    logger.error(`Error debugging interfaces for host ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Interface debug failed', 
+      message: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Test endpoint for debugging network interfaces
+router.get('/:id/test-network', async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    const snmp = require('net-snmp');
+    
+    const host = await db.findOne('hosts', { id: hostId });
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    const session = snmp.createSession(
+      host.hostname || 'host.docker.internal',
+      'public',
+      {
+        port: 1161,
+        version: snmp.Version2c
+      }
+    );
+    
+    const SNMPMonitor = require('../services/SNMPMonitor');
+    const snmpMonitor = new SNMPMonitor();
+    
+    const interfaces = await snmpMonitor.walkNetworkInterfaces(session);
+    session.close();
+    
+    // Find en0
+    const en0 = interfaces.find(i => i.name === 'en0');
+    const if5 = interfaces.find(i => i.index === 5);
+    
+    res.json({
+      totalInterfaces: interfaces.length,
+      en0: en0,
+      interface5: if5,
+      first5: interfaces.slice(0, 5)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
@@ -1488,6 +1653,47 @@ router.get('/:id/live-monitoring', async (req, res) => {
   }
 });
 
+// Get interface mappings for a host
+router.get('/:id/interface-mappings', verifyToken, async (req, res) => {
+  try {
+    const hostId = parseInt(req.params.id);
+    
+    // Check if user owns this host
+    const host = await db.findOne('hosts', {
+      id: hostId,
+      createdBy: req.user.id
+    });
+    
+    if (!host) {
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    // Get interface mappings from database
+    const [mappings] = await pool.execute(`
+      SELECT 
+        interface_index,
+        interface_name,
+        interface_descr,
+        interface_type,
+        interface_speed,
+        last_seen
+      FROM host_interface_mappings
+      WHERE host_id = ?
+      ORDER BY interface_index
+    `, [hostId]);
+    
+    res.json({
+      success: true,
+      mappings: mappings,
+      lastUpdate: mappings.length > 0 ? mappings[0].last_seen : null
+    });
+    
+  } catch (error) {
+    logger.error('Error fetching interface mappings:', error);
+    res.status(500).json({ error: 'Failed to fetch interface mappings' });
+  }
+});
+
 // Get monitoring data for a host
 router.get('/:id/monitoring-data', async (req, res) => {
   try {
@@ -1607,13 +1813,35 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
     
     if (existingConfig) {
       // Update existing config
-
       await db.update('host_metrics_logging', configData, { id: existingConfig.id });
+      
+      // Update metric names in snmp_metrics table for better history display
+      if (customNames) {
+        for (const [metricKey, customName] of Object.entries(customNames)) {
+          await pool.execute(
+            `UPDATE snmp_metrics 
+             SET metric_name = ? 
+             WHERE host_id = ? AND metric_key = ?`,
+            [customName, hostId, metricKey]
+          );
+        }
+      }
     } else {
       // Insert new config
-
       configData.createdAt = new Date();
       await db.insert('host_metrics_logging', configData);
+      
+      // Update metric names in snmp_metrics table
+      if (customNames) {
+        for (const [metricKey, customName] of Object.entries(customNames)) {
+          await pool.execute(
+            `UPDATE snmp_metrics 
+             SET metric_name = ? 
+             WHERE host_id = ? AND metric_key = ?`,
+            [customName, hostId, metricKey]
+          );
+        }
+      }
     }
     
     // Create audit log
@@ -1631,6 +1859,68 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('Error updating metrics logging config:', error);
     res.status(500).json({ error: 'Failed to update logging configuration' });
+  }
+});
+
+// SSE endpoint for real-time metrics updates
+router.get('/:id/metrics-stream', async (req, res) => {
+  console.log('[SSE-ROUTE] metrics-stream called for host:', req.params.id);
+  console.log('[SSE-ROUTE] Token received:', req.query.token ? 'Yes' : 'No');
+  
+  try {
+    const hostId = parseInt(req.params.id);
+    logger.info(`SSE request for host ${hostId}`);
+    
+    // Get token from query parameter (SSE doesn't support headers)
+    const token = req.query.token;
+    if (!token) {
+      console.log('[SSE-ROUTE] No token provided, returning 401');
+      logger.warn('SSE request without token');
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    // Verify token manually
+    const jwt = require('jsonwebtoken');
+    let userId;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.userId;
+      console.log('[SSE-ROUTE] Token verified for user:', userId);
+      logger.info(`Token verified for user ${userId}`);
+    } catch (tokenError) {
+      console.log('[SSE-ROUTE] Token verification failed:', tokenError.message);
+      logger.error('Token verification failed:', tokenError.message);
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    // Check if user owns this host
+    const host = await db.findOne('hosts', { 
+      id: hostId, 
+      createdBy: userId
+    });
+    
+    if (!host) {
+      console.log('[SSE-ROUTE] Host not found for user:', userId);
+      logger.warn(`Host ${hostId} not found for user ${userId}`);
+      return res.status(404).json({ error: 'Host not found' });
+    }
+    
+    console.log('[SSE-ROUTE] Adding SSE connection for host:', hostId);
+    // Add SSE connection
+    SSEManager.addConnection(hostId, res);
+    
+    logger.info(`SSE connection established for host ${hostId} by user ${userId}`);
+    
+    // Keep connection open
+    req.on('close', () => {
+      logger.info(`SSE connection closed for host ${hostId} by user ${userId}`);
+      SSEManager.removeConnection(hostId, res);
+    });
+    
+  } catch (error) {
+    console.log('[SSE-ROUTE] Error:', error.message);
+    logger.error('Error establishing SSE connection:', error);
+    res.status(500).json({ error: 'Failed to establish SSE connection' });
   }
 });
 

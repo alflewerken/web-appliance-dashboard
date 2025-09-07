@@ -13,10 +13,6 @@ import {
   Alert,
   Chip,
   Paper,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import {
   LineChart,
@@ -137,10 +133,22 @@ const MetricsHistory = ({ host }) => {
     
     try {
       const response = await axios.get(`/api/hosts/${host.id}/configured-metrics`);
+      console.log('Configured metrics response:', response.data);
+      console.log('Network metrics found:', response.data.metrics.filter(m => m.key.startsWith('network')));
       if (response.data.success && response.data.metrics.length > 0) {
         setConfiguredMetrics(response.data.metrics);
-        // Select first metric by default if none selected
-        if (selectedMetrics.length === 0 && response.data.metrics.length > 0) {
+        console.log('Set configured metrics:', response.data.metrics);
+        
+        // If we have selected metrics, update their names if they changed
+        if (selectedMetrics.length > 0) {
+          // Force a re-render by clearing and re-setting selected metrics
+          const currentSelection = [...selectedMetrics];
+          setSelectedMetrics([]);
+          setTimeout(() => {
+            setSelectedMetrics(currentSelection);
+          }, 0);
+        } else if (response.data.metrics.length > 0) {
+          // Select first metric by default if none selected
           setSelectedMetrics([response.data.metrics[0].key]);
         }
       }
@@ -186,6 +194,12 @@ const MetricsHistory = ({ host }) => {
       selectedMetrics.forEach((metricKey, index) => {
         if (responses[index].data.success) {
           newMetricsData[metricKey] = responses[index].data.data || [];
+          
+          // Debug log for network metrics
+          if (metricKey.includes('network.interface')) {
+            console.log(`Data for ${metricKey}:`, responses[index].data.data.slice(-5));
+            console.log(`Is percentage: ${responses[index].data.isPercentage}, Unit: ${responses[index].data.unit}`);
+          }
         }
       });
       
@@ -217,22 +231,68 @@ const MetricsHistory = ({ host }) => {
     // Sort timestamps
     const timestamps = Array.from(timestampSet).sort();
     
+    // Debug: Check data consistency
+    if (timestamps.length > 0) {
+      const hasTraffic = Object.keys(metricsData).some(k => k.includes('bytes'));
+      const hasNonTraffic = Object.keys(metricsData).some(k => !k.includes('bytes'));
+      if (hasTraffic && hasNonTraffic) {
+        console.log('Mixing traffic and non-traffic metrics - points may differ');
+      }
+    }
+    
     // Create combined data points
     return timestamps.map(timestamp => {
       const point = { timestamp };
       
       Object.entries(metricsData).forEach(([metricKey, data]) => {
         const metricPoint = data.find(p => p.timestamp === timestamp);
-        point[metricKey] = metricPoint ? metricPoint.value : null;
+        if (metricPoint) {
+          point[metricKey] = metricPoint.value;
+          // Store raw value for tooltip if available
+          if (metricPoint.rawValue !== undefined) {
+            point[`${metricKey}_raw`] = metricPoint.rawValue;
+          }
+        } else {
+          // For traffic metrics, use 0 instead of null to maintain continuity
+          if (metricKey.includes('.bytes')) {
+            point[metricKey] = 0;
+            point[`${metricKey}_raw`] = 0;
+          } else {
+            // For other metrics, use previous value if available
+            const prevPoints = data.filter(p => p.timestamp < timestamp).sort((a, b) => 
+              new Date(b.timestamp) - new Date(a.timestamp)
+            );
+            if (prevPoints.length > 0) {
+              point[metricKey] = prevPoints[0].value;
+              if (prevPoints[0].rawValue !== undefined) {
+                point[`${metricKey}_raw`] = prevPoints[0].rawValue;
+              }
+            } else {
+              point[metricKey] = null;
+            }
+          }
+        }
       });
       
       return point;
+    }).filter(point => {
+      // Remove points where all metrics are null
+      const hasValue = Object.keys(point).some(key => 
+        key !== 'timestamp' && !key.endsWith('_raw') && point[key] !== null
+      );
+      return hasValue;
     });
   };
 
   // Initial load
   useEffect(() => {
-    fetchConfiguredMetrics();
+    // Small delay to ensure host data is fully loaded
+    const timer = setTimeout(() => {
+      console.log('Loading metrics for host:', host?.id, host?.name);
+      fetchConfiguredMetrics();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [host?.id]);
 
   // Fetch data when metrics or settings change
@@ -261,10 +321,10 @@ const MetricsHistory = ({ host }) => {
         fetchMetrics();
       }, 10000);
       
-      // Also refresh configured metrics every minute
+      // Also refresh configured metrics every 30 seconds to get updated names
       refreshIntervalRef.current = setInterval(() => {
         fetchConfiguredMetrics();
-      }, 60000);
+      }, 30000);
     }
 
     return () => {
@@ -277,25 +337,60 @@ const MetricsHistory = ({ host }) => {
     };
   }, [autoRefresh, selectedMetrics.length, timeRange, aggregation]);
 
-  // Format value based on metric type
-  const formatValue = (value, metricKey) => {
+  // Format value based on metric type and if it's percentage
+  const formatValue = (value, metricKey, isPercentage = false, rawValue = null) => {
     if (value === null || value === undefined) return 'N/A';
     if (!metricKey) return parseFloat(value).toFixed(2);
     
+    // If it's a percentage value, always show as percentage
+    if (isPercentage) {
+      return `${parseFloat(value).toFixed(1)}%`;
+    }
+    
+    // Network traffic metrics (Bytes per second) - use raw value if available
+    if (metricKey.includes('.bytesIn') || metricKey.includes('.bytesOut')) {
+      const bps = parseFloat(rawValue || value);
+      if (bps >= 1000000000) {
+        return `${(bps / 1000000000).toFixed(2)} GB/s`;
+      } else if (bps >= 1000000) {
+        return `${(bps / 1000000).toFixed(2)} MB/s`;
+      } else if (bps >= 1000) {
+        return `${(bps / 1000).toFixed(2)} KB/s`;
+      } else {
+        return `${bps.toFixed(0)} B/s`;
+      }
+    }
+    
+    // Network errors and status
+    if (metricKey.includes('.errors')) {
+      return `${parseInt(value)} errors`;
+    }
+    if (metricKey.includes('.status')) {
+      return value === 1 ? 'UP' : 'DOWN';
+    }
+    
+    // CPU and other percentage metrics
     if (metricKey.includes('percent') || metricKey.includes('.user') || 
         metricKey.includes('.system') || metricKey.includes('.idle')) {
       return `${parseFloat(value).toFixed(1)}%`;
     }
+    
+    // Memory and swap (already in bytes)
     if (metricKey.includes('memory') || metricKey.includes('swap')) {
       const gb = value / 1073741824;
       return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(value / 1048576).toFixed(0)} MB`;
     }
+    
+    // Disk usage percentage
     if (metricKey.includes('disk')) {
       return `${parseFloat(value).toFixed(1)}%`;
     }
+    
+    // Load average
     if (metricKey.includes('load')) {
       return parseFloat(value).toFixed(2);
     }
+    
     return parseFloat(value).toFixed(2);
   };
 
@@ -315,6 +410,9 @@ const MetricsHistory = ({ host }) => {
         </Typography>
         {payload.map((entry, index) => {
           const metric = configuredMetrics.find(m => m.key === entry.dataKey);
+          const isPercentage = metricsData[entry.dataKey]?.[0]?.percentage !== undefined;
+          const rawValue = entry.payload?.[`${entry.dataKey}_raw`] || entry.payload?.rawValue;
+          
           return (
             <Typography 
               key={index}
@@ -334,7 +432,7 @@ const MetricsHistory = ({ host }) => {
                   backgroundColor: entry.color 
                 }} 
               />
-              {metric?.name || entry.dataKey}: {formatValue(entry.value, entry.dataKey)}
+              {metric?.name || entry.dataKey}: {formatValue(entry.value, entry.dataKey, isPercentage, rawValue)}
             </Typography>
           );
         })}
@@ -378,31 +476,35 @@ const MetricsHistory = ({ host }) => {
               No metrics configured. Please configure metrics in the Monitoring tab first.
             </Alert>
           ) : (
-            configuredMetrics.map((metric) => {
-              const isSelected = selectedMetrics.includes(metric.key);
-              const color = getMetricColor(metric.key);
-              
-              return (
-                <Button
-                  key={metric.key}
-                  variant={isSelected ? "contained" : "outlined"}
-                  size="small"
-                  onClick={() => toggleMetric(metric.key)}
-                  startIcon={getMetricIcon(metric.key)}
-                  sx={{
-                    borderColor: color,
-                    color: isSelected ? 'white' : color,
-                    backgroundColor: isSelected ? color : 'transparent',
-                    '&:hover': {
-                      backgroundColor: isSelected ? color : `${color}20`,
+            <>
+              {console.log('Rendering metrics buttons, total:', configuredMetrics.length)}
+              {console.log('All metrics:', configuredMetrics.map(m => `${m.key}: ${m.name}`))}
+              {configuredMetrics.map((metric) => {
+                const isSelected = selectedMetrics.includes(metric.key);
+                const color = getMetricColor(metric.key);
+                
+                return (
+                  <Button
+                    key={metric.key}
+                    variant={isSelected ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => toggleMetric(metric.key)}
+                    startIcon={getMetricIcon(metric.key)}
+                    sx={{
                       borderColor: color,
-                    }
-                  }}
-                >
-                  {metric.name}
-                </Button>
-              );
-            })
+                      color: isSelected ? 'white' : color,
+                      backgroundColor: isSelected ? color : 'transparent',
+                      '&:hover': {
+                        backgroundColor: isSelected ? color : `${color}20`,
+                        borderColor: color,
+                      }
+                    }}
+                  >
+                    {metric.name}
+                  </Button>
+                );
+              })}
+            </>
           )}
         </Box>
       </Box>
@@ -423,19 +525,6 @@ const MetricsHistory = ({ host }) => {
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
-          </Grid>
-
-          <Grid item>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <Select
-                value={aggregation}
-                onChange={(e) => setAggregation(e.target.value)}
-              >
-                <MenuItem value="avg">Average</MenuItem>
-                <MenuItem value="max">Maximum</MenuItem>
-                <MenuItem value="min">Minimum</MenuItem>
-              </Select>
-            </FormControl>
           </Grid>
 
           <Grid item sx={{ ml: 'auto' }}>
@@ -556,6 +645,8 @@ const MetricsHistory = ({ host }) => {
                 />
                 <YAxis 
                   tick={<CustomYAxisTick />}
+                  domain={[0, 100]}
+                  tickFormatter={(value) => `${value.toFixed(0)}%`}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend 

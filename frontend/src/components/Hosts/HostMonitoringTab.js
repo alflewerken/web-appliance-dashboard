@@ -98,10 +98,6 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
   const [testResult, setTestResult] = useState(null); // 'success' or 'error'
   const [lastPollTime, setLastPollTime] = useState(null);
   const [pollStatus, setPollStatus] = useState('idle'); // 'idle', 'polling', 'success', 'error'
-  
-  // Polling interval reference
-  const pollIntervalRef = useRef(null);
-  const pollCountRef = useRef(0);
 
   // Expose save method to parent
   useImperativeHandle(ref, () => ({
@@ -119,17 +115,16 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
     }
   }));
 
-  // Auto-polling function
-  const pollSNMPData = async () => {
+  // Initial fetch when tab opens
+  const fetchInitialMetrics = async () => {
     if (!snmpConfig.enabled || !host?.id) {
       return;
     }
     
     setPollStatus('polling');
-    pollCountRef.current += 1;
     
     try {
-      // Use live-monitoring endpoint that doesn't create audit logs
+      // Use live-monitoring endpoint for initial fetch
       const response = await axios.get(`/api/hosts/${host.id}/live-monitoring`);
       
       if (response.data?.success || response.data?.metrics) {
@@ -137,83 +132,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
         
         if (metrics) {
           // Transform metrics to the format expected by MetricsTable
-          const transformedMetrics = {
-            // System with OS info
-            sysName: metrics.system?.name,
-            sysDescr: metrics.system?.description,
-            sysContact: metrics.system?.contact,
-            sysLocation: metrics.system?.location,
-            osType: metrics.system?.osType,
-            osVersion: metrics.system?.osVersion,
-            osDetails: metrics.system?.osDetails,
-            uptime: {
-              totalSeconds: metrics.system?.uptime,
-              formatted: formatUptime(metrics.system?.uptime)
-            },
-            agentUptime: metrics.system?.agentUptime,
-            
-            // CPU - transform to percentage format
-            cpu: {
-              percent: metrics.cpu?.usage?.total || 0,
-              user: metrics.cpu?.raw ? (metrics.cpu.raw.user / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
-              system: metrics.cpu?.raw ? (metrics.cpu.raw.system / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
-              idle: metrics.cpu?.raw ? (metrics.cpu.raw.idle / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
-              load1: metrics.cpu?.load1,
-              load5: metrics.cpu?.load5,
-              load15: metrics.cpu?.load15,
-              cores: metrics.cpu?.cores
-            },
-            
-            // Memory - transform field names
-            memory: {
-              total: metrics.memory?.totalRam,
-              used: metrics.memory?.usedRam,
-              available: metrics.memory?.availableRam,
-              usedPercent: metrics.memory?.percentRam,
-              buffered: metrics.memory?.buffer,
-              cached: metrics.memory?.cache,
-              shared: metrics.memory?.shared,
-              swapTotal: metrics.memory?.totalSwap,
-              swapUsed: metrics.memory?.usedSwap,
-              swapUsedPercent: metrics.memory?.percentSwap
-            },
-            
-            // Disk - correct field name (not disks!)
-            disk: metrics.disk?.map(d => ({
-              path: d.path,
-              device: d.device,
-              total: d.total,
-              used: d.used,
-              available: d.available,
-              percent: d.percent
-            })) || [],
-            
-            // Network interfaces - transform array
-            interfaces: metrics.network?.map(n => ({
-              name: n.name || n.descr,
-              descr: n.descr || n.name,
-              type: n.type,
-              speed: n.speed,
-              operStatus: n.status === 'up' ? 1 : (n.operStatus || 2),
-              status: n.status,
-              inOctets: n.statistics?.bytesReceived || n.inOctets || 0,
-              outOctets: n.statistics?.bytesSent || n.outOctets || 0,
-              inErrors: n.statistics?.errorsIn || n.inErrors || 0,
-              outErrors: n.statistics?.errorsOut || n.outErrors || 0
-            })) || [],
-            
-            // Process info - complete mapping
-            processes: {
-              count: metrics.processes?.count || metrics.processCount || 0,
-              user: metrics.processes?.user || 0,
-              system: metrics.processes?.system || 0,
-              running: metrics.processes?.running || 0,
-              sleeping: metrics.processes?.sleeping || 0,
-              stopped: metrics.processes?.stopped || 0,
-              zombie: metrics.processes?.zombie || 0,
-              top: metrics.processes?.top || []
-            }
-          };
+          const transformedMetrics = transformMetrics(metrics);
           
           setMonitoringData({
             status: 'online',
@@ -226,41 +145,122 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
         }
       } else {
         setPollStatus('error');
-        console.error('SNMP poll failed:', response.data?.error);
+        console.error('SNMP fetch failed:', response.data?.error);
       }
     } catch (err) {
       setPollStatus('error');
-      console.error('SNMP poll error:', err);
+      console.error('SNMP fetch error:', err);
     }
   };
   
-  // Start/stop polling based on config
-  useEffect(() => {
-    if (!snmpConfig.enabled || !host?.id) {
-      // Stop polling if disabled
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-        setPollStatus('idle');
+  // Transform metrics helper function
+  const transformMetrics = (metrics) => {
+    return {
+      // System with OS info
+      sysName: metrics.system?.name,
+      sysDescr: metrics.system?.description,
+      sysContact: metrics.system?.contact,
+      sysLocation: metrics.system?.location,
+      osType: metrics.system?.osType,
+      osVersion: metrics.system?.osVersion,
+      osDetails: metrics.system?.osDetails,
+      uptime: {
+        totalSeconds: metrics.system?.uptime,
+        formatted: formatUptime(metrics.system?.uptime)
+      },
+      agentUptime: metrics.system?.agentUptime,
+      
+      // CPU - transform to percentage format
+      cpu: {
+        percent: metrics.cpu?.usage?.total || 0,
+        user: metrics.cpu?.raw ? (metrics.cpu.raw.user / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+        system: metrics.cpu?.raw ? (metrics.cpu.raw.system / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+        idle: metrics.cpu?.raw ? (metrics.cpu.raw.idle / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
+        load1: metrics.cpu?.load1,
+        load5: metrics.cpu?.load5,
+        load15: metrics.cpu?.load15,
+        cores: metrics.cpu?.cores
+      },
+      
+      // Memory - transform field names
+      memory: {
+        total: metrics.memory?.totalRam,
+        used: metrics.memory?.usedRam,
+        available: metrics.memory?.availableRam,
+        usedPercent: metrics.memory?.percentRam,
+        buffered: metrics.memory?.buffer,
+        cached: metrics.memory?.cache,
+        shared: metrics.memory?.shared,
+        swapTotal: metrics.memory?.totalSwap,
+        swapUsed: metrics.memory?.usedSwap,
+        swapUsedPercent: metrics.memory?.percentSwap
+      },
+      
+      // Disk - correct field name
+      disk: metrics.disk?.map(d => ({
+        path: d.path,
+        device: d.device,
+        total: d.total,
+        used: d.used,
+        available: d.available,
+        percent: d.percent
+      })) || [],
+      
+      // Network interfaces
+      interfaces: metrics.network?.map(n => ({
+        name: n.name || n.descr,
+        descr: n.descr || n.name,
+        type: n.type,
+        speed: n.speed,
+        operStatus: n.status === 'up' ? 1 : (n.operStatus || 2),
+        status: n.status,
+        inOctets: n.statistics?.bytesReceived || n.inOctets || 0,
+        outOctets: n.statistics?.bytesSent || n.outOctets || 0,
+        inErrors: n.statistics?.errorsIn || n.inErrors || 0,
+        outErrors: n.statistics?.errorsOut || n.outErrors || 0
+      })) || [],
+      
+      // Process info
+      processes: {
+        count: metrics.processes?.count || metrics.processCount || 0,
+        user: metrics.processes?.user || 0,
+        system: metrics.processes?.system || 0,
+        running: metrics.processes?.running || 0,
+        sleeping: metrics.processes?.sleeping || 0,
+        stopped: metrics.processes?.stopped || 0,
+        zombie: metrics.processes?.zombie || 0,
+        top: metrics.processes?.top || []
       }
+    };
+  };
+  
+  // Setup polling effect
+  useEffect(() => {
+    console.log('[POLLING-DEBUG] Effect triggered - enabled:', snmpConfig.enabled, 'host:', host?.id);
+    
+    if (!snmpConfig.enabled || !host?.id) {
+      console.log('[POLLING-DEBUG] Polling disabled or no host');
       return;
     }
     
-    // Initial poll
-    pollSNMPData();
+    // Fetch initial data
+    console.log('[POLLING-DEBUG] Fetching initial metrics');
+    fetchInitialMetrics();
     
-    // Set up interval polling
-    const intervalMs = (snmpConfig.pollInterval || 60) * 1000;
-    pollIntervalRef.current = setInterval(pollSNMPData, intervalMs);
+    // Setup polling interval (10 seconds to match backend)
+    const pollInterval = setInterval(() => {
+      console.log('[POLLING-DEBUG] Polling metrics...');
+      fetchInitialMetrics();
+    }, 10000); // Poll every 10 seconds
     
     // Cleanup on unmount or config change
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
+      console.log('[POLLING-DEBUG] Cleaning up polling interval');
+      clearInterval(pollInterval);
     };
-  }, [snmpConfig.enabled, snmpConfig.pollInterval, host?.id]);
+  }, [snmpConfig.enabled, host?.id]);
+
+  // Remove the duplicate polling effect - DELETE this entire useEffect
 
   // Load SNMP configuration
   useEffect(() => {
@@ -268,136 +268,6 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
       loadSNMPConfig();
     }
   }, [host?.id]);
-
-  // Auto-polling effect for SNMP data
-  useEffect(() => {
-    if (!snmpConfig.enabled || !host?.id) {
-      return;
-    }
-
-    // Function to fetch monitoring data via SNMP
-    const fetchMonitoringData = async () => {
-      try {
-        // Use new live-monitoring endpoint that doesn't create audit logs
-        const response = await axios.get(`/api/hosts/${host.id}/live-monitoring`);
-        if (response.data?.success || response.data?.metrics) {
-          const metrics = response.data?.metrics;
-          
-          if (metrics) {
-            // Transform metrics to the format expected by MetricsTable
-            const transformedMetrics = {
-              // System - including OS information
-              sysName: metrics.system?.name,
-              sysDescr: metrics.system?.description,
-              sysContact: metrics.system?.contact,
-              sysLocation: metrics.system?.location,
-              osType: metrics.system?.osType,
-              osVersion: metrics.system?.osVersion,
-              osDetails: metrics.system?.osDetails,
-              uptime: {
-                totalSeconds: metrics.system?.uptime,
-                formatted: formatUptime(metrics.system?.uptime)
-              },
-              agentUptime: metrics.system?.agentUptime,
-              
-              // CPU - transform to percentage format
-              cpu: {
-                percent: metrics.cpu?.usage?.total || 0,
-                user: metrics.cpu?.raw ? (metrics.cpu.raw.user / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
-                system: metrics.cpu?.raw ? (metrics.cpu.raw.system / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
-                idle: metrics.cpu?.raw ? (metrics.cpu.raw.idle / (metrics.cpu.raw.user + metrics.cpu.raw.system + metrics.cpu.raw.idle) * 100) : 0,
-                load1: metrics.cpu?.load1,
-                load5: metrics.cpu?.load5,
-                load15: metrics.cpu?.load15,
-                cores: metrics.cpu?.cores
-              },
-              
-              // Memory - transform field names
-              memory: {
-                total: metrics.memory?.totalRam,
-                used: metrics.memory?.usedRam,
-                available: metrics.memory?.availableRam,
-                usedPercent: metrics.memory?.percentRam,
-                buffered: metrics.memory?.buffer,
-                cached: metrics.memory?.cache,
-                shared: metrics.memory?.shared,
-                swapTotal: metrics.memory?.totalSwap,
-                swapUsed: metrics.memory?.usedSwap,
-                swapUsedPercent: metrics.memory?.percentSwap
-              },
-              
-              // Disk storage - correct field name
-              disk: metrics.disk?.map(d => ({
-                path: d.path,
-                device: d.device,
-                total: d.total,
-                used: d.used,
-                available: d.available,
-                percent: d.percent
-              })) || [],
-              
-              // Network interfaces - transform array
-              interfaces: metrics.network?.map(n => ({
-                name: n.name || n.descr,
-                descr: n.descr || n.name,
-                type: n.type,
-                speed: n.speed,
-                operStatus: n.status === 'up' ? 1 : (n.operStatus || 2),
-                status: n.status,
-                inOctets: n.statistics?.bytesReceived || n.inOctets || 0,
-                outOctets: n.statistics?.bytesSent || n.outOctets || 0,
-                inErrors: n.statistics?.errorsIn || n.inErrors || 0,
-                outErrors: n.statistics?.errorsOut || n.outErrors || 0
-              })) || [],
-              
-              // Process info - complete mapping
-              processes: {
-                count: metrics.processes?.count || metrics.processCount || 0,
-                user: metrics.processes?.user || 0,
-                system: metrics.processes?.system || 0,
-                running: metrics.processes?.running || 0,
-                sleeping: metrics.processes?.sleeping || 0,
-                stopped: metrics.processes?.stopped || 0,
-                zombie: metrics.processes?.zombie || 0,
-                top: metrics.processes?.top || []
-              }
-            };
-            
-            setMonitoringData({
-              status: 'online',
-              lastUpdate: new Date(),
-              metrics: transformedMetrics
-            });
-          }
-        } else {
-          setMonitoringData(prev => ({
-            ...prev,
-            status: 'error',
-            lastUpdate: new Date()
-          }));
-        }
-      } catch (err) {
-        console.error('Failed to fetch monitoring data:', err);
-        setMonitoringData(prev => ({
-          ...prev,
-          status: 'error',
-          lastUpdate: new Date()
-        }));
-      }
-    };
-
-    // Initial fetch
-    fetchMonitoringData();
-
-    // Set up polling interval (convert seconds to milliseconds)
-    const pollInterval = (snmpConfig.pollInterval || 60) * 1000;
-    const intervalId = setInterval(fetchMonitoringData, pollInterval);
-
-    // Cleanup on unmount or when config changes
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [snmpConfig.enabled, snmpConfig.pollInterval, snmpConfig.community, snmpConfig.port, host?.id]);
 
   const loadSNMPConfig = async () => {
     try {

@@ -46,10 +46,12 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
   const [customNames, setCustomNames] = useState({});
   const [inputValues, setInputValues] = useState({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [interfaceMappings, setInterfaceMappings] = useState({});
 
-  // Initialize logging config and custom names from backend
+  // Initialize logging config, custom names and interface mappings from backend
   useEffect(() => {
     loadLoggingConfig();
+    loadInterfaceMappings();
   }, [host?.id]);
 
   // Update input values when customNames change
@@ -87,11 +89,49 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
     }
   };
 
+  const loadInterfaceMappings = async () => {
+    if (!host?.id) return;
+    
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`/api/hosts/${host.id}/interface-mappings`, {
+        headers
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.mappings) {
+          // Create a map of interface name -> index
+          const mappings = {};
+          data.mappings.forEach(mapping => {
+            mappings[mapping.interface_name] = mapping.interface_index;
+          });
+          setInterfaceMappings(mappings);
+          console.log('[Interface Mappings] Loaded dynamic mappings:', mappings);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load interface mappings:', error);
+    }
+  };
+
   const handleLoggingToggle = (metricKey) => {
+    console.log('Toggle metric:', metricKey, 'Current value:', loggingConfig[metricKey]);
+    
     const newConfig = {
       ...loggingConfig,
       [metricKey]: !loggingConfig[metricKey]
     };
+    
+    console.log('New config:', newConfig);
     
     setLoggingConfig(newConfig);
     setHasUnsavedChanges(true);
@@ -116,6 +156,34 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
       ...inputValues,
       [metricKey]: value
     };
+    
+    // If this is a network interface base name, also update sub-metrics
+    if (metricKey.startsWith('network.interface.') && !metricKey.includes('.bytes') && !metricKey.includes('.errors') && !metricKey.includes('.status')) {
+      // This is a base interface name like network.interface.5
+      const subMetrics = ['bytesIn', 'bytesOut', 'errors', 'status'];
+      subMetrics.forEach(subMetric => {
+        const subKey = `${metricKey}.${subMetric}`;
+        // Only update if the sub-metric exists in the current config
+        if (loggingConfig[metricKey]) {
+          let subName = '';
+          switch(subMetric) {
+            case 'bytesIn':
+              subName = `${value} In`;
+              break;
+            case 'bytesOut':
+              subName = `${value} Out`;
+              break;
+            case 'errors':
+              subName = `${value} Errors`;
+              break;
+            case 'status':
+              subName = `${value} Status`;
+              break;
+          }
+          newInputValues[subKey] = subName;
+        }
+      });
+    }
     
     setInputValues(newInputValues);
     setHasUnsavedChanges(true);
@@ -459,7 +527,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
       label: 'Network Interfaces',
       color: '#00bcd4',
       isTable: true,  // Special flag for table rendering
-      interfaces: metrics?.interfaces || []
+      interfaces: metrics?.network || metrics?.interfaces || []
     },    processes: {
       icon: <Activity size={20} />,
       label: 'Process Information',
@@ -547,18 +615,43 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
             </TableRow>
           </TableHead>
           <TableBody>
-            {interfaces.map((iface, index) => {
+            {interfaces.map((iface, arrayIndex) => {
               const isActive = iface.operStatus === 1 || iface.status === 'up' || 
                               iface.statistics?.bytesReceived > 0 || iface.statistics?.bytesSent > 0 ||
                               iface.inOctets > 0 || iface.outOctets > 0;
-              const metricKey = `network.interface.${iface.index || index}`;
+              
+              // KRITISCH: Wir brauchen den echten SNMP-Index!
+              // Zuerst aus dynamischen Mappings versuchen
+              let interfaceIndex = iface.index;
+              
+              // Wenn kein Index vorhanden, aus den dynamischen Mappings holen
+              if (!interfaceIndex && interfaceIndex !== 0 && interfaceMappings) {
+                interfaceIndex = interfaceMappings[iface.name];
+                if (interfaceIndex !== undefined) {
+                  console.log(`[Interface Mapping] Using dynamic mapping for ${iface.name}: ${interfaceIndex}`);
+                }
+              }
+              
+              // Fallback auf hardcoded mapping (nur für Backward-Compatibility)
+              if (!interfaceIndex && interfaceIndex !== 0) {
+                console.warn(`[Interface Mapping] No dynamic mapping for ${iface.name}, using hardcoded fallback`);
+                // Hardcoded mapping für bekannte Interfaces (DEPRECATED)
+                if (iface.name === 'en0') interfaceIndex = 5;
+                else if (iface.name === 'en5') interfaceIndex = 4;
+                else if (iface.name === 'awdl0') interfaceIndex = 6;
+                else interfaceIndex = arrayIndex; // Last resort fallback
+              }
+              
+              const metricKey = `network.interface.${interfaceIndex}`;
+              
+              console.log(`Interface ${iface.name}: arrayPos=${arrayIndex}, snmpIndex=${interfaceIndex}, metricKey=${metricKey}`);
               
               // Get traffic values from either format
               const bytesIn = iface.statistics?.bytesReceived || iface.inOctets || 0;
               const bytesOut = iface.statistics?.bytesSent || iface.outOctets || 0;
               
               return (
-                <TableRow key={index} sx={{ 
+                <TableRow key={arrayIndex} sx={{ 
                   backgroundColor: isActive ? 'transparent' : 'rgba(0,0,0,0.02)'
                 }}>
                   <TableCell padding="checkbox">
@@ -625,7 +718,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                         size="small"
                         variant="outlined"
                         placeholder="Custom name"
-                        value={inputValues[metricKey] || iface.name || `Interface ${iface.index || index}`}
+                        value={inputValues[metricKey] || iface.name || `Interface ${interfaceIndex}`}
                         onChange={(e) => handleCustomNameChange(metricKey, e.target.value)}
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {

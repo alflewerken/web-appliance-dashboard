@@ -916,37 +916,11 @@ class SNMPMonitor {
       const ifHCInOctets = await this.walkOid(session, this.oidDefinitions.network.ifHCInOctets).catch(() => ({}));
       const ifHCOutOctets = await this.walkOid(session, this.oidDefinitions.network.ifHCOutOctets).catch(() => ({}));
       
-      // Debug logging for all interfaces to find en0
-      Object.keys(ifDescr).forEach(idx => {
-        const name = this.parseStringValue(ifDescr[idx]);
-        if (name.includes('en0') || name.includes('en5')) {
-          console.log(`[SNMP] Interface ${idx} (${name}) Debug:`, {
-            status: this.getOperStatus(parseInt(ifOperStatus[idx] || 0)),
-            ifInOctets: ifInOctets[idx],
-            ifOutOctets: ifOutOctets[idx],
-            ifHCInOctets: ifHCInOctets[idx],
-            ifHCOutOctets: ifHCOutOctets[idx]
-          });
-        }
-      });
-      
       Object.keys(ifDescr).forEach(index => {
-        // Use 64-bit counters if available, fallback to 32-bit
-        let bytesIn = 0;
-        let bytesOut = 0;
-        
-        // Try 64-bit first
-        if (ifHCInOctets[index] !== undefined) {
-          bytesIn = parseInt(ifHCInOctets[index]) || 0;
-        } else if (ifInOctets[index] !== undefined) {
-          bytesIn = parseInt(ifInOctets[index]) || 0;
-        }
-        
-        if (ifHCOutOctets[index] !== undefined) {
-          bytesOut = parseInt(ifHCOutOctets[index]) || 0;
-        } else if (ifOutOctets[index] !== undefined) {
-          bytesOut = parseInt(ifOutOctets[index]) || 0;
-        }
+        // Use 32-bit counters primarily (they work on macOS)
+        // 64-bit counters come as Buffer and need special parsing
+        let bytesIn = parseInt(ifInOctets[index]) || 0;
+        let bytesOut = parseInt(ifOutOctets[index]) || 0;
         
         interfaces.push({
           index: parseInt(index),
@@ -1654,7 +1628,9 @@ class SNMPMonitor {
       bytesOut: iface.statistics.bytesSent,
       errorsIn: iface.statistics.errorsIn,
       errorsOut: iface.statistics.errorsOut,
-      speed: iface.speed
+      speed: iface.speed,
+      // Also include original structure for compatibility
+      statistics: iface.statistics
     }));
   }
 }
