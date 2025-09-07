@@ -118,33 +118,11 @@ router.get('/:id/metrics-history', authenticateToken, async (req, res) => {
         return 100;
       }
       
-      // Network interface speed - use realistic values for better visualization
+      // Network interface speed - DON'T normalize for now, return actual B/s
       if (metricKey.includes('.bytesIn') || metricKey.includes('.bytesOut')) {
-        const match = metricKey.match(/network\.interface\.(\d+)/);
-        if (match) {
-          const interfaceNum = parseInt(match[1]);
-          
-          // Use realistic speeds for better visualization
-          // Instead of theoretical maximum, use typical usage speeds
-          // This makes low traffic visible on the graph
-          
-          // Interface 5 (en0 - WiFi): Use 5 MB/s as 100% (typical usage)
-          // instead of 38 MB/s (theoretical max 304 Mbps)
-          if (interfaceNum === 5) {
-            return 5 * 1000000; // 5 MB/s for typical WiFi usage
-          }
-          // Interface 4 (en5 - Ethernet): Use 10 MB/s as 100%
-          // instead of 125 MB/s (theoretical max 1000 Mbps)
-          if (interfaceNum === 4) {
-            return 10 * 1000000; // 10 MB/s for typical Ethernet usage
-          }
-          // Interface 14 (en0 alternative): 5 MB/s
-          if (interfaceNum === 14) {
-            return 5 * 1000000; // 5 MB/s
-          }
-        }
-        // Default for unknown interfaces: 1 MB/s
-        return 1 * 1000000; // 1 MB/s
+        // Return null to indicate no normalization should be done
+        // The actual bytes/second values will be returned
+        return null;
       }
       
       // Process counts - use reasonable maximum
