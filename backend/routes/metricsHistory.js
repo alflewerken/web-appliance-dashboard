@@ -118,11 +118,26 @@ router.get('/:id/metrics-history', authenticateToken, async (req, res) => {
         return 100;
       }
       
-      // Network interface speed - DON'T normalize for now, return actual B/s
+      // Network interface speed - normalize for graph display but keep raw values
       if (metricKey.includes('.bytesIn') || metricKey.includes('.bytesOut')) {
-        // Return null to indicate no normalization should be done
-        // The actual bytes/second values will be returned
-        return null;
+        const match = metricKey.match(/network\.interface\.(\d+)/);
+        if (match) {
+          const interfaceNum = parseInt(match[1]);
+          
+          // Use realistic maximums for percentage calculation
+          // But also return raw values for display
+          if (interfaceNum === 5) {
+            return 50 * 1000000; // 50 MB/s max for WiFi (for graph scaling)
+          }
+          if (interfaceNum === 4) {
+            return 100 * 1000000; // 100 MB/s max for Ethernet (for graph scaling)
+          }
+          if (interfaceNum === 14) {
+            return 50 * 1000000; // 50 MB/s max
+          }
+        }
+        // Default for unknown interfaces
+        return 10 * 1000000; // 10 MB/s
       }
       
       // Process counts - use reasonable maximum

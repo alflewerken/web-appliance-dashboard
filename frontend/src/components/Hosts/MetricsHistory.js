@@ -741,7 +741,7 @@ const MetricsHistory = ({ host }) => {
                   }}
                 />
                 <YAxis 
-                  tick={<CustomYAxisTick />}
+                  tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                   domain={[0, 100]}
                   tickFormatter={(value) => `${value.toFixed(0)}%`}
                 />
