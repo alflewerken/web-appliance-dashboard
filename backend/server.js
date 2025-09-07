@@ -172,6 +172,10 @@ const queryBuilder = new QueryBuilder(pool);
 const hostsRouter = require('./routes/hosts');
 app.use('/api/hosts', verifyToken, hostsRouter);
 
+// Metrics History routes
+const metricsHistoryRouter = require('./routes/metricsHistory');
+app.use('/api/hosts', verifyToken, metricsHistoryRouter);
+
 // Host Monitoring Routes
 const initHostMonitoring = require('./routes/hostMonitoring');
 const hostMonitoringRouter = initHostMonitoring(queryBuilder);

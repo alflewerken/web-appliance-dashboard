@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import SSHKeyManagement from '../SettingsPanel/SSHKeyManagement';
 import HostMonitoringTab from './HostMonitoringTab';
+import MetricsHistory from './MetricsHistory';
 import sseService from '../../services/sseService';
 import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import {
@@ -1129,6 +1130,7 @@ const HostPanel = ({
         >
           <Tab label={t('hosts.tabs.general')} />
           <Tab label={t('hosts.tabs.sshKeys')} />
+          <Tab label="Metrics History" icon={<Activity size={16} />} />
         </Tabs>
       </Box>
 
@@ -1641,7 +1643,15 @@ const HostPanel = ({
               adminMode={adminMode}
             />
           </Box>
-        )}      </Box>
+        )}
+        
+        {/* Tab 2: Metrics History */}
+        {activeTab === 2 && (
+          <Box sx={{ height: '100%', overflow: 'hidden' }}>
+            <MetricsHistory host={host} />
+          </Box>
+        )}
+      </Box>
 
       {/* Success/Error Messages */}
       <Snackbar
