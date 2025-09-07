@@ -549,8 +549,13 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
           <TableBody>
             {interfaces.map((iface, index) => {
               const isActive = iface.operStatus === 1 || iface.status === 'up' || 
+                              iface.statistics?.bytesReceived > 0 || iface.statistics?.bytesSent > 0 ||
                               iface.inOctets > 0 || iface.outOctets > 0;
-              const metricKey = `network.interface.${index}`;
+              const metricKey = `network.interface.${iface.index || index}`;
+              
+              // Get traffic values from either format
+              const bytesIn = iface.statistics?.bytesReceived || iface.inOctets || 0;
+              const bytesOut = iface.statistics?.bytesSent || iface.outOctets || 0;
               
               return (
                 <TableRow key={index} sx={{ 
@@ -599,17 +604,19 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="caption" sx={{ display: 'block' }}>
-                      ↓ {iface.inOctets > 0 ? formatBytes(iface.inOctets) : '-'}
+                      ↓ {bytesIn > 0 ? formatBytes(bytesIn) : '-'}
                     </Typography>
                     <Typography variant="caption" sx={{ display: 'block' }}>
-                      ↑ {iface.outOctets > 0 ? formatBytes(iface.outOctets) : '-'}
+                      ↑ {bytesOut > 0 ? formatBytes(bytesOut) : '-'}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" sx={{ fontSize: '0.85rem', 
-                      color: (iface.inErrors || 0) + (iface.outErrors || 0) > 0 ? 'error.main' : 'inherit' 
+                      color: ((iface.statistics?.errorsIn || 0) + (iface.statistics?.errorsOut || 0) + 
+                              (iface.inErrors || 0) + (iface.outErrors || 0)) > 0 ? 'error.main' : 'inherit' 
                     }}>
-                      {(iface.inErrors || 0) + (iface.outErrors || 0) || '-'}
+                      {((iface.statistics?.errorsIn || 0) + (iface.statistics?.errorsOut || 0) + 
+                        (iface.inErrors || 0) + (iface.outErrors || 0)) || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -618,7 +625,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                         size="small"
                         variant="outlined"
                         placeholder="Custom name"
-                        value={inputValues[metricKey] || iface.name || `Interface ${index}`}
+                        value={inputValues[metricKey] || iface.name || `Interface ${iface.index || index}`}
                         onChange={(e) => handleCustomNameChange(metricKey, e.target.value)}
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {

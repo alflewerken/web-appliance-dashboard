@@ -912,13 +912,41 @@ class SNMPMonitor {
       const ifOutErrors = await this.walkOid(session, this.oidDefinitions.network.ifOutErrors);
       const ifPhysAddress = await this.walkOid(session, this.oidDefinitions.network.ifPhysAddress);
       
-      // Try to get 64-bit counters if available
+      // Try to get 64-bit counters if available (preferred for high-speed interfaces)
       const ifHCInOctets = await this.walkOid(session, this.oidDefinitions.network.ifHCInOctets).catch(() => ({}));
       const ifHCOutOctets = await this.walkOid(session, this.oidDefinitions.network.ifHCOutOctets).catch(() => ({}));
       
+      // Debug logging for all interfaces to find en0
+      Object.keys(ifDescr).forEach(idx => {
+        const name = this.parseStringValue(ifDescr[idx]);
+        if (name.includes('en0') || name.includes('en5')) {
+          console.log(`[SNMP] Interface ${idx} (${name}) Debug:`, {
+            status: this.getOperStatus(parseInt(ifOperStatus[idx] || 0)),
+            ifInOctets: ifInOctets[idx],
+            ifOutOctets: ifOutOctets[idx],
+            ifHCInOctets: ifHCInOctets[idx],
+            ifHCOutOctets: ifHCOutOctets[idx]
+          });
+        }
+      });
+      
       Object.keys(ifDescr).forEach(index => {
-        const bytesIn = ifHCInOctets[index] || ifInOctets[index] || 0;
-        const bytesOut = ifHCOutOctets[index] || ifOutOctets[index] || 0;
+        // Use 64-bit counters if available, fallback to 32-bit
+        let bytesIn = 0;
+        let bytesOut = 0;
+        
+        // Try 64-bit first
+        if (ifHCInOctets[index] !== undefined) {
+          bytesIn = parseInt(ifHCInOctets[index]) || 0;
+        } else if (ifInOctets[index] !== undefined) {
+          bytesIn = parseInt(ifInOctets[index]) || 0;
+        }
+        
+        if (ifHCOutOctets[index] !== undefined) {
+          bytesOut = parseInt(ifHCOutOctets[index]) || 0;
+        } else if (ifOutOctets[index] !== undefined) {
+          bytesOut = parseInt(ifOutOctets[index]) || 0;
+        }
         
         interfaces.push({
           index: parseInt(index),
@@ -928,15 +956,15 @@ class SNMPMonitor {
           status: this.getOperStatus(parseInt(ifOperStatus[index] || 0)),
           mac: this.parseMacAddress(ifPhysAddress[index]),
           statistics: {
-            bytesReceived: parseInt(bytesIn),
-            bytesSent: parseInt(bytesOut),
+            bytesReceived: bytesIn,
+            bytesSent: bytesOut,
             errorsIn: parseInt(ifInErrors[index] || 0),
             errorsOut: parseInt(ifOutErrors[index] || 0)
           }
         });
       });
     } catch (error) {
-
+      console.error('[SNMP] Error walking network interfaces:', error);
     }
     
     return interfaces;
@@ -1445,12 +1473,41 @@ class SNMPMonitor {
       if (networkMetrics.length > 0) {
         const interfaces = await this.getNetworkInterfaces(session);
         for (const metric of networkMetrics) {
+          // Parse metric format: network.interface.13 or network.interface.13.bytesIn
           const parts = metric.split('.');
-          const ifIndex = parseInt(parts[1]);
-          const metricType = parts[2]; // e.g., 'bytesIn', 'bytesOut'
-          
-          if (interfaces[ifIndex]) {
-            collectedMetrics[metric] = interfaces[ifIndex][metricType] || 0;
+          if (parts.length >= 3 && parts[1] === 'interface') {
+            const ifIndex = parseInt(parts[2]);
+            const metricType = parts[3]; // Optional: 'bytesIn', 'bytesOut', etc.
+            
+            // Find interface by index
+            const iface = interfaces.find(i => i.index === ifIndex);
+            if (iface) {
+              if (metricType) {
+                // Specific metric requested
+                collectedMetrics[metric] = iface[metricType] || 0;
+              } else {
+                // All metrics for this interface
+                collectedMetrics[`${metric}.bytesIn`] = iface.bytesIn || 0;
+                collectedMetrics[`${metric}.bytesOut`] = iface.bytesOut || 0;
+                collectedMetrics[`${metric}.errors`] = (iface.errorsIn || 0) + (iface.errorsOut || 0);
+                collectedMetrics[`${metric}.status`] = iface.status || 'unknown';
+              }
+            }
+          }
+        }
+      }
+      
+      // Handle process metrics if enabled
+      const processMetrics = enabledMetrics.filter(m => m.startsWith('process.'));
+      if (processMetrics.length > 0) {
+        const processInfo = await this.getProcessInfo(session);
+        for (const metric of processMetrics) {
+          const name = metric.split('.')[1]; // e.g., 'user', 'system', 'count'
+          if (name === 'user' || name === 'system') {
+            // For user/system processes, return the count
+            collectedMetrics[metric] = processInfo.count || 0;
+          } else if (processInfo[name] !== undefined) {
+            collectedMetrics[metric] = processInfo[name];
           }
         }
       }
@@ -1587,7 +1644,18 @@ class SNMPMonitor {
 
   // Get network interfaces for collectMetrics  
   async getNetworkInterfaces(session) {
-    return await this.walkNetworkInterfaces(session);
+    const interfaces = await this.walkNetworkInterfaces(session);
+    // Map to the expected structure for metrics collection
+    return interfaces.map(iface => ({
+      index: iface.index,
+      name: iface.name,
+      status: iface.status,
+      bytesIn: iface.statistics.bytesReceived,
+      bytesOut: iface.statistics.bytesSent,
+      errorsIn: iface.statistics.errorsIn,
+      errorsOut: iface.statistics.errorsOut,
+      speed: iface.speed
+    }));
   }
 }
 

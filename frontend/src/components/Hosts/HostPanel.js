@@ -1119,8 +1119,14 @@ const HostPanel = ({
               textTransform: 'none',
               minHeight: 48,
               color: 'var(--text-secondary)',
+              flexDirection: 'row',
+              gap: 1,
               '&.Mui-selected': {
                 color: 'var(--primary-color)',
+              },
+              '& .MuiTab-iconWrapper': {
+                marginBottom: 0,
+                marginRight: 0.5,
               },
             },
             '& .MuiTabs-indicator': {
@@ -1128,9 +1134,21 @@ const HostPanel = ({
             },
           }}
         >
-          <Tab label={t('hosts.tabs.general')} />
-          <Tab label={t('hosts.tabs.sshKeys')} />
-          <Tab label="Metrics History" icon={<Activity size={16} />} />
+          <Tab 
+            label={t('hosts.tabs.general')} 
+            icon={<Server size={16} />} 
+            iconPosition="start"
+          />
+          <Tab 
+            label={t('hosts.tabs.sshKeys')} 
+            icon={<Key size={16} />} 
+            iconPosition="start"
+          />
+          <Tab 
+            label="Metrics History" 
+            icon={<Activity size={16} />} 
+            iconPosition="start"
+          />
         </Tabs>
       </Box>
 
@@ -1225,7 +1243,7 @@ const HostPanel = ({
                   <InputLabel 
                     id="ssh-key-select-label"
                   >
-                  >
+                  
                     {t('hosts.sshKey')}
                   </InputLabel>
                   <Select
