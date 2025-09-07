@@ -93,23 +93,23 @@ const MetricsHistory = ({ host }) => {
     
     // Special handling for network interface metrics
     if (metricKey.includes('network.interface')) {
-      // Different colors for bytesIn vs bytesOut
+      // Different shades of red for bytesIn vs bytesOut
       if (metricKey.includes('.bytesIn')) {
-        // Lighter/cooler colors for incoming traffic
-        if (metricKey.includes('interface.5')) return '#64b5f6'; // Light blue
-        if (metricKey.includes('interface.4')) return '#4fc3f7'; // Cyan
-        if (metricKey.includes('interface.14')) return '#29b6f6'; // Sky blue
-        return '#81c784'; // Light green as fallback
+        // Lighter/brighter red colors for incoming traffic
+        if (metricKey.includes('interface.5')) return '#ff8a80'; // Light red
+        if (metricKey.includes('interface.4')) return '#ff9e80'; // Light orange-red
+        if (metricKey.includes('interface.14')) return '#ffab91'; // Peach
+        return '#ff7043'; // Light deep orange as fallback
       }
       if (metricKey.includes('.bytesOut')) {
-        // Darker/warmer colors for outgoing traffic
-        if (metricKey.includes('interface.5')) return '#ab47bc'; // Purple
-        if (metricKey.includes('interface.4')) return '#ba68c8'; // Light purple
-        if (metricKey.includes('interface.14')) return '#ce93d8'; // Lavender
-        return '#f06292'; // Pink as fallback
+        // Darker red colors for outgoing traffic
+        if (metricKey.includes('interface.5')) return '#c62828'; // Dark red
+        if (metricKey.includes('interface.4')) return '#d32f2f'; // Red
+        if (metricKey.includes('interface.14')) return '#e53935'; // Medium red
+        return '#b71c1c'; // Deep red as fallback
       }
       if (metricKey.includes('.errors')) {
-        return '#ef5350'; // Red for errors
+        return '#ffc107'; // Amber/Yellow for errors (to differentiate from red traffic)
       }
       if (metricKey.includes('.status')) {
         return '#66bb6a'; // Green for status
