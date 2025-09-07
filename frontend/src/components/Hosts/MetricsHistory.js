@@ -91,6 +91,31 @@ const MetricsHistory = ({ host }) => {
       return metricColors[metricKey];
     }
     
+    // Special handling for network interface metrics
+    if (metricKey.includes('network.interface')) {
+      // Different colors for bytesIn vs bytesOut
+      if (metricKey.includes('.bytesIn')) {
+        // Lighter/cooler colors for incoming traffic
+        if (metricKey.includes('interface.5')) return '#64b5f6'; // Light blue
+        if (metricKey.includes('interface.4')) return '#4fc3f7'; // Cyan
+        if (metricKey.includes('interface.14')) return '#29b6f6'; // Sky blue
+        return '#81c784'; // Light green as fallback
+      }
+      if (metricKey.includes('.bytesOut')) {
+        // Darker/warmer colors for outgoing traffic
+        if (metricKey.includes('interface.5')) return '#ab47bc'; // Purple
+        if (metricKey.includes('interface.4')) return '#ba68c8'; // Light purple
+        if (metricKey.includes('interface.14')) return '#ce93d8'; // Lavender
+        return '#f06292'; // Pink as fallback
+      }
+      if (metricKey.includes('.errors')) {
+        return '#ef5350'; // Red for errors
+      }
+      if (metricKey.includes('.status')) {
+        return '#66bb6a'; // Green for status
+      }
+    }
+    
     // Otherwise, generate a color based on the metric type
     if (metricKey.startsWith('cpu')) return '#4caf50';
     if (metricKey.startsWith('memory')) return '#2196f3';
@@ -518,10 +543,59 @@ const MetricsHistory = ({ host }) => {
               exclusive
               onChange={(e, value) => value && setTimeRange(value)}
               size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  color: 'var(--text-secondary)',
+                  borderColor: 'var(--card-border)',
+                  backgroundColor: 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: 'var(--primary-color)',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    borderColor: 'var(--primary-color)',
+                    '&:hover': {
+                      backgroundColor: 'var(--primary-hover)',
+                    },
+                  },
+                },
+              }}
             >
               {timeRanges.map(range => (
-                <ToggleButton key={range.value} value={range.value}>
-                  {range.label}
+                <ToggleButton 
+                  key={range.value} 
+                  value={range.value}
+                  sx={{
+                    px: 2,
+                    position: 'relative',
+                    '&.Mui-selected': {
+                      boxShadow: '0 0 10px rgba(25, 118, 210, 0.5)',
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: -2,
+                        left: 0,
+                        right: 0,
+                        height: 3,
+                        backgroundColor: '#ffffff',
+                        borderRadius: '2px 2px 0 0',
+                      }
+                    }
+                  }}
+                >
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 0.5,
+                    fontWeight: timeRange === range.value ? 700 : 400
+                  }}>
+                    {timeRange === range.value && (
+                      <Clock size={14} style={{ marginRight: 2 }} />
+                    )}
+                    {range.label}
+                  </Box>
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
@@ -533,7 +607,23 @@ const MetricsHistory = ({ host }) => {
                 variant={autoRefresh ? "contained" : "outlined"}
                 onClick={() => setAutoRefresh(!autoRefresh)}
                 startIcon={autoRefresh ? <Pause size={16} /> : <Play size={16} />}
-                color={autoRefresh ? "primary" : "inherit"}
+                sx={{
+                  backgroundColor: autoRefresh ? 'var(--success-color, #4caf50)' : 'transparent',
+                  color: autoRefresh ? '#ffffff' : 'var(--text-secondary)',
+                  borderColor: autoRefresh ? 'var(--success-color, #4caf50)' : 'var(--card-border)',
+                  '&:hover': {
+                    backgroundColor: autoRefresh ? 'var(--success-hover, #45a049)' : 'rgba(76, 175, 80, 0.08)',
+                  },
+                  fontWeight: autoRefresh ? 600 : 400,
+                  ...(autoRefresh && {
+                    animation: 'pulse 2s infinite',
+                    '@keyframes pulse': {
+                      '0%': { boxShadow: '0 0 0 0 rgba(76, 175, 80, 0.4)' },
+                      '70%': { boxShadow: '0 0 0 10px rgba(76, 175, 80, 0)' },
+                      '100%': { boxShadow: '0 0 0 0 rgba(76, 175, 80, 0)' },
+                    },
+                  }),
+                }}
               >
                 {autoRefresh ? 'Live' : 'Paused'}
               </Button>
@@ -541,6 +631,13 @@ const MetricsHistory = ({ host }) => {
                 startIcon={<RefreshCw size={16} />}
                 onClick={fetchMetrics}
                 disabled={loading || selectedMetrics.length === 0}
+                sx={{
+                  color: 'var(--text-secondary)',
+                  borderColor: 'var(--card-border)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                  },
+                }}
               >
                 Refresh
               </Button>
