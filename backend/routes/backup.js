@@ -329,7 +329,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     let hostSnmpConfigs = [];
     try {
       hostSnmpConfigs = await db.select('host_snmp_configs', {}, { orderBy: 'hostId' });
-      console.log(`✅ Fetched ${hostSnmpConfigs.length} SNMP configurations for backup`);
+
     } catch (error) {
       console.error('Error fetching SNMP configs for backup:', error.message);
     }
@@ -342,7 +342,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         {},
         { orderBy: 'createdAt', orderDir: 'DESC', limit: 5000 }
       );
-      console.log(`✅ Fetched ${hostMonitoringData.length} monitoring data records for backup`);
+
     } catch (error) {
       console.error('Error fetching host monitoring data for backup:', error.message);
     }
@@ -351,7 +351,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     let hostMetricsLogging = [];
     try {
       hostMetricsLogging = await db.select('host_metrics_logging', {}, { orderBy: 'hostId' });
-      console.log(`✅ Fetched ${hostMetricsLogging.length} metrics logging configs for backup`);
+
     } catch (error) {
       console.error('Error fetching host metrics logging for backup:', error.message);
     }
@@ -364,7 +364,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         {},
         { orderBy: 'collectedAt', orderDir: 'DESC', limit: 5000 }
       );
-      console.log(`✅ Fetched ${snmpMetrics.length} SNMP metrics for backup`);
+
     } catch (error) {
       console.error('Error fetching SNMP metrics for backup:', error.message);
     }
@@ -377,7 +377,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         {},
         { orderBy: 'collectedAt', orderDir: 'DESC', limit: 1000 }
       );
-      console.log(`✅ Fetched ${snmpInterfaces.length} SNMP interface records for backup`);
+
     } catch (error) {
       console.error('Error fetching SNMP interfaces for backup:', error.message);
     }
@@ -389,7 +389,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         'SELECT * FROM snmp_disk_metrics ORDER BY collected_at DESC LIMIT 1000'
       );
       snmpDiskMetrics = diskMetrics;
-      console.log(`✅ Fetched ${snmpDiskMetrics.length} SNMP disk metrics for backup`);
+
     } catch (error) {
       console.error('Error fetching SNMP disk metrics for backup:', error.message);
     }
@@ -402,7 +402,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         {},
         { orderBy: 'occurredAt', orderDir: 'DESC', limit: 500 }
       );
-      console.log(`✅ Fetched ${snmpErrors.length} SNMP error records for backup`);
+
     } catch (error) {
       console.error('Error fetching SNMP errors for backup:', error.message);
     }
@@ -411,7 +411,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     let snmpThresholds = [];
     try {
       snmpThresholds = await db.select('snmp_thresholds', {}, { orderBy: 'hostId' });
-      console.log(`✅ Fetched ${snmpThresholds.length} SNMP thresholds for backup`);
+
     } catch (error) {
       console.error('Error fetching SNMP thresholds for backup:', error.message);
     }
@@ -420,7 +420,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     let hostDiskMetrics = [];
     try {
       hostDiskMetrics = await db.select('host_disk_metrics', {}, { orderBy: 'monitoringDataId' });
-      console.log(`✅ Fetched ${hostDiskMetrics.length} host disk metrics for backup`);
+
     } catch (error) {
       console.error('Error fetching host disk metrics for backup:', error.message);
     }
@@ -429,7 +429,7 @@ router.get('/backup', verifyToken, async (req, res) => {
     let hostNetworkMetrics = [];
     try {
       hostNetworkMetrics = await db.select('host_network_metrics', {}, { orderBy: 'monitoringDataId' });
-      console.log(`✅ Fetched ${hostNetworkMetrics.length} host network metrics for backup`);
+
     } catch (error) {
       console.error('Error fetching host network metrics for backup:', error.message);
     }
@@ -2572,12 +2572,11 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       }
 
       // Restore SNMP/Monitoring configurations
-      console.log('\n📊 Starting SNMP/Monitoring data restoration...');
-      
+
       // Restore host_snmp_configs
       if (host_snmp_configs && host_snmp_configs.length > 0) {
         try {
-          console.log(`📡 Restoring ${host_snmp_configs.length} SNMP configurations...`);
+
           await connection.execute('DELETE FROM host_snmp_configs');
           
           for (const config of host_snmp_configs) {
@@ -2609,7 +2608,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               restoredHostSnmpConfigs++;
             }
           }
-          console.log(`✅ Restored ${restoredHostSnmpConfigs} SNMP configurations`);
+
         } catch (error) {
           console.error('❌ Error restoring SNMP configs:', error.message);
         }
@@ -2618,7 +2617,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       // Restore host_metrics_logging
       if (host_metrics_logging && host_metrics_logging.length > 0) {
         try {
-          console.log(`📊 Restoring ${host_metrics_logging.length} metrics logging configurations...`);
+
           await connection.execute('DELETE FROM host_metrics_logging');
           
           for (const logging of host_metrics_logging) {
@@ -2644,7 +2643,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               restoredHostMetricsLogging++;
             }
           }
-          console.log(`✅ Restored ${restoredHostMetricsLogging} metrics logging configurations`);
+
         } catch (error) {
           console.error('❌ Error restoring metrics logging:', error.message);
         }
@@ -2653,7 +2652,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       // Restore host_monitoring_data
       if (host_monitoring_data && host_monitoring_data.length > 0) {
         try {
-          console.log(`📈 Restoring ${host_monitoring_data.length} monitoring data records...`);
+
           // Don't delete existing monitoring data - just add from backup
           
           for (const data of host_monitoring_data) {
@@ -2682,7 +2681,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               restoredHostMonitoringData++;
             }
           }
-          console.log(`✅ Restored ${restoredHostMonitoringData} monitoring data records`);
+
         } catch (error) {
           console.error('❌ Error restoring monitoring data:', error.message);
         }
@@ -2691,7 +2690,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       // Restore snmp_thresholds
       if (snmp_thresholds && snmp_thresholds.length > 0) {
         try {
-          console.log(`⚠️ Restoring ${snmp_thresholds.length} SNMP thresholds...`);
+
           await connection.execute('DELETE FROM snmp_thresholds');
           
           for (const threshold of snmp_thresholds) {
@@ -2709,17 +2708,11 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
             await connection.execute(sql, values);
             restoredSnmpThresholds++;
           }
-          console.log(`✅ Restored ${restoredSnmpThresholds} SNMP thresholds`);
+
         } catch (error) {
           console.error('❌ Error restoring SNMP thresholds:', error.message);
         }
       }
-
-      console.log(`\n✅ SNMP/Monitoring restoration complete:
-        - SNMP Configs: ${restoredHostSnmpConfigs}
-        - Metrics Logging: ${restoredHostMetricsLogging}
-        - Monitoring Data: ${restoredHostMonitoringData}
-        - Thresholds: ${restoredSnmpThresholds}`);
 
       // Commit transaction
       await connection.commit();

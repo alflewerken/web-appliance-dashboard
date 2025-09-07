@@ -115,7 +115,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
             mappings[mapping.interface_name] = mapping.interface_index;
           });
           setInterfaceMappings(mappings);
-          console.log('[Interface Mappings] Loaded dynamic mappings:', mappings);
+
         }
       }
     } catch (error) {
@@ -124,15 +124,12 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
   };
 
   const handleLoggingToggle = (metricKey) => {
-    console.log('Toggle metric:', metricKey, 'Current value:', loggingConfig[metricKey]);
-    
+
     const newConfig = {
       ...loggingConfig,
       [metricKey]: !loggingConfig[metricKey]
     };
-    
-    console.log('New config:', newConfig);
-    
+
     setLoggingConfig(newConfig);
     setHasUnsavedChanges(true);
     
@@ -340,15 +337,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
       color: '#4caf50',
       metrics: (() => {
         // Debug logging
-        console.log('CPU Metrics Debug:', {
-          'cpu.user': metrics?.cpu?.user,
-          'cpu.system': metrics?.cpu?.system,
-          'cpu.idle': metrics?.cpu?.idle,
-          'typeof cpu.user': typeof metrics?.cpu?.user,
-          'typeof cpu.system': typeof metrics?.cpu?.system,
-          'typeof cpu.idle': typeof metrics?.cpu?.idle,
-        });
-        
+
         return [
           // CPU Usage - only if available
           ...(metrics?.cpu?.percent !== undefined && !isNaN(metrics.cpu.percent) ? [{
@@ -628,13 +617,13 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
               if (!interfaceIndex && interfaceIndex !== 0 && interfaceMappings) {
                 interfaceIndex = interfaceMappings[iface.name];
                 if (interfaceIndex !== undefined) {
-                  console.log(`[Interface Mapping] Using dynamic mapping for ${iface.name}: ${interfaceIndex}`);
+
                 }
               }
               
               // Fallback auf hardcoded mapping (nur für Backward-Compatibility)
               if (!interfaceIndex && interfaceIndex !== 0) {
-                console.warn(`[Interface Mapping] No dynamic mapping for ${iface.name}, using hardcoded fallback`);
+
                 // Hardcoded mapping für bekannte Interfaces (DEPRECATED)
                 if (iface.name === 'en0') interfaceIndex = 5;
                 else if (iface.name === 'en5') interfaceIndex = 4;
@@ -643,9 +632,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
               }
               
               const metricKey = `network.interface.${interfaceIndex}`;
-              
-              console.log(`Interface ${iface.name}: arrayPos=${arrayIndex}, snmpIndex=${interfaceIndex}, metricKey=${metricKey}`);
-              
+
               // Get traffic values from either format
               const bytesIn = iface.statistics?.bytesReceived || iface.inOctets || 0;
               const bytesOut = iface.statistics?.bytesSent || iface.outOctets || 0;

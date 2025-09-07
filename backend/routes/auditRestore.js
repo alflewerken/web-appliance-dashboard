@@ -918,7 +918,7 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
             createdAt: new Date(),
             updatedAt: new Date()
           });
-          console.log(`Restored SNMP configuration for host ${hostName}`);
+
         } catch (snmpError) {
           console.error('Failed to restore SNMP configuration:', snmpError);
           // Don't fail the entire restoration if SNMP config fails
@@ -941,7 +941,7 @@ router.post('/restore/host/:logId', requireAdmin, async (req, res) => {
             createdAt: new Date(),
             updatedAt: new Date()
           });
-          console.log(`Restored metrics logging configuration for host ${hostName}`);
+
         } catch (metricsError) {
           console.error('Failed to restore metrics logging configuration:', metricsError);
           // Don't fail the entire restoration if metrics logging config fails

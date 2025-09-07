@@ -236,26 +236,25 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
   
   // Setup polling effect
   useEffect(() => {
-    console.log('[POLLING-DEBUG] Effect triggered - enabled:', snmpConfig.enabled, 'host:', host?.id);
-    
+
     if (!snmpConfig.enabled || !host?.id) {
-      console.log('[POLLING-DEBUG] Polling disabled or no host');
+
       return;
     }
     
     // Fetch initial data
-    console.log('[POLLING-DEBUG] Fetching initial metrics');
+
     fetchInitialMetrics();
     
     // Setup polling interval (10 seconds to match backend)
     const pollInterval = setInterval(() => {
-      console.log('[POLLING-DEBUG] Polling metrics...');
+
       fetchInitialMetrics();
     }, 10000); // Poll every 10 seconds
     
     // Cleanup on unmount or config change
     return () => {
-      console.log('[POLLING-DEBUG] Cleaning up polling interval');
+
       clearInterval(pollInterval);
     };
   }, [snmpConfig.enabled, host?.id]);

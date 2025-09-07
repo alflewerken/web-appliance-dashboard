@@ -319,7 +319,7 @@ class SNMPMonitor {
         const processorTable = await this.walkOid(session, '1.3.6.1.2.1.25.3.3.1.1');
         if (processorTable && Object.keys(processorTable).length > 0) {
           processorCount = Object.keys(processorTable).length;
-          console.log(`Detected ${processorCount} CPU cores from hrProcessorTable`);
+
         }
       } catch (e) {
 
@@ -844,8 +844,7 @@ class SNMPMonitor {
             const availLow = parseInt(diskAvailLow[index] || 0);
             const availHigh = parseInt(diskAvailHigh[index] || 0);
             availBytes = (availHigh * 4294967296 + availLow) * 1024;
-            
-            console.log(`Disk ${diskPaths[index]}: Using 64-bit values - Total: ${(totalBytes/1024/1024/1024).toFixed(2)}GB`);
+
           } else {
             // Normal 32-bit values
             totalBytes = totalValue * 1024; // Convert KB to bytes
@@ -929,6 +928,11 @@ class SNMPMonitor {
           speed: parseInt(ifSpeed[index] || 0),
           status: this.getOperStatus(parseInt(ifOperStatus[index] || 0)),
           mac: this.parseMacAddress(ifPhysAddress[index]),
+          // Map statistics to flat structure for easier access
+          bytesIn: bytesIn,
+          bytesOut: bytesOut,
+          errorsIn: parseInt(ifInErrors[index] || 0),
+          errorsOut: parseInt(ifOutErrors[index] || 0),
           statistics: {
             bytesReceived: bytesIn,
             bytesSent: bytesOut,
@@ -1066,8 +1070,7 @@ class SNMPMonitor {
       
       if (isAppleSilicon) {
         // Fallback for Apple Silicon: Use load average as proxy
-        console.log('Apple Silicon detected - using load average approximation for CPU usage');
-        
+
         // Get load average and processor count
         const loadOids = [
           this.oidDefinitions.cpu.laLoad1,
@@ -1378,7 +1381,19 @@ class SNMPMonitor {
       for (const metric of enabledMetrics) {
         const [category, name] = metric.split('.');
         
-        if (this.oidDefinitions[category] && this.oidDefinitions[category][name]) {
+        // Special handling for CPU load metrics - map naming convention
+        if (category === 'cpu' && name.startsWith('load')) {
+          let oidName = name;
+          if (name === 'load1') oidName = 'load1min';
+          else if (name === 'load5') oidName = 'load5min';
+          else if (name === 'load15') oidName = 'load15min';
+          
+          if (this.oidDefinitions[category] && this.oidDefinitions[category][oidName]) {
+            const oid = this.oidDefinitions[category][oidName];
+            oidsToQuery.push(oid);
+            metricMapping[oid] = metric;
+          }
+        } else if (this.oidDefinitions[category] && this.oidDefinitions[category][name]) {
           const oid = this.oidDefinitions[category][name];
           oidsToQuery.push(oid);
           metricMapping[oid] = metric;
@@ -1421,9 +1436,23 @@ class SNMPMonitor {
       const memoryMetrics = enabledMetrics.filter(m => m.startsWith('memory.'));
       if (memoryMetrics.length > 0) {
         const memoryData = await this.getMemoryMetrics(session);
+        
         for (const metric of memoryMetrics) {
           const name = metric.split('.')[1];
-          if (memoryData[name] !== undefined) {
+          // Return raw values - MetricProcessor will handle normalization
+          if (name === 'free' || name === 'available') {
+            // Return available memory in bytes
+            collectedMetrics[metric] = memoryData.available || 0;
+          } else if (name === 'used') {
+            // Return used memory in bytes
+            collectedMetrics[metric] = memoryData.used || 0;
+          } else if (name === 'total') {
+            // Return total memory in bytes
+            collectedMetrics[metric] = memoryData.total || 0;
+          } else if (name === 'percent') {
+            // Percentage is already calculated
+            collectedMetrics[metric] = memoryData.percentUsed || 0;
+          } else if (memoryData[name] !== undefined) {
             collectedMetrics[metric] = memoryData[name];
           }
         }
@@ -1465,6 +1494,8 @@ class SNMPMonitor {
                 collectedMetrics[`${metric}.bytesOut`] = iface.bytesOut || 0;
                 collectedMetrics[`${metric}.errors`] = (iface.errorsIn || 0) + (iface.errorsOut || 0);
                 collectedMetrics[`${metric}.status`] = iface.status || 'unknown';
+                // Add interface speed as a metric (in bits per second)
+                collectedMetrics[`${metric}.speed`] = iface.speed || 0;
               }
             }
           }
@@ -1477,9 +1508,12 @@ class SNMPMonitor {
         const processInfo = await this.getProcessInfo(session);
         for (const metric of processMetrics) {
           const name = metric.split('.')[1]; // e.g., 'user', 'system', 'count'
-          if (name === 'user' || name === 'system') {
-            // For user/system processes, return the count
-            collectedMetrics[metric] = processInfo.count || 0;
+          if (name === 'user') {
+            // Return user process count
+            collectedMetrics[metric] = processInfo.user || 0;
+          } else if (name === 'system') {
+            // Return system process count
+            collectedMetrics[metric] = processInfo.system || 0;
           } else if (processInfo[name] !== undefined) {
             collectedMetrics[metric] = processInfo[name];
           }

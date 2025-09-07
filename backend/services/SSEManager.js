@@ -12,15 +12,13 @@ class SSEManager extends EventEmitter {
 
   // Add a new SSE connection for a host
   addConnection(hostId, response) {
-    console.log(`[SSE-DEBUG] Adding connection for host ${hostId}`);
-    
+
     if (!this.connections.has(hostId)) {
       this.connections.set(hostId, new Set());
     }
     
     this.connections.get(hostId).add(response);
-    console.log(`[SSE-DEBUG] Active connections for host ${hostId}: ${this.connections.get(hostId).size}`);
-    
+
     // Set headers for SSE
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -53,10 +51,9 @@ class SSEManager extends EventEmitter {
   // Send metrics update to all connected clients for a host
   sendMetricsUpdate(hostId, metrics) {
     const connections = this.connections.get(hostId);
-    console.log(`[SSE-DEBUG] Sending metrics update for host ${hostId}, connections: ${connections ? connections.size : 0}`);
-    
+
     if (!connections || connections.size === 0) {
-      console.log(`[SSE-DEBUG] No connections for host ${hostId}`);
+
       return;
     }
     
@@ -71,7 +68,7 @@ class SSEManager extends EventEmitter {
       try {
         response.write('event: metrics\n');
         response.write(`data: ${data}\n\n`);
-        console.log(`[SSE-DEBUG] Sent metrics to client for host ${hostId}`);
+
       } catch (error) {
         console.error('Error sending SSE update:', error);
         this.removeConnection(hostId, response);

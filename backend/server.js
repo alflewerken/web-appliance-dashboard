@@ -178,7 +178,7 @@ app.use('/api/hosts', verifyToken, hostsRouter);
 
 // Metrics History routes
 const metricsHistoryRouter = require('./routes/metricsHistory');
-app.use('/api/hosts', verifyToken, metricsHistoryRouter);
+app.use('/api/metrics-history', verifyToken, metricsHistoryRouter);
 
 // Host Monitoring Routes
 const initHostMonitoring = require('./routes/hostMonitoring');

@@ -118,26 +118,25 @@ router.get('/:id/metrics-history', authenticateToken, async (req, res) => {
         return 100;
       }
       
-      // Network interface speed - normalize for graph display but keep raw values
+      // Network interface speed - values should be in MB/s for graph scaling
       if (metricKey.includes('.bytesIn') || metricKey.includes('.bytesOut')) {
         const match = metricKey.match(/network\.interface\.(\d+)/);
         if (match) {
           const interfaceNum = parseInt(match[1]);
           
-          // Use realistic maximums for percentage calculation
-          // But also return raw values for display
+          // Return max values in MB/s (not bytes!)
           if (interfaceNum === 5) {
-            return 50 * 1000000; // 50 MB/s max for WiFi (for graph scaling)
+            return 50; // 50 MB/s max for WiFi
           }
           if (interfaceNum === 4) {
-            return 100 * 1000000; // 100 MB/s max for Ethernet (for graph scaling)
+            return 100; // 100 MB/s max for Ethernet
           }
           if (interfaceNum === 14) {
-            return 50 * 1000000; // 50 MB/s max
+            return 50; // 50 MB/s max
           }
         }
         // Default for unknown interfaces
-        return 10 * 1000000; // 10 MB/s
+        return 10; // 10 MB/s
       }
       
       // Process counts - use reasonable maximum
@@ -518,6 +517,307 @@ router.get('/:id/metrics-history', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch metrics history'
+    });
+  }
+});
+
+// Compare multiple metrics
+router.post('/:id/compare', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId } = req.params;
+    const { metrics, period = '1h' } = req.body;
+    
+    if (!metrics || !Array.isArray(metrics)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Metrics array is required'
+      });
+    }
+    
+    // Helper function to get color for a metric based on category and index
+    const getMetricColor = (metricKey, allMetrics) => {
+      const category = metricKey.split('.')[0];
+      const categoryMetrics = allMetrics.filter(m => m.startsWith(category));
+      const index = categoryMetrics.indexOf(metricKey);
+      
+      // Color palettes for each category
+      const colorPalettes = {
+        cpu: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6'], // Blue, Red, Green, Amber, Purple
+        memory: ['#06B6D4', '#14B8A6', '#0EA5E9', '#6366F1'], // Cyan variations
+        disk: ['#F97316', '#FB923C', '#FCD34D', '#FBBF24'], // Orange to Yellow
+        network: ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE'], // Purple variations (darker to lighter)
+        process: ['#EC4899', '#F472B6', '#F9A8D4', '#FBCFE8'] // Pink variations
+      };
+      
+      // Special handling for network in/out
+      if (metricKey.includes('network.interface')) {
+        if (metricKey.includes('bytesIn')) {
+          // Brighter colors for incoming traffic
+          const baseColors = ['#3B82F6', '#06B6D4', '#10B981', '#A78BFA'];
+          const interfaceNum = metricKey.match(/interface\.(\d+)/)?.[1] || '0';
+          return baseColors[parseInt(interfaceNum) % baseColors.length];
+        } else if (metricKey.includes('bytesOut')) {
+          // Darker/muted colors for outgoing traffic
+          const baseColors = ['#1E40AF', '#0E7490', '#059669', '#7C3AED'];
+          const interfaceNum = metricKey.match(/interface\.(\d+)/)?.[1] || '0';
+          return baseColors[parseInt(interfaceNum) % baseColors.length];
+        }
+      }
+      
+      // Get palette for category or use default
+      const palette = colorPalettes[category] || ['#6B7280', '#9CA3AF', '#D1D5DB'];
+      
+      // Return color based on index, cycling through palette if needed
+      return palette[index % palette.length];
+    };
+    
+    // Get custom names for this host
+    let customNames = {};
+    try {
+      const [configResult] = await pool.execute(
+        'SELECT custom_names FROM host_metrics_logging WHERE host_id = ?',
+        [hostId]
+      );
+      if (configResult.length > 0 && configResult[0].custom_names) {
+        customNames = typeof configResult[0].custom_names === 'string' 
+          ? JSON.parse(configResult[0].custom_names) 
+          : configResult[0].custom_names;
+      }
+    } catch (error) {
+      console.error('Error fetching custom names:', error);
+    }
+    
+    // Calculate time range
+    const periodMap = {
+      '15m': '15 MINUTE',
+      '1h': '1 HOUR',
+      '6h': '6 HOUR',
+      '24h': '24 HOUR',
+      '7d': '7 DAY',
+      '30d': '30 DAY'
+    };
+    
+    const interval = periodMap[period] || '1 HOUR';
+    const results = {};
+    
+    // Process each metric
+    for (const metricKey of metrics) {
+      // Handle network interface metrics specially
+      if (metricKey.startsWith('network.interface.') && 
+          !metricKey.includes('.bytes') && 
+          !metricKey.includes('.errors') && 
+          !metricKey.includes('.status') &&
+          !metricKey.includes('.speed')) {
+        // This is a base network interface metric, get all sub-metrics
+        const subMetrics = [
+          `${metricKey}.bytesIn`,
+          `${metricKey}.bytesOut`,
+          `${metricKey}.errors`,
+          `${metricKey}.status`
+        ];
+        
+        for (const subMetricKey of subMetrics) {
+          const [rawData] = await pool.execute(
+            `SELECT 
+              metric_value as value,
+              timestamp
+             FROM snmp_metrics
+             WHERE host_id = ? 
+             AND metric_key = ?
+             AND timestamp > DATE_SUB(NOW(), INTERVAL ${interval})
+             ORDER BY timestamp ASC`,
+            [hostId, subMetricKey]
+          );
+          
+          if (rawData.length > 0) {
+            // Sort by timestamp and convert values to numbers
+            const sortedData = rawData.sort((a, b) => 
+              new Date(a.timestamp) - new Date(b.timestamp)
+            );
+            
+            results[subMetricKey] = {
+              data: sortedData.map(row => {
+                let value = parseFloat(row.value) || 0;
+                let displayValue;
+                // Convert bytes/sec to MB/s for network metrics
+                if (subMetricKey.includes('bytes')) {
+                  value = value / (1024 * 1024); // B/s → MB/s
+                  displayValue = `${value.toFixed(2)} MB/s`;
+                } else {
+                  displayValue = value.toFixed(2);
+                }
+                return {
+                  timestamp: new Date(row.timestamp).toISOString(),
+                  value: value,
+                  displayValue: displayValue
+                };
+              }),
+              graphConfig: {
+                color: getMetricColor(subMetricKey, metrics),
+                displayName: customNames[subMetricKey] || subMetricKey.split('.').pop(),
+                unit: subMetricKey.includes('bytes') ? 'MB/s' : ''
+              }
+            };
+          }
+        }
+      } else {
+        // Regular metric handling
+        const [rawData] = await pool.execute(
+          `SELECT 
+            metric_value as value,
+            timestamp
+           FROM snmp_metrics
+           WHERE host_id = ? 
+           AND metric_key = ?
+           AND timestamp > DATE_SUB(NOW(), INTERVAL ${interval})
+           ORDER BY timestamp ASC`,
+          [hostId, metricKey]
+        );
+        
+        if (rawData.length > 0) {
+          // Sort by timestamp and convert values to numbers
+          const sortedData = rawData.sort((a, b) => 
+            new Date(a.timestamp) - new Date(b.timestamp)
+          );
+          
+          results[metricKey] = {
+            data: sortedData.map(row => {
+              let value = parseFloat(row.value) || 0;
+              let displayValue;
+              
+              // Convert bytes/sec to MB/s for network metrics
+              if (metricKey.includes('bytes')) {
+                value = value / (1024 * 1024); // B/s → MB/s
+                displayValue = `${value.toFixed(2)} MB/s`;
+              } else {
+                displayValue = value.toFixed(2);
+              }
+              
+              return {
+                timestamp: new Date(row.timestamp).toISOString(),
+                value: value,
+                displayValue: displayValue
+              };
+            }),
+            graphConfig: {
+              color: getMetricColor(metricKey, metrics),
+              displayName: customNames[metricKey] || metricKey,
+              unit: metricKey.includes('bytes') ? 'MB/s' : (metricKey.includes('percent') ? '%' : '')
+            }
+          };
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      results
+    });
+    
+  } catch (error) {
+    console.error('Error comparing metrics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to compare metrics'
+    });
+  }
+});
+
+// Get statistics for a metric
+router.get('/:id/:metricKey/stats', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId, metricKey } = req.params;
+    const { period = '1h' } = req.query;
+    
+    const periodMap = {
+      '15m': '15 MINUTE',
+      '1h': '1 HOUR',
+      '6h': '6 HOUR',
+      '24h': '24 HOUR',
+      '7d': '7 DAY',
+      '30d': '30 DAY'
+    };
+    
+    const interval = periodMap[period] || '1 HOUR';
+    
+    const [stats] = await pool.execute(
+      `SELECT 
+        COUNT(*) as count,
+        MIN(CAST(metric_value AS DECIMAL(20,6))) as min,
+        MAX(CAST(metric_value AS DECIMAL(20,6))) as max,
+        AVG(CAST(metric_value AS DECIMAL(20,6))) as avg,
+        MAX(timestamp) as latest
+       FROM snmp_metrics
+       WHERE host_id = ? 
+       AND metric_key = ?
+       AND timestamp > DATE_SUB(NOW(), INTERVAL ${interval})`,
+      [hostId, metricKey]
+    );
+    
+    // Format the stats with proper numbers and display text
+    const result = stats[0] || {};
+    
+    // Helper function to format values based on metric type
+    const formatValue = (value, metricKey) => {
+      if (value === null || value === undefined) return '-';
+      
+      // Network metrics (values are in bytes/sec, convert to MB/s)
+      if (metricKey.includes('network.interface') && metricKey.includes('bytes')) {
+        // Value is in bytes/sec, convert to MB/s
+        const mbPerSec = value / (1024 * 1024);
+        return `${mbPerSec.toFixed(2)} MB/s`;
+      }
+      
+      // CPU and other percentage metrics
+      if (metricKey.includes('cpu') || metricKey.includes('memory')) {
+        return `${value.toFixed(1)}%`;
+      }
+      
+      // Disk usage (GB)
+      if (metricKey.includes('disk')) {
+        return `${value.toFixed(2)} GB`;
+      }
+      
+      // Process count
+      if (metricKey.includes('process')) {
+        return Math.round(value).toString();
+      }
+      
+      // Default
+      return value.toFixed(2);
+    };
+    
+    const minValue = parseFloat(result.min) || 0;
+    const maxValue = parseFloat(result.max) || 0;
+    const avgValue = parseFloat(result.avg) || 0;
+    
+    const formattedStats = {
+      dataPoints: parseInt(result.count) || 0,
+      min: {
+        value: minValue,
+        displayText: formatValue(minValue, metricKey)
+      },
+      max: {
+        value: maxValue,
+        displayText: formatValue(maxValue, metricKey)
+      },
+      average: {
+        value: avgValue,
+        displayText: formatValue(avgValue, metricKey)
+      },
+      latest: result.latest
+    };
+    
+    res.json({
+      success: true,
+      stats: formattedStats
+    });
+    
+  } catch (error) {
+    console.error('Error fetching metric stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch metric statistics'
     });
   }
 });

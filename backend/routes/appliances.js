@@ -407,8 +407,7 @@ router.post('/', verifyToken, async (req, res) => {
       statusChecker.checkServiceStatus(serviceToCheck).catch(err => 
         console.error(`Failed to check status for new service ${newAppliance.name}:`, err)
       );
-      
-      console.log(`✅ Triggered immediate status check for new service "${newAppliance.name}"`);
+
     }
 
     res.status(201).json(newAppliance);
@@ -668,8 +667,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       statusChecker.checkServiceStatus(serviceToCheck).catch(err => 
         console.error(`Failed to check status for ${updatedAppliance.name}:`, err)
       );
-      
-      console.log(`✅ Triggered immediate status check for "${updatedAppliance.name}" after update`);
+
     }
 
     // Broadcast the update to all connected clients

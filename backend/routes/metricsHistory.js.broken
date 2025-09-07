@@ -1,0 +1,436 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../utils/database');
+const { authenticateToken } = require('../middleware/auth');
+const metricProcessor = require('../services/MetricProcessor');
+
+// Initialize metric processor on startup
+(async () => {
+  try {
+    await metricProcessor.loadDefinitions(pool);
+    console.log('Metric definitions loaded successfully');
+  } catch (error) {
+    console.error('Failed to load metric definitions:', error);
+  }
+})();
+
+// Get configured metrics for a host
+router.get('/:id/configured-metrics', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get configured metrics from host_metrics_logging
+    const [result] = await pool.execute(
+      `SELECT config, custom_names 
+       FROM host_metrics_logging 
+       WHERE host_id = ?`,
+      [id]
+    );
+    
+    if (result.length > 0) {
+      const config = typeof result[0].config === 'string' 
+        ? JSON.parse(result[0].config) 
+        : result[0].config;
+      const customNames = typeof result[0].custom_names === 'string'
+        ? JSON.parse(result[0].custom_names)
+        : result[0].custom_names;
+      
+      // Get enabled metrics with their definitions
+      const enabledMetrics = [];
+      
+      for (const [key, enabled] of Object.entries(config)) {
+        if (!enabled) continue;
+        
+        // Get metric definition for proper configuration
+        const definition = await metricProcessor.getDefinition(pool, key);
+        
+        // Brighter colors for better visibility in dark mode
+        const defaultColors = {
+          cpu: '#10b981',      // Bright Green
+          memory: '#60a5fa',   // Bright Blue  
+          disk: '#fb923c',     // Bright Orange
+          network: '#a78bfa',  // Bright Purple
+          process: '#f472b6',  // Bright Pink
+        };
+        const category = key.split('.')[0];
+        const color = definition?.graph_color || defaultColors[category] || '#94a3b8';
+        
+        enabledMetrics.push({
+          key: key,
+          name: customNames[key] || definition?.display_name || key,
+          enabled: true,
+          unit: definition?.display_unit || '',
+          color: color,
+          graphType: definition?.graph_type || 'line'
+        });
+      }
+      
+      res.json({
+        success: true,
+        metrics: enabledMetrics
+      });
+    } else {
+      res.json({
+        success: true,
+        metrics: []
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching configured metrics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch configured metrics'
+    });
+  }
+});
+
+// Get metrics history with unified processing
+router.get('/:id/:metricKey', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId, metricKey } = req.params;
+    const { period = '1h' } = req.query;
+    
+    // Calculate time range
+    const periodMap = {
+      '15m': 'INTERVAL 15 MINUTE',
+      '1h': 'INTERVAL 1 HOUR',
+      '6h': 'INTERVAL 6 HOUR',
+      '24h': 'INTERVAL 24 HOUR',
+      '7d': 'INTERVAL 7 DAY',
+      '30d': 'INTERVAL 30 DAY'
+    };
+    
+    const interval = periodMap[period] || 'INTERVAL 1 HOUR';
+    
+    // Get raw metric data
+    const [rawData] = await pool.execute(
+      `SELECT 
+        metric_value,
+        timestamp,
+        LAG(metric_value) OVER (ORDER BY timestamp) as previous_value,
+        TIMESTAMPDIFF(SECOND, LAG(timestamp) OVER (ORDER BY timestamp), timestamp) as time_delta
+       FROM snmp_metrics
+       WHERE host_id = ? 
+       AND metric_key = ?
+       AND timestamp > DATE_SUB(NOW(), ${interval})
+       ORDER BY timestamp ASC`,
+      [hostId, metricKey]
+    );
+    
+    if (rawData.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        metricKey,
+        message: 'No data available for this metric'
+      });
+    }
+    
+    // Process metrics using unified processor
+    const processedData = await metricProcessor.processBatch(pool, 
+      rawData.map(row => ({
+        metric_key: metricKey,
+        metric_value: row.metric_value,
+        timestamp: row.timestamp,
+        previous_value: row.previous_value,
+        time_delta: row.time_delta,
+        hostId: hostId  // Add hostId for normalization lookup
+      }))
+    );
+    
+    // Get graph configuration
+    const graphConfig = await metricProcessor.getGraphConfig(pool, metricKey);
+    
+    // Format response
+    const formattedData = processedData.map(item => ({
+      timestamp: item.timestamp,
+      value: item.value,
+      displayValue: item.formattedValue,
+      displayText: item.displayText
+    }));
+    
+    res.json({
+      success: true,
+      data: formattedData,
+      metricKey,
+      graphConfig,
+      unit: graphConfig.unit,
+      displayName: graphConfig.displayName
+    });
+    
+  } catch (error) {
+    console.error('Error fetching metrics history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch metrics history'
+    });
+  }
+});
+
+// Get multiple metrics for comparison
+router.post('/:id/compare', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId } = req.params;
+    const { metrics, period = '1h' } = req.body;
+    
+    if (!metrics || !Array.isArray(metrics)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Metrics array is required'
+      });
+    }
+    
+    // Calculate time range
+    const periodMap = {
+      '15m': 'INTERVAL 15 MINUTE',
+      '1h': 'INTERVAL 1 HOUR',
+      '6h': 'INTERVAL 6 HOUR',
+      '24h': 'INTERVAL 24 HOUR',
+      '7d': 'INTERVAL 7 DAY',
+      '30d': 'INTERVAL 30 DAY'
+    };
+    
+    const interval = periodMap[period] || 'INTERVAL 1 HOUR';
+    const results = {};
+    
+    // Process each metric
+    for (const metricKey of metrics) {
+      // Handle network interface metrics specially
+      if (metricKey.startsWith('network.interface.') && !metricKey.includes('.bytes') && !metricKey.includes('.errors') && !metricKey.includes('.status')) {
+        // This is a base network interface metric, we need to get all sub-metrics
+        const subMetrics = [
+          `${metricKey}.bytesIn`,
+          `${metricKey}.bytesOut`,
+          `${metricKey}.errors`,
+          `${metricKey}.status`
+        ];
+        
+        for (const subMetricKey of subMetrics) {
+          const [rawData] = await pool.execute(
+            `SELECT 
+              metric_value,
+              timestamp,
+              LAG(metric_value) OVER (ORDER BY timestamp) as previous_value,
+              TIMESTAMPDIFF(SECOND, LAG(timestamp) OVER (ORDER BY timestamp), timestamp) as time_delta
+             FROM snmp_metrics
+             WHERE host_id = ? 
+             AND metric_key = ?
+             AND timestamp > DATE_SUB(NOW(), ${interval})
+             ORDER BY timestamp ASC`,
+            [hostId, subMetricKey]
+          );
+          
+          if (rawData.length > 0) {
+            // Process metrics
+            const processedData = await metricProcessor.processBatch(pool,
+              rawData.map(row => ({
+                metric_key: subMetricKey,
+                metric_value: row.metric_value,
+                timestamp: row.timestamp,
+                previous_value: row.previous_value,
+                time_delta: row.time_delta
+              }))
+            );
+            
+            // Get graph configuration
+            const graphConfig = await metricProcessor.getGraphConfig(pool, subMetricKey);
+            
+            results[subMetricKey] = {
+              data: processedData.map(item => ({
+                timestamp: item.timestamp,
+                value: item.value,
+                displayValue: item.formattedValue
+              })),
+              graphConfig
+            };
+          }
+        }
+      } else {
+        // Regular metric handling
+        const [rawData] = await pool.execute(
+        `SELECT 
+          metric_value,
+          timestamp,
+          LAG(metric_value) OVER (ORDER BY timestamp) as previous_value,
+          TIMESTAMPDIFF(SECOND, LAG(timestamp) OVER (ORDER BY timestamp), timestamp) as time_delta
+         FROM snmp_metrics
+         WHERE host_id = ? 
+         AND metric_key = ?
+         AND timestamp > DATE_SUB(NOW(), ${interval})
+         ORDER BY timestamp ASC`,
+        [hostId, metricKey]
+      );
+      
+      if (rawData.length === 0) {
+        results[metricKey] = {
+          data: [],
+          graphConfig: await metricProcessor.getGraphConfig(pool, metricKey)
+        };
+        continue;
+      }
+      
+      // Process metrics
+      const processedData = await metricProcessor.processBatch(pool,
+        rawData.map(row => ({
+          metric_key: metricKey,
+          metric_value: row.metric_value,
+          timestamp: row.timestamp,
+          previous_value: row.previous_value,
+          time_delta: row.time_delta
+        }))
+      );
+      
+      // Get graph configuration
+      const graphConfig = await metricProcessor.getGraphConfig(pool, metricKey);
+      
+      results[metricKey] = {
+        data: processedData.map(item => ({
+          timestamp: item.timestamp,
+          value: item.value,
+          displayValue: item.formattedValue
+        })),
+        graphConfig
+      };
+    }
+    
+    res.json({
+      success: true,
+      results
+    });
+    
+  } catch (error) {
+    console.error('Error comparing metrics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to compare metrics'
+    });
+  }
+});
+
+// Get current metric value with proper formatting
+router.get('/:id/:metricKey/current', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId, metricKey } = req.params;
+    
+    // Get latest metric value
+    const [result] = await pool.execute(
+      `SELECT metric_value, timestamp
+       FROM snmp_metrics
+       WHERE host_id = ? AND metric_key = ?
+       ORDER BY timestamp DESC
+       LIMIT 1`,
+      [hostId, metricKey]
+    );
+    
+    if (result.length === 0) {
+      return res.json({
+        success: true,
+        value: null,
+        displayText: 'No data',
+        timestamp: null
+      });
+    }
+    
+    // Process for display
+    const displayData = await metricProcessor.processForDisplay(
+      pool,
+      metricKey,
+      result[0].metric_value
+    );
+    
+    res.json({
+      success: true,
+      value: displayData.value,
+      displayText: displayData.displayText,
+      unit: displayData.unit,
+      timestamp: result[0].timestamp
+    });
+    
+  } catch (error) {
+    console.error('Error fetching current metric:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch current metric value'
+    });
+  }
+});
+
+// Get metric statistics
+router.get('/:id/:metricKey/stats', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId, metricKey } = req.params;
+    const { period = '1h' } = req.query;
+    
+    // Calculate time range
+    const periodMap = {
+      '15m': 'INTERVAL 15 MINUTE',
+      '1h': 'INTERVAL 1 HOUR',
+      '6h': 'INTERVAL 6 HOUR',
+      '24h': 'INTERVAL 24 HOUR',
+      '7d': 'INTERVAL 7 DAY',
+      '30d': 'INTERVAL 30 DAY'
+    };
+    
+    const interval = periodMap[period] || 'INTERVAL 1 HOUR';
+    
+    // Get statistics
+    const [stats] = await pool.execute(
+      `SELECT 
+        MIN(CAST(metric_value AS DECIMAL(20,2))) as min_value,
+        MAX(CAST(metric_value AS DECIMAL(20,2))) as max_value,
+        AVG(CAST(metric_value AS DECIMAL(20,2))) as avg_value,
+        COUNT(*) as data_points,
+        MIN(timestamp) as first_timestamp,
+        MAX(timestamp) as last_timestamp
+       FROM snmp_metrics
+       WHERE host_id = ? 
+       AND metric_key = ?
+       AND timestamp > DATE_SUB(NOW(), ${interval})`,
+      [hostId, metricKey]
+    );
+    
+    if (!stats[0] || stats[0].data_points === 0) {
+      return res.json({
+        success: true,
+        stats: null,
+        message: 'No data available for statistics'
+      });
+    }
+    
+    // Process values for display
+    const minDisplay = await metricProcessor.processForDisplay(pool, metricKey, stats[0].min_value);
+    const maxDisplay = await metricProcessor.processForDisplay(pool, metricKey, stats[0].max_value);
+    const avgDisplay = await metricProcessor.processForDisplay(pool, metricKey, stats[0].avg_value);
+    
+    res.json({
+      success: true,
+      stats: {
+        min: {
+          value: minDisplay.value,
+          displayText: minDisplay.displayText
+        },
+        max: {
+          value: maxDisplay.value,
+          displayText: maxDisplay.displayText
+        },
+        average: {
+          value: avgDisplay.value,
+          displayText: avgDisplay.displayText
+        },
+        dataPoints: stats[0].data_points,
+        firstTimestamp: stats[0].first_timestamp,
+        lastTimestamp: stats[0].last_timestamp,
+        unit: minDisplay.unit
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching metric statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch metric statistics'
+    });
+  }
+});
+
+module.exports = router;

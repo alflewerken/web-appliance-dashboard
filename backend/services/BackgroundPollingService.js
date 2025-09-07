@@ -252,8 +252,7 @@ class BackgroundPollingService {
     const pollInterval = host.snmpConfig.pollInterval * 1000; // Convert to milliseconds
     
     logger.info(`Starting polling for host ${host.name} (${host.ip}) every ${host.snmpConfig.pollInterval} seconds (${pollInterval}ms)`);
-    console.log(`[POLL-DEBUG] Host ${host.name}: poll_interval=${host.snmpConfig.pollInterval}s, actual_ms=${pollInterval}`);
-    
+
     // Perform initial poll
     await this.pollHost(host);
     
@@ -261,9 +260,9 @@ class BackgroundPollingService {
     const intervalId = setInterval(async () => {
       const pollStart = Date.now();
       try {
-        console.log(`[POLL-DEBUG] Polling ${host.name} at ${new Date().toISOString()}`);
+
         await this.pollHost(host);
-        console.log(`[POLL-DEBUG] Poll completed for ${host.name} in ${Date.now() - pollStart}ms`);
+
       } catch (error) {
         logger.error(`Polling error for host ${host.name}:`, error);
       }
@@ -291,7 +290,7 @@ class BackgroundPollingService {
       
       // Debug for MacbookPro
       if (host.name === 'MacbookPro') {
-        console.log('[DEBUG] Enabled metrics for MacbookPro:', enabledMetrics);
+
       }
       
       // Collect metrics via SNMP
@@ -304,11 +303,8 @@ class BackgroundPollingService {
       );
       
       // Debug collected metrics
-      if (host.name === 'MacbookPro') {
-        console.log('[DEBUG] Collected metrics:', Object.keys(metrics));
-        const networkMetrics = Object.keys(metrics).filter(k => k.startsWith('network'));
-        console.log('[DEBUG] Network metrics:', networkMetrics.map(k => `${k}=${metrics[k]}`));
-      }
+      console.log(`Collected metrics for ${host.name}:`, Object.keys(metrics));
+      console.log(`Enabled metrics:`, enabledMetrics);
       
       // Store metrics in database
       await this.storeMetrics(host.id, metrics, host.customNames);
@@ -347,6 +343,18 @@ class BackgroundPollingService {
 
   async storeMetrics(hostId, metrics, customNames = {}) {
     const timestamp = new Date();
+    const metricProcessor = require('./MetricProcessor');
+    
+    // Store previous values for delta calculation
+    if (!this.previousValues) {
+      this.previousValues = {};
+    }
+    if (!this.previousValues[hostId]) {
+      this.previousValues[hostId] = {};
+    }
+    if (!this.previousTimestamps) {
+      this.previousTimestamps = {};
+    }
     
     // Store in snmp_metrics table
     for (const [metricKey, value] of Object.entries(metrics)) {
@@ -358,6 +366,66 @@ class BackgroundPollingService {
       const metricName = customNames[metricKey] || metricKey;
       
       try {
+        let valueToStore = value;
+        
+        // For network interface counters, calculate delta
+        if (metricKey.includes('network.interface') && 
+            (metricKey.includes('.bytesIn') || metricKey.includes('.bytesOut'))) {
+          
+          const previousValue = this.previousValues[hostId][metricKey];
+          const previousTime = this.previousTimestamps[hostId];
+          
+          if (previousValue !== undefined && previousTime) {
+            const timeDelta = (timestamp - previousTime) / 1000; // Convert to seconds
+            
+            // Check for counter reset (value < previousValue)
+            if (value < previousValue) {
+              // Counter was reset, skip this data point
+              logger.debug(`Counter reset detected for ${metricKey}: ${previousValue} -> ${value}`);
+              // Update previous values for next iteration but don't store
+              this.previousValues[hostId][metricKey] = value;
+              continue;
+            } else if (timeDelta > 0) {
+              // Calculate bytes per second
+              const deltaValue = value - previousValue;
+              valueToStore = deltaValue / timeDelta;
+              
+              // Debug logging for suspicious values
+              if (valueToStore > 10000) { // > 10KB/s
+                logger.warn(`High network rate for ${metricKey}: ${valueToStore} B/s`);
+                logger.warn(`  Raw values: current=${value}, previous=${previousValue}, delta=${deltaValue}`);
+                logger.warn(`  Time delta: ${timeDelta} seconds`);
+              }
+              
+              // Sanity check - if the rate is unreasonably high, skip this data point
+              if (valueToStore > 1000000000) { // > 1GB/s is probably an error
+                logger.warn(`Skipping unrealistic network rate for ${metricKey}: ${valueToStore} B/s`);
+                continue;
+              }
+            } else {
+              // No time difference, skip this point
+              continue;
+            }
+          } else {
+            // First data point, skip storing but save for next delta
+            this.previousValues[hostId][metricKey] = value;
+            if (!this.previousTimestamps[hostId]) {
+              this.previousTimestamps[hostId] = timestamp;
+            }
+            continue;
+          }
+          
+          // Update previous values for next iteration
+          this.previousValues[hostId][metricKey] = value;
+        }
+        
+        // Process metric for storage using unified processor
+        const processedMetric = await metricProcessor.processForStorage(
+          this.pool,
+          metricKey,
+          valueToStore
+        );
+        
         await this.pool.execute(`
           INSERT INTO snmp_metrics 
           (host_id, metric_name, metric_key, metric_value, unit, timestamp)
@@ -366,14 +434,17 @@ class BackgroundPollingService {
           hostId,
           metricName,
           metricKey,
-          this.formatMetricValue(value),
-          this.getMetricUnit(metricKey),
+          processedMetric.value.toString(),
+          processedMetric.unit,
           timestamp
         ]);
       } catch (error) {
         logger.error(`Failed to store metric ${metricKey} for host ${hostId}:`, error);
       }
     }
+    
+    // Update timestamp for this host
+    this.previousTimestamps[hostId] = timestamp;
     
     // Send SSE event to connected clients
     SSEManager.sendMetricsUpdate(hostId, metrics);
@@ -432,12 +503,13 @@ class BackgroundPollingService {
       'cpu.load1': 'load',
       'cpu.load5': 'load',
       'cpu.load15': 'load',
-      'memory.total': 'KB',
-      'memory.used': 'KB',
-      'memory.free': 'KB',
-      'memory.available': 'KB',
-      'memory.buffers': 'KB',
-      'memory.cached': 'KB',
+      'memory.total': 'bytes',
+      'memory.used': '%',
+      'memory.free': '%',
+      'memory.percent': '%',
+      'memory.available': 'bytes',
+      'memory.buffers': 'bytes',
+      'memory.cached': 'bytes',
       'swap.total': 'KB',
       'swap.used': 'KB',
       'swap.free': 'KB',

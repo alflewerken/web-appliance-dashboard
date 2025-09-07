@@ -206,18 +206,16 @@ router.get('/hosts/:hostId/history', verifyToken, async (req, res) => {
     const [metrics] = await pool.execute(query, params);
     
     // Debug logging
-    console.log(`[METRICS-HISTORY] Fetched ${metrics.length} data points for ${hours} hours`);
+
     if (metrics.length > 0) {
       const uniqueMetrics = [...new Set(metrics.map(m => m.metric_key))];
-      console.log(`[METRICS-HISTORY] Unique metrics: ${uniqueMetrics.length} - ${uniqueMetrics.join(', ')}`);
-      
+
       // Zeitspanne prüfen
       const timestamps = metrics.map(m => new Date(m.timestamp));
       const minTime = Math.min(...timestamps);
       const maxTime = Math.max(...timestamps);
       const actualHours = (maxTime - minTime) / (1000 * 60 * 60);
-      console.log(`[METRICS-HISTORY] Actual time span: ${actualHours.toFixed(2)} hours`);
-      console.log(`[METRICS-HISTORY] From: ${new Date(minTime).toISOString()} To: ${new Date(maxTime).toISOString()}`);
+
     }
     
     res.json({

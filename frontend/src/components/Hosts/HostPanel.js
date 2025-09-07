@@ -1665,7 +1665,7 @@ const HostPanel = ({
         
         {/* Tab 2: Metrics History */}
         {activeTab === 2 && (
-          <Box sx={{ height: '100%', overflow: 'hidden' }}>
+          <Box sx={{ height: '100%', overflow: 'auto' }}>
             <MetricsHistory host={host} />
           </Box>
         )}

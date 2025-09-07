@@ -585,7 +585,7 @@ includeDir /etc/snmp/snmpd.conf.d
             privPassword: '',
             pollInterval: 60
           };
-          console.log('SNMP Setup Wizard - Passing config to parent:', finalConfig);
+
           onSuccess && onSuccess(finalConfig);
         }, 2000);
       } else {

@@ -1864,9 +1864,7 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
 
 // SSE endpoint for real-time metrics updates
 router.get('/:id/metrics-stream', async (req, res) => {
-  console.log('[SSE-ROUTE] metrics-stream called for host:', req.params.id);
-  console.log('[SSE-ROUTE] Token received:', req.query.token ? 'Yes' : 'No');
-  
+
   try {
     const hostId = parseInt(req.params.id);
     logger.info(`SSE request for host ${hostId}`);
@@ -1874,7 +1872,7 @@ router.get('/:id/metrics-stream', async (req, res) => {
     // Get token from query parameter (SSE doesn't support headers)
     const token = req.query.token;
     if (!token) {
-      console.log('[SSE-ROUTE] No token provided, returning 401');
+
       logger.warn('SSE request without token');
       return res.status(401).json({ error: 'No token provided' });
     }
@@ -1885,10 +1883,10 @@ router.get('/:id/metrics-stream', async (req, res) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       userId = decoded.userId;
-      console.log('[SSE-ROUTE] Token verified for user:', userId);
+
       logger.info(`Token verified for user ${userId}`);
     } catch (tokenError) {
-      console.log('[SSE-ROUTE] Token verification failed:', tokenError.message);
+
       logger.error('Token verification failed:', tokenError.message);
       return res.status(401).json({ error: 'Invalid token' });
     }
@@ -1900,12 +1898,11 @@ router.get('/:id/metrics-stream', async (req, res) => {
     });
     
     if (!host) {
-      console.log('[SSE-ROUTE] Host not found for user:', userId);
+
       logger.warn(`Host ${hostId} not found for user ${userId}`);
       return res.status(404).json({ error: 'Host not found' });
     }
-    
-    console.log('[SSE-ROUTE] Adding SSE connection for host:', hostId);
+
     // Add SSE connection
     SSEManager.addConnection(hostId, res);
     
@@ -1918,7 +1915,7 @@ router.get('/:id/metrics-stream', async (req, res) => {
     });
     
   } catch (error) {
-    console.log('[SSE-ROUTE] Error:', error.message);
+
     logger.error('Error establishing SSE connection:', error);
     res.status(500).json({ error: 'Failed to establish SSE connection' });
   }
