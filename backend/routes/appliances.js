@@ -369,6 +369,48 @@ router.post('/', verifyToken, async (req, res) => {
       user: req.user?.username || 'System',
     });
 
+    // Trigger immediate status check if status command is configured
+    if (newAppliance.statusCommand) {
+      const statusChecker = require('../utils/statusChecker');
+      
+      // Prepare service object for status check
+      const serviceToCheck = {
+        id: newAppliance.id,
+        name: newAppliance.name,
+        status_command: newAppliance.statusCommand,
+        service_status: 'unknown',
+        ssh_connection: newAppliance.sshConnection
+      };
+      
+      // Check if we have host info
+      if (newAppliance.sshConnection) {
+        const [hostInfo] = await pool.execute(
+          `SELECT h.id as host_id, h.hostname, h.username, h.port 
+           FROM hosts h 
+           WHERE CONCAT(h.username, '@', h.hostname, ':', h.port) = ? 
+              OR CONCAT(h.username, '@', h.hostname) = ?`,
+          [newAppliance.sshConnection, newAppliance.sshConnection]
+        );
+        
+        if (hostInfo.length > 0) {
+          serviceToCheck.hostInfo = {
+            hostId: hostInfo[0].host_id,
+            hostname: hostInfo[0].hostname,
+            host: hostInfo[0].hostname,
+            username: hostInfo[0].username,
+            port: hostInfo[0].port || 22
+          };
+        }
+      }
+      
+      // Trigger async status check (don't wait for result)
+      statusChecker.checkServiceStatus(serviceToCheck).catch(err => 
+        console.error(`Failed to check status for new service ${newAppliance.name}:`, err)
+      );
+      
+      console.log(`✅ Triggered immediate status check for new service "${newAppliance.name}"`);
+    }
+
     res.status(201).json(newAppliance);
   } catch (error) {
     console.error('Error creating appliance:', error);
@@ -580,6 +622,55 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     // Add blur alias for frontend compatibility  
     updatedAppliance.blur = updatedAppliance.blurAmount !== undefined ? updatedAppliance.blurAmount : 8;
+
+    // Check if status-related fields were changed and trigger immediate status check
+    const statusFieldsChanged = 
+      'statusCommand' in changedFields || 
+      'sshConnection' in changedFields ||
+      'startCommand' in changedFields ||
+      'stopCommand' in changedFields;
+    
+    if (statusFieldsChanged && updatedAppliance.statusCommand) {
+      // Trigger immediate status check for this specific service
+      const statusChecker = require('../utils/statusChecker');
+      
+      // Prepare service object for status check
+      const serviceToCheck = {
+        id: updatedAppliance.id,
+        name: updatedAppliance.name,
+        status_command: updatedAppliance.statusCommand,
+        service_status: updatedAppliance.serviceStatus,
+        ssh_connection: updatedAppliance.sshConnection
+      };
+      
+      // Check if we have host info
+      if (updatedAppliance.sshConnection) {
+        const [hostInfo] = await pool.execute(
+          `SELECT h.id as host_id, h.hostname, h.username, h.port 
+           FROM hosts h 
+           WHERE CONCAT(h.username, '@', h.hostname, ':', h.port) = ? 
+              OR CONCAT(h.username, '@', h.hostname) = ?`,
+          [updatedAppliance.sshConnection, updatedAppliance.sshConnection]
+        );
+        
+        if (hostInfo.length > 0) {
+          serviceToCheck.hostInfo = {
+            hostId: hostInfo[0].host_id,
+            hostname: hostInfo[0].hostname,
+            host: hostInfo[0].hostname,
+            username: hostInfo[0].username,
+            port: hostInfo[0].port || 22
+          };
+        }
+      }
+      
+      // Trigger async status check (don't wait for result)
+      statusChecker.checkServiceStatus(serviceToCheck).catch(err => 
+        console.error(`Failed to check status for ${updatedAppliance.name}:`, err)
+      );
+      
+      console.log(`✅ Triggered immediate status check for "${updatedAppliance.name}" after update`);
+    }
 
     // Broadcast the update to all connected clients
     broadcast('appliance_updated', updatedAppliance);
