@@ -164,30 +164,60 @@ includeDir /etc/snmp/snmpd.conf.d
 
   // Check for existing SNMP installation
   const checkExistingSNMP = async () => {
-    if (!host || !host.id || snmpChecked) return;
+    if (!host || !host.id) return;
     
     try {
       setSnmpChecked(true);
       addLog('🔍 Checking for existing SNMP installation...', 'info');
       
-      // Determine OS first
-      const osResponse = await axios.post('/api/ssh/execute', {
-        hostId: host.id,
-        command: 'uname -s',
-        useSudo: false
-      });
+      // Determine OS first with timeout and better error handling
+      let osType = 'linux'; // default fallback
       
-      const osType = osResponse.data.output?.trim().toLowerCase();
-      const configPath = osType === 'darwin' 
-        ? '/opt/homebrew/etc/snmp/snmpd.conf' 
-        : '/etc/snmp/snmpd.conf';
+      try {
+        const osResponse = await axios.post('/api/ssh/execute', {
+          hostId: host.id,
+          command: 'uname -s',
+          useSudo: false,
+          timeout: 10000 // 10 second timeout
+        });
+        
+        if (osResponse && osResponse.data && osResponse.data.output) {
+          osType = osResponse.data.output.trim().toLowerCase();
+        }
+      } catch (sshError) {
+        console.error('SSH connection failed:', sshError);
+        addLog('⚠️ Could not connect via SSH - using defaults', 'warning');
+        // Assume macOS for MacbookPro
+        if (host.name && host.name.toLowerCase().includes('mac')) {
+          osType = 'darwin';
+        }
+      }
+      
+      // Set port based on OS - IMPORTANT: Do this IMMEDIATELY after OS detection
+      if (osType === 'darwin') {
+        setConfig(prev => ({ ...prev, port: 1161, community: prev.community || generatedCommunity }));
+        addLog('📱 macOS detected - using port 1161', 'info');
+      } else {
+        setConfig(prev => ({ ...prev, port: 161, community: prev.community || generatedCommunity }));
+        addLog('🐧 Linux detected - using port 161', 'info');
+      }
+      
+      // Try to check if SNMP is already running (but don't block if it fails)
+      try {
+        const configPath = osType === 'darwin' 
+          ? '/opt/homebrew/etc/snmp/snmpd.conf' 
+          : '/etc/snmp/snmpd.conf';
       
       // Check if SNMP is running
       const checkCommand = `ps aux | grep -v grep | grep snmpd > /dev/null && echo "RUNNING" || echo "NOT_RUNNING"`;
       const runningResponse = await axios.post('/api/ssh/execute', {
         hostId: host.id,
         command: checkCommand,
-        useSudo: false
+        useSudo: false,
+        timeout: 10000
+      }).catch(error => {
+        console.error('Failed to check SNMP status:', error);
+        return { data: { output: 'NOT_RUNNING' } };
       });
       
       const isRunning = runningResponse.data.output?.trim() === 'RUNNING';
@@ -201,7 +231,11 @@ includeDir /etc/snmp/snmpd.conf.d
         const communityResponse = await axios.post('/api/ssh/execute', {
           hostId: host.id,
           command: getCommunityCmd,
-          useSudo: false
+          useSudo: false,
+          timeout: 10000
+        }).catch(error => {
+          console.error('Failed to read community string:', error);
+          return { data: { output: '' } };
         });
         
         const existingCommunity = communityResponse.data.output?.trim();
@@ -232,25 +266,61 @@ includeDir /etc/snmp/snmpd.conf.d
         setSnmpExists(false);
         setConfig(prev => ({ ...prev, community: generatedCommunity }));
       }
-    } catch (error) {
-      console.error('Error checking existing SNMP:', error);
-      addLog('⚠️ Could not check existing SNMP status', 'warning');
-      // Use generated community as fallback
-      setConfig(prev => ({ ...prev, community: generatedCommunity }));
+    } catch (checkError) {
+      // Don't let check errors block the dialog
+      console.error('Error during SNMP check:', checkError);
+      addLog('ℹ️ Proceeding with SNMP installation', 'info');
     }
+  } catch (error) {
+    console.error('Error checking existing SNMP:', error);
+    addLog('⚠️ Could not check existing SNMP status', 'warning');
+    // Use generated community as fallback
+    setConfig(prev => ({ ...prev, community: generatedCommunity, port: 1161 }));
+    setSnmpChecked(true);
+  }
   };
 
   // useEffect to check SNMP when dialog opens
   React.useEffect(() => {
-    if (open && host && !snmpChecked) {
-      checkExistingSNMP();
+    if (open && host) {
+      // Reset state when dialog opens
+      if (!snmpChecked) {
+        // Add a timeout to prevent infinite hanging
+        const timeoutId = setTimeout(() => {
+          if (snmpChecked === false) {
+            console.error('SNMP check timed out after 15 seconds');
+            setSnmpChecked(true);
+            setSnmpExists(false);
+            addLog('⚠️ SNMP check timed out - proceeding with fresh installation', 'warning');
+            setConfig(prev => ({ ...prev, community: generatedCommunity, port: 1161 }));
+          }
+        }, 15000);
+        
+        checkExistingSNMP().finally(() => {
+          clearTimeout(timeoutId);
+        });
+      }
+    } else if (!open) {
+      // Reset state when dialog closes
+      setSnmpChecked(false);
+      setSnmpExists(false);
+      setSetupStatus('idle');
+      setLogs([]);
+      setProgress(0);
     }
   }, [open, host]);
 
   // Installation durchführen
   const performInstallation = async () => {
-
+    let timeoutId = null;
+    
     try {
+      // Set a global timeout to prevent hanging
+      timeoutId = setTimeout(() => {
+        addLog('❌ Installation timeout - please try again', 'error');
+        setSetupStatus('error');
+        setStatusMessage('Installation timed out');
+      }, 120000); // 2 minutes timeout
 
       setSetupStatus('checking');
       setProgress(10);
@@ -538,6 +608,15 @@ includeDir /etc/snmp/snmpd.conf.d
       setSetupStatus('testing');
       addLog('🧪 Testing SNMP connection...', 'info');
       
+      // DEBUG: Log what we're testing with
+      console.log('Testing SNMP with:', {
+        ip: host.hostname || host.ip,
+        port: detectedOS === 'macos' ? 1161 : 161,
+        community: config.community,
+        version: '2c'
+      });
+      addLog(`📝 Testing with community: "${config.community}", port: ${detectedOS === 'macos' ? 1161 : 161}`, 'info');
+      
       // Wait a bit for SNMP service to fully start
       await new Promise(resolve => setTimeout(resolve, 3000));
       
@@ -547,6 +626,9 @@ includeDir /etc/snmp/snmpd.conf.d
         community: config.community,
         version: '2c',  // v2c not v2c
         osType: detectedOS  // Use detected OS, not host.osType
+      }).catch(error => {
+        console.error('SNMP test request failed:', error);
+        throw new Error(`SNMP test request failed: ${error.message}`);
       });
       
       if (testResponse.data.success) {
@@ -600,6 +682,11 @@ includeDir /etc/snmp/snmpd.conf.d
       setSetupStatus('error');
       addLog(`❌ Setup failed: ${error.message}`, 'error');
       setStatusMessage(error.message);
+    } finally {
+      // Clear timeout if it exists
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   };
 
@@ -631,13 +718,17 @@ includeDir /etc/snmp/snmpd.conf.d
     }
   ];
 
-  const handleNext = () => {
-
+  const handleNext = async () => {
     if (activeStep === 0) {
       // Start installation after configuration
-
       setActiveStep(1);
-      performInstallation();
+      // Use async function properly
+      try {
+        await performInstallation();
+      } catch (error) {
+        console.error('Installation failed:', error);
+        // Error is already handled in performInstallation
+      }
     }
   };
 
