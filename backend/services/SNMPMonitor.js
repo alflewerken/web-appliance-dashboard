@@ -137,7 +137,28 @@ class SNMPMonitor {
 
   // Create or get SNMP session
   getSession(config) {
-    const sessionKey = `${config.ip}:${config.port}:${config.community}`;
+    // Check if this is the local Docker host
+    let targetIP = config.ip;
+    const os = require('os');
+    const localIPs = [];
+    
+    // Collect all local IP addresses
+    const networkInterfaces = os.networkInterfaces();
+    Object.values(networkInterfaces).forEach(interfaces => {
+      interfaces.forEach(iface => {
+        if (!iface.internal && iface.family === 'IPv4') {
+          localIPs.push(iface.address);
+        }
+      });
+    });
+    
+    // If the target IP is one of our local IPs, use host.docker.internal instead
+    if (localIPs.includes(config.ip)) {
+      console.log(`🔄 Detected local host IP ${config.ip}, using host.docker.internal for Docker compatibility`);
+      targetIP = 'host.docker.internal';
+    }
+    
+    const sessionKey = `${targetIP}:${config.port}:${config.community}`;
     
     if (!this.sessions.has(sessionKey)) {
       const options = {
@@ -147,7 +168,18 @@ class SNMPMonitor {
         version: config.version === 'v1' ? snmp.Version1 : snmp.Version2c
       };
       
-      const session = snmp.createSession(config.ip, config.community || 'public', options);
+      console.log('🔐 Creating SNMP session:', {
+        target: targetIP,
+        originalIP: config.ip,
+        port: options.port,
+        community: config.community || 'public',
+        version: config.version,
+        timeout: options.timeout,
+        sessionKey: sessionKey,
+        isLocalHost: targetIP === 'host.docker.internal'
+      });
+      
+      const session = snmp.createSession(targetIP, config.community || 'public', options);
       this.sessions.set(sessionKey, session);
     }
     
@@ -1326,6 +1358,14 @@ class SNMPMonitor {
 
   // Test SNMP connection
   async testConnection(config) {
+    // DEBUG: Log connection attempt
+    console.log('🔌 SNMP testConnection called with:', {
+      ip: config.ip,
+      port: config.port,
+      community: config.community,
+      version: config.version
+    });
+    
     const session = this.getSession(config);
     
     try {
