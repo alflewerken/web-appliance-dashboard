@@ -401,7 +401,18 @@ const MetricsHistory = ({ host }) => {
               </Box>
               
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {metrics.map(metric => {
+                {metrics
+                  .filter(metric => {
+                    // Filter out network errors and status metrics from history view
+                    if (category === 'network') {
+                      const lowerKey = metric.key.toLowerCase();
+                      if (lowerKey.includes('errors') || lowerKey.includes('status')) {
+                        return false;
+                      }
+                    }
+                    return true;
+                  })
+                  .map(metric => {
                   const isSelected = selectedMetrics.includes(metric.key);
                   const metricColor = metricsConfig[metric.key]?.color || metric.color || '#94a3b8';
                   
@@ -535,59 +546,149 @@ const MetricsHistory = ({ host }) => {
             </CardContent>
           </Card>
 
-          {/* Statistics Cards */}
-          <Grid container spacing={2}>
-            {selectedMetrics.map(metricKey => {
-              const config = metricsConfig[metricKey] || {};
-              const stats = statistics[metricKey];
+          {/* Statistics Table */}
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle2">
+                  Metrics Statistics
+                </Typography>
+                <MuiTooltip title="Statistics for selected time range">
+                  <Info size={16} />
+                </MuiTooltip>
+              </Box>
               
-              if (!stats) return null;
-              
-              return (
-                <Grid item xs={12} sm={6} md={4} key={metricKey}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          {config.displayName || metricKey}
-                        </Typography>
-                        <MuiTooltip title="Statistics for selected time range">
-                          <Info size={16} />
-                        </MuiTooltip>
-                      </Box>
+              <Box sx={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid rgba(224, 224, 224, 1)' }}>
+                      <th style={{ 
+                        textAlign: 'left', 
+                        padding: '12px 16px',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        Metric
+                      </th>
+                      <th style={{ 
+                        textAlign: 'right', 
+                        padding: '12px 16px',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        Min
+                      </th>
+                      <th style={{ 
+                        textAlign: 'right', 
+                        padding: '12px 16px',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        Average
+                      </th>
+                      <th style={{ 
+                        textAlign: 'right', 
+                        padding: '12px 16px',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        Max
+                      </th>
+                      <th style={{ 
+                        textAlign: 'right', 
+                        padding: '12px 16px',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        Data Points
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedMetrics.map((metricKey, index) => {
+                      const config = metricsConfig[metricKey] || {};
+                      const stats = statistics[metricKey];
                       
-                      <Grid container spacing={1}>
-                        <Grid item xs={4}>
-                          <Typography variant="caption" color="text.secondary">Min</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      if (!stats) return null;
+                      
+                      return (
+                        <tr 
+                          key={metricKey}
+                          style={{ 
+                            borderBottom: index < selectedMetrics.length - 1 ? '1px solid rgba(224, 224, 224, 0.4)' : 'none',
+                            transition: 'background-color 0.2s',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <td style={{ 
+                            padding: '12px 16px',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            color: 'var(--text-primary)'
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: '50%',
+                                  backgroundColor: config.color || '#8884d8',
+                                  flexShrink: 0
+                                }}
+                              />
+                              {config.displayName || metricKey}
+                            </Box>
+                          </td>
+                          <td style={{ 
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                            fontSize: '0.875rem',
+                            fontFamily: 'monospace',
+                            color: 'var(--text-primary)'
+                          }}>
                             {stats.min?.displayText || '-'}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={4}>
-                          <Typography variant="caption" color="text.secondary">Avg</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          </td>
+                          <td style={{ 
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                            fontSize: '0.875rem',
+                            fontFamily: 'monospace',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)'
+                          }}>
                             {stats.average?.displayText || '-'}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={4}>
-                          <Typography variant="caption" color="text.secondary">Max</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          </td>
+                          <td style={{ 
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                            fontSize: '0.875rem',
+                            fontFamily: 'monospace',
+                            color: 'var(--text-primary)'
+                          }}>
                             {stats.max?.displayText || '-'}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                      
-                      <Box sx={{ mt: 2, pt: 1, borderTop: '1px solid #e0e0e0' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {stats.dataPoints} data points
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              );
-            })}
-          </Grid>
+                          </td>
+                          <td style={{ 
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)'
+                          }}>
+                            {stats.dataPoints}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Box>
+            </CardContent>
+          </Card>
         </>
       )}
     </Box>
