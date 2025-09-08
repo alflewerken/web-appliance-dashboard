@@ -105,6 +105,16 @@ router.post('/test', async (req, res) => {
   try {
     const { ip, port = 161, community = 'public', version = 'v2c', osType = 'linux' } = req.body;
     
+    // DEBUG: Log the incoming request
+    console.log('🔍 SNMP Test Request:', {
+      ip,
+      port,
+      community,
+      version,
+      osType,
+      fullBody: req.body
+    });
+    
     if (!ip) {
       return res.status(400).json({ error: 'IP address required' });
     }
@@ -117,6 +127,8 @@ router.post('/test', async (req, res) => {
       version: version,
       timeout: 5000
     };
+    
+    console.log('📡 Testing SNMP with config:', config);
     
     const result = await snmpMonitor.testConnection(config);
     

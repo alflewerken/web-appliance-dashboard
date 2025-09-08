@@ -1151,6 +1151,111 @@ router.post('/restore', verifyToken, async (req, res) => {
     await connection.beginTransaction();
 
     try {
+      // KRITISCH: Vor dem Restore ALLE alten Daten löschen!
+      // Restore muss das System in einen sauberen, definierten Zustand bringen
+      console.log('🔄 Starting clean restore - removing all existing data first...');
+      
+      // Disable foreign key checks temporarily
+      await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
+      
+      // DEBUG: Check current data before cleaning
+      const [beforeAppliances] = await connection.execute('SELECT COUNT(*) as count FROM appliances');
+      const [beforeHosts] = await connection.execute('SELECT COUNT(*) as count FROM hosts');
+      const [beforeCategories] = await connection.execute('SELECT COUNT(*) as count FROM categories');
+      console.log(`📊 BEFORE CLEAN - Appliances: ${beforeAppliances[0].count}, Hosts: ${beforeHosts[0].count}, Categories: ${beforeCategories[0].count}`);
+      
+      try {
+        // Define all tables to clean in correct order (respecting dependencies)
+        const tablesToClean = [
+          // Service/Command logs (dependent on other tables)
+          'service_command_logs',
+          'ssh_upload_logs',
+          'audit_logs',
+          
+          // Permission tables
+          'user_appliance_permissions',
+          'role_permissions',
+          
+          // Session data
+          'active_sessions',
+          'sessions',
+          
+          // SSH related
+          'ssh_config',
+          'ssh_keys',
+          'ssh_hosts',
+          
+          // SNMP/Monitoring tables
+          'snmp_errors',
+          'snmp_thresholds',
+          'host_disk_metrics',
+          'host_network_metrics',
+          'snmp_disk_metrics',
+          'snmp_interfaces',
+          'snmp_metrics',
+          'host_metrics_logging',
+          'host_monitoring_data',
+          'host_snmp_configs',
+          'host_interface_mappings',
+          
+          // Services and commands
+          'appliance_commands',
+          'custom_commands',
+          'services',
+          
+          // Core tables
+          'hosts',
+          'appliances',
+          'categories',
+          
+          // Settings and images
+          'background_images',
+          'user_settings',
+          'settings',
+          
+          // Users (keep admin user!)
+          // 'users' - SPECIAL HANDLING BELOW
+        ];
+        
+        // Clean all tables except users
+        for (const table of tablesToClean) {
+          try {
+            // Use DELETE instead of TRUNCATE for transactional safety
+            // TRUNCATE is DDL and auto-commits, DELETE is DML and works with transactions
+            await connection.execute(`DELETE FROM ${table}`);
+            console.log(`✅ Cleaned table: ${table}`);
+          } catch (cleanError) {
+            // Some tables might not exist in older databases
+            if (cleanError.code === 'ER_NO_SUCH_TABLE') {
+              console.log(`⚠️ Table ${table} does not exist, skipping`);
+            } else {
+              console.warn(`⚠️ Could not clean table ${table}:`, cleanError.message);
+            }
+          }
+        }
+        
+        // Special handling for users table - keep admin user only
+        try {
+          await connection.execute('DELETE FROM users WHERE username != ?', ['admin']);
+          console.log('✅ Cleaned users table (kept admin)');
+        } catch (userCleanError) {
+          console.warn('⚠️ Could not clean users table:', userCleanError.message);
+        }
+        
+      } finally {
+        // Re-enable foreign key checks
+        await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+      }
+      
+      // DEBUG: Check data after cleaning
+      const [afterAppliances] = await connection.execute('SELECT COUNT(*) as count FROM appliances');
+      const [afterHosts] = await connection.execute('SELECT COUNT(*) as count FROM hosts');
+      const [afterCategories] = await connection.execute('SELECT COUNT(*) as count FROM categories');
+      console.log(`📊 AFTER CLEAN - Appliances: ${afterAppliances[0].count}, Hosts: ${afterHosts[0].count}, Categories: ${afterCategories[0].count}`);
+      
+      console.log('✅ Database cleaned, starting restore...');
+      
+      // Initialize counters
       let restoredAppliances = 0;
       let restoredCategories = 0;
       let restoredSettings = 0;
@@ -1186,9 +1291,7 @@ router.post('/restore', verifyToken, async (req, res) => {
       // IMPORTANT: Restore categories FIRST (before appliances) to respect foreign key constraints
       if (categories && categories.length > 0) {
         try {
-
-          // Delete ALL categories to ensure correct order restoration
-          await connection.execute('DELETE FROM categories');
+          // Categories already cleaned above, just insert new ones
 
           for (const category of categories) {
             const categoryData = {
@@ -1259,10 +1362,7 @@ router.post('/restore', verifyToken, async (req, res) => {
       }
 
       // Restore appliances (AFTER ensuring categories exist)
-
-      await connection.execute('DELETE FROM appliances');
-      await connection.execute('ALTER TABLE appliances AUTO_INCREMENT = 1');
-
+      // Appliances already cleaned above, just insert new ones
       if (appliances && appliances.length > 0) {
 
         // Process in batches to avoid overwhelming the database
@@ -2716,6 +2816,12 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
 
       // Commit transaction
       await connection.commit();
+      
+      // DEBUG: Final check after commit
+      const [finalAppliances] = await connection.execute('SELECT COUNT(*) as count FROM appliances');
+      const [finalHosts] = await connection.execute('SELECT COUNT(*) as count FROM hosts');
+      const [finalCategories] = await connection.execute('SELECT COUNT(*) as count FROM categories');
+      console.log(`📊 AFTER COMMIT - Appliances: ${finalAppliances[0].count}, Hosts: ${finalHosts[0].count}, Categories: ${finalCategories[0].count}`);
 
       let responseMessage;
       let sshAutoInitialized = false;

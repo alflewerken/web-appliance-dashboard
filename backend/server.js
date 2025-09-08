@@ -198,7 +198,11 @@ const initSNMPMonitor = require('./routes/snmp');
 const snmpRouter = initSNMPMonitor(queryBuilder);
 app.use('/api/snmp', snmpRouter);
 
-app.use('/api/restore', verifyToken, restoreRouter);
+// Mount backup routes FIRST - includes /api/restore for full backup restore
+app.use('/api', verifyToken, backupRouter);
+
+// Mount audit restore routes AFTER backup - for individual audit log restore
+app.use('/api/audit', verifyToken, restoreRouter);
 app.use('/api/guacamole', verifyToken, guacamoleRouter); // Guacamole Integration
 
 // RustDesk Integration
@@ -212,9 +216,6 @@ app.use('/api/rustdeskInstall', rustdeskInstallRouter);
 // Network Proxy Routes (transparent proxy) - MUST be after specific routes
 const networkProxyRouter = require('./routes/networkProxy');
 app.use('/api', verifyToken, networkProxyRouter);
-
-// Mount backup routes - also require auth
-app.use('/api', verifyToken, backupRouter);
 
 // ====================================================================
 // ERROR HANDLING MIDDLEWARE
