@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { BackupService } from '../services/backupService';
 import { RestoreKeyDialog } from '../components/SettingsPanel';
-import React from 'react';
+import RestoreProgressDialog from '../components/SettingsPanel/RestoreProgressDialog';
 
 export const useDragAndDrop = (
   showSettingsModal,
@@ -18,12 +18,38 @@ export const useDragAndDrop = (
 ) => {
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [restoreItemCounts, setRestoreItemCounts] = useState({});
 
   // Funktion zum Wiederherstellen mit Schlüssel
   const handleRestoreWithKey = async (decryptionKey) => {
     if (pendingRestoreFile) {
       try {
-        const result = await BackupService.restoreBackup(pendingRestoreFile, decryptionKey);
+        // First, read the file to get item counts for progress dialog
+        const fileContent = await pendingRestoreFile.text();
+        const backupData = JSON.parse(fileContent);
+        
+        // Extract item counts for progress display
+        const itemCounts = {
+          categories: backupData.data?.categories?.length || 0,
+          appliances: backupData.data?.appliances?.length || 0,
+          users: backupData.data?.users?.length || 0,
+          background_images: backupData.data?.background_images?.length || 0,
+          hosts: backupData.data?.hosts?.length || 0,
+          ssh_keys: backupData.data?.ssh_keys?.length || 0,
+          snmp_metrics: backupData.data?.snmp_metrics?.length || 0,
+          snmp_interfaces: backupData.data?.snmp_interfaces?.length || 0,
+        };
+        
+        setRestoreItemCounts(itemCounts);
+        setShowRestoreDialog(false); // Close key dialog
+        setShowProgressDialog(true); // Show progress dialog
+        
+        // Create a new File object since we already read it
+        const newFile = new File([fileContent], pendingRestoreFile.name, { type: 'application/json' });
+        
+        const result = await BackupService.restoreBackup(newFile, decryptionKey);
+        
         if (result.success) {
           if (result.reloadRequired) {
             setTimeout(() => {
@@ -36,26 +62,40 @@ export const useDragAndDrop = (
       } catch (error) {
         console.error('Error during restore:', error);
         alert('Fehler beim Wiederherstellen: ' + error.message);
+      } finally {
+        setShowProgressDialog(false);
+        setPendingRestoreFile(null);
       }
-      setPendingRestoreFile(null);
+    } else {
+      setShowRestoreDialog(false);
     }
-    setShowRestoreDialog(false);
   };
 
-  // Dialog-Component wird direkt zurückgegeben statt in einem separaten Portal gerendert
-  const restoreDialogComponent = showRestoreDialog && pendingRestoreFile ? (
-    <RestoreKeyDialog
-      open={showRestoreDialog}
-      onClose={() => {
-        setShowRestoreDialog(false);
-        setPendingRestoreFile(null);
-      }}
-      onRestore={(key) => {
-        handleRestoreWithKey(key);
-      }}
-      fileName={pendingRestoreFile?.name || 'backup.json'}
-    />
-  ) : null;
+  // Dialog-Components werden direkt zurückgegeben statt in einem separaten Portal gerendert
+  const restoreDialogComponent = (
+    <>
+      {showRestoreDialog && pendingRestoreFile && (
+        <RestoreKeyDialog
+          open={showRestoreDialog}
+          onClose={() => {
+            setShowRestoreDialog(false);
+            setPendingRestoreFile(null);
+          }}
+          onRestore={(key) => {
+            handleRestoreWithKey(key);
+          }}
+          fileName={pendingRestoreFile?.name || 'backup.json'}
+        />
+      )}
+      {showProgressDialog && (
+        <RestoreProgressDialog
+          open={showProgressDialog}
+          totalItems={restoreItemCounts}
+          onClose={() => setShowProgressDialog(false)}
+        />
+      )}
+    </>
+  );
 
   // Hilfsfunktion zur Bestimmung der Kategorie für neue Services
   const getValidCategoryForNewService = () => {

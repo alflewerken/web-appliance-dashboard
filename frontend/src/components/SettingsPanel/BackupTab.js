@@ -24,6 +24,7 @@ import { keyframes } from '@mui/system';
 import { BackupService } from '../../services/backupService';
 import EncryptionKeyDialog from './EncryptionKeyDialog';
 import RestoreKeyDialog from './RestoreKeyDialog';
+import RestoreProgressDialog from './RestoreProgressDialog';
 import './BackupTab.css';
 
 // Animation definitions
@@ -64,6 +65,8 @@ const BackupTab = () => {
   const [encryptionKey, setEncryptionKey] = useState('');
   const [showEncryptionDialog, setShowEncryptionDialog] = useState(false);
   const [showRestoreKeyDialog, setShowRestoreKeyDialog] = useState(false);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [restoreItemCounts, setRestoreItemCounts] = useState({});
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
 
   const handleCreateBackup = async () => {
@@ -122,6 +125,27 @@ const BackupTab = () => {
   const restoreFromFile = async (file, decryptionKey = null) => {
     try {
       setRestoreLoading(true);
+      
+      // First, read the file to get item counts for progress dialog
+      const fileContent = await file.text();
+      const backupData = JSON.parse(fileContent);
+      
+      // Extract item counts for progress display
+      const itemCounts = {
+        categories: backupData.data?.categories?.length || 0,
+        appliances: backupData.data?.appliances?.length || 0,
+        users: backupData.data?.users?.length || 0,
+        background_images: backupData.data?.background_images?.length || 0,
+        hosts: backupData.data?.hosts?.length || 0,
+        ssh_keys: backupData.data?.ssh_keys?.length || 0,
+        snmp_metrics: backupData.data?.snmp_metrics?.length || 0,
+        snmp_interfaces: backupData.data?.snmp_interfaces?.length || 0,
+      };
+      
+      setRestoreItemCounts(itemCounts);
+      setShowProgressDialog(true);
+      
+      // Perform the restore
       const result = await BackupService.restoreBackup(file, decryptionKey);
 
       if (result.success) {
@@ -136,6 +160,7 @@ const BackupTab = () => {
       setError('Fehler beim Wiederherstellen: ' + error.message);
     } finally {
       setRestoreLoading(false);
+      setShowProgressDialog(false);
     }
   };
 
@@ -481,6 +506,13 @@ const BackupTab = () => {
         }}
         onRestore={handleRestoreWithKey}
         fileName={pendingRestoreFile?.name || 'backup.json'}
+      />
+
+      {/* Restore Progress Dialog */}
+      <RestoreProgressDialog
+        open={showProgressDialog}
+        totalItems={restoreItemCounts}
+        onClose={() => setShowProgressDialog(false)}
       />
     </Box>
   );
