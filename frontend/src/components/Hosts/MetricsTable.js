@@ -108,14 +108,18 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
       
       if (response.ok) {
         const data = await response.json();
-        if (data?.mappings) {
-          // Create a map of interface name -> index
+        if (data?.mappings && Array.isArray(data.mappings)) {
+          // Create a map of interface name -> index from the backend data
           const mappings = {};
           data.mappings.forEach(mapping => {
-            mappings[mapping.interface_name] = mapping.interface_index;
+            // Backend sends interface_index and interface_name
+            if (mapping.interface_name && mapping.interface_index !== undefined) {
+              mappings[mapping.interface_name] = mapping.interface_index;
+              console.log(`Loaded mapping: ${mapping.interface_name} -> ${mapping.interface_index}`);
+            }
           });
           setInterfaceMappings(mappings);
-
+          console.log('Loaded interface mappings:', mappings);
         }
       }
     } catch (error) {
@@ -124,11 +128,44 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
   };
 
   const handleLoggingToggle = (metricKey) => {
-
+    console.log(`Toggling metric: ${metricKey}, current value: ${loggingConfig[metricKey]}`);
+    
     const newConfig = {
       ...loggingConfig,
       [metricKey]: !loggingConfig[metricKey]
     };
+
+    // For network interfaces, also handle sub-metrics
+    if (metricKey.startsWith('network.interface.') && 
+        !metricKey.includes('.bytes') && 
+        !metricKey.includes('.errors') && 
+        !metricKey.includes('.status')) {
+      
+      const isEnabling = !loggingConfig[metricKey];
+      
+      if (isEnabling) {
+        // When enabling an interface, also enable its sub-metrics
+        console.log(`Enabling sub-metrics for ${metricKey}`);
+        newConfig[`${metricKey}.bytesIn`] = true;
+        newConfig[`${metricKey}.bytesOut`] = true;
+        newConfig[`${metricKey}.errors`] = true;
+        newConfig[`${metricKey}.status`] = true;
+      } else {
+        // When disabling an interface, also disable its sub-metrics
+        console.log(`Disabling sub-metrics for ${metricKey}`);
+        delete newConfig[`${metricKey}.bytesIn`];
+        delete newConfig[`${metricKey}.bytesOut`];
+        delete newConfig[`${metricKey}.errors`];
+        delete newConfig[`${metricKey}.status`];
+      }
+    }
+
+    // Debug: Check if this causes other keys to be affected
+    const changedKeys = Object.keys(newConfig).filter(key => 
+      newConfig[key] !== loggingConfig[key]
+    );
+    
+    console.log('Changed keys:', changedKeys);
 
     setLoggingConfig(newConfig);
     setHasUnsavedChanges(true);
@@ -155,31 +192,20 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
     };
     
     // If this is a network interface base name, also update sub-metrics
-    if (metricKey.startsWith('network.interface.') && !metricKey.includes('.bytes') && !metricKey.includes('.errors') && !metricKey.includes('.status')) {
-      // This is a base interface name like network.interface.5
-      const subMetrics = ['bytesIn', 'bytesOut', 'errors', 'status'];
-      subMetrics.forEach(subMetric => {
-        const subKey = `${metricKey}.${subMetric}`;
-        // Only update if the sub-metric exists in the current config
-        if (loggingConfig[metricKey]) {
-          let subName = '';
-          switch(subMetric) {
-            case 'bytesIn':
-              subName = `${value} In`;
-              break;
-            case 'bytesOut':
-              subName = `${value} Out`;
-              break;
-            case 'errors':
-              subName = `${value} Errors`;
-              break;
-            case 'status':
-              subName = `${value} Status`;
-              break;
-          }
-          newInputValues[subKey] = subName;
-        }
-      });
+    // metricKey ist jetzt z.B. "network.interface.en5" statt "network.interface.4"
+    if (metricKey.startsWith('network.interface.') && 
+        !metricKey.includes('.bytes') && 
+        !metricKey.includes('.errors') && 
+        !metricKey.includes('.status')) {
+      // This is a base interface name like network.interface.en5
+      // ALWAYS update sub-metrics when the base interface is enabled
+      if (loggingConfig[metricKey]) {
+        // Interface is enabled, so update all sub-metrics
+        newInputValues[`${metricKey}.bytesIn`] = `${value} In`;
+        newInputValues[`${metricKey}.bytesOut`] = `${value} Out`;
+        newInputValues[`${metricKey}.errors`] = `${value} Errors`;
+        newInputValues[`${metricKey}.status`] = `${value} Status`;
+      }
     }
     
     setInputValues(newInputValues);
@@ -579,6 +605,9 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
   const renderNetworkTable = () => {
     const interfaces = structuredMetrics.network.interfaces;
     
+    // Debug: Log interface structure
+    console.log('Interfaces from backend:', interfaces);
+    
     if (interfaces.length === 0) {
       return (
         <Typography variant="body2" color="textSecondary" sx={{ p: 2 }}>
@@ -609,30 +638,16 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                               iface.statistics?.bytesReceived > 0 || iface.statistics?.bytesSent > 0 ||
                               iface.inOctets > 0 || iface.outOctets > 0;
               
-              // KRITISCH: Wir brauchen den echten SNMP-Index!
-              // Zuerst aus dynamischen Mappings versuchen
-              let interfaceIndex = iface.index;
-              
-              // Wenn kein Index vorhanden, aus den dynamischen Mappings holen
-              if (!interfaceIndex && interfaceIndex !== 0 && interfaceMappings) {
-                interfaceIndex = interfaceMappings[iface.name];
-                if (interfaceIndex !== undefined) {
-
-                }
+              // Verwende den Interface-Namen direkt als Identifier!
+              // Kein Index-Unsinn mehr!
+              const interfaceName = iface.name;
+              if (!interfaceName) {
+                console.warn(`Interface without name, skipping`);
+                return null;
               }
               
-              // Fallback auf hardcoded mapping (nur für Backward-Compatibility)
-              if (!interfaceIndex && interfaceIndex !== 0) {
-
-                // Hardcoded mapping für bekannte Interfaces (DEPRECATED)
-                if (iface.name === 'en0') interfaceIndex = 5;
-                else if (iface.name === 'en5') interfaceIndex = 4;
-                else if (iface.name === 'awdl0') interfaceIndex = 6;
-                else interfaceIndex = arrayIndex; // Last resort fallback
-              }
+              const metricKey = `network.interface.${interfaceName}`;
               
-              const metricKey = `network.interface.${interfaceIndex}`;
-
               // Get traffic values from either format
               const bytesIn = iface.statistics?.bytesReceived || iface.inOctets || 0;
               const bytesOut = iface.statistics?.bytesSent || iface.outOctets || 0;
@@ -661,7 +676,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                         }}
                       />
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                        {iface.name || iface.descr || `Interface ${index}`}
+                        {iface.name || iface.descr || `Interface ${arrayIndex}`}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -724,7 +739,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
                   </TableCell>
                 </TableRow>
               );
-            })}
+            }).filter(Boolean)} {/* Filter out null values from interfaces without SNMP index */}
           </TableBody>
         </Table>
       </TableContainer>

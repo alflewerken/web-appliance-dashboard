@@ -1479,11 +1479,11 @@ class SNMPMonitor {
           // Parse metric format: network.interface.13 or network.interface.13.bytesIn
           const parts = metric.split('.');
           if (parts.length >= 3 && parts[1] === 'interface') {
-            const ifIndex = parseInt(parts[2]);
+            const ifName = parts[2]; // z.B. "en0" oder "en5"
             const metricType = parts[3]; // Optional: 'bytesIn', 'bytesOut', etc.
             
-            // Find interface by index
-            const iface = interfaces.find(i => i.index === ifIndex);
+            // Find interface by name (nicht mehr by index!)
+            const iface = interfaces.find(i => i.name === ifName);
             if (iface) {
               if (metricType) {
                 // Specific metric requested

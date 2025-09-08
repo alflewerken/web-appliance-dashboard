@@ -1801,13 +1801,29 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Host not found' });
     }
     
+    // KRITISCH: Filtere Custom Names - behalte nur die für AKTIVE Metriken
+    const filteredCustomNames = {};
+    if (customNames && config) {
+      for (const [metricKey, customName] of Object.entries(customNames)) {
+        // Prüfe ob die Basis-Metrik aktiv ist
+        const baseMetricKey = metricKey.replace(/\.(bytesIn|bytesOut|errors|status)$/, '');
+        
+        // Behalte den Custom Name nur wenn die Metrik oder ihre Basis-Metrik aktiv ist
+        if (config[metricKey] === true || config[baseMetricKey] === true) {
+          filteredCustomNames[metricKey] = customName;
+        } else {
+          logger.debug(`Removing custom name for inactive metric: ${metricKey}`);
+        }
+      }
+    }
+    
     // Check if config exists
     const existingConfig = await db.findOne('host_metrics_logging', { hostId: hostId });
     
     const configData = {
       hostId: hostId,
       config: JSON.stringify(config || {}),
-      customNames: JSON.stringify(customNames || {}),
+      customNames: JSON.stringify(filteredCustomNames),  // Verwende gefilterte Custom Names
       updatedAt: new Date()
     };
     
@@ -1816,8 +1832,9 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
       await db.update('host_metrics_logging', configData, { id: existingConfig.id });
       
       // Update metric names in snmp_metrics table for better history display
-      if (customNames) {
-        for (const [metricKey, customName] of Object.entries(customNames)) {
+      // Verwende filteredCustomNames statt customNames
+      if (filteredCustomNames && Object.keys(filteredCustomNames).length > 0) {
+        for (const [metricKey, customName] of Object.entries(filteredCustomNames)) {
           await pool.execute(
             `UPDATE snmp_metrics 
              SET metric_name = ? 
@@ -1832,8 +1849,9 @@ router.put('/:id/metrics-logging', verifyToken, async (req, res) => {
       await db.insert('host_metrics_logging', configData);
       
       // Update metric names in snmp_metrics table
-      if (customNames) {
-        for (const [metricKey, customName] of Object.entries(customNames)) {
+      // Verwende filteredCustomNames statt customNames
+      if (filteredCustomNames && Object.keys(filteredCustomNames).length > 0) {
+        for (const [metricKey, customName] of Object.entries(filteredCustomNames)) {
           await pool.execute(
             `UPDATE snmp_metrics 
              SET metric_name = ? 
