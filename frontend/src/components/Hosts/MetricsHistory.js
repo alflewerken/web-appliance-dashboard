@@ -14,6 +14,8 @@ import {
   Chip,
   Paper,
   Tooltip as MuiTooltip,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   LineChart,
@@ -59,11 +61,15 @@ const MetricsHistory = ({ host }) => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [statistics, setStatistics] = useState({});
+  const [diskInfo, setDiskInfo] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
   const refreshIntervalRef = useRef(null);
   const pollIntervalRef = useRef(null);
   
   // Get UI configuration for tooltips
   const uiConfiguration = useUIConfig();
+  const theme = useTheme();
+  const isMobileView = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Time range options
   const timeRanges = [
@@ -170,6 +176,19 @@ const MetricsHistory = ({ host }) => {
         const newMetricsData = {};
         const newMetricsConfig = {};
         const newStatistics = {};
+        
+        // Check if any disk metrics are selected and fetch disk info
+        const hasDiskMetrics = selectedMetrics.some(m => m.includes('disk'));
+        if (hasDiskMetrics) {
+          try {
+            const diskResponse = await axios.get(`/api/metrics-history/${host.id}/disk-info`);
+            if (diskResponse.data.success) {
+              setDiskInfo(diskResponse.data.disks);
+            }
+          } catch (err) {
+            console.error('Failed to fetch disk info:', err);
+          }
+        }
         
         // Process each metric's data and configuration
         for (const [metricKey, metricResult] of Object.entries(response.data.results)) {
@@ -631,137 +650,225 @@ const MetricsHistory = ({ host }) => {
                 </MuiTooltip>
               </Box>
               
-              <Box sx={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid rgba(224, 224, 224, 1)' }}>
-                      <th style={{ 
-                        textAlign: 'left', 
-                        padding: '12px 16px',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        Metric
-                      </th>
-                      <th style={{ 
-                        textAlign: 'right', 
-                        padding: '12px 16px',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        Min
-                      </th>
-                      <th style={{ 
-                        textAlign: 'right', 
-                        padding: '12px 16px',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        Average
-                      </th>
-                      <th style={{ 
-                        textAlign: 'right', 
-                        padding: '12px 16px',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        Max
-                      </th>
-                      <th style={{ 
-                        textAlign: 'right', 
-                        padding: '12px 16px',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        Data Points
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedMetrics.map((metricKey, index) => {
-                      const config = metricsConfig[metricKey] || {};
-                      const stats = statistics[metricKey];
-                      
-                      if (!stats) return null;
-                      
-                      return (
-                        <tr 
-                          key={metricKey}
-                          style={{ 
-                            borderBottom: index < selectedMetrics.length - 1 ? '1px solid rgba(224, 224, 224, 0.4)' : 'none',
-                            transition: 'background-color 0.2s',
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                          <td style={{ 
-                            padding: '12px 16px',
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            color: 'var(--text-primary)'
-                          }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Box
-                                sx={{
-                                  width: 12,
-                                  height: 12,
-                                  borderRadius: '50%',
-                                  backgroundColor: config.color || '#8884d8',
-                                  flexShrink: 0
-                                }}
-                              />
-                              {config.displayName || metricKey}
-                            </Box>
-                          </td>
-                          <td style={{ 
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                            fontSize: '0.875rem',
-                            fontFamily: 'monospace',
-                            color: 'var(--text-primary)'
-                          }}>
-                            {stats.min?.displayText || '-'}
-                          </td>
-                          <td style={{ 
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                            fontSize: '0.875rem',
-                            fontFamily: 'monospace',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)'
-                          }}>
-                            {stats.average?.displayText || '-'}
-                          </td>
-                          <td style={{ 
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                            fontSize: '0.875rem',
-                            fontFamily: 'monospace',
-                            color: 'var(--text-primary)'
-                          }}>
-                            {stats.max?.displayText || '-'}
-                          </td>
-                          <td style={{ 
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)'
-                          }}>
-                            {stats.dataPoints}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </Box>
+              {/* Desktop View */}
+              {!isMobileView ? (
+                <Box sx={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid rgba(224, 224, 224, 1)' }}>
+                        <th style={{ 
+                          textAlign: 'left', 
+                          padding: '12px 16px',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Metric
+                        </th>
+                        <th style={{ 
+                          textAlign: 'right', 
+                          padding: '12px 16px',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Min
+                        </th>
+                        <th style={{ 
+                          textAlign: 'right', 
+                          padding: '12px 16px',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Average
+                        </th>
+                        <th style={{ 
+                          textAlign: 'right', 
+                          padding: '12px 16px',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Max
+                        </th>
+                        <th style={{ 
+                          textAlign: 'right', 
+                          padding: '12px 16px',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Data Points
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedMetrics.map((metricKey, index) => {
+                        const config = metricsConfig[metricKey] || {};
+                        const stats = statistics[metricKey];
+                        const disk = diskInfo[metricKey];
+                        
+                        if (!stats) return null;
+                        
+                        // Enhanced display name for disk metrics
+                        let displayName = config.displayName || metricKey;
+                        if (disk) {
+                          displayName = `${disk.customName} (${disk.percentUsed.toFixed(1)}% - ${disk.usedGB.toFixed(1)}GB / ${disk.totalGB.toFixed(1)}GB)`;
+                        }
+                        
+                        return (
+                          <tr 
+                            key={metricKey}
+                            style={{ 
+                              borderBottom: index < selectedMetrics.length - 1 ? '1px solid rgba(224, 224, 224, 0.4)' : 'none',
+                              transition: 'background-color 0.2s',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <td style={{ 
+                              padding: '12px 16px',
+                              fontSize: '0.875rem',
+                              fontWeight: 500,
+                              color: 'var(--text-primary)'
+                            }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box
+                                  sx={{
+                                    width: 12,
+                                    height: 12,
+                                    borderRadius: '50%',
+                                    backgroundColor: config.color || '#8884d8',
+                                    flexShrink: 0
+                                  }}
+                                />
+                                {displayName}
+                              </Box>
+                            </td>
+                            <td style={{ 
+                              padding: '12px 16px',
+                              textAlign: 'right',
+                              fontSize: '0.875rem',
+                              fontFamily: 'monospace',
+                              color: 'var(--text-primary)'
+                            }}>
+                              {stats.min?.displayText || '-'}
+                            </td>
+                            <td style={{ 
+                              padding: '12px 16px',
+                              textAlign: 'right',
+                              fontSize: '0.875rem',
+                              fontFamily: 'monospace',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)'
+                            }}>
+                              {stats.average?.displayText || '-'}
+                            </td>
+                            <td style={{ 
+                              padding: '12px 16px',
+                              textAlign: 'right',
+                              fontSize: '0.875rem',
+                              fontFamily: 'monospace',
+                              color: 'var(--text-primary)'
+                            }}>
+                              {stats.max?.displayText || '-'}
+                            </td>
+                            <td style={{ 
+                              padding: '12px 16px',
+                              textAlign: 'right',
+                              fontSize: '0.75rem',
+                              color: 'var(--text-secondary)'
+                            }}>
+                              {stats.dataPoints}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </Box>
+              ) : (
+                /* Mobile View - Compact Cards */
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {selectedMetrics.map((metricKey) => {
+                    const config = metricsConfig[metricKey] || {};
+                    const stats = statistics[metricKey];
+                    const disk = diskInfo[metricKey];
+                    
+                    if (!stats) return null;
+                    
+                    // Enhanced display name for disk metrics
+                    let displayName = config.displayName || metricKey;
+                    let diskDetails = null;
+                    if (disk) {
+                      displayName = disk.customName;
+                      diskDetails = `${disk.percentUsed.toFixed(1)}% - ${disk.usedGB.toFixed(1)}GB / ${disk.totalGB.toFixed(1)}GB`;
+                    }
+                    
+                    return (
+                      <Paper 
+                        key={metricKey}
+                        sx={{ 
+                          p: 2,
+                          backgroundColor: 'rgba(255, 255, 255, 0.01)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              backgroundColor: config.color || '#8884d8',
+                              flexShrink: 0
+                            }}
+                          />
+                          <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                            {displayName}
+                          </Typography>
+                        </Box>
+                        
+                        {diskDetails && (
+                          <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block', mb: 1 }}>
+                            {diskDetails}
+                          </Typography>
+                        )}
+                        
+                        <Grid container spacing={1}>
+                          <Grid item xs={4}>
+                            <Typography variant="caption" color="text.secondary">Min</Typography>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                              {stats.min?.displayText || '-'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={4}>
+                            <Typography variant="caption" color="text.secondary">Avg</Typography>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                              {stats.average?.displayText || '-'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={4}>
+                            <Typography variant="caption" color="text.secondary">Max</Typography>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                              {stats.max?.displayText || '-'}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                        
+                        <Typography variant="caption" sx={{ color: 'var(--text-secondary)', mt: 1, display: 'block' }}>
+                          {stats.dataPoints} data points
+                        </Typography>
+                      </Paper>
+                    );
+                  })}
+                </Box>
+              )}
             </CardContent>
           </Card>
+                      }}>
+
         </>
       )}
     </Box>

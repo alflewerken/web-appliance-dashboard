@@ -785,9 +785,9 @@ router.get('/:id/:metricKey/stats', authenticateToken, async (req, res) => {
         return `${value.toFixed(1)}%`;
       }
       
-      // Disk usage (GB)
+      // Disk usage (percentage)
       if (metricKey.includes('disk')) {
-        return `${value.toFixed(2)} GB`;
+        return `${value.toFixed(1)}%`;
       }
       
       // Process count
@@ -830,6 +830,89 @@ router.get('/:id/:metricKey/stats', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch metric statistics'
+    });
+  }
+});
+
+// Get disk information for a host
+router.get('/:id/disk-info', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId } = req.params;
+    
+    // Get the latest disk metrics
+    const [diskInfo] = await pool.execute(
+      `SELECT 
+        metric_key,
+        metric_value as percent_used,
+        metric_name as custom_name
+       FROM snmp_metrics
+       WHERE host_id = ? 
+       AND metric_key LIKE 'disk.%'
+       AND timestamp = (
+         SELECT MAX(timestamp) 
+         FROM snmp_metrics 
+         WHERE host_id = ? 
+         AND metric_key LIKE 'disk.%'
+       )`,
+      [hostId, hostId]
+    );
+    
+    // Try to get disk size from SNMP configuration or host monitoring data
+    // For macOS, we can estimate based on typical sizes or get from system info
+    const diskData = {};
+    
+    for (const disk of diskInfo) {
+      const diskIndex = disk.metric_key.split('.')[1];
+      const percentUsed = parseFloat(disk.percent_used) || 0;
+      
+      // For macOS systems, we'll use a known disk size or estimate
+      // This should ideally come from SNMP hrStorageTable
+      let totalGB = 7449.2; // Default for your system, should be dynamic
+      
+      // Try to get actual disk size from host configuration
+      const [hostConfig] = await pool.execute(
+        `SELECT metrics FROM host_monitoring_data 
+         WHERE host_id = ? 
+         ORDER BY created_at DESC 
+         LIMIT 1`,
+        [hostId]
+      );
+      
+      if (hostConfig.length > 0 && hostConfig[0].metrics) {
+        try {
+          const metrics = JSON.parse(hostConfig[0].metrics);
+          // Look for disk size in metrics
+          if (metrics.disk && metrics.disk[diskIndex]) {
+            totalGB = metrics.disk[diskIndex].total || totalGB;
+          }
+        } catch (e) {
+          console.error('Error parsing metrics:', e);
+        }
+      }
+      
+      const usedGB = (totalGB * percentUsed) / 100;
+      const freeGB = totalGB - usedGB;
+      
+      diskData[disk.metric_key] = {
+        customName: disk.custom_name || `Disk ${diskIndex}`,
+        percentUsed: percentUsed,
+        usedGB: usedGB,
+        freeGB: freeGB,
+        totalGB: totalGB,
+        displayText: `${percentUsed.toFixed(1)}% (${usedGB.toFixed(1)} GB / ${totalGB.toFixed(1)} GB)`
+      };
+    }
+    
+    res.json({
+      success: true,
+      disks: diskData
+    });
+    
+  } catch (error) {
+    console.error('Error fetching disk info:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch disk information'
     });
   }
 });
