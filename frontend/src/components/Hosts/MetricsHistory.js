@@ -42,6 +42,7 @@ import {
   Pause,
   Play,
   Info,
+  Save,
 } from 'lucide-react';
 import axios from '../../utils/axiosConfig';
 import uiConfig, { useUIConfig } from '../../utils/uiConfigManager';
@@ -54,7 +55,7 @@ const MetricsHistory = ({ host }) => {
   const [combinedData, setCombinedData] = useState([]);
   const [configuredMetrics, setConfiguredMetrics] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
-  const [timeRange, setTimeRange] = useState('1h');
+  const [timeRange, setTimeRange] = useState('15m'); // Standard auf 15 Minuten geändert
   const [lastUpdate, setLastUpdate] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [statistics, setStatistics] = useState({});
@@ -113,14 +114,41 @@ const MetricsHistory = ({ host }) => {
       if (response.data.success && response.data.metrics) {
         setConfiguredMetrics(response.data.metrics);
         
-        // Auto-select first few metrics and fetch their data
-        const defaultMetrics = response.data.metrics
-          .slice(0, 3)
-          .map(m => m.key);
-        setSelectedMetrics(defaultMetrics);
+        // Load saved settings if available
+        if (response.data.savedSettings) {
+          if (response.data.savedSettings.selectedMetrics) {
+            setSelectedMetrics(response.data.savedSettings.selectedMetrics);
+          }
+          if (response.data.savedSettings.defaultTimeRange) {
+            setTimeRange(response.data.savedSettings.defaultTimeRange);
+          }
+        } else {
+          // Auto-select first few metrics if no saved settings
+          const defaultMetrics = response.data.metrics
+            .slice(0, 3)
+            .map(m => m.key);
+          setSelectedMetrics(defaultMetrics);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch configured metrics:', err);
+    }
+  };
+
+  // Save metric selection to backend
+  const saveMetricSelection = async () => {
+    try {
+      const response = await axios.post(`/api/metrics-history/${host.id}/save-settings`, {
+        selectedMetrics: selectedMetrics,
+        defaultTimeRange: timeRange,
+      });
+      
+      if (response.data.success) {
+        // Show success message (könnte später ein Snackbar sein)
+        console.log('Settings saved successfully');
+      }
+    } catch (err) {
+      console.error('Failed to save settings:', err);
     }
   };
 
@@ -387,9 +415,32 @@ const MetricsHistory = ({ host }) => {
       {/* Metric Selection */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
-            Select Metrics to Display
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="subtitle2">
+              Select Metrics to Display
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Save size={16} />}
+              onClick={saveMetricSelection}
+              disabled={selectedMetrics.length === 0}
+              sx={{
+                borderColor: '#4caf50',
+                color: '#4caf50',
+                '&:hover': {
+                  borderColor: '#45a049',
+                  backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                },
+                '&:disabled': {
+                  borderColor: 'rgba(255, 255, 255, 0.23)',
+                  color: 'var(--text-secondary)',
+                },
+              }}
+            >
+              Auswahl speichern
+            </Button>
+          </Box>
           
           {Object.entries(groupedMetrics).map(([category, metrics]) => (
             <Box key={category} sx={{ mb: 2 }}>
@@ -464,6 +515,28 @@ const MetricsHistory = ({ host }) => {
               exclusive
               onChange={(e, value) => value && setTimeRange(value)}
               size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  border: '1px solid rgba(255, 255, 255, 0.23)',
+                  color: 'var(--text-secondary)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                    borderColor: 'rgba(25, 118, 210, 0.5)',
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: '#1976d2',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    border: '1px solid #1976d2',
+                    boxShadow: '0 0 8px rgba(25, 118, 210, 0.4)',
+                    '&:hover': {
+                      backgroundColor: '#1565c0',
+                      borderColor: '#1565c0',
+                    },
+                  },
+                },
+              }}
             >
               {timeRanges.map(range => (
                 <ToggleButton key={range.value} value={range.value}>

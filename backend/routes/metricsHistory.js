@@ -10,7 +10,7 @@ router.get('/:id/configured-metrics', authenticateToken, async (req, res) => {
     
     // Get configured metrics from host_metrics_logging
     const [result] = await pool.execute(
-      `SELECT config, custom_names 
+      `SELECT config, custom_names, selected_metrics, default_time_range
        FROM host_metrics_logging 
        WHERE host_id = ?`,
       [id]
@@ -57,9 +57,21 @@ router.get('/:id/configured-metrics', authenticateToken, async (req, res) => {
         }
       });
       
+      // Add saved settings if available
+      const savedSettings = {};
+      if (result[0].selected_metrics) {
+        savedSettings.selectedMetrics = typeof result[0].selected_metrics === 'string'
+          ? JSON.parse(result[0].selected_metrics)
+          : result[0].selected_metrics;
+      }
+      if (result[0].default_time_range) {
+        savedSettings.defaultTimeRange = result[0].default_time_range;
+      }
+      
       res.json({
         success: true,
-        metrics: enabledMetrics
+        metrics: enabledMetrics,
+        savedSettings: Object.keys(savedSettings).length > 0 ? savedSettings : null
       });
     } else {
       res.json({
@@ -818,6 +830,48 @@ router.get('/:id/:metricKey/stats', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch metric statistics'
+    });
+  }
+});
+
+// Save user's metric selection settings
+router.post('/:id/save-settings', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { selectedMetrics, defaultTimeRange } = req.body;
+    
+    // Update the settings in host_metrics_logging table
+    const [result] = await pool.execute(
+      `UPDATE host_metrics_logging 
+       SET selected_metrics = ?, 
+           default_time_range = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE host_id = ?`,
+      [
+        JSON.stringify(selectedMetrics),
+        defaultTimeRange || '15m',
+        id
+      ]
+    );
+    
+    if (result.affectedRows > 0) {
+      res.json({
+        success: true,
+        message: 'Settings saved successfully'
+      });
+    } else {
+      // If no existing record, we might need to create one
+      // But this should rarely happen as host_metrics_logging is created when metrics are configured
+      res.status(404).json({
+        success: false,
+        error: 'No metrics configuration found for this host'
+      });
+    }
+  } catch (error) {
+    console.error('Error saving metric settings:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save settings'
     });
   }
 });
