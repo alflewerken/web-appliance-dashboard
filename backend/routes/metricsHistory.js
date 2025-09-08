@@ -667,7 +667,9 @@ router.post('/:id/compare', authenticateToken, async (req, res) => {
               graphConfig: {
                 color: getMetricColor(subMetricKey, metrics),
                 displayName: customNames[subMetricKey] || subMetricKey.split('.').pop(),
-                unit: subMetricKey.includes('bytes') ? 'MB/s' : ''
+                unit: subMetricKey.includes('bytes') ? 'MB/s' : 
+                      (subMetricKey.includes('cpu.load') ? 'Load' :
+                      (subMetricKey.includes('percent') || subMetricKey.includes('cpu') || subMetricKey.includes('memory') ? '%' : ''))
               }
             };
           }
@@ -714,7 +716,9 @@ router.post('/:id/compare', authenticateToken, async (req, res) => {
             graphConfig: {
               color: getMetricColor(metricKey, metrics),
               displayName: customNames[metricKey] || metricKey,
-              unit: metricKey.includes('bytes') ? 'MB/s' : (metricKey.includes('percent') ? '%' : '')
+              unit: metricKey.includes('bytes') ? 'MB/s' : 
+                    (metricKey.includes('cpu.load') ? 'Load' :
+                    (metricKey.includes('percent') || metricKey.includes('cpu') || metricKey.includes('memory') ? '%' : ''))
             }
           };
         }
@@ -780,7 +784,12 @@ router.get('/:id/:metricKey/stats', authenticateToken, async (req, res) => {
         return `${mbPerSec.toFixed(2)} MB/s`;
       }
       
-      // CPU and other percentage metrics
+      // CPU Load metrics (not percentages!)
+      if (metricKey.includes('cpu.load')) {
+        return value.toFixed(2); // Load average, no percentage
+      }
+      
+      // CPU usage and memory percentage metrics
       if (metricKey.includes('cpu') || metricKey.includes('memory')) {
         return `${value.toFixed(1)}%`;
       }
@@ -857,44 +866,50 @@ router.get('/:id/disk-info', authenticateToken, async (req, res) => {
       [hostId, hostId]
     );
     
-    // Try to get disk size from SNMP configuration or host monitoring data
-    // For macOS, we can estimate based on typical sizes or get from system info
+    // Get disk configurations from database
+    const [diskConfigs] = await pool.execute(
+      `SELECT disk_index, disk_name, total_size_gb 
+       FROM host_disk_config 
+       WHERE host_id = ?`,
+      [hostId]
+    );
+    
+    // Create a map of disk configurations
+    const diskConfigMap = {};
+    diskConfigs.forEach(config => {
+      diskConfigMap[config.disk_index] = {
+        name: config.disk_name,
+        totalGB: parseFloat(config.total_size_gb)
+      };
+    });
+    
+    // Process disk data
     const diskData = {};
     
     for (const disk of diskInfo) {
       const diskIndex = disk.metric_key.split('.')[1];
       const percentUsed = parseFloat(disk.percent_used) || 0;
       
-      // For macOS systems, we'll use a known disk size or estimate
-      // This should ideally come from SNMP hrStorageTable
-      let totalGB = 7449.2; // Default for your system, should be dynamic
+      // Get disk size from configuration or use default
+      let totalGB = 500; // Default fallback
+      let diskName = disk.custom_name || `Disk ${diskIndex}`;
       
-      // Try to get actual disk size from host configuration
-      const [hostConfig] = await pool.execute(
-        `SELECT metrics FROM host_monitoring_data 
-         WHERE host_id = ? 
-         ORDER BY created_at DESC 
-         LIMIT 1`,
-        [hostId]
-      );
-      
-      if (hostConfig.length > 0 && hostConfig[0].metrics) {
-        try {
-          const metrics = JSON.parse(hostConfig[0].metrics);
-          // Look for disk size in metrics
-          if (metrics.disk && metrics.disk[diskIndex]) {
-            totalGB = metrics.disk[diskIndex].total || totalGB;
-          }
-        } catch (e) {
-          console.error('Error parsing metrics:', e);
+      if (diskConfigMap[diskIndex]) {
+        totalGB = diskConfigMap[diskIndex].totalGB;
+        // Use configured name if custom name not set
+        if (!disk.custom_name && diskConfigMap[diskIndex].name) {
+          diskName = diskConfigMap[diskIndex].name;
         }
+      } else {
+        // Try to detect from host type
+        console.warn(`No disk configuration found for host ${hostId}, disk ${diskIndex}`);
       }
       
       const usedGB = (totalGB * percentUsed) / 100;
       const freeGB = totalGB - usedGB;
       
       diskData[disk.metric_key] = {
-        customName: disk.custom_name || `Disk ${diskIndex}`,
+        customName: diskName,
         percentUsed: percentUsed,
         usedGB: usedGB,
         freeGB: freeGB,
@@ -955,6 +970,44 @@ router.post('/:id/save-settings', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to save settings'
+    });
+  }
+});
+
+// Update disk configuration for a host
+router.post('/:id/disk-config', authenticateToken, async (req, res) => {
+  try {
+    const { id: hostId } = req.params;
+    const { diskIndex, diskName, totalSizeGB } = req.body;
+    
+    if (!diskIndex || !totalSizeGB) {
+      return res.status(400).json({
+        success: false,
+        error: 'diskIndex and totalSizeGB are required'
+      });
+    }
+    
+    // Insert or update disk configuration
+    await pool.execute(
+      `INSERT INTO host_disk_config (host_id, disk_index, disk_name, total_size_gb) 
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE 
+         disk_name = VALUES(disk_name),
+         total_size_gb = VALUES(total_size_gb),
+         updated_at = CURRENT_TIMESTAMP`,
+      [hostId, diskIndex, diskName || null, totalSizeGB]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Disk configuration updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error updating disk config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update disk configuration'
     });
   }
 });

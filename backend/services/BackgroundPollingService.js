@@ -293,13 +293,14 @@ class BackgroundPollingService {
 
       }
       
-      // Collect metrics via SNMP
+      // Collect metrics via SNMP - pass host.id for CPU core detection
       const metrics = await this.snmpMonitor.collectMetrics(
         host.ip,
         host.snmpConfig.port,
         host.snmpConfig.community,
         host.snmpConfig.version,
-        enabledMetrics
+        enabledMetrics,
+        host.id  // Pass numeric host ID for CPU core detection
       );
       
       // Debug collected metrics

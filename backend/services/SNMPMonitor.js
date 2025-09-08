@@ -1097,21 +1097,25 @@ class SNMPMonitor {
       const currentIdle = parseInt(rawResults[this.oidDefinitions.cpu.ssCpuRawIdle] || 0);
       const currentNice = parseInt(rawResults[this.oidDefinitions.cpu.ssCpuRawNice] || 0);
       
+      // Debug logging
+      console.log(`[CPU Debug] Host ${hostId}: user=${currentUser}, system=${currentSystem}, idle=${currentIdle}, nice=${currentNice}`);
+      
       // Check if we're on Apple Silicon (all counters are 0)
       const isAppleSilicon = currentUser === 0 && currentSystem === 0 && currentIdle === 0;
+      console.log(`[CPU Debug] Host ${hostId}: isAppleSilicon=${isAppleSilicon}`);
       
       if (isAppleSilicon) {
         // Fallback for Apple Silicon: Use load average as proxy
 
         // Get load average and processor count
         const loadOids = [
-          this.oidDefinitions.cpu.laLoad1,
-          this.oidDefinitions.cpu.laLoad5,
-          this.oidDefinitions.cpu.laLoad15
+          this.oidDefinitions.cpu.load1min,
+          this.oidDefinitions.cpu.load5min,
+          this.oidDefinitions.cpu.load15min
         ];
         
         const loadResults = await this.getOidValues(session, loadOids);
-        const load1 = parseFloat(this.parseStringValue(loadResults[this.oidDefinitions.cpu.laLoad1]) || '0');
+        const load1 = parseFloat(this.parseStringValue(loadResults[this.oidDefinitions.cpu.load1min]) || '0');
         
         // Get processor count (try different methods)
         let processorCount = 1;
@@ -1401,7 +1405,7 @@ class SNMPMonitor {
   }
 
   // Collect specific metrics for background polling
-  async collectMetrics(ip, port, community, version, enabledMetrics) {
+  async collectMetrics(ip, port, community, version, enabledMetrics, numericHostId = null) {
     const config = {
       ip,
       port,
@@ -1410,7 +1414,7 @@ class SNMPMonitor {
     };
     
     const session = this.getSession(config);
-    const hostId = ip; // Use IP as hostId for CPU delta tracking
+    const hostId = numericHostId || ip; // Use numeric ID if provided, otherwise IP for CPU delta tracking
     const collectedMetrics = {};
     
     try {
@@ -1450,7 +1454,28 @@ class SNMPMonitor {
         for (const [oid, value] of Object.entries(results)) {
           const metricKey = metricMapping[oid];
           if (metricKey && value !== null) {
-            collectedMetrics[metricKey] = this.parseMetricValue(metricKey, value);
+            let parsedValue = this.parseMetricValue(metricKey, value);
+            
+            // Convert load average to percentage based on CPU cores
+            if (metricKey.includes('cpu.load')) {
+              // Get CPU core count for this host
+              let cpuCores = 1;
+              const hostIdStr = String(hostId);
+              
+              if (hostIdStr === '6' || hostIdStr.includes('host.docker.internal')) {
+                cpuCores = 10; // MacbookPro
+              } else if (hostIdStr === '8' || hostIdStr.includes('192.168.178.29')) {
+                cpuCores = 8; // Macbook
+              } else {
+                cpuCores = 4; // Default
+              }
+              
+              // Convert load average to percentage (load / cores * 100)
+              parsedValue = Math.round((parsedValue / cpuCores) * 100 * 100) / 100;
+              console.log(`[collectMetrics] Load average ${metricKey}: raw=${this.parseMetricValue(metricKey, value)}, cores=${cpuCores}, percent=${parsedValue}%`);
+            }
+            
+            collectedMetrics[metricKey] = parsedValue;
           }
         }
       }
@@ -1591,6 +1616,40 @@ class SNMPMonitor {
   
   // Calculate CPU percentages using delta calculation
   async calculateCpuPercentages(session, hostId) {
+    console.log(`[calculateCpuPercentages] Called for hostId: ${hostId}`);
+    
+    // Get CPU core count first (needed for Apple Silicon fallback)
+    let cpuCores = 1;
+    
+    // Convert hostId to string for reliable comparison
+    const hostIdStr = String(hostId);
+    
+    // For known hosts, use hardcoded values directly
+    // Don't rely on SNMP for CPU core count as it's unreliable on macOS
+    if (hostIdStr === '6' || hostIdStr.includes('host.docker.internal')) {
+      cpuCores = 10; // MacbookPro - confirmed with sysctl -n hw.ncpu
+      console.log(`Using known CPU core count: ${cpuCores} for MacbookPro (host ${hostId})`);
+    } else if (hostIdStr === '8' || hostIdStr.includes('192.168.178.29')) {
+      cpuCores = 8; // Macbook
+      console.log(`Using known CPU core count: ${cpuCores} for Macbook (host ${hostId})`);
+    } else {
+      // Try to get processor count via SNMP for other hosts
+      try {
+        const processorTable = await this.walkOid(session, '1.3.6.1.2.1.25.3.3.1.2');
+        const detectedCores = Object.keys(processorTable).length;
+        if (detectedCores > 0) {
+          cpuCores = detectedCores;
+          console.log(`Detected ${cpuCores} CPU cores via SNMP for host ${hostId}`);
+        } else {
+          cpuCores = 4; // Default fallback
+          console.log(`No CPU cores detected via SNMP, using default: ${cpuCores} for host ${hostId}`);
+        }
+      } catch (e) {
+        cpuCores = 4; // Default fallback
+        console.log(`SNMP error detecting CPU cores, using default: ${cpuCores} for host ${hostId}`);
+      }
+    }
+    
     const cpuOids = [
       this.oidDefinitions.cpu.ssCpuRawUser,
       this.oidDefinitions.cpu.ssCpuRawSystem,
@@ -1607,10 +1666,55 @@ class SNMPMonitor {
     const currentNice = parseInt(results[this.oidDefinitions.cpu.ssCpuRawNice]) || 0;
     const currentWait = parseInt(results[this.oidDefinitions.cpu.ssCpuRawWait]) || 0;
     
+    console.log(`[calculateCpuPercentages] Current CPU values for host ${hostId}: user=${currentUser}, system=${currentSystem}, idle=${currentIdle}, nice=${currentNice}, wait=${currentWait}`);
+    
+    // Check if we're on Apple Silicon (all counters are 0)
+    const isAppleSilicon = currentUser === 0 && currentSystem === 0 && currentIdle === 0;
+    
+    if (isAppleSilicon) {
+      console.log(`[calculateCpuPercentages] Apple Silicon detected for host ${hostId}, using load average fallback`);
+      
+      // Fallback for Apple Silicon: Use load average as proxy
+      const loadOids = [
+        this.oidDefinitions.cpu.load1min,
+        this.oidDefinitions.cpu.load5min,
+        this.oidDefinitions.cpu.load15min
+      ];
+      
+      const loadResults = await this.getOidValues(session, loadOids);
+      const load1 = parseFloat(this.parseStringValue(loadResults[this.oidDefinitions.cpu.load1min]) || '0');
+      
+      // Use the known CPU core count
+      const utilizationRatio = Math.min(load1 / cpuCores, 1.0);
+      const totalUtilization = utilizationRatio * 100;
+      
+      // Estimate distribution (rough approximation)
+      // Typically system usage is about 20-30% of total on macOS
+      const systemRatio = 0.25;
+      const userRatio = 0.75;
+      
+      const percentUser = Math.round(totalUtilization * userRatio * 10) / 10;
+      const percentSystem = Math.round(totalUtilization * systemRatio * 10) / 10;
+      const percentIdle = Math.round((100 - totalUtilization) * 10) / 10;
+      
+      console.log(`[calculateCpuPercentages] Apple Silicon fallback returning:`, {
+        user: percentUser,
+        system: percentSystem,
+        idle: percentIdle
+      });
+      
+      return {
+        user: percentUser,
+        system: percentSystem,
+        idle: percentIdle
+      };
+    }
+    
     const currentTotal = currentUser + currentSystem + currentIdle + currentNice + currentWait;
     
     // Get previous values
     const previous = this.previousCpuValues.get(hostId);
+    console.log(`[calculateCpuPercentages] Previous values for host ${hostId}:`, previous ? 'EXISTS' : 'NULL');
     
     if (previous) {
       const deltaUser = currentUser - previous.user;
@@ -1618,12 +1722,24 @@ class SNMPMonitor {
       const deltaIdle = currentIdle - previous.idle;
       const deltaNice = currentNice - previous.nice;
       const deltaWait = currentWait - previous.wait;
-      const deltaTotal = deltaUser + deltaSystem + deltaIdle + deltaNice + deltaWait;
+      let deltaTotal = deltaUser + deltaSystem + deltaIdle + deltaNice + deltaWait;
+      
+      // CPU ticks are accumulated across all cores
+      // To get accurate percentages, we divide each component by the number of cores
       
       if (deltaTotal > 0) {
-        const percentUser = Math.round((deltaUser / deltaTotal) * 100 * 100) / 100;
-        const percentSystem = Math.round((deltaSystem / deltaTotal) * 100 * 100) / 100;
-        const percentIdle = Math.round((deltaIdle / deltaTotal) * 100 * 100) / 100;
+        // Normalize deltas by dividing by CPU cores
+        const normalizedUser = deltaUser / cpuCores;
+        const normalizedSystem = deltaSystem / cpuCores;
+        const normalizedIdle = deltaIdle / cpuCores;
+        const normalizedNice = deltaNice / cpuCores;
+        const normalizedWait = deltaWait / cpuCores;
+        const normalizedTotal = normalizedUser + normalizedSystem + normalizedIdle + normalizedNice + normalizedWait;
+        
+        // Calculate percentages from normalized values
+        const percentUser = Math.round((normalizedUser / normalizedTotal) * 100 * 100) / 100;
+        const percentSystem = Math.round((normalizedSystem / normalizedTotal) * 100 * 100) / 100;
+        const percentIdle = Math.round((normalizedIdle / normalizedTotal) * 100 * 100) / 100;
         
         // Store current values for next calculation
         this.previousCpuValues.set(hostId, {
@@ -1633,6 +1749,12 @@ class SNMPMonitor {
           nice: currentNice,
           wait: currentWait,
           timestamp: Date.now()
+        });
+        
+        console.log(`[calculateCpuPercentages] Returning CPU percentages for host ${hostId}:`, {
+          user: percentUser,
+          system: percentSystem,
+          idle: percentIdle
         });
         
         return {
@@ -1653,6 +1775,7 @@ class SNMPMonitor {
       timestamp: Date.now()
     });
     
+    console.log(`[calculateCpuPercentages] No previous values for host ${hostId}, storing initial values`);
     return null; // No delta available yet
   }
   
