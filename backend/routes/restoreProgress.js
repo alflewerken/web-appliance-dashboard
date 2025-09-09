@@ -553,7 +553,7 @@ router.post('/start', verifyToken, async (req, res) => {
         processedItemCount += totalItems.background_images;
       }
       
-      // 7. NOW restore SNMP Metrics (after hosts exist!)
+      // 7. NOW restore SNMP Metrics (after hosts exist - with mapped IDs!)
       if (backupData.data?.snmp_metrics?.length > 0) {
         const snmpMetrics = backupData.data.snmp_metrics;
         const batchSize = 100; // Smaller batch size to prevent overload
@@ -566,21 +566,41 @@ router.post('/start', verifyToken, async (req, res) => {
         
         await connection.execute('DELETE FROM snmp_metrics');
         
+        let skippedMetrics = 0;
+        let restoredMetrics = 0;
+        
         for (let i = 0; i < snmpMetrics.length; i += batchSize) {
           // Check timeout
           checkTimeout();
           
           const batch = snmpMetrics.slice(i, i + batchSize);
           
-          // Build bulk insert query for better performance
-          if (batch.length > 0) {
-            const placeholders = batch.map(() => '(?, ?, ?, ?, ?)').join(',');
+          // Filter and map metrics with valid host IDs
+          const mappedBatch = [];
+          for (const metric of batch) {
+            const oldHostId = metric.host_id || metric.hostId;
+            const newHostId = hostIdMapping[oldHostId];
+            
+            if (!newHostId) {
+              skippedMetrics++;
+              continue; // Skip metrics for non-existent hosts
+            }
+            
+            mappedBatch.push({
+              ...metric,
+              host_id: newHostId // Use mapped host ID
+            });
+          }
+          
+          // Build bulk insert query for mapped metrics
+          if (mappedBatch.length > 0) {
+            const placeholders = mappedBatch.map(() => '(?, ?, ?, ?, ?)').join(',');
             const sql = `INSERT INTO snmp_metrics (host_id, metric_key, metric_value, metric_name, timestamp) VALUES ${placeholders}`;
             const values = [];
             
-            for (const metric of batch) {
+            for (const metric of mappedBatch) {
               values.push(
-                metric.host_id || metric.hostId,
+                metric.host_id, // Now using mapped ID
                 metric.metric_key || metric.metricKey,
                 metric.metric_value || metric.metricValue,
                 metric.metric_name || metric.metricName || null,
@@ -590,13 +610,14 @@ router.post('/start', verifyToken, async (req, res) => {
             
             try {
               await connection.execute(sql, values);
+              restoredMetrics += mappedBatch.length;
             } catch (err) {
               console.error(`Error inserting batch at index ${i}:`, err.message);
               // Try individual inserts as fallback
-              for (const metric of batch) {
+              for (const metric of mappedBatch) {
                 try {
                   const metricData = {
-                    hostId: metric.host_id || metric.hostId,
+                    hostId: metric.host_id, // Using mapped ID
                     metricKey: metric.metric_key || metric.metricKey,
                     metricValue: metric.metric_value || metric.metricValue,
                     metricName: metric.metric_name || metric.metricName || null,
@@ -604,8 +625,10 @@ router.post('/start', verifyToken, async (req, res) => {
                   };
                   const { sql, values } = prepareInsert('snmp_metrics', metricData);
                   await connection.execute(sql, values);
+                  restoredMetrics++;
                 } catch (individualErr) {
                   console.error('Skipping metric due to error:', individualErr.message);
+                  skippedMetrics++;
                 }
               }
             }
@@ -620,12 +643,14 @@ router.post('/start', verifyToken, async (req, res) => {
             progress,
             processedItems: { snmp_metrics: processed },
             message: `Processed ${processed.toLocaleString()} of ${snmpMetrics.length.toLocaleString()} metrics`,
-            detail: `Batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(snmpMetrics.length / batchSize)}`
+            detail: `Restored: ${restoredMetrics}, Skipped: ${skippedMetrics}`
           });
           
           // Give event loop a chance to breathe
           await new Promise(resolve => setImmediate(resolve));
         }
+        
+        console.log(`✅ Restored ${restoredMetrics} SNMP metrics (skipped ${skippedMetrics} for non-existent hosts)`);
         processedItemCount += totalItems.snmp_metrics;
       }
       
