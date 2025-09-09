@@ -23,6 +23,7 @@ const categoriesRouter = require('./routes/categories');
 const settingsRouter = require('./routes/settings');
 const backgroundRouter = require('./routes/background');
 const backupRouter = require('./routes/backup');
+const { router: restoreProgressRouter } = require('./routes/restoreProgress');
 // const servicesRouter = require('./routes/services'); // Removed - using applianceProxy instead
 const terminalTokenRouter = require('./routes/terminalToken');
 const { router: terminalRouter } = require('./routes/terminal');
@@ -200,6 +201,7 @@ app.use('/api/snmp', snmpRouter);
 
 // Mount backup routes FIRST - includes /api/restore for full backup restore
 app.use('/api', verifyToken, backupRouter);
+app.use('/api/restore-progress', restoreProgressRouter);
 
 // Mount audit restore routes AFTER backup - for individual audit log restore
 app.use('/api/audit', verifyToken, restoreRouter);

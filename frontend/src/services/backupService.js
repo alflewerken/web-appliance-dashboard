@@ -102,18 +102,20 @@ export class BackupService {
       }
 
       // Show confirmation dialog with version info
-      const appliancesCount = backupData.data.appliances.length;
+      const appliancesCount = backupData.data.appliances?.length || 0;
       const categoriesCount = backupData.data.categories?.length || 0;
-      const settingsCount = backupData.data.settings?.length || 0;
+      const userSettingsCount = backupData.data.user_settings?.length || backupData.data.settings?.length || 0;
       const backgroundsCount = backupData.data.background_images?.length || 0;
       const hostsCount = backupData.data.hosts?.length || 0;
       const servicesCount = backupData.data.services?.length || 0;
       const sshHostsCount = backupData.data.ssh_hosts?.length || 0;
       const sshKeysCount = backupData.data.ssh_keys?.length || 0;
-      const sshUploadLogsCount = backupData.data.ssh_upload_logs?.length || 0;
-      const customCommandsCount = backupData.data.custom_commands?.length || 0;
+      const sshFileTransfersCount = backupData.data.ssh_upload_log?.length || backupData.data.ssh_upload_logs?.length || 0;
+      const customCommandsCount = backupData.data.appliance_commands?.length || backupData.data.custom_commands?.length || 0;
       const usersCount = backupData.data.users?.length || 0;
       const auditLogsCount = backupData.data.audit_logs?.length || 0;
+      const snmpMetricsCount = backupData.data.snmp_metrics?.length || 0;
+      const snmpInterfacesCount = backupData.data.snmp_interfaces?.length || 0;
       const backupVersion = backupData.version || 'Unbekannt';
       const isOldVersion = backupVersion.startsWith('1.');
 
@@ -126,18 +128,20 @@ export class BackupService {
         `📊 Das Backup enthält:\n` +
         `• ${appliancesCount} Services\n` +
         `• ${categoriesCount} Kategorien\n` +
-        `• ${settingsCount} Einstellungen\n` +
-        `• ${backgroundsCount} Hintergrundbilder\n` +
+        (userSettingsCount > 0 ? `• ${userSettingsCount} Benutzereinstellungen\n` : '') +
+        (backgroundsCount > 0 ? `• ${backgroundsCount} Hintergrundbilder\n` : '') +
         (hostsCount > 0 ? `• ${hostsCount} Terminal-Hosts\n` : '') +
         (servicesCount > 0 ? `• ${servicesCount} Proxy-Services\n` : '') +
         (sshHostsCount > 0 ? `• ${sshHostsCount} SSH-Hosts\n` : '') +
         (sshKeysCount > 0 ? `• ${sshKeysCount} SSH-Schlüssel\n` : '') +
-        (sshUploadLogsCount > 0 ? `• ${sshUploadLogsCount} SSH-Upload-Logs\n` : '') +
+        (sshFileTransfersCount > 0 ? `• ${sshFileTransfersCount} Dateiübertragungen (SSH)\n` : '') +
         (customCommandsCount > 0
           ? `• ${customCommandsCount} Eigene Kommandos\n`
           : '') +
         (usersCount > 0 ? `• ${usersCount} Benutzer\n` : '') +
         (auditLogsCount > 0 ? `• ${auditLogsCount} Audit-Log-Einträge\n` : '') +
+        (snmpMetricsCount > 0 ? `• ${snmpMetricsCount.toLocaleString()} Monitoring-Metriken\n` : '') +
+        (snmpInterfacesCount > 0 ? `• ${snmpInterfacesCount} Netzwerk-Interfaces\n` : '') +
         `• Version: ${backupVersion}\n` +
         `• Erstellt am: ${new Date(backupData.created_at).toLocaleString()}\n` +
         versionNote +
@@ -193,7 +197,7 @@ export class BackupService {
           `📊 Wiederhergestellte Daten:\n` +
           `• ${result.restored_appliances} Services\n` +
           `• ${result.restored_categories} Kategorien\n` +
-          `• ${result.restored_settings} Einstellungen\n` +
+          `• ${result.restored_user_settings || result.restored_settings || 0} Benutzereinstellungen\n` +
           `• ${result.restored_background_images} Hintergrundbilder\n` +
           (result.restored_hosts > 0
             ? `• ${result.restored_hosts} Terminal-Hosts\n`
@@ -207,11 +211,11 @@ export class BackupService {
           (result.restored_ssh_keys > 0
             ? `• ${result.restored_ssh_keys} SSH-Schlüssel\n`
             : '') +
-          (result.restored_ssh_upload_logs > 0
-            ? `• ${result.restored_ssh_upload_logs} SSH-Upload-Logs\n`
+          (result.restored_ssh_upload_log > 0 || result.restored_ssh_upload_logs > 0
+            ? `• ${result.restored_ssh_upload_log || result.restored_ssh_upload_logs} Dateiübertragungen (SSH)\n`
             : '') +
-          (result.restored_custom_commands > 0
-            ? `• ${result.restored_custom_commands} Eigene Kommandos\n`
+          (result.restored_appliance_commands > 0 || result.restored_custom_commands > 0
+            ? `• ${result.restored_appliance_commands || result.restored_custom_commands} Eigene Kommandos\n`
             : '') +
           (result.restored_users > 0
             ? `• ${result.restored_users} Benutzer verarbeitet` +
@@ -222,6 +226,9 @@ export class BackupService {
             : '') +
           (result.restored_audit_logs > 0
             ? `• ${result.restored_audit_logs} Audit-Log-Einträge\n`
+            : '') +
+          (result.restored_snmp_metrics > 0
+            ? `• ${result.restored_snmp_metrics.toLocaleString()} Monitoring-Metriken\n`
             : '') +
           nextStepsMessage +
           `\n🔄 Die Seite wird neu geladen...`,

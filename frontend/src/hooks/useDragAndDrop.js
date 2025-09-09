@@ -20,6 +20,8 @@ export const useDragAndDrop = (
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [restoreItemCounts, setRestoreItemCounts] = useState({});
+  const [restoreComplete, setRestoreComplete] = useState(false);
+  const [restoreError, setRestoreError] = useState(null);
 
   // Funktion zum Wiederherstellen mit Schlüssel
   const handleRestoreWithKey = async (decryptionKey) => {
@@ -44,6 +46,8 @@ export const useDragAndDrop = (
         setRestoreItemCounts(itemCounts);
         setShowRestoreDialog(false); // Close key dialog
         setShowProgressDialog(true); // Show progress dialog
+        setRestoreComplete(false);
+        setRestoreError(null);
         
         // Create a new File object since we already read it
         const newFile = new File([fileContent], pendingRestoreFile.name, { type: 'application/json' });
@@ -51,19 +55,18 @@ export const useDragAndDrop = (
         const result = await BackupService.restoreBackup(newFile, decryptionKey);
         
         if (result.success) {
-          if (result.reloadRequired) {
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-          }
+          // Restore erfolgreich!
+          setRestoreComplete(true);
+          console.log('Restore successful - dialog stays open until user clicks OK');
         } else {
-          alert('Fehler beim Wiederherstellen: ' + result.message);
+          // Fehler beim Restore
+          setRestoreError(result.message || 'Unknown error occurred');
         }
       } catch (error) {
         console.error('Error during restore:', error);
-        alert('Fehler beim Wiederherstellen: ' + error.message);
+        setRestoreError(error.message || 'Unknown error occurred');
       } finally {
-        setShowProgressDialog(false);
+        // NICHT den Dialog schließen! User muss OK klicken
         setPendingRestoreFile(null);
       }
     } else {
@@ -91,7 +94,13 @@ export const useDragAndDrop = (
         <RestoreProgressDialog
           open={showProgressDialog}
           totalItems={restoreItemCounts}
-          onClose={() => setShowProgressDialog(false)}
+          restoreComplete={restoreComplete}
+          restoreError={restoreError}
+          onClose={() => {
+            setShowProgressDialog(false);
+            setRestoreComplete(false);
+            setRestoreError(null);
+          }}
         />
       )}
     </>
