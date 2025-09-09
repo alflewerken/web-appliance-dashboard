@@ -161,6 +161,8 @@ router.post('/start', verifyToken, async (req, res) => {
     host_snmp_configs: backupData.data?.host_snmp_configs?.length || 0,
     host_metrics_logging: backupData.data?.host_metrics_logging?.length || 0,
     host_monitoring_data: backupData.data?.host_monitoring_data?.length || 0,
+    host_disk_config: backupData.data?.host_disk_config?.length || 0,
+    host_interface_mappings: backupData.data?.host_interface_mappings?.length || 0,
     user_settings: backupData.data?.user_settings?.length || backupData.data?.settings?.length || 0,
   };
   
@@ -820,7 +822,109 @@ router.post('/start', verifyToken, async (req, res) => {
         processedItemCount += totalItems.host_monitoring_data;
       }
       
-      // 11. Restore user settings
+      // 11. Restore host_disk_config (disk configurations per host)
+      if (backupData.data?.host_disk_config?.length > 0) {
+        console.log(`💾 Restoring ${backupData.data.host_disk_config.length} disk configurations...`);
+        sendProgressUpdate(sessionId, {
+          type: 'step',
+          currentStep: 'host_disk_config',
+          message: `Restoring ${totalItems.host_disk_config} disk configurations...`
+        });
+        
+        await connection.execute('DELETE FROM host_disk_config');
+        
+        let restoredDiskConfigs = 0;
+        for (const config of backupData.data.host_disk_config) {
+          const oldHostId = config.host_id || config.hostId;
+          const newHostId = hostIdMapping[oldHostId];
+          
+          if (!newHostId) {
+            console.warn(`⚠️ Skipping disk config for unknown host ID ${oldHostId}`);
+            continue;
+          }
+          
+          const diskData = {
+            hostId: newHostId,  // Use mapped host ID
+            diskIndex: config.disk_index || config.diskIndex || 0,
+            diskName: config.disk_name || config.diskName || 'Disk',
+            totalSizeGb: config.total_size_gb || config.totalSizeGb || 0,
+            createdAt: config.created_at || config.createdAt || new Date(),
+            updatedAt: config.updated_at || config.updatedAt || new Date()
+          };
+          
+          try {
+            const { sql, values } = prepareInsert('host_disk_config', diskData);
+            await connection.execute(sql, values);
+            restoredDiskConfigs++;
+          } catch (err) {
+            console.error(`❌ Error restoring disk config for host ${newHostId}:`, err.message);
+          }
+        }
+        
+        console.log(`✅ Restored ${restoredDiskConfigs} disk configurations`);
+        processedItemCount += totalItems.host_disk_config;
+        sendProgressUpdate(sessionId, {
+          type: 'progress',
+          progress: calculateProgress(processedItemCount),
+          processedItems: { host_disk_config: restoredDiskConfigs },
+          message: `Processed ${restoredDiskConfigs} disk configurations`
+        });
+      }
+      
+      // 12. Restore host_interface_mappings (network interface mappings per host)
+      if (backupData.data?.host_interface_mappings?.length > 0) {
+        console.log(`🔌 Restoring ${backupData.data.host_interface_mappings.length} interface mappings...`);
+        sendProgressUpdate(sessionId, {
+          type: 'step',
+          currentStep: 'host_interface_mappings',
+          message: `Restoring ${totalItems.host_interface_mappings} interface mappings...`
+        });
+        
+        await connection.execute('DELETE FROM host_interface_mappings');
+        
+        let restoredMappings = 0;
+        for (const mapping of backupData.data.host_interface_mappings) {
+          const oldHostId = mapping.host_id || mapping.hostId;
+          const newHostId = hostIdMapping[oldHostId];
+          
+          if (!newHostId) {
+            console.warn(`⚠️ Skipping interface mapping for unknown host ID ${oldHostId}`);
+            continue;
+          }
+          
+          const mappingData = {
+            hostId: newHostId,  // Use mapped host ID
+            interfaceIndex: mapping.interface_index || mapping.interfaceIndex,
+            interfaceName: mapping.interface_name || mapping.interfaceName,
+            interfaceDescription: mapping.interface_description || mapping.interfaceDescription || null,
+            interfaceType: mapping.interface_type || mapping.interfaceType || null,
+            interfaceSpeed: mapping.interface_speed || mapping.interfaceSpeed || null,
+            macAddress: mapping.mac_address || mapping.macAddress || null,
+            ipAddress: mapping.ip_address || mapping.ipAddress || null,
+            createdAt: mapping.created_at || mapping.createdAt || new Date(),
+            updatedAt: mapping.updated_at || mapping.updatedAt || new Date()
+          };
+          
+          try {
+            const { sql, values } = prepareInsert('host_interface_mappings', mappingData);
+            await connection.execute(sql, values);
+            restoredMappings++;
+          } catch (err) {
+            console.error(`❌ Error restoring interface mapping for host ${newHostId}:`, err.message);
+          }
+        }
+        
+        console.log(`✅ Restored ${restoredMappings} interface mappings`);
+        processedItemCount += totalItems.host_interface_mappings;
+        sendProgressUpdate(sessionId, {
+          type: 'progress',
+          progress: calculateProgress(processedItemCount),
+          processedItems: { host_interface_mappings: restoredMappings },
+          message: `Processed ${restoredMappings} interface mappings`
+        });
+      }
+      
+      // 13. Restore user settings
       if (backupData.data?.user_settings?.length > 0 || backupData.data?.settings?.length > 0) {
         const settings = backupData.data.user_settings || backupData.data.settings;
         console.log(`⚙️ Restoring ${settings.length} user settings...`);

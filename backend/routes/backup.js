@@ -482,6 +482,16 @@ router.get('/backup', verifyToken, async (req, res) => {
       console.error('Error fetching host disk config for backup:', error.message);
     }
 
+    // Fetch host interface mappings
+    let hostInterfaceMappings = [];
+    try {
+      const [interfaceMappings] = await pool.execute('SELECT * FROM host_interface_mappings ORDER BY host_id');
+      hostInterfaceMappings = interfaceMappings;
+      console.log(`🔌 Backing up ${hostInterfaceMappings.length} interface mappings...`);
+    } catch (error) {
+      console.error('Error fetching host interface mappings for backup:', error.message);
+    }
+
     // Fetch SNMP latest metrics
     let snmpLatestMetrics = [];
     try {
@@ -868,6 +878,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         host_network_metrics: hostNetworkMetrics,
         // metric_definitions removed from backup
         host_disk_config: hostDiskConfig,
+        host_interface_mappings: hostInterfaceMappings,
         snmp_latest_metrics: snmpLatestMetrics,
       },
       metadata: {
@@ -900,6 +911,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         host_network_metrics_count: hostNetworkMetrics.length,
         // metric_definitions removed from metadata
         host_disk_config_count: hostDiskConfig.length,
+        host_interface_mappings_count: hostInterfaceMappings.length,
         snmp_latest_metrics_count: snmpLatestMetrics.length,
         has_guacamole_backup: !!guacamoleBackup,
         guacamole_backup_size: guacamoleBackup ? guacamoleBackup.size_bytes : 0,
