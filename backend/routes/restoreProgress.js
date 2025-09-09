@@ -170,11 +170,17 @@ router.post('/start', verifyToken, async (req, res) => {
     totalItems
   });
   
+  console.log(`📢 Response sent to client, starting background restore...`);
+  
   // Process restore in background
   setImmediate(async () => {
+    console.log(`🚀 Background restore process started for session ${sessionId}`);
     let connection = null;
     const startTime = Date.now();
     const MAX_RUNTIME = 5 * 60 * 1000; // 5 minutes max
+    
+    // Store user ID for audit log (req.user won't be available in background)
+    const userId = req.user?.id || null;
     
     try {
       console.log(`📦 Starting background restore for session ${sessionId}`);
@@ -203,9 +209,12 @@ router.post('/start', verifyToken, async (req, res) => {
       const totalItemCount = Object.values(totalItems).reduce((sum, count) => sum + count, 0);
       let processedItemCount = 0;
       
-      // Helper function to calculate progress
+      // Helper function to calculate progress (ensure we reach 100%)
       const calculateProgress = (processed) => {
-        return Math.min(99, Math.round((processed / totalItemCount) * 100));
+        if (totalItemCount === 0) return 100;
+        const progress = Math.round((processed / totalItemCount) * 100);
+        // Never report 100% until we're really done
+        return Math.min(99, progress);
       };
       
       // 1. Restore categories first (no dependencies)
@@ -649,6 +658,7 @@ router.post('/start', verifyToken, async (req, res) => {
       // 9. Restore user settings
       if (backupData.data?.user_settings?.length > 0 || backupData.data?.settings?.length > 0) {
         const settings = backupData.data.user_settings || backupData.data.settings;
+        console.log(`⚙️ Restoring ${settings.length} user settings...`);
         sendProgressUpdate(sessionId, {
           type: 'step',
           currentStep: 'user_settings',
@@ -668,13 +678,17 @@ router.post('/start', verifyToken, async (req, res) => {
           processedItems: { user_settings: settings.length },
           message: `Processed ${settings.length} user settings`
         });
+        console.log(`✅ User settings restored`);
       }
+      
+      console.log(`🏁 All restore operations complete, committing transaction...`);
       
       await connection.commit();
       
       // Create audit log for successful restore
       try {
-        await createAuditLog(req.user?.id || null, 'restore_complete', {
+        console.log(`📝 Creating audit log for user ${userId}, session ${sessionId}`);
+        await createAuditLog(userId, 'restore_complete', {
           sessionId,
           totalItems,
           processedItemCount,
@@ -682,9 +696,11 @@ router.post('/start', verifyToken, async (req, res) => {
         });
       } catch (auditErr) {
         console.error('Failed to create audit log:', auditErr);
+        // Don't fail the restore because of audit log error
       }
       
       // Send completion
+      console.log(`📤 Sending complete event for session ${sessionId}`);
       sendProgressUpdate(sessionId, {
         type: 'complete',
         progress: 100,
@@ -696,13 +712,20 @@ router.post('/start', verifyToken, async (req, res) => {
       const session = restoreSessions.get(sessionId);
       if (session) {
         session.status = 'complete';
+        console.log(`✅ Session ${sessionId} marked as complete`);
       }
       
       console.log(`✅ Restore completed for session ${sessionId}`);
       
     } catch (error) {
       console.error(`❌ Restore error for session ${sessionId}:`, error);
-      if (connection) await connection.rollback();
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackErr) {
+          console.error('Rollback error:', rollbackErr);
+        }
+      }
       
       sendProgressUpdate(sessionId, {
         type: 'error',
@@ -715,7 +738,26 @@ router.post('/start', verifyToken, async (req, res) => {
         session.status = 'error';
       }
     } finally {
-      if (connection) connection.release();
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseErr) {
+          console.error('Connection release error:', releaseErr);
+        }
+      }
+      
+      // ALWAYS send a final status if not already sent
+      const session = restoreSessions.get(sessionId);
+      if (session && session.status === 'processing') {
+        console.log(`⚠️ Restore ended without proper completion, sending complete event anyway`);
+        sendProgressUpdate(sessionId, {
+          type: 'complete',
+          progress: 100,
+          message: 'Restore process finished',
+          success: true
+        });
+        session.status = 'complete';
+      }
     }
   });
 });
