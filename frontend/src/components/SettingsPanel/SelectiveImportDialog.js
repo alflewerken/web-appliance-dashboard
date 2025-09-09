@@ -57,35 +57,59 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
 
   // Fetch existing names from database
   useEffect(() => {
-    if (open) {
+    if (open && !loading) {
       fetchExistingNames();
     }
   }, [open]);
 
   const fetchExistingNames = async () => {
+    if (loading) return; // Prevent duplicate calls
+    
     setLoading(true);
     try {
       // Fetch existing names for each category
       const [categoriesRes, usersRes, hostsRes, appliancesRes] = await Promise.all([
-        axios.get('/api/categories').catch(() => ({ data: [] })),
-        axios.get('/api/users').catch(() => ({ data: [] })),
-        axios.get('/api/hosts').catch(() => ({ data: [] })),
-        axios.get('/api/appliances').catch(() => ({ data: [] })),
+        axios.get('/api/categories').catch((err) => {
+          console.error('Error fetching categories:', err);
+          return { data: [] };
+        }),
+        axios.get('/api/users').catch((err) => {
+          console.error('Error fetching users:', err);
+          return { data: [] };
+        }),
+        axios.get('/api/hosts').catch((err) => {
+          console.error('Error fetching hosts:', err);
+          return { data: [] };
+        }),
+        axios.get('/api/appliances').catch((err) => {
+          console.error('Error fetching appliances:', err);
+          return { data: [] };
+        }),
       ]);
 
       const existing = {
-        categories: (categoriesRes.data || []).map(c => c.name?.toLowerCase()),
-        users: (usersRes.data || []).map(u => u.username?.toLowerCase()),
-        hosts: (hostsRes.data || []).map(h => h.name?.toLowerCase()),
-        appliances: (appliancesRes.data || []).map(a => a.name?.toLowerCase()),
+        categories: (categoriesRes.data || []).map(c => (c.name || '').toLowerCase()).filter(n => n),
+        users: (usersRes.data || []).map(u => (u.username || '').toLowerCase()).filter(n => n),
+        hosts: (hostsRes.data || []).map(h => (h.name || '').toLowerCase()).filter(n => n),
+        appliances: (appliancesRes.data || []).map(a => (a.name || '').toLowerCase()).filter(n => n),
         // SSH keys and background images typically use unique identifiers
         sshKeys: [],
         backgroundImages: [],
       };
 
+      console.log('Loaded existing names:', existing);
       setExistingNames(existing);
     } catch (error) {
       console.error('Error fetching existing names:', error);
+      // Set empty arrays to prevent errors
+      setExistingNames({
+        categories: [],
+        users: [],
+        hosts: [],
+        appliances: [],
+        sshKeys: [],
+        backgroundImages: [],
+      });
     } finally {
       setLoading(false);
     }
@@ -93,7 +117,7 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
 
   // Initialize selection state when backup data changes
   useEffect(() => {
-    if (backupData) {
+    if (backupData && existingNames) {
       const items = {
         categories: {},
         users: {},
@@ -113,23 +137,38 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         backgroundImages: {},
       };
       
-      // Initialize all items as unselected with original names
+      const duplicates = {
+        categories: {},
+        users: {},
+        hosts: {},
+        sshKeys: {},
+        appliances: {},
+        backgroundImages: {},
+      };
+      
+      // Initialize all items as unselected with original names and check for duplicates
       backupData.data?.categories?.forEach(cat => {
         const id = cat.id || cat.name;
         items.categories[id] = false;
         names.categories[id] = cat.name;
+        // Check if name already exists
+        duplicates.categories[id] = (existingNames.categories || []).includes(cat.name?.toLowerCase());
       });
       
       backupData.data?.users?.forEach(user => {
         const id = user.id || user.username;
         items.users[id] = false;
         names.users[id] = user.username;
+        // Check if username already exists
+        duplicates.users[id] = (existingNames.users || []).includes(user.username?.toLowerCase());
       });
       
       backupData.data?.hosts?.forEach(host => {
         const id = host.id || host.name;
         items.hosts[id] = false;
         names.hosts[id] = host.name;
+        // Check if host name already exists
+        duplicates.hosts[id] = (existingNames.hosts || []).includes(host.name?.toLowerCase());
         // Initialize metrics selection per host
         if (backupData.data?.snmp_metrics?.length > 0) {
           items.hostMetrics[host.id] = false;
@@ -140,22 +179,29 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         const id = key.id || key.key_name || key.keyName;
         items.sshKeys[id] = false;
         names.sshKeys[id] = key.key_name || key.keyName;
+        // SSH keys typically don't have duplicate name restrictions
+        duplicates.sshKeys[id] = false;
       });
       
       backupData.data?.appliances?.forEach(app => {
         const id = app.id || app.name;
         items.appliances[id] = false;
         names.appliances[id] = app.name;
+        // Check if appliance name already exists
+        duplicates.appliances[id] = (existingNames.appliances || []).includes(app.name?.toLowerCase());
       });
       
       backupData.data?.background_images?.forEach(img => {
         const id = img.id || img.filename;
         items.backgroundImages[id] = false;
         names.backgroundImages[id] = img.filename;
+        // Background images typically use unique filenames
+        duplicates.backgroundImages[id] = false;
       });
       
       setSelectedItems(items);
       setItemNames(names);
+      setDuplicateNames(duplicates);
       
       // Initially expand categories with few items
       const expanded = {};
@@ -164,7 +210,7 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
       if (backupData.data?.ssh_keys?.length <= 5) expanded.sshKeys = true;
       setExpandedCategories(expanded);
     }
-  }, [backupData]);
+  }, [backupData, existingNames]);
 
   const handleToggleCategory = (category) => {
     setExpandedCategories(prev => ({
@@ -198,7 +244,13 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
 
   const checkForDuplicate = (category, itemId, newName) => {
     const existing = existingNames[category] || [];
-    const isDuplicate = existing.includes(newName.toLowerCase());
+    const isDuplicate = existing.includes(newName.toLowerCase().trim());
+    
+    console.log(`Checking duplicate for ${category}/${itemId}: "${newName}"`, {
+      existing,
+      isDuplicate,
+      normalizedName: newName.toLowerCase().trim()
+    });
     
     setDuplicateNames(prev => ({
       ...prev,
