@@ -724,10 +724,10 @@ class BackgroundPollingService {
         )
       `);
       
-      // Check for special reload-all signal (host_id = 0)
+      // Check for special reload-all signal (host_id = NULL)
       const [reloadAllSignal] = await this.pool.execute(`
         SELECT * FROM snmp_reload_signals 
-        WHERE host_id = 0 AND signal_type = 'reload-all' AND processed_at IS NULL
+        WHERE host_id IS NULL AND signal_type = 'reload-all' AND processed_at IS NULL
         LIMIT 1
       `);
       
@@ -738,7 +738,7 @@ class BackgroundPollingService {
         await this.pool.execute(`
           UPDATE snmp_reload_signals 
           SET processed_at = NOW() 
-          WHERE host_id = 0 AND signal_type = 'reload-all'
+          WHERE host_id IS NULL AND signal_type = 'reload-all'
         `);
         
         // Stop all current polling

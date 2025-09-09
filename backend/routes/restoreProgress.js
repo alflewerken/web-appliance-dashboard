@@ -986,10 +986,10 @@ router.post('/start', verifyToken, async (req, res) => {
         // Clear any existing signals
         await connection.execute('DELETE FROM snmp_reload_signals');
         
-        // Insert reload-all signal (host_id = 0)
+        // Insert reload-all signal (host_id = NULL for global signals)
         await connection.execute(
           `INSERT INTO snmp_reload_signals (host_id, signal_type, created_at, processed_at) 
-           VALUES (0, 'reload-all', NOW(), NULL)`
+           VALUES (NULL, 'reload-all', NOW(), NULL)`
         );
         
         console.log(`✅ Created reload-all signal for Background Polling Service`);
