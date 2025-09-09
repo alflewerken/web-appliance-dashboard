@@ -22,6 +22,10 @@ export const useDragAndDrop = (
   const [restoreItemCounts, setRestoreItemCounts] = useState({});
   const [restoreComplete, setRestoreComplete] = useState(false);
   const [restoreError, setRestoreError] = useState(null);
+  const [restoreSessionId, setRestoreSessionId] = useState(null); // Add sessionId state
+  
+  // DISABLE drag&drop restore if we're in the Backup tab
+  const isInBackupTab = showSettingsModal && activeSettingsTab === 'backup';
 
   // Funktion zum Wiederherstellen mit Schlüssel
   const handleRestoreWithKey = async (decryptionKey) => {
@@ -45,28 +49,34 @@ export const useDragAndDrop = (
         
         setRestoreItemCounts(itemCounts);
         setShowRestoreDialog(false); // Close key dialog
-        setShowProgressDialog(true); // Show progress dialog
-        setRestoreComplete(false);
-        setRestoreError(null);
         
         // Create a new File object since we already read it
         const newFile = new File([fileContent], pendingRestoreFile.name, { type: 'application/json' });
         
         const result = await BackupService.restoreBackup(newFile, decryptionKey);
         
-        if (result.success) {
-          // Restore erfolgreich!
+        // Check if we got a sessionId for SSE tracking
+        if (result.sessionId) {
+          console.log('✅ Got sessionId from restore:', result.sessionId);
+          setRestoreSessionId(result.sessionId);
+          setShowProgressDialog(true); // Show progress dialog with sessionId
+          setRestoreComplete(false);
+          setRestoreError(null);
+        } else if (result.success) {
+          // Old format without SSE
+          setShowProgressDialog(true);
           setRestoreComplete(true);
           console.log('Restore successful - dialog stays open until user clicks OK');
         } else {
-          // Fehler beim Restore
+          // Error
+          setShowProgressDialog(true);
           setRestoreError(result.message || 'Unknown error occurred');
         }
       } catch (error) {
         console.error('Error during restore:', error);
+        setShowProgressDialog(true);
         setRestoreError(error.message || 'Unknown error occurred');
       } finally {
-        // NICHT den Dialog schließen! User muss OK klicken
         setPendingRestoreFile(null);
       }
     } else {
@@ -77,7 +87,8 @@ export const useDragAndDrop = (
   // Dialog-Components werden direkt zurückgegeben statt in einem separaten Portal gerendert
   const restoreDialogComponent = (
     <>
-      {showRestoreDialog && pendingRestoreFile && (
+      {/* ONLY show dialogs if NOT in Backup tab */}
+      {!isInBackupTab && showRestoreDialog && pendingRestoreFile && (
         <RestoreKeyDialog
           open={showRestoreDialog}
           onClose={() => {
@@ -90,14 +101,17 @@ export const useDragAndDrop = (
           fileName={pendingRestoreFile?.name || 'backup.json'}
         />
       )}
-      {showProgressDialog && (
+      {/* ONLY show progress dialog if NOT in Backup tab */}
+      {!isInBackupTab && showProgressDialog && (
         <RestoreProgressDialog
           open={showProgressDialog}
+          sessionId={restoreSessionId} // Now with sessionId support!
           totalItems={restoreItemCounts}
           restoreComplete={restoreComplete}
           restoreError={restoreError}
           onClose={() => {
             setShowProgressDialog(false);
+            setRestoreSessionId(null);
             setRestoreComplete(false);
             setRestoreError(null);
           }}
@@ -215,6 +229,12 @@ export const useDragAndDrop = (
   };
 
   const processBackupFile = async file => {
+    // Don't process backup files if we're in the Backup tab
+    if (isInBackupTab) {
+      console.log('Ignoring backup file in Backup tab - let BackupTab handle it');
+      return;
+    }
+    
     // Zeige den Schlüssel-Dialog
     setPendingRestoreFile(file);
     setShowRestoreDialog(true);

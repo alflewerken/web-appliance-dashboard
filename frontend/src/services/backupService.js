@@ -160,15 +160,46 @@ export class BackupService {
         return { success: false, message: 'Wiederherstellung abgebrochen' };
       }
 
-      // Perform restore with extended timeout for large files
+      // Try new SSE-enabled restore endpoint first
+      try {
+        console.log('🚀 Trying SSE-enabled restore endpoint...');
+        const sseResponse = await axios.post('/api/restore/progress/start', backupData, {
+          timeout: 10000, // Short timeout for immediate response
+        });
+        
+        console.log('📡 SSE Response:', sseResponse.data);
+        
+        if (sseResponse.data.sessionId) {
+          console.log('✅ Using SSE-enabled restore, sessionId:', sseResponse.data.sessionId);
+          return {
+            success: true,
+            sessionId: sseResponse.data.sessionId,
+            totalItems: sseResponse.data.totalItems,
+            message: 'Restore started with real-time progress tracking'
+          };
+        }
+      } catch (sseError) {
+        console.error('❌ SSE restore endpoint error:', sseError);
+        console.log('📌 Falling back to classic restore endpoint');
+      }
+
+      // Fallback: Perform restore with extended timeout for large files
       const restoreResponse = await axios.post('/api/restore', backupData, {
         timeout: 300000, // 5 Minuten Timeout für große Backups
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-
         }
       });
       const result = restoreResponse.data;
+      
+      // Check if we got a sessionId for SSE tracking
+      if (result.sessionId) {
+        return {
+          success: true,
+          sessionId: result.sessionId,
+          message: 'Restore started with real-time progress tracking'
+        };
+      }
 
       let successMessage;
 

@@ -23,7 +23,7 @@ const categoriesRouter = require('./routes/categories');
 const settingsRouter = require('./routes/settings');
 const backgroundRouter = require('./routes/background');
 const backupRouter = require('./routes/backup');
-const { router: restoreProgressRouter } = require('./routes/restoreProgress');
+const restoreProgressRouter = require('./routes/restoreProgress');
 // const servicesRouter = require('./routes/services'); // Removed - using applianceProxy instead
 const terminalTokenRouter = require('./routes/terminalToken');
 const { router: terminalRouter } = require('./routes/terminal');
@@ -147,6 +147,9 @@ app.use('/api/services', verifyToken, servicesRouter);
 // SSE route MUST be before general API routes to avoid conflicts
 app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware because it uses query param
 
+// SSE route for restore progress MUST also be before general API routes (no verifyToken needed as it uses sessionId)
+app.use('/api/restore/progress', restoreProgressRouter);
+
 // Configuration Routes
 const configRouter = require('./routes/config');
 
@@ -199,9 +202,8 @@ const initSNMPMonitor = require('./routes/snmp');
 const snmpRouter = initSNMPMonitor(queryBuilder);
 app.use('/api/snmp', snmpRouter);
 
-// Mount backup routes FIRST - includes /api/restore for full backup restore
+// Mount backup routes - includes /api/restore for full backup restore
 app.use('/api', verifyToken, backupRouter);
-app.use('/api/restore-progress', restoreProgressRouter);
 
 // Mount audit restore routes AFTER backup - for individual audit log restore
 app.use('/api/audit', verifyToken, restoreRouter);

@@ -18,6 +18,25 @@ const execAsync = promisify(exec);
 const { encryptionManager } = require('../utils/encryption');
 // Nicht mehr benötigt - wir verwenden encryptionManager statt crypto.js
 // const { encrypt: cryptoEncrypt, decrypt: cryptoDecrypt } = require('../utils/crypto');
+const { v4: uuidv4 } = require('uuid');
+
+// Import SSE progress update function (will be available when restoreProgress router is loaded)
+let sendProgressUpdate = null;
+let restoreSessions = null;
+
+// Lazy load SSE functions to avoid circular dependencies
+const getSSEFunctions = () => {
+  if (!sendProgressUpdate) {
+    try {
+      const restoreProgress = require('./restoreProgress');
+      sendProgressUpdate = restoreProgress.sendProgressUpdate;
+      restoreSessions = restoreProgress.restoreSessions;
+    } catch (e) {
+      console.log('SSE progress functions not yet available');
+    }
+  }
+  return { sendProgressUpdate, restoreSessions };
+};
 
 // Initialize QueryBuilder
 const db = new QueryBuilder(pool);
@@ -1037,6 +1056,26 @@ router.get('/backup', verifyToken, async (req, res) => {
 
 // Restore endpoint - Import data from backup INCLUDING settings and background images
 router.post('/restore', verifyToken, async (req, res) => {
+  // Generate session ID for SSE progress tracking
+  const sessionId = uuidv4();
+  console.log('🔄 Starting restore with sessionId:', sessionId);
+  
+  const { sendProgressUpdate } = getSSEFunctions();
+  
+  // Initialize SSE session if available
+  if (sendProgressUpdate && restoreSessions) {
+    restoreSessions.set(sessionId, {
+      connections: [],
+      progress: 0,
+      currentStep: 'initializing',
+      totalItems: {},
+      processedItems: {}
+    });
+    console.log('✅ SSE session initialized for sessionId:', sessionId);
+  } else {
+    console.log('⚠️ SSE functions not available - progress tracking disabled');
+  }
+  
   try {
     const backupData = req.body;
     
@@ -1198,6 +1237,39 @@ router.post('/restore', verifyToken, async (req, res) => {
     // Start transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
+    
+    // Count total items for progress tracking
+    const totalItemsToRestore = {
+      categories: categories?.length || 0,
+      appliances: appliances?.length || 0,
+      settings: actualSettings?.length || 0,
+      background_images: background_images?.length || 0,
+      hosts: hosts?.length || 0,
+      services: services?.length || 0,
+      ssh_keys: ssh_keys?.length || 0,
+      ssh_hosts: ssh_hosts?.length || 0,
+      custom_commands: actualCommands?.length || 0,
+      users: users?.length || 0,
+      snmp_metrics: snmp_metrics?.length || 0,
+      snmp_interfaces: snmp_interfaces?.length || 0,
+      host_monitoring_data: host_monitoring_data?.length || 0,
+      host_metrics_logging: host_metrics_logging?.length || 0,
+      snmp_thresholds: snmp_thresholds?.length || 0,
+      snmp_disk_metrics: snmp_disk_metrics?.length || 0,
+    };
+    
+    const totalItemCount = Object.values(totalItemsToRestore).reduce((sum, count) => sum + count, 0);
+    
+    // Send initial SSE update with total items
+    if (sendProgressUpdate) {
+      sendProgressUpdate(sessionId, {
+        type: 'init',
+        totalItems: totalItemsToRestore,
+        totalItemCount,
+        message: 'Starting restore process...',
+        currentStep: 'initializing'
+      });
+    }
 
     try {
       // KRITISCH: Vor dem Restore ALLE alten Daten löschen!
@@ -2927,11 +2999,23 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         try {
           console.log(`📊 Restoring ${snmp_metrics.length} SNMP metrics (this may take a while)...`);
           console.log(`📌 Using host ID mapping:`, hostIdMapping);
+          
+          // Send SSE update for SNMP metrics start
+          if (sendProgressUpdate) {
+            sendProgressUpdate(sessionId, {
+              type: 'step',
+              currentStep: 'snmp_metrics',
+              message: `Restoring ${snmp_metrics.length.toLocaleString()} SNMP metrics...`,
+              totalItems: { snmp_metrics: snmp_metrics.length }
+            });
+          }
+          
           await connection.execute('DELETE FROM snmp_metrics');
           
           // Batch insert for better performance
           const batchSize = 1000;
           let skippedMetrics = 0;
+          let processedMetrics = 0;
           
           for (let i = 0; i < snmp_metrics.length; i += batchSize) {
             const batch = snmp_metrics.slice(i, i + batchSize);
@@ -2957,16 +3041,50 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
               
               const { sql, values } = prepareInsert('snmp_metrics', metricData);
               await connection.execute(sql, values);
+              processedMetrics++;
             }
             
-            console.log(`  Processed ${Math.min(i + batchSize, snmp_metrics.length)} of ${snmp_metrics.length} metrics...`);
+            const currentProcessed = Math.min(i + batchSize, snmp_metrics.length);
+            console.log(`  Processed ${currentProcessed} of ${snmp_metrics.length} metrics...`);
+            
+            // Send SSE progress update every batch
+            if (sendProgressUpdate) {
+              const progressPercent = Math.round((currentProcessed / snmp_metrics.length) * 100);
+              sendProgressUpdate(sessionId, {
+                type: 'progress',
+                progress: progressPercent,
+                currentStep: 'snmp_metrics',
+                processedItems: { snmp_metrics: currentProcessed },
+                message: `Processed ${currentProcessed.toLocaleString()} of ${snmp_metrics.length.toLocaleString()} metrics`,
+                detail: `Batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(snmp_metrics.length / batchSize)}`
+              });
+            }
           }
           
           restoredSnmpMetrics = snmp_metrics.length - skippedMetrics;
           console.log(`✅ Restored ${restoredSnmpMetrics} SNMP metrics (${skippedMetrics} skipped)`);
+          
+          // Send completion update for SNMP metrics
+          if (sendProgressUpdate) {
+            sendProgressUpdate(sessionId, {
+              type: 'step_complete',
+              currentStep: 'snmp_metrics',
+              message: `✅ Restored ${restoredSnmpMetrics} SNMP metrics`,
+              processedItems: { snmp_metrics: restoredSnmpMetrics }
+            });
+          }
 
         } catch (error) {
           console.error('❌ Error restoring SNMP metrics:', error.message);
+          
+          // Send error update
+          if (sendProgressUpdate) {
+            sendProgressUpdate(sessionId, {
+              type: 'step_error',
+              currentStep: 'snmp_metrics',
+              message: `Error restoring SNMP metrics: ${error.message}`
+            });
+          }
         }
       }
 
@@ -3555,7 +3673,10 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         ipAddress
       );
 
+      console.log('✅ Restore completed successfully, sending response with sessionId:', sessionId);
+      
       res.json({
+        sessionId, // Include session ID for SSE progress tracking
         message: responseMessage,
         restored_appliances: restoredAppliances,
         restored_categories: restoredCategories,

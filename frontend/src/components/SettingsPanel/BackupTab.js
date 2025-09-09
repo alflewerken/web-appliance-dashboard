@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box,
@@ -68,6 +68,20 @@ const BackupTab = () => {
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [restoreItemCounts, setRestoreItemCounts] = useState({});
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
+  const [restoreSessionId, setRestoreSessionId] = useState(null);
+  
+  // Debug: Track who opens the dialog
+  const setShowProgressDialogDebug = (value) => {
+    console.trace('🚨 setShowProgressDialog called with:', value);
+    setShowProgressDialog(value);
+  };
+  
+  // Debug: Monitor dialog state
+  useEffect(() => {
+    console.log('📊 Dialog States - Progress:', showProgressDialog, 'KeyDialog:', showRestoreKeyDialog, 'SessionId:', restoreSessionId);
+  }, [showProgressDialog, showRestoreKeyDialog, restoreSessionId]);
+  
+  // Remove the useEffect - we'll handle dialog opening differently
 
   const handleCreateBackup = async () => {
     try {
@@ -125,6 +139,9 @@ const BackupTab = () => {
   const restoreFromFile = async (file, decryptionKey = null) => {
     try {
       setRestoreLoading(true);
+      // Make sure dialog is closed at start
+      setShowProgressDialogDebug(false);
+      setRestoreSessionId(null);
       
       // First, read the file to get item counts for progress dialog
       const fileContent = await file.text();
@@ -142,29 +159,54 @@ const BackupTab = () => {
         snmp_interfaces: backupData.data?.snmp_interfaces?.length || 0,
       };
       
+      console.log('📦 Restore item counts:', itemCounts);
       setRestoreItemCounts(itemCounts);
-      setShowProgressDialog(true);
+      // Don't show dialog yet - wait for sessionId
       
       // Perform the restore
       const result = await BackupService.restoreBackup(file, decryptionKey);
+      console.log('🔄 Restore result:', result);
 
-      if (result.success) {
-        setSuccess(result.message);
-        if (result.reloadRequired) {
-          setTimeout(() => window.location.reload(), 3000);
-        }
+      if (result.sessionId) {
+        console.log('📝 Setting sessionId and opening dialog:', result.sessionId);
+        // Set both states together
+        setRestoreSessionId(result.sessionId);
+        setShowProgressDialogDebug(true);
+        console.log('✅ Dialog should now be open with sessionId');
+        
+        // Debug: Check if state was actually set
+        setTimeout(() => {
+          console.log('🔍 Checking restoreSessionId after 100ms:', restoreSessionId);
+        }, 100);
       } else {
-        setError(result.message);
+        // Fallback for old response format without SSE
+        setShowProgressDialogDebug(true); // Show dialog for old format too
+        if (result.success) {
+          setSuccess(result.message);
+          if (result.reloadRequired) {
+            setTimeout(() => window.location.reload(), 3000);
+          }
+        } else {
+          setError(result.message);
+        }
+        setTimeout(() => setShowProgressDialogDebug(false), 3000);
       }
     } catch (error) {
       setError('Fehler beim Wiederherstellen: ' + error.message);
+      // Reset dialog on error
+      setShowProgressDialogDebug(false);
+      setRestoreSessionId(null);
     } finally {
       setRestoreLoading(false);
-      setShowProgressDialog(false);
     }
   };
 
   const handleRestoreWithKey = (decryptionKey) => {
+    console.log('🔑 handleRestoreWithKey called');
+    // Make absolutely sure dialog is closed before starting
+    setShowProgressDialogDebug(false);
+    setRestoreSessionId(null);
+    
     if (pendingRestoreFile) {
       restoreFromFile(pendingRestoreFile, decryptionKey);
       setPendingRestoreFile(null);
@@ -511,8 +553,16 @@ const BackupTab = () => {
       {/* Restore Progress Dialog */}
       <RestoreProgressDialog
         open={showProgressDialog}
+        sessionId={restoreSessionId}
         totalItems={restoreItemCounts}
-        onClose={() => setShowProgressDialog(false)}
+        onClose={() => {
+          console.log('🚪 Closing restore dialog, clearing sessionId');
+          setShowProgressDialog(false);
+          setRestoreSessionId(null);
+          setRestoreItemCounts({});
+        }}
+        restoreComplete={false}
+        restoreError={null}
       />
     </Box>
   );
