@@ -248,11 +248,29 @@ router.post('/start', verifyToken, async (req, res) => {
           
           for (let i = 0; i < backupData.data.ssh_keys.length; i++) {
             const sshKey = backupData.data.ssh_keys[i];
-            console.log(`  Processing SSH key ${i + 1}/${backupData.data.ssh_keys.length}: ${sshKey.key_name || 'unnamed'}`);
+            console.log(`  Processing SSH key ${i + 1}/${backupData.data.ssh_keys.length}: ${sshKey.key_name || sshKey.keyName || 'unnamed'}`);
             
             try {
-              const { sql, values } = prepareInsert('ssh_keys', sshKey);
+              // Build SSH key data with proper field names - handle both snake_case and camelCase
+              const sshKeyData = {
+                keyName: sshKey.key_name || sshKey.keyName,  // Ensure camelCase for prepareInsert
+                privateKey: sshKey.private_key || sshKey.privateKey || '',
+                publicKey: sshKey.public_key || sshKey.publicKey || '',
+                keyType: sshKey.key_type || sshKey.keyType || 'rsa',
+                keySize: sshKey.key_size || sshKey.keySize || 2048,
+                comment: sshKey.comment || '',
+                fingerprint: sshKey.fingerprint || null,
+                passphraseHash: sshKey.passphrase_hash || sshKey.passphraseHash || null,
+                isDefault: sshKey.is_default !== undefined ? sshKey.is_default : (sshKey.isDefault || false),
+                createdBy: sshKey.created_by || sshKey.createdBy || null,
+                createdAt: sshKey.created_at || sshKey.createdAt || new Date(),
+                updatedAt: sshKey.updated_at || sshKey.updatedAt || new Date()
+              };
+              
+              const { sql, values } = prepareInsert('ssh_keys', sshKeyData);
+              console.log(`  SQL: ${sql.substring(0, 100)}...`);
               await connection.execute(sql, values);
+              console.log(`  ✅ SSH key ${sshKeyData.keyName} restored`);
               
               // Send progress update for each key
               if (i % 2 === 0 || i === backupData.data.ssh_keys.length - 1) {
@@ -264,7 +282,8 @@ router.post('/start', verifyToken, async (req, res) => {
                 });
               }
             } catch (keyErr) {
-              console.error(`  ❌ Error processing SSH key ${sshKey.key_name}:`, keyErr.message);
+              console.error(`  ❌ Error processing SSH key ${sshKey.key_name || sshKey.keyName}:`, keyErr.message);
+              console.error(`  Full error:`, keyErr);
               // Continue with next key
             }
             
