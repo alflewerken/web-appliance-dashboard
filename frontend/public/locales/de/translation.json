@@ -3,6 +3,8 @@
     "loading": "Lade Ihre Services...",
     "search": "Suche...",
     "cancel": "Abbrechen",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Alle abwählen",
     "save": "Speichern",
     "delete": "Löschen",
     "edit": "Bearbeiten",
@@ -413,7 +415,9 @@
     "selectiveImport": "Selektiver Import aus einer Backup-Datei",
     "selectBackupFile": "Backup-Datei auswählen",
     "selectiveImportDescription": "Diese Funktion ermöglicht es, einzelne Unterkategorien aus einem Backup zu importieren, wie z.B. Kategorien, Benutzer, Hosts, SSH-Keys, Metrik-Daten usw.",
-    "selectiveImportInfo": "Wählen Sie die Daten aus, die Sie aus dem Backup importieren möchten. Bestehende Daten werden überschrieben.",
+    "selectiveImportDetailInfo": "Wählen Sie einzelne Elemente aus, die Sie importieren möchten. Bestehende Daten werden nicht überschrieben - alle importierten Elemente werden mit neuen IDs angelegt. User-Settings werden automatisch mit den zugehörigen Benutzern importiert.",
+    "selectiveImportInfo": "Wählen Sie die Daten aus, die Sie aus dem Backup importieren möchten. Bestehende Daten werden nicht überschrieben.",
+    "metricsImportWarning": "SNMP-Metriken können große Datenmengen enthalten. Wählen Sie nur die Hosts aus, für die Sie historische Daten benötigen.",
     "selectedItems": "Ausgewählte Elemente",
     "importSelected": "Ausgewählte importieren",
     "importing": "Importiere...",
@@ -651,6 +655,7 @@
   },
   "hosts": {
     "title": "Terminal-Hosts",
+    "hosts": "Hosts",
     "addHost": "Host hinzufügen",
     "editHost": "Host bearbeiten",
     "noHostsMessage": "Keine Hosts vorhanden. Klicken Sie auf \"Host hinzufügen\", um einen neuen Host zu erstellen.",
@@ -923,6 +928,8 @@
     "title": "Monitoring",
     "metrics": "Metriken",
     "snmpMetrics": "SNMP Metriken",
-    "historicalData": "Historische Daten"
+    "historicalData": "Historische Daten",
+    "hostMetrics": "Host-Metriken",
+    "metricsCount": "Metriken"
   }
 }

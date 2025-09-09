@@ -3,6 +3,8 @@
     "loading": "Loading your services...",
     "search": "Search...",
     "cancel": "Cancel",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
@@ -413,7 +415,9 @@
     "selectiveImport": "Selective Import from Backup File",
     "selectBackupFile": "Select Backup File",
     "selectiveImportDescription": "This feature allows you to import individual subcategories from a backup, such as Categories, Users, Hosts, SSH Keys, Metric Data, etc.",
-    "selectiveImportInfo": "Select the data you want to import from the backup. Existing data will be overwritten.",
+    "selectiveImportDetailInfo": "Select individual items to import. Existing data will not be overwritten - all imported items will be created with new IDs. User settings will be automatically imported with their associated users.",
+    "selectiveImportInfo": "Select the data you want to import from the backup. Existing data will not be overwritten.",
+    "metricsImportWarning": "SNMP metrics can contain large amounts of data. Only select hosts for which you need historical data.",
     "selectedItems": "Selected items",
     "importSelected": "Import Selected",
     "importing": "Importing...",
@@ -570,6 +574,7 @@
   },
   "hosts": {
     "title": "Terminal Hosts",
+    "hosts": "Hosts",
     "addHost": "Add host",
     "editHost": "Edit host",
     "noHostsMessage": "No hosts available. Click \"Add Host\" to create a new host.",
@@ -916,6 +921,8 @@
     "title": "Monitoring",
     "metrics": "Metrics",
     "snmpMetrics": "SNMP Metrics",
-    "historicalData": "Historical Data"
+    "historicalData": "Historical Data",
+    "hostMetrics": "Host Metrics",
+    "metricsCount": "metrics"
   }
 }

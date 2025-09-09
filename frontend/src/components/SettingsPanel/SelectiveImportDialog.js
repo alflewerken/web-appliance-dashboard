@@ -14,6 +14,16 @@ import {
   CircularProgress,
   Divider,
   Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   FolderOpen,
@@ -23,56 +33,129 @@ import {
   BarChart,
   Settings,
   Image,
-  Shield,
+  ChevronDown,
+  Search,
+  CheckCircle,
+  Circle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const SelectiveImportDialog = ({ open, onClose, backupData }) => {
   const { t } = useTranslation();
   const [selectedItems, setSelectedItems] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState({});
+  const [searchTerms, setSearchTerms] = useState({});
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
 
   // Initialize selection state when backup data changes
   useEffect(() => {
     if (backupData) {
-      const availableItems = {};
+      const items = {
+        categories: {},
+        users: {},
+        hosts: {},
+        sshKeys: {},
+        appliances: {},
+        backgroundImages: {},
+        hostMetrics: {}, // Per-host metrics selection
+      };
       
-      // Check what data is available in the backup
-      if (backupData.data?.categories?.length > 0) {
-        availableItems.categories = false;
-      }
-      if (backupData.data?.users?.length > 0) {
-        availableItems.users = false;
-      }
-      if (backupData.data?.hosts?.length > 0) {
-        availableItems.hosts = false;
-      }
-      if (backupData.data?.ssh_keys?.length > 0) {
-        availableItems.sshKeys = false;
-      }
-      if (backupData.data?.appliances?.length > 0) {
-        availableItems.appliances = false;
-      }
-      if (backupData.data?.background_images?.length > 0) {
-        availableItems.backgroundImages = false;
-      }
-      if (backupData.data?.snmp_metrics?.length > 0) {
-        availableItems.snmpMetrics = false;
-      }
-      if (backupData.data?.user_settings?.length > 0 || backupData.data?.settings?.length > 0) {
-        availableItems.userSettings = false;
-      }
+      // Initialize all items as unselected
+      backupData.data?.categories?.forEach(cat => {
+        items.categories[cat.id || cat.name] = false;
+      });
       
-      setSelectedItems(availableItems);
+      backupData.data?.users?.forEach(user => {
+        items.users[user.id || user.username] = false;
+      });
+      
+      backupData.data?.hosts?.forEach(host => {
+        items.hosts[host.id || host.name] = false;
+        // Initialize metrics selection per host
+        if (backupData.data?.snmp_metrics?.length > 0) {
+          items.hostMetrics[host.id] = false;
+        }
+      });
+      
+      backupData.data?.ssh_keys?.forEach(key => {
+        items.sshKeys[key.id || key.key_name || key.keyName] = false;
+      });
+      
+      backupData.data?.appliances?.forEach(app => {
+        items.appliances[app.id || app.name] = false;
+      });
+      
+      backupData.data?.background_images?.forEach(img => {
+        items.backgroundImages[img.id || img.filename] = false;
+      });
+      
+      setSelectedItems(items);
+      
+      // Initially expand categories with few items
+      const expanded = {};
+      if (backupData.data?.categories?.length <= 5) expanded.categories = true;
+      if (backupData.data?.users?.length <= 5) expanded.users = true;
+      if (backupData.data?.ssh_keys?.length <= 5) expanded.sshKeys = true;
+      setExpandedCategories(expanded);
     }
   }, [backupData]);
 
-  const handleToggle = (key) => {
+  const handleToggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  const handleToggleItem = (category, itemId) => {
     setSelectedItems(prev => ({
       ...prev,
-      [key]: !prev[key]
+      [category]: {
+        ...prev[category],
+        [itemId]: !prev[category]?.[itemId]
+      }
     }));
+  };
+
+  const handleToggleAll = (category) => {
+    const allSelected = Object.values(selectedItems[category] || {}).every(v => v);
+    const newState = !allSelected;
+    
+    setSelectedItems(prev => ({
+      ...prev,
+      [category]: Object.keys(prev[category] || {}).reduce((acc, key) => {
+        acc[key] = newState;
+        return acc;
+      }, {})
+    }));
+  };
+
+  const handleSearch = (category, term) => {
+    setSearchTerms(prev => ({
+      ...prev,
+      [category]: term
+    }));
+  };
+
+  const filterItems = (items, category) => {
+    const searchTerm = searchTerms[category]?.toLowerCase() || '';
+    if (!searchTerm) return items;
+    
+    return items.filter(item => {
+      const searchableText = (
+        item.name || 
+        item.username || 
+        item.key_name || 
+        item.keyName || 
+        item.filename || 
+        item.hostname || 
+        item.description || 
+        ''
+      ).toLowerCase();
+      
+      return searchableText.includes(searchTerm);
+    });
   };
 
   const handleImport = async () => {
@@ -83,34 +166,99 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
       // Prepare filtered backup data
       const filteredData = {
         ...backupData,
-        data: {}
+        data: {},
+        // Flag to indicate this is a selective import (don't overwrite existing)
+        selectiveImport: true,
+        createNewIds: true, // Always create new IDs, don't overwrite
       };
 
-      // Add only selected items
+      // Add selected categories
       if (selectedItems.categories) {
-        filteredData.data.categories = backupData.data.categories;
+        const selectedCats = backupData.data.categories.filter(cat => 
+          selectedItems.categories[cat.id || cat.name]
+        );
+        if (selectedCats.length > 0) {
+          filteredData.data.categories = selectedCats;
+        }
       }
+
+      // Add selected users with their settings
       if (selectedItems.users) {
-        filteredData.data.users = backupData.data.users;
+        const selectedUsers = backupData.data.users.filter(user => 
+          selectedItems.users[user.id || user.username]
+        );
+        if (selectedUsers.length > 0) {
+          filteredData.data.users = selectedUsers;
+          
+          // Automatically include user settings for selected users
+          if (backupData.data.user_settings || backupData.data.settings) {
+            const userSettings = (backupData.data.user_settings || backupData.data.settings);
+            const selectedUserIds = selectedUsers.map(u => u.id);
+            filteredData.data.user_settings = userSettings.filter(setting => 
+              selectedUserIds.includes(setting.user_id)
+            );
+          }
+        }
       }
+
+      // Add selected hosts
       if (selectedItems.hosts) {
-        filteredData.data.hosts = backupData.data.hosts;
+        const selectedHosts = backupData.data.hosts.filter(host => 
+          selectedItems.hosts[host.id || host.name]
+        );
+        if (selectedHosts.length > 0) {
+          filteredData.data.hosts = selectedHosts;
+        }
       }
+
+      // Add selected SSH keys
       if (selectedItems.sshKeys) {
-        filteredData.data.ssh_keys = backupData.data.ssh_keys;
+        const selectedKeys = backupData.data.ssh_keys.filter(key => 
+          selectedItems.sshKeys[key.id || key.key_name || key.keyName]
+        );
+        if (selectedKeys.length > 0) {
+          filteredData.data.ssh_keys = selectedKeys;
+        }
       }
+
+      // Add selected appliances
       if (selectedItems.appliances) {
-        filteredData.data.appliances = backupData.data.appliances;
+        const selectedApps = backupData.data.appliances.filter(app => 
+          selectedItems.appliances[app.id || app.name]
+        );
+        if (selectedApps.length > 0) {
+          filteredData.data.appliances = selectedApps;
+        }
       }
+
+      // Add selected background images
       if (selectedItems.backgroundImages) {
-        filteredData.data.background_images = backupData.data.background_images;
+        const selectedImages = backupData.data.background_images.filter(img => 
+          selectedItems.backgroundImages[img.id || img.filename]
+        );
+        if (selectedImages.length > 0) {
+          filteredData.data.background_images = selectedImages;
+        }
       }
-      if (selectedItems.snmpMetrics) {
-        filteredData.data.snmp_metrics = backupData.data.snmp_metrics;
-        filteredData.data.host_monitoring_data = backupData.data.host_monitoring_data;
-      }
-      if (selectedItems.userSettings) {
-        filteredData.data.user_settings = backupData.data.user_settings || backupData.data.settings;
+
+      // Add metrics for selected hosts only
+      if (selectedItems.hostMetrics && backupData.data.snmp_metrics) {
+        const selectedHostIds = Object.keys(selectedItems.hostMetrics)
+          .filter(hostId => selectedItems.hostMetrics[hostId]);
+        
+        if (selectedHostIds.length > 0) {
+          // Filter metrics for selected hosts
+          filteredData.data.snmp_metrics = backupData.data.snmp_metrics.filter(metric => 
+            selectedHostIds.includes(String(metric.host_id || metric.hostId))
+          );
+          
+          // Also include monitoring data for selected hosts
+          if (backupData.data.host_monitoring_data) {
+            filteredData.data.host_monitoring_data = backupData.data.host_monitoring_data.filter(data => 
+              selectedHostIds.includes(String(data.host_id || data.hostId))
+            );
+          }
+        }
       }
 
       // TODO: Call the selective import API endpoint
@@ -133,78 +281,267 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
     }
   };
 
-  const importOptions = [
-    {
-      key: 'categories',
-      label: t('categories.categories'),
-      icon: <FolderOpen size={20} />,
-      count: backupData?.data?.categories?.length || 0,
-      color: '#4CAF50'
-    },
-    {
-      key: 'users',
-      label: t('users.title'),
-      icon: <Users size={20} />,
-      count: backupData?.data?.users?.length || 0,
-      color: '#2196F3'
-    },
-    {
-      key: 'hosts',
-      label: t('hosts.title'),
-      icon: <Server size={20} />,
-      count: backupData?.data?.hosts?.length || 0,
-      color: '#FF9800'
-    },
-    {
-      key: 'sshKeys',
-      label: t('sshKeys.title'),
-      icon: <Key size={20} />,
-      count: backupData?.data?.ssh_keys?.length || 0,
-      color: '#9C27B0'
-    },
-    {
-      key: 'appliances',
-      label: t('services.services'),
-      icon: <Settings size={20} />,
-      count: backupData?.data?.appliances?.length || 0,
-      color: '#F44336'
-    },
-    {
-      key: 'backgroundImages',
-      label: t('settings.backgroundImages'),
-      icon: <Image size={20} />,
-      count: backupData?.data?.background_images?.length || 0,
-      color: '#00BCD4'
-    },
-    {
-      key: 'snmpMetrics',
-      label: t('monitoring.metrics'),
-      icon: <BarChart size={20} />,
-      count: backupData?.data?.snmp_metrics?.length || 0,
-      color: '#FF5722',
-      warning: t('settings.largeDataWarning')
-    },
-    {
-      key: 'userSettings',
-      label: t('settings.userSettings'),
-      icon: <Shield size={20} />,
-      count: backupData?.data?.user_settings?.length || backupData?.data?.settings?.length || 0,
-      color: '#795548'
-    }
-  ];
+  const getSelectedCount = (category) => {
+    if (!selectedItems[category]) return 0;
+    return Object.values(selectedItems[category]).filter(v => v).length;
+  };
 
-  const selectedCount = Object.values(selectedItems).filter(v => v).length;
+  const getTotalCount = (category) => {
+    if (!selectedItems[category]) return 0;
+    return Object.keys(selectedItems[category]).length;
+  };
+
+  const renderCategoryAccordion = (category, label, icon, color, items = []) => {
+    const selectedCount = getSelectedCount(category);
+    const totalCount = getTotalCount(category);
+    const filteredItems = filterItems(items, category);
+    
+    if (totalCount === 0) return null;
+    
+    return (
+      <Accordion
+        key={category}
+        expanded={expandedCategories[category] || false}
+        onChange={() => handleToggleCategory(category)}
+        sx={{
+          backgroundColor: 'rgba(0, 0, 0, 0.3)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          '&:before': { display: 'none' },
+          mb: 1,
+        }}
+      >
+        <AccordionSummary
+          expandIcon={<ChevronDown />}
+          sx={{
+            '& .MuiAccordionSummary-content': {
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color }}>
+              {icon}
+              <Typography variant="body1">{label}</Typography>
+            </Box>
+            <Chip
+              label={`${selectedCount} / ${totalCount}`}
+              size="small"
+              sx={{
+                backgroundColor: selectedCount > 0 ? color : 'rgba(255, 255, 255, 0.1)',
+                color: selectedCount > 0 ? '#fff' : 'rgba(255, 255, 255, 0.7)',
+              }}
+            />
+          </Box>
+          <Button
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleAll(category);
+            }}
+            sx={{ mr: 1 }}
+          >
+            {selectedCount === totalCount ? t('common.deselectAll') : t('common.selectAll')}
+          </Button>
+        </AccordionSummary>
+        
+        <AccordionDetails>
+          {totalCount > 5 && (
+            <TextField
+              fullWidth
+              size="small"
+              placeholder={t('common.search')}
+              value={searchTerms[category] || ''}
+              onChange={(e) => handleSearch(category, e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={20} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 2 }}
+            />
+          )}
+          
+          <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
+            {filteredItems.map((item) => {
+              const itemId = item.id || item.name || item.username || 
+                           item.key_name || item.keyName || item.filename;
+              const isSelected = selectedItems[category]?.[itemId] || false;
+              
+              return (
+                <ListItem
+                  key={itemId}
+                  button
+                  onClick={() => handleToggleItem(category, itemId)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    {isSelected ? (
+                      <CheckCircle size={20} style={{ color }} />
+                    ) : (
+                      <Circle size={20} style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+                    )}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.name || item.username || item.key_name || 
+                            item.keyName || item.filename || item.hostname}
+                    secondary={item.description || item.email || item.hostname || 
+                              item.comment || null}
+                    primaryTypographyProps={{
+                      sx: { color: isSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)' }
+                    }}
+                  />
+                  {item.icon && (
+                    <ListItemSecondaryAction>
+                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                        {item.icon}
+                      </Typography>
+                    </ListItemSecondaryAction>
+                  )}
+                </ListItem>
+              );
+            })}
+          </List>
+        </AccordionDetails>
+      </Accordion>
+    );
+  };
+
+  const renderHostMetrics = () => {
+    const hosts = backupData?.data?.hosts || [];
+    const metrics = backupData?.data?.snmp_metrics || [];
+    
+    if (hosts.length === 0 || metrics.length === 0) return null;
+    
+    // Group metrics by host
+    const metricsByHost = {};
+    hosts.forEach(host => {
+      const hostMetrics = metrics.filter(m => 
+        (m.host_id || m.hostId) === host.id
+      );
+      if (hostMetrics.length > 0) {
+        metricsByHost[host.id] = {
+          host,
+          count: hostMetrics.length
+        };
+      }
+    });
+    
+    const selectedCount = Object.keys(selectedItems.hostMetrics || {})
+      .filter(id => selectedItems.hostMetrics[id]).length;
+    const totalCount = Object.keys(metricsByHost).length;
+    
+    if (totalCount === 0) return null;
+    
+    return (
+      <Accordion
+        expanded={expandedCategories.hostMetrics || false}
+        onChange={() => handleToggleCategory('hostMetrics')}
+        sx={{
+          backgroundColor: 'rgba(0, 0, 0, 0.3)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          '&:before': { display: 'none' },
+          mb: 1,
+        }}
+      >
+        <AccordionSummary
+          expandIcon={<ChevronDown />}
+          sx={{
+            '& .MuiAccordionSummary-content': {
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#FF5722' }}>
+              <BarChart size={20} />
+              <Typography variant="body1">{t('monitoring.hostMetrics')}</Typography>
+            </Box>
+            <Chip
+              label={`${selectedCount} / ${totalCount} ${t('hosts.hosts')}`}
+              size="small"
+              sx={{
+                backgroundColor: selectedCount > 0 ? '#FF5722' : 'rgba(255, 255, 255, 0.1)',
+                color: selectedCount > 0 ? '#fff' : 'rgba(255, 255, 255, 0.7)',
+              }}
+            />
+          </Box>
+        </AccordionSummary>
+        
+        <AccordionDetails>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="caption">
+              {t('settings.metricsImportWarning')}
+            </Typography>
+          </Alert>
+          
+          <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
+            {Object.entries(metricsByHost).map(([hostId, data]) => {
+              const isSelected = selectedItems.hostMetrics?.[hostId] || false;
+              
+              return (
+                <ListItem
+                  key={hostId}
+                  button
+                  onClick={() => handleToggleItem('hostMetrics', hostId)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    {isSelected ? (
+                      <CheckCircle size={20} style={{ color: '#FF5722' }} />
+                    ) : (
+                      <Circle size={20} style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+                    )}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={data.host.name || data.host.hostname}
+                    secondary={`${data.count.toLocaleString()} ${t('monitoring.metricsCount')}`}
+                    primaryTypographyProps={{
+                      sx: { color: isSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)' }
+                    }}
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+        </AccordionDetails>
+      </Accordion>
+    );
+  };
+
+  const totalSelectedItems = Object.values(selectedItems).reduce((sum, category) => {
+    if (typeof category === 'object') {
+      return sum + Object.values(category).filter(v => v).length;
+    }
+    return sum;
+  }, 0);
 
   return (
     <Dialog
       open={open}
       onClose={!importing ? onClose : undefined}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
           backgroundColor: '#1E1E1E',
           backgroundImage: 'none',
+          maxHeight: '90vh',
         },
       }}
     >
@@ -214,62 +551,69 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         </Typography>
       </DialogTitle>
 
-      <DialogContent sx={{ mt: 2 }}>
+      <DialogContent sx={{ mt: 2, pb: 2 }}>
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            {t('settings.selectiveImportInfo')}
+            {t('settings.selectiveImportDetailInfo')}
           </Typography>
         </Alert>
 
-        <FormGroup>
-          {importOptions.map(option => {
-            const isAvailable = option.key in selectedItems;
-            const isSelected = selectedItems[option.key];
-            
-            if (!isAvailable) return null;
-            
-            return (
-              <Box key={option.key} sx={{ mb: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={isSelected}
-                      onChange={() => handleToggle(option.key)}
-                      disabled={importing}
-                      sx={{
-                        color: option.color,
-                        '&.Mui-checked': {
-                          color: option.color,
-                        },
-                      }}
-                    />
-                  }
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {option.icon}
-                        <Typography variant="body1">{option.label}</Typography>
-                      </Box>
-                      <Chip
-                        label={option.count}
-                        size="small"
-                        sx={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                          color: 'rgba(255, 255, 255, 0.7)',
-                        }}
-                      />
-                    </Box>
-                  }
-                />
-                {option.warning && isSelected && (
-                  <Alert severity="warning" sx={{ ml: 4, mt: 1 }}>
-                    <Typography variant="caption">{option.warning}</Typography>
-                  </Alert>
-                )}
-              </Box>
-            );
-          })}
-        </FormGroup>
+        {/* Categories */}
+        {renderCategoryAccordion(
+          'categories',
+          t('categories.categories'),
+          <FolderOpen size={20} />,
+          '#4CAF50',
+          backupData?.data?.categories || []
+        )}
+
+        {/* Users */}
+        {renderCategoryAccordion(
+          'users',
+          t('users.title'),
+          <Users size={20} />,
+          '#2196F3',
+          backupData?.data?.users || []
+        )}
+
+        {/* Terminal Hosts */}
+        {renderCategoryAccordion(
+          'hosts',
+          t('hosts.title'),
+          <Server size={20} />,
+          '#FF9800',
+          backupData?.data?.hosts || []
+        )}
+
+        {/* SSH Keys */}
+        {renderCategoryAccordion(
+          'sshKeys',
+          t('sshKeys.title'),
+          <Key size={20} />,
+          '#9C27B0',
+          backupData?.data?.ssh_keys || []
+        )}
+
+        {/* Services/Appliances */}
+        {renderCategoryAccordion(
+          'appliances',
+          t('services.services'),
+          <Settings size={20} />,
+          '#F44336',
+          backupData?.data?.appliances || []
+        )}
+
+        {/* Background Images */}
+        {renderCategoryAccordion(
+          'backgroundImages',
+          t('settings.backgroundImages'),
+          <Image size={20} />,
+          '#00BCD4',
+          backupData?.data?.background_images || []
+        )}
+
+        {/* Host Metrics - Special handling */}
+        {renderHostMetrics()}
 
         {error && (
           <Alert severity="error" sx={{ mt: 2 }}>
@@ -281,7 +625,7 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-            {t('settings.selectedItems')}: {selectedCount}
+            {t('settings.selectedItems')}: {totalSelectedItems}
           </Typography>
           {backupData && (
             <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
@@ -307,7 +651,7 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         <Button
           onClick={handleImport}
           variant="contained"
-          disabled={importing || selectedCount === 0}
+          disabled={importing || totalSelectedItems === 0}
           startIcon={importing ? <CircularProgress size={20} /> : null}
           sx={{
             backgroundColor: '#0066CC',
