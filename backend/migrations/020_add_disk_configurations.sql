@@ -16,11 +16,3 @@ CREATE TABLE IF NOT EXISTS host_disk_config (
   FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
   INDEX idx_host_disk (host_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Insert known disk configurations
-INSERT INTO host_disk_config (host_id, disk_index, disk_name, total_size_gb) VALUES
-(6, '0', 'Macintosh HD', 7449.2),  -- MacbookPro (Alf's current machine)
-(8, '0', 'Macintosh HD', 233.5)     -- Macbook (Alf's old machine)
-ON DUPLICATE KEY UPDATE 
-  disk_name = VALUES(disk_name),
-  total_size_gb = VALUES(total_size_gb);
