@@ -954,6 +954,39 @@ router.post('/start', verifyToken, async (req, res) => {
       
       await connection.commit();
       
+      // Restart Background Polling Service to pick up new host IDs
+      try {
+        console.log(`🔄 Restarting Background Polling Service with new host IDs...`);
+        
+        // Get the BackgroundPollingService instance if it exists
+        const backgroundPollingService = global.backgroundPollingService;
+        if (backgroundPollingService) {
+          console.log(`⏹️ Stopping existing polling service...`);
+          await backgroundPollingService.stop();
+          
+          // Small delay to ensure clean shutdown
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          console.log(`▶️ Starting polling service with updated host configuration...`);
+          await backgroundPollingService.start();
+          console.log(`✅ Background Polling Service restarted successfully`);
+        } else {
+          console.warn(`⚠️ Background Polling Service not found in global scope`);
+          
+          // Alternative: Try to restart via PM2 or process signal
+          try {
+            // Send SIGUSR2 to trigger service restart
+            process.emit('SIGUSR2');
+            console.log(`📤 Sent restart signal to background services`);
+          } catch (signalErr) {
+            console.error(`Failed to send restart signal:`, signalErr);
+          }
+        }
+      } catch (restartErr) {
+        console.error(`❌ Failed to restart Background Polling Service:`, restartErr);
+        // Don't fail the restore because of this
+      }
+      
       // Create audit log for successful restore
       try {
         console.log(`📝 Creating audit log for user ${userId}, session ${sessionId}`);

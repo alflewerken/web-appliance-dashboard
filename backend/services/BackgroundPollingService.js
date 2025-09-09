@@ -778,4 +778,7 @@ class BackgroundPollingService {
 // Export singleton instance
 const pollingService = new BackgroundPollingService();
 
+// Make it globally available for restart after restore
+global.backgroundPollingService = pollingService;
+
 module.exports = pollingService;
