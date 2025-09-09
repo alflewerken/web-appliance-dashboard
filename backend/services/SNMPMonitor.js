@@ -264,6 +264,17 @@ class SNMPMonitor {
 
   // Calculate CPU percentage from counter deltas
   calculateCpuPercentage(currentValues, hostId) {
+    // Check if this is Apple Silicon (all values are 0)
+    const isAppleSilicon = !currentValues.user && !currentValues.system && !currentValues.idle &&
+                          !currentValues.nice && !currentValues.wait && !currentValues.kernel;
+    
+    if (isAppleSilicon) {
+      // Apple Silicon doesn't provide CPU counters via SNMP
+      // Return null to indicate these metrics are not available
+      console.log(`[calculateCpuPercentage] Apple Silicon detected - returning null for CPU percentages`);
+      return null;
+    }
+    
     const prevKey = `cpu_${hostId}`;
     const previous = this.previousCpuValues.get(prevKey);
     
@@ -769,11 +780,20 @@ class SNMPMonitor {
 
     // Calculate CPU percentages from raw counters
     if (Object.keys(cpuInfo.raw).length > 0) {
-      cpuInfo.usage = this.calculateCpuPercentage(cpuInfo.raw, hostId) || {
-        total: Math.min(Math.round(cpuInfo.load1 * 100 / cpuInfo.cores), 100)
-      };
+      const cpuPercentages = this.calculateCpuPercentage(cpuInfo.raw, hostId);
+      
+      if (cpuPercentages) {
+        // We have real CPU percentages
+        cpuInfo.usage = cpuPercentages;
+      } else {
+        // Apple Silicon or no data - use load average only
+        cpuInfo.usage = {
+          total: Math.min(Math.round(cpuInfo.load1 * 100 / cpuInfo.cores), 100)
+          // Don't set user/system/idle for Apple Silicon
+        };
+      }
     } else {
-      // Fallback: estimate from load average
+      // No raw counters at all - use load average
       cpuInfo.usage = {
         total: Math.min(Math.round(cpuInfo.load1 * 100 / cpuInfo.cores), 100)
       };
@@ -1105,44 +1125,13 @@ class SNMPMonitor {
       console.log(`[CPU Debug] Host ${hostId}: isAppleSilicon=${isAppleSilicon}`);
       
       if (isAppleSilicon) {
-        // Fallback for Apple Silicon: Use load average as proxy
-
-        // Get load average and processor count
-        const loadOids = [
-          this.oidDefinitions.cpu.load1min,
-          this.oidDefinitions.cpu.load5min,
-          this.oidDefinitions.cpu.load15min
-        ];
+        // Apple Silicon Macs don't provide CPU counters via SNMP
+        // We should NOT fake these values - return null to indicate unavailable
+        console.log(`[CPU Debug] Apple Silicon detected for host ${hostId} - CPU user/system/idle not available via SNMP`);
         
-        const loadResults = await this.getOidValues(session, loadOids);
-        const load1 = parseFloat(this.parseStringValue(loadResults[this.oidDefinitions.cpu.load1min]) || '0');
-        
-        // Get processor count (try different methods)
-        let processorCount = 1;
-        try {
-          // Try hrProcessorTable first
-          const processorTable = await this.walkOid(session, '1.3.6.1.2.1.25.3.3.1.2');
-          processorCount = Object.keys(processorTable).length || 1;
-        } catch (e) {
-          // Default to 10 for Apple Silicon Macs (your machine has 10 cores)
-          processorCount = 10;
-        }
-        
-        // Estimate CPU usage from load average
-        // This is an approximation: if load == cores, then CPU is ~100% utilized
-        const utilizationRatio = Math.min(load1 / processorCount, 1.0);
-        const totalUtilization = utilizationRatio * 100;
-        
-        // Estimate distribution (rough approximation)
-        // Typically system usage is about 20-30% of total on macOS
-        const systemRatio = 0.25;
-        const userRatio = 0.75;
-        
-        return {
-          user: Math.round(totalUtilization * userRatio * 10) / 10,
-          system: Math.round(totalUtilization * systemRatio * 10) / 10,
-          idle: Math.round((100 - totalUtilization) * 10) / 10
-        };
+        // Return null to indicate these metrics are not available
+        // The frontend should not show these metrics for Apple Silicon hosts
+        return null;
       } else {
         // Intel Mac or Linux: Use delta calculation with raw counters
         const previousValues = this.previousCpuValues.get(hostId);
@@ -1456,23 +1445,53 @@ class SNMPMonitor {
           if (metricKey && value !== null) {
             let parsedValue = this.parseMetricValue(metricKey, value);
             
-            // Convert load average to percentage based on CPU cores
+            // CPU Load Average als Prozentsatz berechnen (wie in getAllMetrics)
+            // Load Average ist die durchschnittliche Anzahl von Prozessen, die auf CPU warten
+            // Für die prozentuale Auslastung: (load / cores) * 100
             if (metricKey.includes('cpu.load')) {
-              // Get CPU core count for this host
-              let cpuCores = 1;
-              const hostIdStr = String(hostId);
+              // Hole die CPU-Core-Anzahl für diesen Host aus der Session
+              const hrProcessorOid = this.oidDefinitions.cpu.hrProcessorCount;
               
-              if (hostIdStr === '6' || hostIdStr.includes('host.docker.internal')) {
-                cpuCores = 10; // MacbookPro
-              } else if (hostIdStr === '8' || hostIdStr.includes('192.168.178.29')) {
-                cpuCores = 8; // Macbook
-              } else {
-                cpuCores = 4; // Default
+              try {
+                // Versuche die Core-Anzahl über SNMP zu ermitteln
+                const coreResult = await this.getOidValues(session, [hrProcessorOid]);
+                let cpuCores = parseInt(coreResult[hrProcessorOid]) || 1;
+                
+                // Fallback wenn SNMP keine Core-Info liefert
+                if (!coreResult[hrProcessorOid] || cpuCores === 1) {
+                  // MacOS meldet oft nur 1 Core via SNMP, verwende bekannte Werte
+                  const hostIdStr = String(hostId);
+                  
+                  // Für bekannte Hosts die tatsächliche Core-Anzahl verwenden
+                  if (hostIdStr === '4' || config.ip?.includes('host.docker.internal')) {
+                    // MacbookPro M3 hat 8 Performance + 2 Efficiency = 10 Cores
+                    // Aber für Load Average Berechnung verwenden wir 8 (Performance Cores)
+                    cpuCores = 8;
+                    console.log(`[collectMetrics] Using known core count for MacbookPro: ${cpuCores}`);
+                  } else if (hostIdStr === '2' || config.ip?.includes('192.168.178.29')) {
+                    cpuCores = 8; // Macbook
+                    console.log(`[collectMetrics] Using known core count for Macbook: ${cpuCores}`);
+                  } else {
+                    // Default für unbekannte Systeme
+                    cpuCores = 4;
+                  }
+                }
+                
+                // Berechne CPU-Auslastung als Prozentsatz
+                const loadAverage = parsedValue; // Der rohe Load Average Wert (z.B. 2.5)
+                const cpuPercent = Math.min(Math.round((loadAverage / cpuCores) * 100), 100);
+                
+                console.log(`[collectMetrics] CPU Load ${metricKey}: load=${loadAverage}, cores=${cpuCores}, percent=${cpuPercent}%`);
+                
+                // Speichere als Prozentsatz für den Graph
+                parsedValue = cpuPercent;
+                
+              } catch (err) {
+                console.error(`[collectMetrics] Could not get CPU cores:`, err);
+                // Fallback: Annahme 4 Cores
+                const cpuPercent = Math.min(Math.round((parsedValue / 4) * 100), 100);
+                parsedValue = cpuPercent;
               }
-              
-              // Convert load average to percentage (load / cores * 100)
-              parsedValue = Math.round((parsedValue / cpuCores) * 100 * 100) / 100;
-              console.log(`[collectMetrics] Load average ${metricKey}: raw=${this.parseMetricValue(metricKey, value)}, cores=${cpuCores}, percent=${parsedValue}%`);
             }
             
             collectedMetrics[metricKey] = parsedValue;
@@ -1494,6 +1513,10 @@ class SNMPMonitor {
           if (enabledMetrics.includes('cpu.idle')) {
             collectedMetrics['cpu.idle'] = cpuPercentages.idle;
           }
+        } else {
+          // CPU percentages not available (e.g., Apple Silicon)
+          // Don't add these metrics to collectedMetrics
+          console.log(`[collectMetrics] CPU user/system/idle not available for host ${hostId}`);
         }
       }
       
@@ -1504,7 +1527,7 @@ class SNMPMonitor {
         
         for (const metric of memoryMetrics) {
           const name = metric.split('.')[1];
-          // Return raw values - MetricProcessor will handle normalization
+          // Return raw values directly
           if (name === 'free' || name === 'available') {
             // Return available memory in bytes
             collectedMetrics[metric] = memoryData.available || 0;
@@ -1672,42 +1695,12 @@ class SNMPMonitor {
     const isAppleSilicon = currentUser === 0 && currentSystem === 0 && currentIdle === 0;
     
     if (isAppleSilicon) {
-      console.log(`[calculateCpuPercentages] Apple Silicon detected for host ${hostId}, using load average fallback`);
+      console.log(`[calculateCpuPercentages] Apple Silicon detected for host ${hostId} - CPU user/system/idle not available via SNMP`);
       
-      // Fallback for Apple Silicon: Use load average as proxy
-      const loadOids = [
-        this.oidDefinitions.cpu.load1min,
-        this.oidDefinitions.cpu.load5min,
-        this.oidDefinitions.cpu.load15min
-      ];
-      
-      const loadResults = await this.getOidValues(session, loadOids);
-      const load1 = parseFloat(this.parseStringValue(loadResults[this.oidDefinitions.cpu.load1min]) || '0');
-      
-      // Use the known CPU core count
-      const utilizationRatio = Math.min(load1 / cpuCores, 1.0);
-      const totalUtilization = utilizationRatio * 100;
-      
-      // Estimate distribution (rough approximation)
-      // Typically system usage is about 20-30% of total on macOS
-      const systemRatio = 0.25;
-      const userRatio = 0.75;
-      
-      const percentUser = Math.round(totalUtilization * userRatio * 10) / 10;
-      const percentSystem = Math.round(totalUtilization * systemRatio * 10) / 10;
-      const percentIdle = Math.round((100 - totalUtilization) * 10) / 10;
-      
-      console.log(`[calculateCpuPercentages] Apple Silicon fallback returning:`, {
-        user: percentUser,
-        system: percentSystem,
-        idle: percentIdle
-      });
-      
-      return {
-        user: percentUser,
-        system: percentSystem,
-        idle: percentIdle
-      };
+      // Apple Silicon Macs don't provide CPU counters via SNMP
+      // Return null to indicate these metrics are not available
+      // The frontend should NOT show user/system/idle for Apple Silicon
+      return null;
     }
     
     const currentTotal = currentUser + currentSystem + currentIdle + currentNice + currentWait;

@@ -344,7 +344,7 @@ class BackgroundPollingService {
 
   async storeMetrics(hostId, metrics, customNames = {}) {
     const timestamp = new Date();
-    const metricProcessor = require('./MetricProcessor');
+    // MetricProcessor removed - using direct storage
     
     // Store previous values for delta calculation
     if (!this.previousValues) {
@@ -420,12 +420,8 @@ class BackgroundPollingService {
           this.previousValues[hostId][metricKey] = value;
         }
         
-        // Process metric for storage using unified processor
-        const processedMetric = await metricProcessor.processForStorage(
-          this.pool,
-          metricKey,
-          valueToStore
-        );
+        // Store metric directly without processing
+        const metricUnit = this.getMetricUnit(metricKey);
         
         await this.pool.execute(`
           INSERT INTO snmp_metrics 
@@ -435,8 +431,8 @@ class BackgroundPollingService {
           hostId,
           metricName,
           metricKey,
-          processedMetric.value.toString(),
-          processedMetric.unit,
+          valueToStore.toString(),
+          metricUnit,
           timestamp
         ]);
       } catch (error) {
@@ -501,9 +497,9 @@ class BackgroundPollingService {
       'cpu.user': '%',
       'cpu.system': '%',
       'cpu.idle': '%',
-      'cpu.load1': 'load',
-      'cpu.load5': 'load',
-      'cpu.load15': 'load',
+      'cpu.load1': '%',  // Changed from 'load' to '%' - we store as percentage now
+      'cpu.load5': '%',   // Changed from 'load' to '%'
+      'cpu.load15': '%',  // Changed from 'load' to '%'
       'memory.total': 'bytes',
       'memory.used': '%',
       'memory.free': '%',

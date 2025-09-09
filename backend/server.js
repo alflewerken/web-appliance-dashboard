@@ -260,6 +260,14 @@ server.listen(PORT, async () => {
       if (success) {
         logger.info('All services initialized successfully');
         
+        // Start the status checker for service and host monitoring
+        try {
+          await statusChecker.start();
+          logger.info('Status checker started successfully');
+        } catch (error) {
+          logger.error('Failed to start status checker:', error);
+        }
+        
         // SNMP Polling Service is started by docker-startup.sh
         // Don't start it here to avoid duplicate processes
       } else {

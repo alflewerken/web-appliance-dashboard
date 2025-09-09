@@ -449,16 +449,8 @@ router.get('/backup', verifyToken, async (req, res) => {
       console.error('Error fetching host network metrics for backup:', error.message);
     }
 
-    // Fetch metric definitions (SNMP metric catalog)
+    // metric_definitions removed - was part of failed MetricProcessor implementation
     let metricDefinitions = [];
-    try {
-      const [definitions] = await pool.execute('SELECT * FROM metric_definitions ORDER BY metric_key');
-      metricDefinitions = definitions;
-      console.log(`📊 Backing up ${metricDefinitions.length} metric definitions...`);
-
-    } catch (error) {
-      console.error('Error fetching metric definitions for backup:', error.message);
-    }
 
     // Fetch host disk configuration
     let hostDiskConfig = [];
@@ -855,7 +847,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         snmp_thresholds: snmpThresholds,
         host_disk_metrics: hostDiskMetrics,
         host_network_metrics: hostNetworkMetrics,
-        metric_definitions: metricDefinitions,
+        // metric_definitions removed from backup
         host_disk_config: hostDiskConfig,
         snmp_latest_metrics: snmpLatestMetrics,
       },
@@ -887,7 +879,7 @@ router.get('/backup', verifyToken, async (req, res) => {
         snmp_thresholds_count: snmpThresholds.length,
         host_disk_metrics_count: hostDiskMetrics.length,
         host_network_metrics_count: hostNetworkMetrics.length,
-        metric_definitions_count: metricDefinitions.length,
+        // metric_definitions removed from metadata
         host_disk_config_count: hostDiskConfig.length,
         snmp_latest_metrics_count: snmpLatestMetrics.length,
         has_guacamole_backup: !!guacamoleBackup,
@@ -1167,7 +1159,7 @@ router.post('/restore', verifyToken, async (req, res) => {
       snmp_thresholds,
       host_disk_metrics,
       host_network_metrics,
-      metric_definitions,
+      // metric_definitions removed
       host_disk_config,
       snmp_latest_metrics
     } = backupData.data;
@@ -1255,7 +1247,7 @@ router.post('/restore', verifyToken, async (req, res) => {
           'host_monitoring_data',
           'host_snmp_configs',
           'host_disk_config',
-          'metric_definitions',
+          // 'metric_definitions', removed - table no longer exists
           'host_interface_mappings',
           
           // Services and commands
@@ -2898,37 +2890,7 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
         }
       }
 
-      // Restore metric definitions (catalog of all available metrics)
-      if (metric_definitions && metric_definitions.length > 0) {
-        try {
-          console.log(`📊 Restoring ${metric_definitions.length} metric definitions...`);
-          await connection.execute('DELETE FROM metric_definitions');
-          
-          for (const definition of metric_definitions) {
-            const defData = {
-              metricKey: definition.metric_key || definition.metricKey,
-              displayName: definition.display_name || definition.displayName,
-              category: definition.category || 'system',
-              unit: definition.unit || null,
-              description: definition.description || null,
-              oidKey: definition.oid_key || definition.oidKey || null,
-              normalizationType: definition.normalization_type || definition.normalizationType || 'none',
-              normalizationMax: definition.normalization_max || definition.normalizationMax || null,
-              storageUnit: definition.storage_unit || definition.storageUnit || null,
-              displayUnit: definition.display_unit || definition.displayUnit || null,
-              displayFormat: definition.display_format || definition.displayFormat || null,
-              createdAt: definition.created_at || definition.createdAt || new Date()
-            };
-            
-            const { sql, values } = prepareInsert('metric_definitions', defData);
-            await connection.execute(sql, values);
-          }
-          console.log(`✅ Restored ${metric_definitions.length} metric definitions`);
-
-        } catch (error) {
-          console.error('❌ Error restoring metric definitions:', error.message);
-        }
-      }
+      // metric_definitions restore removed - table no longer exists
 
       // Restore host disk configurations
       if (host_disk_config && host_disk_config.length > 0) {
@@ -3452,79 +3414,63 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
       
       // WICHTIG: Restart SNMP Background Polling Service nach Restore
       if (restoredHostSnmpConfigs > 0 || restoredSnmpMetrics > 0) {
-        console.log('🔄 Restarting SNMP Background Polling Service after restore...');
+        console.log('🔄 Signaling SNMP Background Polling Service to reload hosts...');
         try {
-          // Use the polling API to restart the service
-          const axios = require('axios');
-          const baseUrl = `http://localhost:${process.env.PORT || 3001}`;
+          // Get all enabled SNMP hosts from the restored data
+          const [snmpHosts] = await connection.execute(
+            `SELECT h.id FROM hosts h 
+             JOIN host_snmp_configs hsc ON h.id = hsc.host_id 
+             WHERE hsc.enabled = 1`
+          );
           
-          // First stop the service if running
-          try {
-            console.log('  Stopping existing polling service...');
-            await axios.post(`${baseUrl}/api/polling/stop`, {}, {
-              headers: { 
-                'Authorization': `Bearer ${req.headers.authorization?.split(' ')[1] || ''}`,
-                'Content-Type': 'application/json'
-              },
-              timeout: 5000
-            });
-          } catch (stopError) {
-            // Service might not be running, that's okay
-            console.log('  Polling service was not running');
-          }
-          
-          // Wait a moment for service to fully stop
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Start the polling service
-          console.log('  Starting polling service...');
-          try {
-            const startResponse = await axios.post(`${baseUrl}/api/polling/start`, {}, {
-              headers: { 
-                'Authorization': `Bearer ${req.headers.authorization?.split(' ')[1] || ''}`,
-                'Content-Type': 'application/json'
-              },
-              timeout: 10000
-            });
+          if (snmpHosts.length > 0) {
+            console.log(`  Sending reload signals for ${snmpHosts.length} SNMP hosts...`);
             
-            if (startResponse.data.success) {
-              console.log('✅ SNMP Polling Service started successfully');
-              console.log(`  Status: ${startResponse.data.status}`);
-              console.log(`  PID: ${startResponse.data.pid || 'N/A'}`);
-            } else {
-              console.error('⚠️ Failed to start polling service:', startResponse.data.error);
+            // Insert reload signals for all SNMP-enabled hosts
+            for (const host of snmpHosts) {
+              await connection.execute(
+                `INSERT INTO snmp_reload_signals (host_id, signal_type) 
+                 VALUES (?, 'add') 
+                 ON DUPLICATE KEY UPDATE signal_type = 'add', processed_at = NULL`,
+                [host.id]
+              );
             }
-          } catch (startError) {
-            console.error('⚠️ Error starting polling service:', startError.message);
+            
+            console.log('✅ SNMP Polling Service will automatically reload all hosts');
+            console.log('  The polling service checks for signals every 10 seconds');
           }
-          
-          // Trigger immediate poll for restored hosts
-          if (restoredHostSnmpConfigs > 0) {
-            console.log('🔄 Triggering immediate SNMP poll for restored hosts...');
-            
-            // Get all enabled SNMP hosts from the restored data
-            const [snmpHosts] = await connection.execute(
-              `SELECT h.id, h.name, h.hostname, 
-                      hsc.enabled, hsc.version, hsc.community, hsc.port,
-                      hsc.username, hsc.auth_protocol, hsc.auth_password,
-                      hsc.priv_protocol, hsc.priv_password
-               FROM hosts h 
-               JOIN host_snmp_configs hsc ON h.id = hsc.host_id 
-               WHERE hsc.enabled = 1`
-            );
-            
-            console.log(`  Found ${snmpHosts.length} enabled SNMP hosts`);
-            
-            // The polling service will automatically pick up these hosts
-            // We just need to ensure it's running
-          }
-          
         } catch (error) {
-          console.error('⚠️ Failed to restart SNMP Polling Service:', error.message);
-          // Don't fail the restore if polling service restart fails
-          // The user can manually start it from the UI
+          console.error('⚠️ Failed to signal SNMP Polling Service:', error.message);
+          // Don't fail the restore if signaling fails
         }
       }
+      
+      // WICHTIG: Restart Status Checker Service nach Restore
+      console.log('🔄 Restarting Status Checker Service for host ping and service monitoring...');
+      try {
+        const statusChecker = require('../utils/statusChecker');
+        
+        // Stop if running
+        if (statusChecker.isRunning) {
+          console.log('  Stopping existing status checker...');
+          statusChecker.stop();
+        }
+        
+        // Wait a moment
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Start again
+        console.log('  Starting status checker...');
+        await statusChecker.start();
+        console.log('✅ Status Checker Service restarted successfully');
+        console.log(`  Check interval: ${statusChecker.checkInterval / 1000} seconds`);
+        console.log(`  Monitoring: Host pings and service status commands`);
+        
+      } catch (error) {
+        console.error('⚠️ Failed to restart Status Checker:', error.message);
+        // Don't fail the restore if status checker restart fails
+      }
+      
       // The SSH regeneration is already done above, so the hook is redundant
       /*
       try {
