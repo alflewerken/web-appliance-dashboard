@@ -164,6 +164,11 @@ class BackgroundPollingService {
     logger.info('Starting Background Polling Service...');
 
     try {
+      // Initialize pool if not exists or if closed
+      if (!this.pool) {
+        await this.initialize();
+      }
+      
       // Load all hosts with SNMP enabled
       const hosts = await this.getEnabledHosts();
       logger.info(`Found ${hosts.length} hosts with SNMP enabled`);
@@ -209,10 +214,8 @@ class BackgroundPollingService {
     this.pollingIntervals.clear();
     this.isRunning = false;
     
-    // Close database connections
-    if (this.pool) {
-      await this.pool.end();
-    }
+    // Keep the pool open for potential restart
+    // Only close if explicitly shutting down
     
     logger.info('Background Polling Service stopped');
   }
@@ -714,18 +717,48 @@ class BackgroundPollingService {
       await this.pool.execute(`
         CREATE TABLE IF NOT EXISTS snmp_reload_signals (
           host_id INT PRIMARY KEY,
-          signal_type ENUM('reload', 'stop', 'add') DEFAULT 'reload',
+          signal_type ENUM('reload', 'stop', 'add', 'reload-all') DEFAULT 'reload',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           processed_at TIMESTAMP NULL,
           FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
         )
       `);
       
-      // Get unprocessed signals
+      // Check for special reload-all signal (host_id = 0)
+      const [reloadAllSignal] = await this.pool.execute(`
+        SELECT * FROM snmp_reload_signals 
+        WHERE host_id = 0 AND signal_type = 'reload-all' AND processed_at IS NULL
+        LIMIT 1
+      `);
+      
+      if (reloadAllSignal.length > 0) {
+        logger.info('🔄 RELOAD-ALL signal received! Restarting polling service with new host IDs...');
+        
+        // Mark signal as processed
+        await this.pool.execute(`
+          UPDATE snmp_reload_signals 
+          SET processed_at = NOW() 
+          WHERE host_id = 0 AND signal_type = 'reload-all'
+        `);
+        
+        // Stop all current polling
+        await this.stop();
+        
+        // Wait a moment for clean shutdown
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Restart with fresh configuration
+        await this.start();
+        
+        logger.info('✅ Polling service restarted with new host configuration');
+        return; // Don't process other signals after a full reload
+      }
+      
+      // Get unprocessed signals for individual hosts
       const [signals] = await this.pool.execute(`
         SELECT host_id, signal_type 
         FROM snmp_reload_signals 
-        WHERE processed_at IS NULL
+        WHERE processed_at IS NULL AND host_id > 0
       `);
       
       if (signals.length > 0) {

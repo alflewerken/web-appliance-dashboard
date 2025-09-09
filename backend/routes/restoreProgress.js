@@ -954,13 +954,27 @@ router.post('/start', verifyToken, async (req, res) => {
       
       await connection.commit();
       
-      // CRITICAL: Background services cache host IDs and need a full restart
-      console.log(`⚠️ IMPORTANT: Backend container must be restarted for SNMP polling to work!`);
-      console.log(`📌 The Background Polling Service caches host IDs that have changed.`);
-      console.log(`🔄 Please restart the backend container: docker restart appliance_backend`);
-      
-      // Set a flag that indicates restart is needed
-      global.restartNeeded = true;
+      // Signal Background Polling Service to reload all hosts with new IDs
+      try {
+        console.log(`📡 Signaling Background Polling Service to reload all hosts...`);
+        
+        // Clear any existing signals
+        await connection.execute('DELETE FROM snmp_reload_signals');
+        
+        // Insert reload-all signal (host_id = 0)
+        await connection.execute(
+          `INSERT INTO snmp_reload_signals (host_id, signal_type, created_at, processed_at) 
+           VALUES (0, 'reload-all', NOW(), NULL)`
+        );
+        
+        console.log(`✅ Created reload-all signal for Background Polling Service`);
+        console.log(`⏳ The service will reload all hosts within 30 seconds`);
+        
+      } catch (signalErr) {
+        console.error(`❌ Failed to signal Background Polling Service:`, signalErr);
+        console.log(`⚠️ Manual restart required: docker restart appliance_backend`);
+        // Don't fail the restore because of this
+      }
       
       // Create audit log for successful restore
       try {
