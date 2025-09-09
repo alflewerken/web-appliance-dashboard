@@ -160,9 +160,9 @@ export class BackupService {
         return { success: false, message: 'Wiederherstellung abgebrochen' };
       }
 
-      // Try new SSE-enabled restore endpoint first
+      // Use SSE-enabled restore endpoint - it now has ALL features
       try {
-        console.log('🚀 Trying SSE-enabled restore endpoint...');
+        console.log('🚀 Using SSE-enabled restore endpoint...');
         const sseResponse = await axios.post('/api/restore/progress/start', backupData, {
           timeout: 10000, // Short timeout for immediate response
         });
@@ -177,96 +177,16 @@ export class BackupService {
             totalItems: sseResponse.data.totalItems,
             message: 'Restore started with real-time progress tracking'
           };
+        } else {
+          throw new Error('No sessionId received from restore endpoint');
         }
-      } catch (sseError) {
-        console.error('❌ SSE restore endpoint error:', sseError);
-        console.log('📌 Falling back to classic restore endpoint');
-      }
-
-      // Fallback: Perform restore with extended timeout for large files
-      const restoreResponse = await axios.post('/api/restore', backupData, {
-        timeout: 300000, // 5 Minuten Timeout für große Backups
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        }
-      });
-      const result = restoreResponse.data;
-      
-      // Check if we got a sessionId for SSE tracking
-      if (result.sessionId) {
+      } catch (error) {
+        console.error('❌ Restore error:', error);
         return {
-          success: true,
-          sessionId: result.sessionId,
-          message: 'Restore started with real-time progress tracking'
+          success: false,
+          message: error.response?.data?.error || 'Wiederherstellung fehlgeschlagen'
         };
       }
-
-      let successMessage;
-
-      if (result.compatibility_mode && result.ssh_auto_initialized) {
-        successMessage =
-          `✅ Legacy-Backup erfolgreich wiederhergestellt!\n` +
-          `🔑 SSH-System wurde automatisch initialisiert!\n\n`;
-      } else if (result.compatibility_mode) {
-        successMessage = `✅ Legacy-Backup wiederhergestellt! (SSH-System nicht verfügbar)\n\n`;
-      } else {
-        successMessage = `✅ Backup erfolgreich wiederhergestellt!\n\n`;
-      }
-
-      let nextStepsMessage = '';
-      if (result.next_steps && result.next_steps.length > 0) {
-        nextStepsMessage =
-          `\n🚀 Nächste Schritte:\n` +
-          result.next_steps.map(step => `• ${step}`).join('\n') +
-          '\n';
-      }
-
-      return {
-        success: true,
-        message:
-          successMessage +
-          `📊 Wiederhergestellte Daten:\n` +
-          `• ${result.restored_appliances} Services\n` +
-          `• ${result.restored_categories} Kategorien\n` +
-          `• ${result.restored_user_settings || result.restored_settings || 0} Benutzereinstellungen\n` +
-          `• ${result.restored_background_images} Hintergrundbilder\n` +
-          (result.restored_hosts > 0
-            ? `• ${result.restored_hosts} Terminal-Hosts\n`
-            : '') +
-          (result.restored_services > 0
-            ? `• ${result.restored_services} Proxy-Services\n`
-            : '') +
-          (result.restored_ssh_hosts > 0
-            ? `• ${result.restored_ssh_hosts} SSH-Hosts\n`
-            : '') +
-          (result.restored_ssh_keys > 0
-            ? `• ${result.restored_ssh_keys} SSH-Schlüssel\n`
-            : '') +
-          (result.restored_ssh_upload_log > 0 || result.restored_ssh_upload_logs > 0
-            ? `• ${result.restored_ssh_upload_log || result.restored_ssh_upload_logs} Dateiübertragungen (SSH)\n`
-            : '') +
-          (result.restored_appliance_commands > 0 || result.restored_custom_commands > 0
-            ? `• ${result.restored_appliance_commands || result.restored_custom_commands} Eigene Kommandos\n`
-            : '') +
-          (result.restored_users > 0
-            ? `• ${result.restored_users} Benutzer verarbeitet` +
-              (result.restored_users_new > 0
-                ? ` (${result.restored_users_new} neu)`
-                : '') +
-              '\n'
-            : '') +
-          (result.restored_audit_logs > 0
-            ? `• ${result.restored_audit_logs} Audit-Log-Einträge\n`
-            : '') +
-          (result.restored_snmp_metrics > 0
-            ? `• ${result.restored_snmp_metrics.toLocaleString()} Monitoring-Metriken\n`
-            : '') +
-          nextStepsMessage +
-          `\n🔄 Die Seite wird neu geladen...`,
-        reloadRequired: true,
-        sshReady: result.ssh_ready || false,
-        sshAutoInitialized: result.ssh_auto_initialized || false,
-      };
     } catch (error) {
       if (error.response && error.response.data && error.response.data.error) {
         return {

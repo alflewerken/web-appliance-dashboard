@@ -6,6 +6,8 @@ const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../utils/auth');
 const path = require('path');
 const fs = require('fs').promises;
+const { encryptionManager } = require('../utils/encryption');
+const { createAuditLog } = require('../utils/auditLogger');
 
 // Store für aktive Restore Sessions
 const restoreSessions = new Map();
@@ -103,6 +105,39 @@ router.post('/start', verifyToken, async (req, res) => {
   const backupData = req.body;
   
   console.log('🚀 Starting restore with immediate response, sessionId:', sessionId);
+  
+  // Extract encryption key from backup if present
+  const backupDecryptionKey = backupData.encryption_key || null;
+  
+  // Function to re-encrypt password from backup to system key
+  const reEncryptFromBackup = (encryptedData) => {
+    if (!encryptedData) return null;
+    
+    if (!backupDecryptionKey) {
+      // No backup key, return as-is
+      return encryptedData;
+    }
+
+    try {
+      const systemKey = encryptionManager.getSystemKey();
+      const result = encryptionManager.reEncrypt(encryptedData, backupDecryptionKey, systemKey);
+      
+      if (!result) {
+        // Try to decrypt manually and re-encrypt
+        const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
+        if (decrypted) {
+          const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
+          return reEncrypted || encryptedData;
+        }
+        return encryptedData;
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Re-encryption error:', error.message);
+      return encryptedData;
+    }
+  };
   
   // Initialize session
   restoreSessions.set(sessionId, {
@@ -300,7 +335,9 @@ router.post('/start', verifyToken, async (req, res) => {
         processedItemCount += totalItems.ssh_keys;
       }
       
-      // 3. Restore hosts (depends on ssh_keys via ssh_key_name)
+      // 4. Restore hosts (depends on ssh_keys via ssh_key_name)
+      const hostIdMapping = {}; // Track old ID -> new ID mappings for later use
+      
       if (backupData.data?.hosts?.length > 0) {
         sendProgressUpdate(sessionId, {
           type: 'step',
@@ -312,8 +349,26 @@ router.post('/start', verifyToken, async (req, res) => {
         
         for (let i = 0; i < backupData.data.hosts.length; i++) {
           const host = backupData.data.hosts[i];
-          const { sql, values } = prepareInsert('hosts', host);
-          await connection.execute(sql, values);
+          
+          // Re-encrypt passwords if backup has encryption key
+          const hostData = {
+            ...host,
+            password: reEncryptFromBackup(host.password),
+            privateKey: reEncryptFromBackup(host.privateKey || host.private_key),
+            remotePassword: reEncryptFromBackup(host.remotePassword || host.remote_password),
+            rustdeskPassword: reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password)
+          };
+          
+          const oldHostId = host.id;
+          delete hostData.id; // Remove ID to let DB auto-increment
+          
+          const { sql, values } = prepareInsert('hosts', hostData);
+          const [result] = await connection.execute(sql, values);
+          
+          // Map old ID to new ID
+          const newHostId = result.insertId;
+          hostIdMapping[oldHostId] = newHostId;
+          console.log(`📌 Host ID mapping: ${oldHostId} -> ${newHostId} (${host.name})`);
           
           if (i % 5 === 0 || i === backupData.data.hosts.length - 1) {
             sendProgressUpdate(sessionId, {
@@ -325,9 +380,45 @@ router.post('/start', verifyToken, async (req, res) => {
           }
         }
         processedItemCount += totalItems.hosts;
+        
+        // Synchronize Guacamole connections for remote desktop enabled hosts
+        try {
+          const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
+          
+          const [importedHosts] = await connection.execute(
+            'SELECT * FROM hosts WHERE remote_desktop_enabled = 1'
+          );
+          
+          for (const host of importedHosts) {
+            try {
+              const guacamoleData = {
+                id: host.id,
+                name: host.name,
+                remote_desktop_enabled: host.remote_desktop_enabled,
+                remote_host: host.hostname,
+                remote_protocol: host.remote_protocol || 'vnc',
+                remote_port: host.remote_port,
+                remote_username: host.remote_username,
+                remote_password_encrypted: host.remote_password,
+                remotePassword: host.remote_password,
+                guacamole_performance_mode: host.guacamole_performance_mode,
+                sshHostname: host.hostname,
+                sshUsername: host.username,
+                sshPassword: host.password
+              };
+              
+              await syncGuacamoleConnection(guacamoleData);
+              console.log(`✅ Synced Guacamole for host: ${host.name}`);
+            } catch (syncError) {
+              console.error(`❌ Failed to sync Guacamole for host ${host.name}:`, syncError.message);
+            }
+          }
+        } catch (guacError) {
+          console.error('❌ Guacamole sync error:', guacError.message);
+        }
       }
       
-      // 3. Restore appliances (depends on categories)
+      // 5. Restore appliances (depends on categories)
       if (backupData.data?.appliances?.length > 0) {
         sendProgressUpdate(sessionId, {
           type: 'step',
@@ -339,7 +430,15 @@ router.post('/start', verifyToken, async (req, res) => {
         
         for (let i = 0; i < backupData.data.appliances.length; i++) {
           const appliance = backupData.data.appliances[i];
-          const { sql, values } = prepareInsert('appliances', appliance);
+          
+          // Re-encrypt passwords if backup has encryption key
+          const applianceData = {
+            ...appliance,
+            remotePasswordEncrypted: reEncryptFromBackup(appliance.remotePasswordEncrypted || appliance.remote_password_encrypted),
+            rustdeskPasswordEncrypted: reEncryptFromBackup(appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted)
+          };
+          
+          const { sql, values } = prepareInsert('appliances', applianceData);
           await connection.execute(sql, values);
           
           if (i % 10 === 0 || i === backupData.data.appliances.length - 1) {
@@ -572,6 +671,18 @@ router.post('/start', verifyToken, async (req, res) => {
       }
       
       await connection.commit();
+      
+      // Create audit log for successful restore
+      try {
+        await createAuditLog(req.user?.id || null, 'restore_complete', {
+          sessionId,
+          totalItems,
+          processedItemCount,
+          duration: Date.now() - startTime
+        });
+      } catch (auditErr) {
+        console.error('Failed to create audit log:', auditErr);
+      }
       
       // Send completion
       sendProgressUpdate(sessionId, {
