@@ -100,6 +100,7 @@
     "lastWeek": "Last Week"
   },
   "services": {
+    "services": "Services",
     "noServicesFound": "No services found",
     "addService": "Add service",
     "editService": "Edit service",
@@ -406,12 +407,26 @@
     "uploadImage": "Upload Image",
     "noImagesAvailable": "No images available",
     "uploadImagesHint": "Upload images to use them as background",
+    "deviceCheck": "Device Check",
+    "serviceCheckInterval": "Device Check Interval",
+    "serviceCheckIntervalDescription": "Interval for checking service availability in seconds (10-3600)",
+    "selectiveImport": "Selective Import from Backup File",
+    "selectBackupFile": "Select Backup File",
+    "selectiveImportDescription": "This feature allows you to import individual subcategories from a backup, such as Categories, Users, Hosts, SSH Keys, Metric Data, etc.",
+    "selectiveImportInfo": "Select the data you want to import from the backup. Existing data will be overwritten.",
+    "selectedItems": "Selected items",
+    "importSelected": "Import Selected",
+    "importing": "Importing...",
+    "largeDataWarning": "May contain large amounts of data and slow down the import",
+    "backgroundImages": "Background Images",
+    "userSettings": "User Settings",
     "errors": {
       "loadFailed": "Error loading settings",
       "saveFailed": "Error saving",
       "loadSystemFailed": "Error loading system settings",
       "saveCategoryFailed": "Error saving category",
-      "deleteCategoryFailed": "Error deleting category"
+      "deleteCategoryFailed": "Error deleting category",
+      "invalidBackupFile": "Invalid backup file"
     },
     "success": {
       "settingSaved": "Setting saved",
@@ -442,6 +457,7 @@
     "categories": "Categories",
     "backgrounds": "Background images",
     "terminalHosts": "Terminal hosts",
+    "backupCreatedAt": "Backup created at",
     "tip": "Tip: Create regular backups of your configuration."
   },
   "auditLog": {
@@ -895,5 +911,11 @@
       "statusChangeFailed": "Failed to change user status",
       "cannotDeactivateSelf": "You cannot deactivate yourself"
     }
+  },
+  "monitoring": {
+    "title": "Monitoring",
+    "metrics": "Metrics",
+    "snmpMetrics": "SNMP Metrics",
+    "historicalData": "Historical Data"
   }
 }

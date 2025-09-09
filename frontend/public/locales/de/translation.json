@@ -100,6 +100,7 @@
     "lastWeek": "Letzte Woche"
   },
   "services": {
+    "services": "Services",
     "noServicesFound": "Keine Services gefunden",
     "addService": "Service hinzufügen",
     "editService": "Service bearbeiten",
@@ -406,12 +407,26 @@
     "uploadImage": "Bild hochladen",
     "noImagesAvailable": "Keine Bilder vorhanden",
     "uploadImagesHint": "Laden Sie Bilder hoch, um sie als Hintergrund zu verwenden",
+    "deviceCheck": "Geräte-Überprüfung",
+    "serviceCheckInterval": "Device Check Interval",
+    "serviceCheckIntervalDescription": "Intervall für die Überprüfung der Service-Verfügbarkeit in Sekunden (10-3600)",
+    "selectiveImport": "Selektiver Import aus einer Backup-Datei",
+    "selectBackupFile": "Backup-Datei auswählen",
+    "selectiveImportDescription": "Diese Funktion ermöglicht es, einzelne Unterkategorien aus einem Backup zu importieren, wie z.B. Kategorien, Benutzer, Hosts, SSH-Keys, Metrik-Daten usw.",
+    "selectiveImportInfo": "Wählen Sie die Daten aus, die Sie aus dem Backup importieren möchten. Bestehende Daten werden überschrieben.",
+    "selectedItems": "Ausgewählte Elemente",
+    "importSelected": "Ausgewählte importieren",
+    "importing": "Importiere...",
+    "largeDataWarning": "Kann große Datenmengen enthalten und den Import verlangsamen",
+    "backgroundImages": "Hintergrundbilder",
+    "userSettings": "Benutzereinstellungen",
     "errors": {
       "loadFailed": "Fehler beim Laden der Einstellungen",
       "saveFailed": "Fehler beim Speichern",
       "loadSystemFailed": "Fehler beim Laden der System-Einstellungen",
       "saveCategoryFailed": "Fehler beim Speichern der Kategorie",
-      "deleteCategoryFailed": "Fehler beim Löschen der Kategorie"
+      "deleteCategoryFailed": "Fehler beim Löschen der Kategorie",
+      "invalidBackupFile": "Ungültige Backup-Datei"
     },
     "success": {
       "settingSaved": "Einstellung gespeichert",
@@ -442,6 +457,7 @@
     "categories": "Kategorien",
     "backgrounds": "Hintergrundbilder",
     "terminalHosts": "Terminal-Hosts",
+    "backupCreatedAt": "Backup erstellt am",
     "tip": "Tipp: Erstellen Sie regelmäßige Backups Ihrer Konfiguration."
   },
   "auditLog": {
@@ -902,5 +918,11 @@
       "publicKeyCopied": "Öffentlicher Schlüssel in Zwischenablage kopiert",
       "privateKeyCopied": "Privater Schlüssel in Zwischenablage kopiert"
     }
+  },
+  "monitoring": {
+    "title": "Monitoring",
+    "metrics": "Metriken",
+    "snmpMetrics": "SNMP Metriken",
+    "historicalData": "Historische Daten"
   }
 }
