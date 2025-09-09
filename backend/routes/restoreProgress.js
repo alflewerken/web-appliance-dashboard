@@ -632,7 +632,7 @@ router.post('/start', verifyToken, async (req, res) => {
       // Re-enable foreign key checks
       await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
       
-      // 8. Restore host SNMP configs (depends on hosts)
+      // 8. Restore host SNMP configs (depends on hosts - use mapped IDs!)
       if (backupData.data?.host_snmp_configs?.length > 0) {
         sendProgressUpdate(sessionId, {
           type: 'step',
@@ -642,17 +642,41 @@ router.post('/start', verifyToken, async (req, res) => {
         
         await connection.execute('DELETE FROM host_snmp_configs');
         
+        let restoredConfigs = 0;
         for (const config of backupData.data.host_snmp_configs) {
-          const { sql, values } = prepareInsert('host_snmp_configs', config);
+          // Map old host ID to new host ID
+          const oldHostId = config.host_id || config.hostId;
+          const newHostId = hostIdMapping[oldHostId];
+          
+          if (!newHostId) {
+            console.warn(`⚠️ Skipping SNMP config for unknown host ID ${oldHostId}`);
+            continue;
+          }
+          
+          // Update config with new host ID
+          const configData = {
+            ...config,
+            hostId: newHostId  // Use the mapped host ID
+          };
+          
+          // Remove the old ID field to avoid confusion
+          delete configData.id;
+          delete configData.host_id;
+          
+          const { sql, values } = prepareInsert('host_snmp_configs', configData);
           await connection.execute(sql, values);
+          restoredConfigs++;
         }
+        
         processedItemCount += totalItems.host_snmp_configs;
         sendProgressUpdate(sessionId, {
           type: 'progress',
           progress: calculateProgress(processedItemCount),
-          processedItems: { host_snmp_configs: totalItems.host_snmp_configs },
-          message: `Processed ${totalItems.host_snmp_configs} SNMP configurations`
+          processedItems: { host_snmp_configs: restoredConfigs },
+          message: `Processed ${restoredConfigs} of ${totalItems.host_snmp_configs} SNMP configurations`
         });
+        
+        console.log(`✅ Restored ${restoredConfigs} SNMP configs with mapped host IDs`);
       }
       
       // 9. Restore user settings
