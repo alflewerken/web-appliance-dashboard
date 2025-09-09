@@ -149,7 +149,7 @@ router.post('/start', verifyToken, async (req, res) => {
     status: 'processing'
   });
   
-  // Count items for progress - include background_images
+  // Count items for progress - include all monitoring tables
   const totalItems = {
     categories: backupData.data?.categories?.length || 0,
     users: backupData.data?.users?.length || 0,  // Dashboard users
@@ -159,6 +159,8 @@ router.post('/start', verifyToken, async (req, res) => {
     background_images: backupData.data?.background_images?.length || 0,  // Will handle files too
     snmp_metrics: backupData.data?.snmp_metrics?.length || 0,
     host_snmp_configs: backupData.data?.host_snmp_configs?.length || 0,
+    host_metrics_logging: backupData.data?.host_metrics_logging?.length || 0,
+    host_monitoring_data: backupData.data?.host_monitoring_data?.length || 0,
     user_settings: backupData.data?.user_settings?.length || backupData.data?.settings?.length || 0,
   };
   
@@ -704,7 +706,121 @@ router.post('/start', verifyToken, async (req, res) => {
         console.log(`✅ Restored ${restoredConfigs} SNMP configs with mapped host IDs`);
       }
       
-      // 9. Restore user settings
+      // 9. Restore host_metrics_logging (metric configurations per host)
+      if (backupData.data?.host_metrics_logging?.length > 0) {
+        console.log(`📊 Restoring ${backupData.data.host_metrics_logging.length} metric logging configs...`);
+        sendProgressUpdate(sessionId, {
+          type: 'step',
+          currentStep: 'host_metrics_logging',
+          message: `Restoring ${totalItems.host_metrics_logging} metric logging configurations...`
+        });
+        
+        await connection.execute('DELETE FROM host_metrics_logging');
+        
+        let restoredLogging = 0;
+        for (const logging of backupData.data.host_metrics_logging) {
+          // Map old host ID to new host ID
+          const oldHostId = logging.host_id || logging.hostId;
+          const newHostId = hostIdMapping[oldHostId];
+          
+          if (!newHostId) {
+            console.warn(`⚠️ Skipping metrics logging for unknown host ID ${oldHostId}`);
+            continue;
+          }
+          
+          const loggingData = {
+            hostId: newHostId,  // Use mapped host ID
+            config: typeof logging.config === 'string' ? logging.config : JSON.stringify(logging.config || {}),
+            customNames: typeof logging.custom_names === 'string' ? logging.custom_names : 
+              (typeof logging.customNames === 'string' ? logging.customNames : 
+                JSON.stringify(logging.custom_names || logging.customNames || {})),
+            selectedMetrics: typeof logging.selected_metrics === 'string' ? logging.selected_metrics :
+              (typeof logging.selectedMetrics === 'string' ? logging.selectedMetrics :
+                JSON.stringify(logging.selected_metrics || logging.selectedMetrics || null)),
+            defaultTimeRange: logging.default_time_range || logging.defaultTimeRange || '15m',
+            createdAt: logging.created_at || logging.createdAt || new Date(),
+            updatedAt: logging.updated_at || logging.updatedAt || new Date()
+          };
+          
+          try {
+            const { sql, values } = prepareInsert('host_metrics_logging', loggingData);
+            await connection.execute(sql, values);
+            restoredLogging++;
+          } catch (err) {
+            console.error(`❌ Error restoring metrics logging for host ${newHostId}:`, err.message);
+          }
+        }
+        
+        console.log(`✅ Restored ${restoredLogging} metric logging configs`);
+        processedItemCount += totalItems.host_metrics_logging;
+        sendProgressUpdate(sessionId, {
+          type: 'progress',
+          progress: calculateProgress(processedItemCount),
+          processedItems: { host_metrics_logging: restoredLogging },
+          message: `Processed ${restoredLogging} metric logging configurations`
+        });
+      }
+      
+      // 10. Restore host_monitoring_data (historical monitoring data)
+      if (backupData.data?.host_monitoring_data?.length > 0) {
+        console.log(`📈 Restoring ${backupData.data.host_monitoring_data.length} monitoring data entries...`);
+        sendProgressUpdate(sessionId, {
+          type: 'step',
+          currentStep: 'host_monitoring_data',
+          message: `Restoring ${totalItems.host_monitoring_data} monitoring data entries...`
+        });
+        
+        await connection.execute('DELETE FROM host_monitoring_data');
+        
+        const batchSize = 100;
+        let restoredMonitoring = 0;
+        
+        for (let i = 0; i < backupData.data.host_monitoring_data.length; i += batchSize) {
+          const batch = backupData.data.host_monitoring_data.slice(i, i + batchSize);
+          const mappedBatch = [];
+          
+          for (const data of batch) {
+            const oldHostId = data.host_id || data.hostId;
+            const newHostId = hostIdMapping[oldHostId];
+            
+            if (!newHostId) {
+              continue; // Skip data for non-existent hosts
+            }
+            
+            mappedBatch.push({
+              hostId: newHostId,
+              metricKey: data.metric_key || data.metricKey,
+              metricValue: data.metric_value || data.metricValue,
+              timestamp: data.timestamp || new Date()
+            });
+          }
+          
+          // Bulk insert for performance
+          for (const data of mappedBatch) {
+            try {
+              const { sql, values } = prepareInsert('host_monitoring_data', data);
+              await connection.execute(sql, values);
+              restoredMonitoring++;
+            } catch (err) {
+              console.error(`Error inserting monitoring data:`, err.message);
+            }
+          }
+          
+          // Send progress update
+          const processed = Math.min(i + batchSize, backupData.data.host_monitoring_data.length);
+          sendProgressUpdate(sessionId, {
+            type: 'progress',
+            progress: calculateProgress(processedItemCount + processed),
+            processedItems: { host_monitoring_data: restoredMonitoring },
+            message: `Processed ${restoredMonitoring} monitoring data entries`
+          });
+        }
+        
+        console.log(`✅ Restored ${restoredMonitoring} monitoring data entries`);
+        processedItemCount += totalItems.host_monitoring_data;
+      }
+      
+      // 11. Restore user settings
       if (backupData.data?.user_settings?.length > 0 || backupData.data?.settings?.length > 0) {
         const settings = backupData.data.user_settings || backupData.data.settings;
         console.log(`⚙️ Restoring ${settings.length} user settings...`);

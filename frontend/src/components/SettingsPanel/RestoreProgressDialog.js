@@ -57,6 +57,8 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
       background_images: <Image sx={{ fontSize: 18 }} />,
       snmp_metrics: <Analytics sx={{ fontSize: 18 }} />,
       host_snmp_configs: <SettingsEthernet sx={{ fontSize: 18 }} />,
+      host_metrics_logging: <Settings sx={{ fontSize: 18 }} />,
+      host_monitoring_data: <Analytics sx={{ fontSize: 18 }} />,
       user_settings: <Settings sx={{ fontSize: 18 }} />
     };
     return iconMap[key] || <Storage sx={{ fontSize: 18 }} />;
