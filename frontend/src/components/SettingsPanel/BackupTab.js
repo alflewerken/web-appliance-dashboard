@@ -136,7 +136,8 @@ const BackupTab = () => {
     event.target.value = '';
   };
 
-  const restoreFromFile = async (file, decryptionKey = null, restoreSnmpMetrics = false) => {
+  const restoreFromFile = async (file, decryptionKey = null, restoreSnmpMetrics) => {
+    console.log('📊 restoreFromFile called with restoreSnmpMetrics:', restoreSnmpMetrics);
     try {
       setRestoreLoading(true);
       // Make sure dialog is closed at start
@@ -201,7 +202,7 @@ const BackupTab = () => {
     }
   };
 
-  const handleRestoreWithKey = (decryptionKey, restoreSnmpMetrics = false) => {
+  const handleRestoreWithKey = (decryptionKey, restoreSnmpMetrics) => {
     console.log('🔑 handleRestoreWithKey called, restoreSnmpMetrics:', restoreSnmpMetrics);
     // Make absolutely sure dialog is closed before starting
     setShowProgressDialogDebug(false);

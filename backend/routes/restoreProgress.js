@@ -151,6 +151,7 @@ router.post('/start', verifyToken, async (req, res) => {
   
   // Extract restore options
   const shouldRestoreSnmpMetrics = backupData.restoreSnmpMetrics !== false; // Default to true for backward compatibility
+  console.log(`🔍 shouldRestoreSnmpMetrics value: ${shouldRestoreSnmpMetrics}, backupData.restoreSnmpMetrics: ${backupData.restoreSnmpMetrics}`);
   
   // Count items for progress - include all monitoring tables
   const totalItems = {
@@ -562,7 +563,8 @@ router.post('/start', verifyToken, async (req, res) => {
       
       // 7. NOW restore SNMP Metrics (after hosts exist - with mapped IDs!)
       // Check if user wants to restore SNMP metrics (can be optional due to size)
-      const shouldRestoreSnmpMetrics = backupData.restoreSnmpMetrics !== false; // Default to true for backward compatibility
+      // shouldRestoreSnmpMetrics already defined above in line 153
+      console.log(`📊 SNMP Metrics restore check: shouldRestoreSnmpMetrics=${shouldRestoreSnmpMetrics}, metrics count=${backupData.data?.snmp_metrics?.length || 0}`);
       
       if (shouldRestoreSnmpMetrics && backupData.data?.snmp_metrics?.length > 0) {
         const snmpMetrics = backupData.data.snmp_metrics;

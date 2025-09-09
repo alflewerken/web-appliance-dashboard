@@ -39,6 +39,7 @@ import {
   CheckCircle,
   Circle,
   AlertCircle,
+  Lock,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -54,11 +55,15 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
   const [existingNames, setExistingNames] = useState({});
   const [duplicateNames, setDuplicateNames] = useState({});
   const [loading, setLoading] = useState(false);
+  const [encryptionKey, setEncryptionKey] = useState('');
+  const [existingHosts, setExistingHosts] = useState([]);
+  const [hostMappings, setHostMappings] = useState({});
 
   // Fetch existing names from database
   useEffect(() => {
     if (open && !loading) {
       fetchExistingNames();
+      fetchExistingHosts();
     }
   }, [open]);
 
@@ -67,37 +72,63 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
     
     setLoading(true);
     try {
+      // Get auth token
+      const token = localStorage.getItem('token');
+      const config = token ? {
+        headers: { 'Authorization': `Bearer ${token}` }
+      } : {};
+
       // Fetch existing names for each category
       const [categoriesRes, usersRes, hostsRes, appliancesRes] = await Promise.all([
-        axios.get('/api/categories').catch((err) => {
+        axios.get('/api/categories', config).catch((err) => {
           console.error('Error fetching categories:', err);
-          return { data: [] };
+          return { data: { categories: [] } };
         }),
-        axios.get('/api/users').catch((err) => {
+        // The correct endpoint for users is /api/auth/users
+        axios.get('/api/auth/users', config).catch((err) => {
           console.error('Error fetching users:', err);
           return { data: [] };
         }),
-        axios.get('/api/hosts').catch((err) => {
+        axios.get('/api/hosts', config).catch((err) => {
           console.error('Error fetching hosts:', err);
-          return { data: [] };
+          return { data: { hosts: [] } };
         }),
-        axios.get('/api/appliances').catch((err) => {
+        axios.get('/api/appliances', config).catch((err) => {
           console.error('Error fetching appliances:', err);
-          return { data: [] };
+          return { data: { appliances: [] } };
         }),
       ]);
 
+      // Handle different response structures
+      const categories = categoriesRes.data?.categories || categoriesRes.data || [];
+      // Users endpoint returns array directly
+      const users = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.users || []);
+      const hosts = hostsRes.data?.hosts || hostsRes.data || [];
+      const appliances = appliancesRes.data?.appliances || appliancesRes.data || [];
+
       const existing = {
-        categories: (categoriesRes.data || []).map(c => (c.name || '').toLowerCase()).filter(n => n),
-        users: (usersRes.data || []).map(u => (u.username || '').toLowerCase()).filter(n => n),
-        hosts: (hostsRes.data || []).map(h => (h.name || '').toLowerCase()).filter(n => n),
-        appliances: (appliancesRes.data || []).map(a => (a.name || '').toLowerCase()).filter(n => n),
+        categories: categories.map(c => (c.name || '').toLowerCase().trim()).filter(n => n),
+        users: users.map(u => (u.username || '').toLowerCase().trim()).filter(n => n),
+        hosts: hosts.map(h => (h.name || '').toLowerCase().trim()).filter(n => n),
+        appliances: appliances.map(a => (a.name || '').toLowerCase().trim()).filter(n => n),
         // SSH keys and background images typically use unique identifiers
         sshKeys: [],
         backgroundImages: [],
       };
 
-      console.log('Loaded existing names:', existing);
+      console.log('Loaded existing names:', {
+        categories: existing.categories,
+        users: existing.users,
+        hosts: existing.hosts,
+        appliances: existing.appliances,
+        rawResponses: {
+          categories,
+          users,
+          hosts,
+          appliances
+        }
+      });
+      
       setExistingNames(existing);
     } catch (error) {
       console.error('Error fetching existing names:', error);
@@ -115,9 +146,31 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
     }
   };
 
+  const fetchExistingHosts = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = token ? {
+        headers: { 'Authorization': `Bearer ${token}` }
+      } : {};
+
+      const response = await axios.get('/api/hosts', config);
+      const hosts = response.data?.hosts || response.data || [];
+      setExistingHosts(hosts);
+      console.log('Loaded existing hosts for mapping:', hosts);
+    } catch (error) {
+      console.error('Error fetching existing hosts:', error);
+      setExistingHosts([]);
+    }
+  };
+
   // Initialize selection state when backup data changes
   useEffect(() => {
-    if (backupData && existingNames) {
+    if (backupData && Object.keys(existingNames).length > 0) {
+      console.log('Initializing with backupData and existingNames:', {
+        backupData: backupData.data,
+        existingNames
+      });
+      
       const items = {
         categories: {},
         users: {},
@@ -146,32 +199,55 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         backgroundImages: {},
       };
       
+      const mappings = {}; // Host mappings for SNMP metrics
+      
       // Initialize all items as unselected with original names and check for duplicates
       backupData.data?.categories?.forEach(cat => {
         const id = cat.id || cat.name;
         items.categories[id] = false;
         names.categories[id] = cat.name;
-        // Check if name already exists
-        duplicates.categories[id] = (existingNames.categories || []).includes(cat.name?.toLowerCase());
+        // Check if name already exists (case-insensitive with trim)
+        const normalizedName = (cat.name || '').toLowerCase().trim();
+        duplicates.categories[id] = (existingNames.categories || []).includes(normalizedName);
+        if (duplicates.categories[id]) {
+          console.log(`Duplicate found for category "${cat.name}": normalized="${normalizedName}"`);
+        }
       });
       
       backupData.data?.users?.forEach(user => {
         const id = user.id || user.username;
         items.users[id] = false;
         names.users[id] = user.username;
-        // Check if username already exists
-        duplicates.users[id] = (existingNames.users || []).includes(user.username?.toLowerCase());
+        // Check if username already exists (case-insensitive with trim)
+        const normalizedName = (user.username || '').toLowerCase().trim();
+        duplicates.users[id] = (existingNames.users || []).includes(normalizedName);
+        if (duplicates.users[id]) {
+          console.log(`Duplicate found for user "${user.username}": normalized="${normalizedName}"`);
+        }
       });
       
       backupData.data?.hosts?.forEach(host => {
         const id = host.id || host.name;
         items.hosts[id] = false;
         names.hosts[id] = host.name;
-        // Check if host name already exists
-        duplicates.hosts[id] = (existingNames.hosts || []).includes(host.name?.toLowerCase());
-        // Initialize metrics selection per host
+        // Check if host name already exists (case-insensitive with trim)
+        const normalizedName = (host.name || '').toLowerCase().trim();
+        duplicates.hosts[id] = (existingNames.hosts || []).includes(normalizedName);
+        if (duplicates.hosts[id]) {
+          console.log(`Duplicate found for host "${host.name}": normalized="${normalizedName}"`);
+        }
+        // Initialize metrics selection per host with mapping
         if (backupData.data?.snmp_metrics?.length > 0) {
-          items.hostMetrics[host.id] = false;
+          const hostMetrics = backupData.data.snmp_metrics.filter(m => 
+            (m.host_id || m.hostId) === host.id
+          );
+          if (hostMetrics.length > 0) {
+            items.hostMetrics[host.id] = false;
+            // Initialize mapping to first existing host by default
+            if (existingHosts.length > 0) {
+              mappings[host.id] = existingHosts[0].id;
+            }
+          }
         }
       });
       
@@ -187,8 +263,12 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         const id = app.id || app.name;
         items.appliances[id] = false;
         names.appliances[id] = app.name;
-        // Check if appliance name already exists
-        duplicates.appliances[id] = (existingNames.appliances || []).includes(app.name?.toLowerCase());
+        // Check if appliance name already exists (case-insensitive with trim)
+        const normalizedName = (app.name || '').toLowerCase().trim();
+        duplicates.appliances[id] = (existingNames.appliances || []).includes(normalizedName);
+        if (duplicates.appliances[id]) {
+          console.log(`Duplicate found for appliance "${app.name}": normalized="${normalizedName}"`);
+        }
       });
       
       backupData.data?.background_images?.forEach(img => {
@@ -202,6 +282,13 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
       setSelectedItems(items);
       setItemNames(names);
       setDuplicateNames(duplicates);
+      setHostMappings(mappings);
+      
+      console.log('Initialization complete:', {
+        items,
+        names,
+        duplicates
+      });
       
       // Initially expand categories with few items
       const expanded = {};
@@ -244,12 +331,15 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
 
   const checkForDuplicate = (category, itemId, newName) => {
     const existing = existingNames[category] || [];
-    const isDuplicate = existing.includes(newName.toLowerCase().trim());
+    const normalizedNewName = newName.toLowerCase().trim();
+    
+    // Simply check if the new name exists in the database
+    const isDuplicate = existing.includes(normalizedNewName);
     
     console.log(`Checking duplicate for ${category}/${itemId}: "${newName}"`, {
       existing,
       isDuplicate,
-      normalizedName: newName.toLowerCase().trim()
+      normalizedName: normalizedNewName
     });
     
     setDuplicateNames(prev => ({
@@ -302,9 +392,16 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
   };
 
   const hasAnyDuplicates = () => {
-    return Object.values(duplicateNames).some(category => 
-      Object.values(category || {}).some(isDup => isDup)
-    );
+    // Only check duplicates for selected items
+    return Object.keys(duplicateNames).some(category => {
+      const categoryDuplicates = duplicateNames[category] || {};
+      const categorySelections = selectedItems[category] || {};
+      
+      // Check if any selected item is a duplicate
+      return Object.keys(categoryDuplicates).some(itemId => 
+        categorySelections[itemId] && categoryDuplicates[itemId]
+      );
+    });
   };
 
   const handleImport = async () => {
@@ -312,13 +409,21 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
     setError('');
 
     try {
+      // Get current user for ownership
+      const authToken = localStorage.getItem('token');
+      const currentUserId = localStorage.getItem('userId');
+      
       // Prepare filtered backup data with renamed items
       const filteredData = {
         ...backupData,
         data: {},
-        // Flag to indicate this is a selective import (don't overwrite existing)
+        // Include encryption key for decryption
+        decryption_key: encryptionKey,
+        // Flag to indicate this is a selective import
         selectiveImport: true,
-        createNewIds: true, // Always create new IDs, don't overwrite
+        createNewIds: true,
+        // Current user becomes the owner
+        importUserId: currentUserId,
       };
 
       // Add selected categories with new names
@@ -414,6 +519,30 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         });
         if (selectedApps.length > 0) {
           filteredData.data.appliances = selectedApps;
+          
+          // WICHTIG: Commands für die ausgewählten Appliances hinzufügen!
+          // Commands sind in der separaten appliance_commands Tabelle
+          if (backupData.data.appliance_commands) {
+            const selectedAppIds = selectedApps.map(app => app.id);
+            const selectedCommands = backupData.data.appliance_commands.filter(cmd => 
+              selectedAppIds.includes(cmd.appliance_id || cmd.applianceId)
+            );
+            if (selectedCommands.length > 0) {
+              filteredData.data.appliance_commands = selectedCommands;
+              console.log(`Including ${selectedCommands.length} commands for selected appliances`);
+            }
+          }
+          
+          // WICHTIG: Hosts NICHT automatisch hinzufügen!
+          // Nur die explizit ausgewählten Hosts sollen importiert werden
+          // Aber: Host-Informationen für das Mapping bereitstellen
+          
+          // Füge Host-Mapping-Informationen hinzu (NUR für Referenzen, nicht zum Import!)
+          if (backupData.data.hosts && backupData.data.hosts.length > 0) {
+            // Diese werden NUR für das Mapping verwendet, NICHT importiert!
+            filteredData.hostMappingInfo = backupData.data.hosts;
+            console.log(`Providing ${backupData.data.hosts.length} hosts for mapping (not for import)`);
+          }
         }
       }
 
@@ -434,39 +563,79 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         }
       }
 
-      // Add metrics for selected hosts only
+      // Add metrics for selected hosts with mapping to existing hosts
       if (selectedItems.hostMetrics && backupData.data.snmp_metrics) {
-        const selectedHostIds = Object.keys(selectedItems.hostMetrics)
-          .filter(hostId => selectedItems.hostMetrics[hostId]);
+        const metricsToImport = [];
+        const hostMappingInfo = {};
         
-        if (selectedHostIds.length > 0) {
-          // Filter metrics for selected hosts
-          filteredData.data.snmp_metrics = backupData.data.snmp_metrics.filter(metric => 
-            selectedHostIds.includes(String(metric.host_id || metric.hostId))
-          );
+        Object.keys(selectedItems.hostMetrics).forEach(backupHostId => {
+          if (selectedItems.hostMetrics[backupHostId]) {
+            const targetHostId = hostMappings[backupHostId];
+            if (targetHostId) {
+              // Store mapping info
+              hostMappingInfo[backupHostId] = targetHostId;
+              
+              // Filter metrics for this host
+              const hostMetrics = backupData.data.snmp_metrics.filter(metric => 
+                String(metric.host_id || metric.hostId) === String(backupHostId)
+              );
+              
+              // Update metrics with new host ID
+              hostMetrics.forEach(metric => {
+                metricsToImport.push({
+                  ...metric,
+                  host_id: targetHostId,
+                  hostId: targetHostId,
+                  // Mark as imported
+                  imported: true,
+                  importedAt: new Date().toISOString()
+                });
+              });
+            }
+          }
+        });
+        
+        if (metricsToImport.length > 0) {
+          filteredData.data.snmp_metrics = metricsToImport;
+          filteredData.hostMappings = hostMappingInfo;
           
-          // Also include monitoring data for selected hosts
+          // Also include monitoring data with mapped host IDs
           if (backupData.data.host_monitoring_data) {
-            filteredData.data.host_monitoring_data = backupData.data.host_monitoring_data.filter(data => 
-              selectedHostIds.includes(String(data.host_id || data.hostId))
-            );
+            const monitoringData = [];
+            backupData.data.host_monitoring_data.forEach(data => {
+              const backupHostId = String(data.host_id || data.hostId);
+              if (hostMappingInfo[backupHostId]) {
+                monitoringData.push({
+                  ...data,
+                  host_id: hostMappingInfo[backupHostId],
+                  hostId: hostMappingInfo[backupHostId]
+                });
+              }
+            });
+            if (monitoringData.length > 0) {
+              filteredData.data.host_monitoring_data = monitoringData;
+            }
           }
         }
       }
 
-      // TODO: Call the selective import API endpoint
-      // const response = await BackupService.selectiveImport(filteredData);
+      // Call the selective import API endpoint
+      const response = await axios.post('/api/selective-import', filteredData, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      // For now, just show a message
-      console.log('Selective import data:', filteredData);
-      
-      // Simulate success
-      setTimeout(() => {
+      if (response.data.success) {
+        console.log('Selective import successful:', response.data);
         setImporting(false);
         onClose();
-        // Show success message
-        window.location.reload(); // Temporary - should update UI without reload
-      }, 2000);
+        // Refresh the page to show new data
+        window.location.reload();
+      } else {
+        throw new Error(response.data.error || 'Import failed');
+      }
 
     } catch (err) {
       setError(err.message || t('settings.errors.importFailed'));
@@ -568,13 +737,24 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
               const isDuplicate = duplicateNames[category]?.[itemId] || false;
               
               return (
-                <Box key={itemId}>
+                <Box key={itemId} sx={{ position: 'relative', display: 'flex', alignItems: 'stretch', mb: 0.5 }}>
+                  {/* Red indicator bar for duplicates */}
+                  {isDuplicate && isSelected && (
+                    <Box
+                      sx={{
+                        width: '4px',
+                        backgroundColor: '#f44336',
+                        borderRadius: '4px 0 0 4px',
+                        mr: 1,
+                      }}
+                    />
+                  )}
                   <ListItem
                     button
                     onClick={() => handleToggleItem(category, itemId)}
                     sx={{
                       borderRadius: 1,
-                      mb: 0.5,
+                      flex: 1,
                       '&:hover': {
                         backgroundColor: 'rgba(255, 255, 255, 0.05)',
                       },
@@ -582,14 +762,35 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
                   >
                     <ListItemIcon sx={{ minWidth: 36 }}>
                       {isSelected ? (
-                        <CheckCircle size={20} style={{ color }} />
+                        <CheckCircle size={20} style={{ color: isDuplicate ? '#f44336' : color }} />
                       ) : (
                         <Circle size={20} style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
                       )}
                     </ListItemIcon>
                     <ListItemText
-                      primary={item.name || item.username || item.key_name || 
-                              item.keyName || item.filename || item.hostname}
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {item.name || item.username || item.key_name || 
+                          item.keyName || item.filename || item.hostname}
+                          {isDuplicate && isSelected && (
+                            <Chip
+                              label={t('common.duplicate')}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                backgroundColor: '#f44336',
+                                color: '#ffffff',
+                                border: 'none',
+                                '& .MuiChip-label': {
+                                  px: 1,
+                                  fontSize: '0.7rem',
+                                  fontWeight: 500,
+                                },
+                              }}
+                            />
+                          )}
+                        </Box>
+                      }
                       secondary={item.description || item.email || item.hostname || 
                                 item.comment || null}
                       primaryTypographyProps={{
@@ -622,21 +823,35 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
                               <AlertCircle size={20} style={{ color: '#f44336' }} />
                             </InputAdornment>
                           ),
+                          sx: {
+                            '& fieldset': {
+                              borderColor: isDuplicate ? '#f44336 !important' : undefined,
+                              borderWidth: isDuplicate ? '2px !important' : undefined,
+                            },
+                            '&:hover fieldset': {
+                              borderColor: isDuplicate ? '#f44336 !important' : undefined,
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: isDuplicate ? '#f44336 !important' : undefined,
+                            },
+                          }
+                        }}
+                        InputLabelProps={{
+                          sx: {
+                            color: isDuplicate ? '#f44336 !important' : undefined,
+                            '&.Mui-focused': {
+                              color: isDuplicate ? '#f44336 !important' : undefined,
+                            }
+                          }
+                        }}
+                        FormHelperTextProps={{
+                          sx: {
+                            color: isDuplicate ? '#f44336 !important' : '#666',
+                          }
                         }}
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            '&.Mui-error': {
-                              '& fieldset': {
-                                borderColor: '#f44336',
-                              },
-                            },
-                          },
-                          '& .MuiInputLabel-root.Mui-error': {
-                            color: '#f44336',
-                          },
-                          '& .MuiFormHelperText-root.Mui-error': {
-                            color: '#f44336',
                           },
                         }}
                       />
@@ -716,42 +931,77 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         <AccordionDetails>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="caption">
-              {t('settings.metricsImportWarning')}
+              {t('settings.metricsImportInfo')}
             </Typography>
           </Alert>
           
-          <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
+          <List dense sx={{ maxHeight: 400, overflow: 'auto' }}>
             {Object.entries(metricsByHost).map(([hostId, data]) => {
               const isSelected = selectedItems.hostMetrics?.[hostId] || false;
               
               return (
-                <ListItem
-                  key={hostId}
-                  button
-                  onClick={() => handleToggleItem('hostMetrics', hostId)}
-                  sx={{
-                    borderRadius: 1,
-                    mb: 0.5,
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    {isSelected ? (
-                      <CheckCircle size={20} style={{ color: '#FF5722' }} />
-                    ) : (
-                      <Circle size={20} style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
-                    )}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={data.host.name || data.host.hostname}
-                    secondary={`${data.count.toLocaleString()} ${t('monitoring.metricsCount')}`}
-                    primaryTypographyProps={{
-                      sx: { color: isSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)' }
+                <Box key={hostId}>
+                  <ListItem
+                    button
+                    onClick={() => handleToggleItem('hostMetrics', hostId)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      },
                     }}
-                  />
-                </ListItem>
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      {isSelected ? (
+                        <CheckCircle size={20} style={{ color: '#FF5722' }} />
+                      ) : (
+                        <Circle size={20} style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={data.host.name || data.host.hostname}
+                      secondary={`${data.count.toLocaleString()} ${t('monitoring.metricsCount')}`}
+                      primaryTypographyProps={{
+                        sx: { color: isSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)' }
+                      }}
+                    />
+                  </ListItem>
+                  
+                  {/* Host Mapping Selection when selected */}
+                  <Collapse in={isSelected}>
+                    <Box sx={{ pl: 6, pr: 2, pb: 2 }}>
+                      <TextField
+                        fullWidth
+                        select
+                        size="small"
+                        label={t('settings.importToHost')}
+                        value={hostMappings[hostId] || ''}
+                        onChange={(e) => {
+                          setHostMappings(prev => ({
+                            ...prev,
+                            [hostId]: e.target.value
+                          }));
+                        }}
+                        SelectProps={{
+                          native: true,
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          },
+                        }}
+                      >
+                        <option value="">{t('settings.selectTargetHost')}</option>
+                        {existingHosts.map(host => (
+                          <option key={host.id} value={host.id}>
+                            {host.name || host.hostname}
+                          </option>
+                        ))}
+                      </TextField>
+                    </Box>
+                  </Collapse>
+                </Box>
               );
             })}
           </List>
@@ -799,6 +1049,35 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
                 {t('settings.selectiveImportDetailInfo')}
               </Typography>
             </Alert>
+
+            {/* Encryption Key Input */}
+            {(backupData?.data?.ssh_keys?.length > 0 || 
+              backupData?.data?.hosts?.some(h => h.password || h.privateKey) ||
+              backupData?.data?.appliances?.some(a => a.password)) && (
+              <Box sx={{ mb: 3 }}>
+                <TextField
+                  fullWidth
+                  type="password"
+                  label={t('backup.encryptionKey')}
+                  placeholder={t('backup.enterEncryptionKeyToDecrypt')}
+                  value={encryptionKey}
+                  onChange={(e) => setEncryptionKey(e.target.value)}
+                  helperText={t('backup.encryptionKeyHelperText')}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Key size={20} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    },
+                  }}
+                />
+              </Box>
+            )}
 
             {hasAnyDuplicates() && (
               <Alert severity="error" sx={{ mb: 2 }}>

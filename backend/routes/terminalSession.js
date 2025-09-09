@@ -108,8 +108,22 @@ router.post('/session', verifyToken, async (req, res) => {
       if (appliances.length > 0) {
         const appliance = appliances[0];
         
-        // Füge SSH-Schlüssel-Pfad hinzu für Appliances
-        const keyName = appliance.sshKeyName || appliance.ssh_key_name || 'dashboard';
+        // WICHTIG: SSH Key kommt vom Host, nicht vom Appliance!
+        // Finde den Host basierend auf der SSH Connection
+        let keyName = 'dashboard'; // Default
+        
+        // SSH Connection kann eine ID oder ein String sein
+        if (appliance.sshConnection) {
+          // Wenn es eine numerische ID ist, hole den Host
+          if (!isNaN(appliance.sshConnection)) {
+            const hosts = await db.select('hosts', { id: appliance.sshConnection });
+            if (hosts.length > 0) {
+              keyName = hosts[0].sshKeyName || hosts[0].ssh_key_name || 'dashboard';
+              logger.info(`Using SSH key "${keyName}" from host "${hosts[0].name}" (ID: ${hosts[0].id})`);
+            }
+          }
+        }
+        
         sessionData.keyPath = `/root/.ssh/id_rsa_user${req.user.id}_${keyName}`;
         
         auditDetails = {

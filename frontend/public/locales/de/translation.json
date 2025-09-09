@@ -5,6 +5,7 @@
     "cancel": "Abbrechen",
     "selectAll": "Alle auswählen",
     "deselectAll": "Alle abwählen",
+    "duplicate": "Duplikat",
     "save": "Speichern",
     "delete": "Löschen",
     "edit": "Bearbeiten",
@@ -417,7 +418,11 @@
     "selectiveImportDescription": "Diese Funktion ermöglicht es, einzelne Unterkategorien aus einem Backup zu importieren, wie z.B. Kategorien, Benutzer, Hosts, SSH-Keys, Metrik-Daten usw.",
     "selectiveImportDetailInfo": "Wählen Sie einzelne Elemente aus, die Sie importieren möchten. Bestehende Daten werden nicht überschrieben - alle importierten Elemente werden mit neuen IDs angelegt. User-Settings werden automatisch mit den zugehörigen Benutzern importiert.",
     "selectiveImportInfo": "Wählen Sie die Daten aus, die Sie aus dem Backup importieren möchten. Bestehende Daten werden nicht überschrieben.",
+    "metricsImportInfo": "SNMP-Metriken werden zu einem bestehenden Host in Ihrer Datenbank importiert. Wählen Sie für jeden Backup-Host den Ziel-Host aus.",
     "metricsImportWarning": "SNMP-Metriken können große Datenmengen enthalten. Wählen Sie nur die Hosts aus, für die Sie historische Daten benötigen.",
+    "importToHost": "Importieren zu Host",
+    "selectTargetHost": "Ziel-Host auswählen",
+    "encryptionKeyHelperText": "Geben Sie den Verschlüsselungsschlüssel des Backups ein, um Passwörter und SSH-Keys zu entschlüsseln",
     "selectedItems": "Ausgewählte Elemente",
     "importSelected": "Ausgewählte importieren",
     "importing": "Importiere...",
@@ -465,7 +470,9 @@
     "backgrounds": "Hintergrundbilder",
     "terminalHosts": "Terminal-Hosts",
     "backupCreatedAt": "Backup erstellt am",
-    "tip": "Tipp: Erstellen Sie regelmäßige Backups Ihrer Konfiguration."
+    "tip": "Tipp: Erstellen Sie regelmäßige Backups Ihrer Konfiguration.",
+    "encryptionKey": "Verschlüsselungsschlüssel",
+    "enterEncryptionKeyToDecrypt": "Schlüssel eingeben zum Entschlüsseln von Passwörtern und SSH-Keys"
   },
   "auditLog": {
     "title": "Audit-Log",

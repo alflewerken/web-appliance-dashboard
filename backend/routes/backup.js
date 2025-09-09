@@ -3755,4 +3755,884 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
   }
 });
 
+// Selective Import Endpoint - Imports only selected items without deleting existing data
+router.post('/selective-import', verifyToken, async (req, res) => {
+  console.log('🔄 Starting selective import...');
+  
+  try {
+    const backupData = req.body;
+    const currentUserId = req.body.importUserId || req.user?.id;
+    
+    // Extract the decryption key
+    const backupDecryptionKey = backupData.decryption_key || null;
+    delete backupData.decryption_key;
+    
+    // Extract host mappings for SNMP metrics
+    const hostMappings = backupData.hostMappings || {};
+    delete backupData.hostMappings;
+    
+    if (!backupData.data) {
+      return res.status(400).json({ error: 'Invalid backup format: missing data' });
+    }
+    
+    // Function to re-encrypt from backup key to system key
+    const reEncryptFromBackup = (encryptedData) => {
+      if (!encryptedData) return null;
+      if (!backupDecryptionKey) return encryptedData; // Keep as-is if no key
+      
+      try {
+        const systemKey = encryptionManager.getSystemKey();
+        return encryptionManager.reEncrypt(encryptedData, backupDecryptionKey, systemKey);
+      } catch (error) {
+        console.error('Failed to re-encrypt:', error.message);
+        return encryptedData;
+      }
+    };
+    
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      let importedItems = {
+        categories: 0,
+        appliances: 0,
+        applianceCommands: 0,
+        hosts: 0,
+        sshKeys: 0,
+        users: 0,
+        snmpMetrics: 0,
+      };
+      
+      // Create mapping for host IDs (old ID -> new ID) - defined early for use in multiple places
+      const hostIdMapping = {};
+      
+      // WICHTIG: Import-Reihenfolge: 1. SSH-Keys, 2. Hosts, 3. Categories, 4. Services/Appliances
+      
+      // 1. Import SSH Keys FIRST (they are referenced by hosts)
+      if (backupData.data.ssh_keys?.length > 0) {
+        console.log(`Importing ${backupData.data.ssh_keys.length} SSH keys...`);
+        for (const key of backupData.data.ssh_keys) {
+          try {
+            const keyName = key.key_name || key.keyName;
+            const publicKey = reEncryptFromBackup(key.public_key || key.publicKey);
+            const privateKey = reEncryptFromBackup(key.private_key || key.privateKey);
+            
+            // WICHTIG: created_by muss gesetzt sein für UNIQUE constraint
+            // Prüfe zuerst ob der Key schon existiert
+            const [existing] = await connection.execute(
+              'SELECT id FROM ssh_keys WHERE key_name = ? AND created_by = ?',
+              [keyName, currentUserId]
+            );
+            
+            if (existing.length > 0) {
+              // Update existing key
+              await connection.execute(
+                `UPDATE ssh_keys SET 
+                 public_key = ?, private_key = ?, updated_at = NOW()
+                 WHERE key_name = ? AND created_by = ?`,
+                [publicKey, privateKey, keyName, currentUserId]
+              );
+              console.log(`✅ SSH key "${keyName}" updated for user ${currentUserId}`);
+            } else {
+              // Insert new key with created_by
+              await connection.execute(
+                `INSERT INTO ssh_keys (key_name, public_key, private_key, created_by, created_at, updated_at) 
+                 VALUES (?, ?, ?, ?, NOW(), NOW())`,
+                [keyName, publicKey, privateKey, currentUserId]
+              );
+              console.log(`✅ SSH key "${keyName}" imported for user ${currentUserId}`);
+            }
+            
+            importedItems.sshKeys++;
+          } catch (err) {
+            console.error(`Error importing SSH key:`, err.message);
+          }
+        }
+      }
+      
+      // 2. Import Hosts (they are referenced by appliances)
+      if (backupData.data.hosts?.length > 0) {
+        console.log(`Importing ${backupData.data.hosts.length} hosts...`);
+        for (const host of backupData.data.hosts) {
+          try {
+            const [result] = await connection.execute(
+              `INSERT INTO hosts (
+                name, hostname, port, username, password, 
+                private_key, ssh_key_name, created_by, updated_by, created_at, updated_at,
+                remote_desktop_enabled, remote_password, rustdesk_id, rustdesk_password,
+                description, icon, color
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                host.name,
+                host.hostname,
+                host.port || 22,
+                host.username,
+                reEncryptFromBackup(host.password),
+                reEncryptFromBackup(host.privateKey || host.private_key),
+                host.sshKeyName || host.ssh_key_name || null,
+                currentUserId, // Current user becomes owner (created_by)
+                currentUserId, // Also set updated_by
+                host.remoteDesktopEnabled || host.remote_desktop_enabled || false,
+                reEncryptFromBackup(host.remotePassword || host.remote_password),
+                host.rustdeskId || host.rustdesk_id || null,
+                reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password),
+                host.description || null,
+                host.icon || 'Server',
+                host.color || '#007AFF'
+              ]
+            );
+            
+            // Store mapping: old host ID -> new host ID
+            const newHostId = result.insertId;
+            hostIdMapping[host.id] = newHostId;
+            console.log(`✅ Host "${host.name}" imported with new ID: ${newHostId} (old ID: ${host.id})`);
+            
+            importedItems.hosts++;
+          } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+              console.log(`Host "${host.name}" already exists, trying to find existing ID for mapping`);
+              // Try to find existing host ID for mapping
+              // WICHTIG: Nur Hosts des aktuellen Benutzers!
+              try {
+                const [existing] = await connection.execute(
+                  'SELECT id FROM hosts WHERE name = ? AND hostname = ? AND created_by = ?',
+                  [host.name, host.hostname, currentUserId]
+                );
+                if (existing.length > 0) {
+                  hostIdMapping[host.id] = existing[0].id;
+                  console.log(`✅ Found existing host "${host.name}" with ID: ${existing[0].id} for user ${currentUserId}`);
+                }
+              } catch (findErr) {
+                console.error(`Error finding existing host:`, findErr.message);
+              }
+            } else {
+              console.error(`Error importing host "${host.name}":`, err.message);
+            }
+          }
+        }
+      }
+      
+      // Build comprehensive host mapping including ALL hosts in backup (even if not imported)
+      // This allows us to map SSH connections even when hosts aren't imported
+      // WICHTIG: Wir brauchen ALLE Host-Infos aus dem Original-Backup für das Mapping!
+      // ABER: Wir dürfen nur auf Hosts des aktuellen Benutzers mappen!
+      const backupHostMapping = {};
+      
+      // Füge die Host-Informationen aus dem Original-Request hinzu (falls vorhanden)
+      // Diese werden NUR für das Mapping verwendet, NICHT importiert!
+      let allBackupHosts = backupData.data.hosts || [];
+      
+      // Falls keine Hosts mitgeschickt wurden, aber wir Host-Infos für das Mapping brauchen,
+      // müssen wir sie aus dem backupData.hostMappingInfo holen (falls vorhanden)
+      if (allBackupHosts.length === 0 && backupData.hostMappingInfo) {
+        allBackupHosts = backupData.hostMappingInfo;
+        console.log(`Using hostMappingInfo for mapping (${allBackupHosts.length} hosts)`);
+      }
+      
+      if (allBackupHosts && allBackupHosts.length > 0) {
+        console.log(`Building host mapping for ${allBackupHosts.length} backup hosts...`);
+        for (const backupHost of allBackupHosts) {
+          // Check if we already have a mapping from import
+          if (hostIdMapping[backupHost.id]) {
+            backupHostMapping[backupHost.id] = hostIdMapping[backupHost.id];
+            console.log(`Host mapping from import: ${backupHost.id} -> ${hostIdMapping[backupHost.id]}`);
+          } else {
+            // Try to find matching host in database
+            // WICHTIG: Nur Hosts des aktuellen Benutzers suchen!
+            try {
+              // Try multiple matching strategies
+              let [existingHost] = await connection.execute(
+                'SELECT id FROM hosts WHERE name = ? AND hostname = ? AND created_by = ?',
+                [backupHost.name, backupHost.hostname, currentUserId]
+              );
+              
+              if (existingHost.length === 0 && backupHost.name) {
+                // Try by name only
+                [existingHost] = await connection.execute(
+                  'SELECT id FROM hosts WHERE name = ? AND created_by = ?',
+                  [backupHost.name, currentUserId]
+                );
+              }
+              
+              if (existingHost.length === 0 && backupHost.hostname) {
+                // Try by hostname only
+                [existingHost] = await connection.execute(
+                  'SELECT id FROM hosts WHERE hostname = ? AND created_by = ?',
+                  [backupHost.hostname, currentUserId]
+                );
+              }
+              
+              if (existingHost.length > 0) {
+                backupHostMapping[backupHost.id] = existingHost[0].id;
+                console.log(`✅ Found matching host in DB: "${backupHost.name}" - backup ID ${backupHost.id} -> DB ID ${existingHost[0].id}`);
+              } else {
+                console.log(`⚠️ No matching host found for "${backupHost.name}" (backup ID: ${backupHost.id}) for user ${currentUserId}`);
+              }
+            } catch (err) {
+              console.error(`Error searching for host "${backupHost.name}":`, err.message);
+            }
+          }
+        }
+      }
+      
+      // 3. Import Categories (they are referenced by appliances)
+      
+      // Import Categories first (they are referenced by appliances)
+      if (backupData.data.categories?.length > 0) {
+        for (const category of backupData.data.categories) {
+          try {
+            await connection.execute(
+              'INSERT IGNORE INTO categories (name, icon, created_at, updated_at) VALUES (?, ?, NOW(), NOW())',
+              [category.name, category.icon || '📁']
+            );
+            importedItems.categories++;
+          } catch (err) {
+            console.log(`Error importing category "${category.name}":`, err.message);
+          }
+        }
+      }
+      
+      // Import Appliances/Services - Based on working restore logic
+      if (backupData.data.appliances?.length > 0) {
+        for (const appliance of backupData.data.appliances) {
+          try {
+            // Get category name from the appliance or use 'Uncategorized'
+            const categoryName = appliance.category_name || appliance.categoryName || appliance.category || 'Uncategorized';
+            
+            // Ensure category exists
+            await connection.execute(
+              'INSERT IGNORE INTO categories (name, icon, created_at, updated_at) VALUES (?, ?, NOW(), NOW())',
+              [categoryName, appliance.icon || '📁']
+            );
+            
+            // Prepare appliance data with proper date formatting (from restore function)
+            const dbAppliance = {};
+            
+            // Basic fields
+            dbAppliance.name = appliance.name;
+            dbAppliance.category = categoryName;
+            dbAppliance.description = appliance.description || null;
+            dbAppliance.url = appliance.url || null;
+            dbAppliance.icon = appliance.icon || 'globe';
+            dbAppliance.color = appliance.color || '#007AFF';
+            dbAppliance.is_favorite = appliance.isFavorite !== undefined ? 
+              (appliance.isFavorite ? 1 : 0) : 
+              (appliance.is_favorite !== undefined ? appliance.is_favorite : 0);
+            
+            // Handle last_used timestamp
+            if (appliance.lastUsed || appliance.last_used) {
+              dbAppliance.last_used = new Date(appliance.lastUsed || appliance.last_used)
+                .toISOString()
+                .slice(0, 19)
+                .replace('T', ' ');
+            }
+            
+            // Commands
+            dbAppliance.status_command = appliance.statusCommand || appliance.status_command || null;
+            dbAppliance.start_command = appliance.startCommand || appliance.start_command || null;
+            dbAppliance.stop_command = appliance.stopCommand || appliance.stop_command || null;
+            dbAppliance.restart_command = appliance.restartCommand || appliance.restart_command || null;
+            
+            // Service status
+            dbAppliance.service_status = appliance.serviceStatus || appliance.service_status || 'unknown';
+            
+            // Handle last_status_check timestamp - must be valid MySQL datetime or NULL
+            if (appliance.lastStatusCheck || appliance.last_status_check) {
+              try {
+                const dateValue = appliance.lastStatusCheck || appliance.last_status_check;
+                const date = new Date(dateValue);
+                if (!isNaN(date.getTime())) {
+                  dbAppliance.last_status_check = date
+                    .toISOString()
+                    .slice(0, 19)
+                    .replace('T', ' ');
+                } else {
+                  dbAppliance.last_status_check = null;
+                }
+              } catch (err) {
+                console.log(`Invalid date for last_status_check: ${appliance.lastStatusCheck || appliance.last_status_check}`);
+                dbAppliance.last_status_check = null;
+              }
+            } else {
+              dbAppliance.last_status_check = null;
+            }
+            
+            dbAppliance.auto_start = appliance.autoStart !== undefined ?
+              (appliance.autoStart ? 1 : 0) :
+              (appliance.auto_start !== undefined ? appliance.auto_start : 0);
+            
+            // SSH connection - Smart mapping using comprehensive host mapping
+            // WICHTIG: ssh_connection kann NULL, eine Host-ID oder ein Connection String sein
+            const sshConnValue = appliance.sshConnection || appliance.ssh_connection || appliance.sshConnectionId;
+            
+            if (sshConnValue !== null && sshConnValue !== undefined && sshConnValue !== '') {
+              let targetHostId = null;
+              
+              console.log(`Processing SSH connection for "${appliance.name}": value="${sshConnValue}", type=${typeof sshConnValue}`);
+              
+              // Check if it's a numeric ID
+              if (!isNaN(sshConnValue)) {
+                const oldHostId = parseInt(sshConnValue);
+                
+                // Use our comprehensive host mapping
+                if (backupHostMapping[oldHostId]) {
+                  targetHostId = backupHostMapping[oldHostId];
+                  console.log(`✅ SSH connection for "${appliance.name}": Mapped host ID ${oldHostId} -> ${targetHostId}`);
+                } else {
+                  console.log(`⚠️ SSH connection for "${appliance.name}": No mapping found for host ID ${oldHostId}`);
+                }
+              } else {
+                // It's a connection string like "user@host:port" - parse and find host
+                console.log(`Parsing SSH connection string: ${sshConnValue}`);
+                
+                // First check if it's just a hostname/name without @ and :
+                let hostname = sshConnValue;
+                let username = null;
+                
+                // Try to parse as connection string
+                const match = sshConnValue.match(/^(?:([^@]+)@)?([^:]+)(?::(\d+))?$/);
+                if (match) {
+                  username = match[1] || null;
+                  hostname = match[2];
+                  console.log(`Parsed: username="${username}", hostname="${hostname}"`);
+                }
+                
+                // Try to find a host with matching hostname or name
+                try {
+                  // First try exact name or hostname match
+                  let [existingHost] = await connection.execute(
+                    'SELECT id, name, hostname FROM hosts WHERE name = ? OR hostname = ?',
+                    [hostname, hostname]
+                  );
+                  
+                  if (existingHost.length > 0) {
+                    targetHostId = existingHost[0].id;
+                    console.log(`✅ SSH connection for "${appliance.name}": Found host "${existingHost[0].name}" with ID ${targetHostId}`);
+                  } else {
+                    // Try to find by IP or look for Mac hosts for typical Mac IPs
+                    if (hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+                      // It's an IP - try to find hosts that might match
+                      // Check if this is a typical Mac IP (192.168.178.70) and find MacbookPro
+                      if (hostname === '192.168.178.70' || hostname === '192.168.178.29') {
+                        // Try to find Mac hosts
+                        [existingHost] = await connection.execute(
+                          'SELECT id, name, hostname FROM hosts WHERE name LIKE ? ORDER BY id ASC LIMIT 1',
+                          ['%Mac%']
+                        );
+                        
+                        if (existingHost.length > 0) {
+                          targetHostId = existingHost[0].id;
+                          console.log(`✅ SSH connection for "${appliance.name}": Matched IP ${hostname} to Mac host "${existingHost[0].name}" (${existingHost[0].hostname}) with ID ${targetHostId}`);
+                        }
+                      }
+                    }
+                    
+                    // Last attempt: Try to match by username if it's in the connection string
+                    if (!targetHostId && username) {
+                      [existingHost] = await connection.execute(
+                        'SELECT id, name, hostname FROM hosts WHERE username = ? ORDER BY id ASC LIMIT 1',
+                        [username]
+                      );
+                      
+                      if (existingHost.length > 0) {
+                        targetHostId = existingHost[0].id;
+                        console.log(`✅ SSH connection for "${appliance.name}": Matched by username "${username}" to host "${existingHost[0].name}" with ID ${targetHostId}`);
+                      }
+                    }
+                  }
+                  
+                  if (!targetHostId) {
+                    console.log(`⚠️ SSH connection for "${appliance.name}": No host found for "${hostname}"`);
+                    
+                    // Log available hosts for debugging
+                    const [allHosts] = await connection.execute('SELECT id, name, hostname FROM hosts');
+                    console.log(`Available hosts in DB: ${allHosts.map(h => `${h.name} (${h.hostname})`).join(', ')}`);
+                  }
+                } catch (err) {
+                  console.error(`Error finding host: ${err.message}`);
+                }
+              }
+              
+              dbAppliance.ssh_connection = targetHostId;
+              
+              if (!targetHostId) {
+                console.log(`❌ SSH connection for "${appliance.name}": Could not resolve to any host ID`);
+              }
+            } else {
+              dbAppliance.ssh_connection = null;
+            }
+            
+            // UI settings
+            dbAppliance.transparency = appliance.transparency || 0.95;
+            dbAppliance.blur_amount = appliance.blurAmount || appliance.blur_amount || 10;
+            dbAppliance.open_mode_mini = appliance.openModeMini || appliance.open_mode_mini || '_self';
+            dbAppliance.open_mode_mobile = appliance.openModeMobile || appliance.open_mode_mobile || '_self';
+            dbAppliance.open_mode_desktop = appliance.openModeDesktop || appliance.open_mode_desktop || '_self';
+            
+            // Remote desktop settings
+            dbAppliance.remote_desktop_enabled = appliance.remoteDesktopEnabled !== undefined ?
+              (appliance.remoteDesktopEnabled ? 1 : 0) :
+              (appliance.remote_desktop_enabled !== undefined ? appliance.remote_desktop_enabled : 0);
+            dbAppliance.remote_protocol = appliance.remoteProtocol || appliance.remote_protocol || 'vnc';
+            dbAppliance.remote_host = appliance.remoteHost || appliance.remote_host || null;
+            dbAppliance.remote_port = appliance.remotePort || appliance.remote_port || null;
+            dbAppliance.remote_username = appliance.remoteUsername || appliance.remote_username || null;
+            
+            // Handle encrypted passwords with re-encryption
+            if (appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || appliance.password) {
+              const encryptedPassword = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || appliance.password;
+              dbAppliance.remote_password_encrypted = reEncryptFromBackup(encryptedPassword);
+            }
+            
+            dbAppliance.remote_desktop_type = appliance.remoteDesktopType || appliance.remote_desktop_type || 'guacamole';
+            
+            // RustDesk settings
+            dbAppliance.rustdesk_id = appliance.rustdeskId || appliance.rustdesk_id || null;
+            
+            if (appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted) {
+              const encryptedRustdeskPassword = appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted;
+              dbAppliance.rustdesk_password_encrypted = reEncryptFromBackup(encryptedRustdeskPassword);
+            }
+            
+            dbAppliance.rustdesk_installed = appliance.rustdeskInstalled !== undefined ?
+              (appliance.rustdeskInstalled ? 1 : 0) :
+              (appliance.rustdesk_installed !== undefined ? appliance.rustdesk_installed : 0);
+            
+            // Handle rustdesk_installation_date
+            if (appliance.rustdeskInstallationDate || appliance.rustdesk_installation_date) {
+              dbAppliance.rustdesk_installation_date = new Date(
+                appliance.rustdeskInstallationDate || appliance.rustdesk_installation_date
+              )
+                .toISOString()
+                .slice(0, 19)
+                .replace('T', ' ');
+            }
+            
+            dbAppliance.guacamole_performance_mode = appliance.guacamolePerformanceMode || appliance.guacamole_performance_mode || 'balanced';
+            dbAppliance.order_index = appliance.orderIndex || appliance.order_index || appliance.displayOrder || appliance.display_order || 0;
+            dbAppliance.background_image = appliance.backgroundImage || appliance.background_image || null;
+            
+            // Generate field list and values from mapped object
+            const fields = Object.keys(dbAppliance);
+            const values = Object.values(dbAppliance);
+            const placeholders = fields.map(() => '?').join(', ');
+            
+            const [result] = await connection.execute(
+              `INSERT INTO appliances (${fields.join(', ')}) VALUES (${placeholders})`,
+              values
+            );
+            
+            const newApplianceId = result.insertId;
+            importedItems.appliances++;
+            
+            // Import custom commands for this appliance
+            // WICHTIG: Commands sind in der separaten appliance_commands Tabelle im Backup!
+            // Wir müssen sie über die appliance_id finden
+            
+            let commands = [];
+            
+            // Erst versuchen wir Commands direkt am Appliance-Objekt zu finden (für Kompatibilität)
+            const commandArrays = [
+              appliance.custom_commands,
+              appliance.customCommands, 
+              appliance.commands,
+              appliance.appliance_commands
+            ];
+            
+            for (const cmdArray of commandArrays) {
+              if (cmdArray && Array.isArray(cmdArray) && cmdArray.length > 0) {
+                commands = cmdArray;
+                console.log(`✅ Found ${commands.length} inline commands for appliance "${appliance.name}"`);
+                break;
+              }
+            }
+            
+            // Wenn keine inline Commands gefunden wurden, suchen wir in der appliance_commands Tabelle
+            if (commands.length === 0 && backupData.data.appliance_commands && appliance.id) {
+              const applianceCommands = backupData.data.appliance_commands.filter(
+                cmd => cmd.appliance_id === appliance.id || cmd.applianceId === appliance.id
+              );
+              
+              if (applianceCommands.length > 0) {
+                commands = applianceCommands;
+                console.log(`✅ Found ${commands.length} commands in appliance_commands table for "${appliance.name}" (ID: ${appliance.id})`);
+              }
+            }
+            
+            if (commands.length > 0) {
+              for (const cmd of commands) {
+                try {
+                  let cmdHostId = cmd.host_id || cmd.hostId || cmd.ssh_host_id || null;
+                  
+                  // Use comprehensive host mapping for commands
+                  if (cmdHostId) {
+                    // First try our pre-built mapping
+                    if (backupHostMapping[cmdHostId]) {
+                      const mappedHostId = backupHostMapping[cmdHostId];
+                      console.log(`✅ Command "${cmd.description}" host mapping: backup ID ${cmdHostId} -> DB ID ${mappedHostId}`);
+                      cmdHostId = mappedHostId;
+                    } else {
+                      // Fallback: Try to find host info in backup and then search DB
+                      console.log(`⚠️ Command "${cmd.description}": No mapping for host ID ${cmdHostId}, trying to find in backup...`);
+                      
+                      // Look for host in ALL backup hosts (including hostMappingInfo)
+                      let backupHost = null;
+                      if (allBackupHosts && allBackupHosts.length > 0) {
+                        backupHost = allBackupHosts.find(h => h.id === parseInt(cmdHostId));
+                      }
+                      
+                      if (backupHost) {
+                        console.log(`Found host "${backupHost.name}" in backup data, searching in DB...`);
+                        
+                        // Search for matching host in current user's hosts
+                        try {
+                          let [existingHost] = await connection.execute(
+                            'SELECT id FROM hosts WHERE name = ? AND created_by = ?',
+                            [backupHost.name, currentUserId]
+                          );
+                          
+                          if (existingHost.length === 0 && backupHost.hostname) {
+                            // Try by hostname
+                            [existingHost] = await connection.execute(
+                              'SELECT id FROM hosts WHERE hostname = ? AND created_by = ?',
+                              [backupHost.hostname, currentUserId]
+                            );
+                          }
+                          
+                          if (existingHost.length > 0) {
+                            cmdHostId = existingHost[0].id;
+                            // Add to mapping for future use
+                            backupHostMapping[cmdHostId] = existingHost[0].id;
+                            console.log(`✅ Command host found: "${backupHost.name}" -> DB ID ${cmdHostId}`);
+                          } else {
+                            console.log(`⚠️ No matching host found for "${backupHost.name}" in user's hosts`);
+                            
+                            // Als letzten Versuch: Wenn es die gleiche SSH Connection wie der Service hat
+                            if (dbAppliance.ssh_connection) {
+                              cmdHostId = dbAppliance.ssh_connection;
+                              console.log(`ℹ️ Using service's SSH connection (host ID ${cmdHostId}) for command`);
+                            } else {
+                              cmdHostId = null;
+                            }
+                          }
+                        } catch (err) {
+                          console.error(`Error searching for host:`, err.message);
+                          cmdHostId = null;
+                        }
+                      } else {
+                        console.log(`⚠️ Host ID ${cmdHostId} not found in backup data`);
+                        
+                        // Letzter Versuch: Verwende die SSH Connection des Services
+                        if (dbAppliance.ssh_connection) {
+                          cmdHostId = dbAppliance.ssh_connection;
+                          console.log(`ℹ️ Using service's SSH connection (host ID ${cmdHostId}) for command as fallback`);
+                        } else {
+                          cmdHostId = null;
+                        }
+                      }
+                    }
+                  } else {
+                    // Wenn kein Host angegeben, verwende den Host des Services
+                    if (dbAppliance.ssh_connection) {
+                      cmdHostId = dbAppliance.ssh_connection;
+                      console.log(`ℹ️ No host specified for command, using service's SSH connection (host ID ${cmdHostId})`);
+                    }
+                  }
+                  
+                  await connection.execute(
+                    `INSERT INTO appliance_commands (
+                      appliance_id, description, command, host_id, order_index,
+                      created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+                    [
+                      newApplianceId,
+                      cmd.description || 'Custom Command',
+                      cmd.command,
+                      cmdHostId,
+                      cmd.order_index || cmd.orderIndex || cmd.display_order || 0
+                    ]
+                  );
+                  importedItems.applianceCommands++;
+                  console.log(`✅ Imported command: "${cmd.description || 'Custom Command'}" for appliance "${appliance.name}" with host_id: ${cmdHostId || 'NULL'}`);
+                } catch (cmdErr) {
+                  console.error(`❌ Error importing command for appliance "${appliance.name}":`, cmdErr.message);
+                }
+              }
+            } else {
+              console.log(`ℹ️ No commands found for appliance "${appliance.name}" (checked inline and appliance_commands table)`);
+            }
+            
+          } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+              console.log(`Appliance "${appliance.name}" already exists, skipping`);
+            } else {
+              console.error(`Error importing appliance "${appliance.name}":`, err.message);
+              throw err;
+            }
+          }
+        }
+      }
+      
+      // Import Users (without overwriting existing)  
+      if (backupData.data.users?.length > 0) {
+        for (const user of backupData.data.users) {
+          try {
+            const hashedPassword = reEncryptFromBackup(user.password) || user.password;
+            await connection.execute(
+              'INSERT INTO users (username, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+              [user.username, user.email || null, hashedPassword, user.role || 'user']
+            );
+            importedItems.users++;
+          } catch (err) {
+            if (err.code !== 'ER_DUP_ENTRY') throw err;
+            console.log(`User "${user.username}" already exists, skipping`);
+          }
+        }
+      }
+      
+      
+      // Import Hosts with current user as owner
+      if (backupData.data.hosts?.length > 0) {
+        for (const host of backupData.data.hosts) {
+          try {
+            const [result] = await connection.execute(
+              `INSERT INTO hosts (
+                name, hostname, port, username, password, 
+                private_key, ssh_key_name, created_by, updated_by, created_at, updated_at,
+                remote_desktop_enabled, remote_password, rustdesk_id, rustdesk_password,
+                description, icon, color
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                host.name,
+                host.hostname,
+                host.port || 22,
+                host.username,
+                reEncryptFromBackup(host.password),
+                reEncryptFromBackup(host.privateKey || host.private_key),
+                host.sshKeyName || host.ssh_key_name || null,
+                currentUserId, // Current user becomes owner (created_by)
+                currentUserId, // Also set updated_by
+                host.remoteDesktopEnabled || host.remote_desktop_enabled || false,
+                reEncryptFromBackup(host.remotePassword || host.remote_password),
+                host.rustdeskId || host.rustdesk_id || null,
+                reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password),
+                host.description || null,
+                host.icon || 'Server',
+                host.color || '#007AFF'
+              ]
+            );
+            
+            // Store mapping: old host ID -> new host ID
+            const newHostId = result.insertId;
+            hostIdMapping[host.id] = newHostId;
+            console.log(`Host "${host.name}" imported with new ID: ${newHostId} (old ID: ${host.id})`);
+            
+            importedItems.hosts++;
+          } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+              console.log(`Host "${host.name}" already exists, trying to find existing ID for mapping`);
+              // Try to find existing host ID for mapping
+              try {
+                const [existing] = await connection.execute(
+                  'SELECT id FROM hosts WHERE name = ? AND hostname = ?',
+                  [host.name, host.hostname]
+                );
+                if (existing.length > 0) {
+                  hostIdMapping[host.id] = existing[0].id;
+                  console.log(`Found existing host "${host.name}" with ID: ${existing[0].id}`);
+                }
+              } catch (findErr) {
+                console.error(`Could not find existing host "${host.name}"`);
+              }
+            } else {
+              throw err;
+            }
+          }
+        }
+      }
+      
+      // Import SSH Keys with current user as owner
+      if (backupData.data.ssh_keys?.length > 0) {
+        for (const key of backupData.data.ssh_keys) {
+          try {
+            const keyName = key.key_name || key.keyName;
+            const privateKey = reEncryptFromBackup(key.private_key || key.privateKey);
+            const publicKey = key.public_key || key.publicKey;
+            
+            await connection.execute(
+              `INSERT INTO ssh_keys (
+                key_name, private_key, public_key, user_id, 
+                created_at, updated_at
+              ) VALUES (?, ?, ?, ?, NOW(), NOW())`,
+              [keyName, privateKey, publicKey, currentUserId]
+            );
+            importedItems.sshKeys++;
+          } catch (err) {
+            if (err.code !== 'ER_DUP_ENTRY') throw err;
+            console.log(`SSH Key "${key.key_name || key.keyName}" already exists, skipping`);
+          }
+        }
+      }
+      
+      // Import standalone appliance commands (if they exist separately in backup)
+      if (backupData.data.appliance_commands || backupData.data.custom_commands) {
+        const commands = backupData.data.appliance_commands || backupData.data.custom_commands || [];
+        console.log(`📋 Found ${commands.length} standalone appliance commands in backup`);
+        
+        // Get mapping of appliance names to IDs
+        const [appliances] = await connection.execute('SELECT id, name FROM appliances');
+        const applianceMap = {};
+        appliances.forEach(app => {
+          applianceMap[app.name] = app.id;
+        });
+        console.log(`Appliance name->ID mapping:`, applianceMap);
+        
+        for (const cmd of commands) {
+          try {
+            console.log(`Processing standalone command:`, {
+              description: cmd.description,
+              appliance_id: cmd.appliance_id,
+              appliance_name: cmd.appliance_name,
+              host_id: cmd.host_id
+            });
+            
+            // Try to find the appliance ID
+            let applianceId = null;
+            if (cmd.appliance_name) {
+              applianceId = applianceMap[cmd.appliance_name];
+              console.log(`Matched by appliance_name "${cmd.appliance_name}" to ID ${applianceId}`);
+            } else if (cmd.appliance_id) {
+              // Check if this appliance ID exists in our mapping
+              // This might be the old ID, so we need to find the appliance by checking backup data
+              const backupAppliance = backupData.data.appliances?.find(a => a.id === cmd.appliance_id);
+              if (backupAppliance) {
+                applianceId = applianceMap[backupAppliance.name];
+                console.log(`Matched by appliance_id ${cmd.appliance_id} -> name "${backupAppliance.name}" -> new ID ${applianceId}`);
+              }
+            }
+            
+            if (applianceId) {
+              // Smart mapping for host ID
+              let cmdHostId = cmd.host_id || cmd.hostId || null;
+              
+              if (cmdHostId) {
+                const backupHost = backupData.data.hosts?.find(h => h.id === parseInt(cmdHostId));
+                
+                if (backupHost) {
+                  try {
+                    // First check if host exists in DB
+                    const [existingHost] = await connection.execute(
+                      'SELECT id FROM hosts WHERE name = ?',
+                      [backupHost.name]
+                    );
+                    
+                    if (existingHost.length > 0) {
+                      cmdHostId = existingHost[0].id;
+                      console.log(`Standalone command host: Found existing "${backupHost.name}" with ID ${cmdHostId}`);
+                    } else if (hostIdMapping[cmdHostId]) {
+                      cmdHostId = hostIdMapping[cmdHostId];
+                      console.log(`Standalone command host: Using imported "${backupHost.name}" with ID ${cmdHostId}`);
+                    } else {
+                      cmdHostId = null;
+                    }
+                  } catch (err) {
+                    cmdHostId = null;
+                  }
+                }
+              }
+              
+              await connection.execute(
+                `INSERT INTO appliance_commands (
+                  appliance_id, description, command, host_id, order_index,
+                  created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+                [
+                  applianceId,
+                  cmd.description || 'Custom Command',
+                  cmd.command,
+                  cmdHostId,
+                  cmd.order_index || cmd.orderIndex || cmd.display_order || 0
+                ]
+              );
+              importedItems.applianceCommands++;
+            } else {
+              console.log(`Could not find appliance for command: ${cmd.description}`);
+            }
+          } catch (cmdErr) {
+            console.error('Error importing appliance command:', cmdErr.message);
+          }
+        }
+      }
+      
+      // Import SNMP Metrics with host mapping
+      if (backupData.data.snmp_metrics?.length > 0) {
+        console.log(`Importing ${backupData.data.snmp_metrics.length} SNMP metrics with host mappings...`);
+        
+        for (const metric of backupData.data.snmp_metrics) {
+          try {
+            // Use the mapped host ID or original if no mapping
+            const targetHostId = hostMappings[metric.host_id] || metric.host_id;
+            
+            await connection.execute(
+              `INSERT INTO snmp_metrics (
+                host_id, cpu_usage, memory_usage, disk_usage,
+                network_in, network_out, timestamp, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+              [
+                targetHostId,
+                metric.cpu_usage,
+                metric.memory_usage, 
+                metric.disk_usage,
+                metric.network_in,
+                metric.network_out,
+                metric.timestamp || new Date().toISOString()
+              ]
+            );
+            importedItems.snmpMetrics++;
+          } catch (err) {
+            console.error('Error importing SNMP metric:', err.message);
+          }
+        }
+      }
+      
+      await connection.commit();
+      
+      // Log the import action
+      await createAuditLog(
+        req.user?.id || 1,
+        'SELECTIVE_IMPORT',
+        'backup',
+        null,
+        {
+          imported_items: importedItems,
+          total_items: Object.values(importedItems).reduce((a, b) => a + b, 0),
+          with_encryption: !!backupDecryptionKey,
+          host_mappings: Object.keys(hostMappings).length > 0
+        },
+        req.ip
+      );
+      
+      console.log('✅ Selective import completed:', importedItems);
+      
+      res.json({
+        success: true,
+        message: 'Selective import completed successfully',
+        imported: importedItems
+      });
+      
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+    
+  } catch (error) {
+    console.error('Error during selective import:', error);
+    res.status(500).json({
+      error: 'Failed to import selected items: ' + error.message
+    });
+  }
+});
+
 module.exports = router;

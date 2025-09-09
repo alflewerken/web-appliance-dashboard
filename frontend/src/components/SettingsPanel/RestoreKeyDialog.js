@@ -24,7 +24,7 @@ import {
 const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
   const [encryptionKey, setEncryptionKey] = useState('');
   const [skipDecryption, setSkipDecryption] = useState(false);
-  const [restoreSnmpMetrics, setRestoreSnmpMetrics] = useState(false);
+  const [restoreSnmpMetrics, setRestoreSnmpMetrics] = useState(true);  // Default: true für vollständigen Restore
   const [error, setError] = useState('');
 
   const handleRestore = () => {
@@ -40,7 +40,7 @@ const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
   const handleClose = () => {
     setEncryptionKey('');
     setSkipDecryption(false);
-    setRestoreSnmpMetrics(false);
+    setRestoreSnmpMetrics(true);  // Reset auf true für nächsten Restore
     setError('');
     onClose();
   };

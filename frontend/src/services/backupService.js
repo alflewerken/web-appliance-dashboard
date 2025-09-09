@@ -69,11 +69,13 @@ export class BackupService {
     }
   }
 
-  static async restoreBackup(file, decryptionKey = null, restoreSnmpMetrics = false) {
+  static async restoreBackup(file, decryptionKey = null, restoreSnmpMetrics) {
+    console.log('🚀 BackupService.restoreBackup called with restoreSnmpMetrics:', restoreSnmpMetrics);
     return this.restoreFromFile(file, decryptionKey, restoreSnmpMetrics);
   }
 
-  static async restoreFromFile(file, decryptionKey = null, restoreSnmpMetrics = false) {
+  static async restoreFromFile(file, decryptionKey = null, restoreSnmpMetrics) {
+    console.log('🔍 BackupService.restoreFromFile called with restoreSnmpMetrics:', restoreSnmpMetrics);
     try {
       // Read file
       const fileContent = await file.text();
@@ -96,6 +98,8 @@ export class BackupService {
 
       // Add SNMP metrics restore option
       backupData.restoreSnmpMetrics = restoreSnmpMetrics;
+      console.log('📊 Setting backupData.restoreSnmpMetrics to:', restoreSnmpMetrics);
+      console.log('📦 Full backupData object keys:', Object.keys(backupData));
 
       // Validate backup structure
       if (!backupData.data || !backupData.data.appliances) {
