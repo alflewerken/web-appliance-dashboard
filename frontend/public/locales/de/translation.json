@@ -424,6 +424,9 @@
     "largeDataWarning": "Kann große Datenmengen enthalten und den Import verlangsamen",
     "backgroundImages": "Hintergrundbilder",
     "userSettings": "Benutzereinstellungen",
+    "newName": "Neuer Name",
+    "duplicateNameError": "Dieser Name existiert bereits",
+    "duplicateNamesFound": "Einige Namen existieren bereits in der Datenbank. Bitte ändern Sie die markierten Namen, um Duplikate zu vermeiden.",
     "errors": {
       "loadFailed": "Fehler beim Laden der Einstellungen",
       "saveFailed": "Fehler beim Speichern",

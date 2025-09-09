@@ -424,6 +424,9 @@
     "largeDataWarning": "May contain large amounts of data and slow down the import",
     "backgroundImages": "Background Images",
     "userSettings": "User Settings",
+    "newName": "New Name",
+    "duplicateNameError": "This name already exists",
+    "duplicateNamesFound": "Some names already exist in the database. Please change the marked names to avoid duplicates.",
     "errors": {
       "loadFailed": "Error loading settings",
       "saveFailed": "Error saving",

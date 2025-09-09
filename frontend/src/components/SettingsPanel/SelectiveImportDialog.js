@@ -24,6 +24,7 @@ import {
   ListItemSecondaryAction,
   TextField,
   InputAdornment,
+  Collapse,
 } from '@mui/material';
 import {
   FolderOpen,
@@ -37,16 +38,58 @@ import {
   Search,
   CheckCircle,
   Circle,
+  AlertCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 
 const SelectiveImportDialog = ({ open, onClose, backupData }) => {
   const { t } = useTranslation();
   const [selectedItems, setSelectedItems] = useState({});
+  const [itemNames, setItemNames] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
   const [searchTerms, setSearchTerms] = useState({});
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+  const [existingNames, setExistingNames] = useState({});
+  const [duplicateNames, setDuplicateNames] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // Fetch existing names from database
+  useEffect(() => {
+    if (open) {
+      fetchExistingNames();
+    }
+  }, [open]);
+
+  const fetchExistingNames = async () => {
+    setLoading(true);
+    try {
+      // Fetch existing names for each category
+      const [categoriesRes, usersRes, hostsRes, appliancesRes] = await Promise.all([
+        axios.get('/api/categories').catch(() => ({ data: [] })),
+        axios.get('/api/users').catch(() => ({ data: [] })),
+        axios.get('/api/hosts').catch(() => ({ data: [] })),
+        axios.get('/api/appliances').catch(() => ({ data: [] })),
+      ]);
+
+      const existing = {
+        categories: (categoriesRes.data || []).map(c => c.name?.toLowerCase()),
+        users: (usersRes.data || []).map(u => u.username?.toLowerCase()),
+        hosts: (hostsRes.data || []).map(h => h.name?.toLowerCase()),
+        appliances: (appliancesRes.data || []).map(a => a.name?.toLowerCase()),
+        // SSH keys and background images typically use unique identifiers
+        sshKeys: [],
+        backgroundImages: [],
+      };
+
+      setExistingNames(existing);
+    } catch (error) {
+      console.error('Error fetching existing names:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Initialize selection state when backup data changes
   useEffect(() => {
@@ -61,17 +104,32 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         hostMetrics: {}, // Per-host metrics selection
       };
       
-      // Initialize all items as unselected
+      const names = {
+        categories: {},
+        users: {},
+        hosts: {},
+        sshKeys: {},
+        appliances: {},
+        backgroundImages: {},
+      };
+      
+      // Initialize all items as unselected with original names
       backupData.data?.categories?.forEach(cat => {
-        items.categories[cat.id || cat.name] = false;
+        const id = cat.id || cat.name;
+        items.categories[id] = false;
+        names.categories[id] = cat.name;
       });
       
       backupData.data?.users?.forEach(user => {
-        items.users[user.id || user.username] = false;
+        const id = user.id || user.username;
+        items.users[id] = false;
+        names.users[id] = user.username;
       });
       
       backupData.data?.hosts?.forEach(host => {
-        items.hosts[host.id || host.name] = false;
+        const id = host.id || host.name;
+        items.hosts[id] = false;
+        names.hosts[id] = host.name;
         // Initialize metrics selection per host
         if (backupData.data?.snmp_metrics?.length > 0) {
           items.hostMetrics[host.id] = false;
@@ -79,18 +137,25 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
       });
       
       backupData.data?.ssh_keys?.forEach(key => {
-        items.sshKeys[key.id || key.key_name || key.keyName] = false;
+        const id = key.id || key.key_name || key.keyName;
+        items.sshKeys[id] = false;
+        names.sshKeys[id] = key.key_name || key.keyName;
       });
       
       backupData.data?.appliances?.forEach(app => {
-        items.appliances[app.id || app.name] = false;
+        const id = app.id || app.name;
+        items.appliances[id] = false;
+        names.appliances[id] = app.name;
       });
       
       backupData.data?.background_images?.forEach(img => {
-        items.backgroundImages[img.id || img.filename] = false;
+        const id = img.id || img.filename;
+        items.backgroundImages[id] = false;
+        names.backgroundImages[id] = img.filename;
       });
       
       setSelectedItems(items);
+      setItemNames(names);
       
       // Initially expand categories with few items
       const expanded = {};
@@ -114,6 +179,32 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
       [category]: {
         ...prev[category],
         [itemId]: !prev[category]?.[itemId]
+      }
+    }));
+  };
+
+  const handleNameChange = (category, itemId, newName) => {
+    setItemNames(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [itemId]: newName
+      }
+    }));
+
+    // Check for duplicates
+    checkForDuplicate(category, itemId, newName);
+  };
+
+  const checkForDuplicate = (category, itemId, newName) => {
+    const existing = existingNames[category] || [];
+    const isDuplicate = existing.includes(newName.toLowerCase());
+    
+    setDuplicateNames(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [itemId]: isDuplicate
       }
     }));
   };
@@ -158,12 +249,18 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
     });
   };
 
+  const hasAnyDuplicates = () => {
+    return Object.values(duplicateNames).some(category => 
+      Object.values(category || {}).some(isDup => isDup)
+    );
+  };
+
   const handleImport = async () => {
     setImporting(true);
     setError('');
 
     try {
-      // Prepare filtered backup data
+      // Prepare filtered backup data with renamed items
       const filteredData = {
         ...backupData,
         data: {},
@@ -172,21 +269,35 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         createNewIds: true, // Always create new IDs, don't overwrite
       };
 
-      // Add selected categories
+      // Add selected categories with new names
       if (selectedItems.categories) {
-        const selectedCats = backupData.data.categories.filter(cat => 
-          selectedItems.categories[cat.id || cat.name]
-        );
+        const selectedCats = backupData.data.categories.filter(cat => {
+          const id = cat.id || cat.name;
+          return selectedItems.categories[id];
+        }).map(cat => {
+          const id = cat.id || cat.name;
+          return {
+            ...cat,
+            name: itemNames.categories[id] || cat.name
+          };
+        });
         if (selectedCats.length > 0) {
           filteredData.data.categories = selectedCats;
         }
       }
 
-      // Add selected users with their settings
+      // Add selected users with their settings and new names
       if (selectedItems.users) {
-        const selectedUsers = backupData.data.users.filter(user => 
-          selectedItems.users[user.id || user.username]
-        );
+        const selectedUsers = backupData.data.users.filter(user => {
+          const id = user.id || user.username;
+          return selectedItems.users[id];
+        }).map(user => {
+          const id = user.id || user.username;
+          return {
+            ...user,
+            username: itemNames.users[id] || user.username
+          };
+        });
         if (selectedUsers.length > 0) {
           filteredData.data.users = selectedUsers;
           
@@ -201,41 +312,71 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         }
       }
 
-      // Add selected hosts
+      // Add selected hosts with new names
       if (selectedItems.hosts) {
-        const selectedHosts = backupData.data.hosts.filter(host => 
-          selectedItems.hosts[host.id || host.name]
-        );
+        const selectedHosts = backupData.data.hosts.filter(host => {
+          const id = host.id || host.name;
+          return selectedItems.hosts[id];
+        }).map(host => {
+          const id = host.id || host.name;
+          return {
+            ...host,
+            name: itemNames.hosts[id] || host.name
+          };
+        });
         if (selectedHosts.length > 0) {
           filteredData.data.hosts = selectedHosts;
         }
       }
 
-      // Add selected SSH keys
+      // Add selected SSH keys with new names
       if (selectedItems.sshKeys) {
-        const selectedKeys = backupData.data.ssh_keys.filter(key => 
-          selectedItems.sshKeys[key.id || key.key_name || key.keyName]
-        );
+        const selectedKeys = backupData.data.ssh_keys.filter(key => {
+          const id = key.id || key.key_name || key.keyName;
+          return selectedItems.sshKeys[id];
+        }).map(key => {
+          const id = key.id || key.key_name || key.keyName;
+          const newName = itemNames.sshKeys[id] || key.key_name || key.keyName;
+          return {
+            ...key,
+            key_name: newName,
+            keyName: newName
+          };
+        });
         if (selectedKeys.length > 0) {
           filteredData.data.ssh_keys = selectedKeys;
         }
       }
 
-      // Add selected appliances
+      // Add selected appliances with new names
       if (selectedItems.appliances) {
-        const selectedApps = backupData.data.appliances.filter(app => 
-          selectedItems.appliances[app.id || app.name]
-        );
+        const selectedApps = backupData.data.appliances.filter(app => {
+          const id = app.id || app.name;
+          return selectedItems.appliances[id];
+        }).map(app => {
+          const id = app.id || app.name;
+          return {
+            ...app,
+            name: itemNames.appliances[id] || app.name
+          };
+        });
         if (selectedApps.length > 0) {
           filteredData.data.appliances = selectedApps;
         }
       }
 
-      // Add selected background images
+      // Add selected background images with new names
       if (selectedItems.backgroundImages) {
-        const selectedImages = backupData.data.background_images.filter(img => 
-          selectedItems.backgroundImages[img.id || img.filename]
-        );
+        const selectedImages = backupData.data.background_images.filter(img => {
+          const id = img.id || img.filename;
+          return selectedItems.backgroundImages[id];
+        }).map(img => {
+          const id = img.id || img.filename;
+          return {
+            ...img,
+            filename: itemNames.backgroundImages[id] || img.filename
+          };
+        });
         if (selectedImages.length > 0) {
           filteredData.data.background_images = selectedImages;
         }
@@ -364,49 +505,92 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
             />
           )}
           
-          <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
+          <List dense sx={{ maxHeight: 400, overflow: 'auto' }}>
             {filteredItems.map((item) => {
               const itemId = item.id || item.name || item.username || 
                            item.key_name || item.keyName || item.filename;
               const isSelected = selectedItems[category]?.[itemId] || false;
+              const currentName = itemNames[category]?.[itemId] || 
+                                item.name || item.username || 
+                                item.key_name || item.keyName || item.filename;
+              const isDuplicate = duplicateNames[category]?.[itemId] || false;
               
               return (
-                <ListItem
-                  key={itemId}
-                  button
-                  onClick={() => handleToggleItem(category, itemId)}
-                  sx={{
-                    borderRadius: 1,
-                    mb: 0.5,
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    {isSelected ? (
-                      <CheckCircle size={20} style={{ color }} />
-                    ) : (
-                      <Circle size={20} style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
-                    )}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.name || item.username || item.key_name || 
-                            item.keyName || item.filename || item.hostname}
-                    secondary={item.description || item.email || item.hostname || 
-                              item.comment || null}
-                    primaryTypographyProps={{
-                      sx: { color: isSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)' }
+                <Box key={itemId}>
+                  <ListItem
+                    button
+                    onClick={() => handleToggleItem(category, itemId)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      },
                     }}
-                  />
-                  {item.icon && (
-                    <ListItemSecondaryAction>
-                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                        {item.icon}
-                      </Typography>
-                    </ListItemSecondaryAction>
-                  )}
-                </ListItem>
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      {isSelected ? (
+                        <CheckCircle size={20} style={{ color }} />
+                      ) : (
+                        <Circle size={20} style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.name || item.username || item.key_name || 
+                              item.keyName || item.filename || item.hostname}
+                      secondary={item.description || item.email || item.hostname || 
+                                item.comment || null}
+                      primaryTypographyProps={{
+                        sx: { color: isSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)' }
+                      }}
+                    />
+                    {item.icon && (
+                      <ListItemSecondaryAction>
+                        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                          {item.icon}
+                        </Typography>
+                      </ListItemSecondaryAction>
+                    )}
+                  </ListItem>
+                  
+                  {/* Name input field when item is selected */}
+                  <Collapse in={isSelected}>
+                    <Box sx={{ pl: 6, pr: 2, pb: 1 }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label={t('settings.newName')}
+                        value={currentName}
+                        onChange={(e) => handleNameChange(category, itemId, e.target.value)}
+                        error={isDuplicate}
+                        helperText={isDuplicate ? t('settings.duplicateNameError') : ''}
+                        InputProps={{
+                          endAdornment: isDuplicate && (
+                            <InputAdornment position="end">
+                              <AlertCircle size={20} style={{ color: '#f44336' }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                            '&.Mui-error': {
+                              '& fieldset': {
+                                borderColor: '#f44336',
+                              },
+                            },
+                          },
+                          '& .MuiInputLabel-root.Mui-error': {
+                            color: '#f44336',
+                          },
+                          '& .MuiFormHelperText-root.Mui-error': {
+                            color: '#f44336',
+                          },
+                        }}
+                      />
+                    </Box>
+                  </Collapse>
+                </Box>
               );
             })}
           </List>
@@ -552,11 +736,25 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
       </DialogTitle>
 
       <DialogContent sx={{ mt: 2, pb: 2 }}>
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            {t('settings.selectiveImportDetailInfo')}
-          </Typography>
-        </Alert>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                {t('settings.selectiveImportDetailInfo')}
+              </Typography>
+            </Alert>
+
+            {hasAnyDuplicates() && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  {t('settings.duplicateNamesFound')}
+                </Typography>
+              </Alert>
+            )}
 
         {/* Categories */}
         {renderCategoryAccordion(
@@ -615,24 +813,26 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         {/* Host Metrics - Special handling */}
         {renderHostMetrics()}
 
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <Divider sx={{ my: 2 }} />
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                {t('settings.selectedItems')}: {totalSelectedItems}
+              </Typography>
+              {backupData && (
+                <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  {t('backup.backupCreatedAt')}: {new Date(backupData.created_at).toLocaleString()}
+                </Typography>
+              )}
+            </Box>
+          </>
         )}
-
-        <Divider sx={{ my: 2 }} />
-
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-            {t('settings.selectedItems')}: {totalSelectedItems}
-          </Typography>
-          {backupData && (
-            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-              {t('backup.backupCreatedAt')}: {new Date(backupData.created_at).toLocaleString()}
-            </Typography>
-          )}
-        </Box>
       </DialogContent>
 
       <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
@@ -651,12 +851,16 @@ const SelectiveImportDialog = ({ open, onClose, backupData }) => {
         <Button
           onClick={handleImport}
           variant="contained"
-          disabled={importing || totalSelectedItems === 0}
+          disabled={importing || totalSelectedItems === 0 || hasAnyDuplicates() || loading}
           startIcon={importing ? <CircularProgress size={20} /> : null}
           sx={{
-            backgroundColor: '#0066CC',
+            backgroundColor: hasAnyDuplicates() ? '#757575' : '#0066CC',
             '&:hover': {
-              backgroundColor: '#0051A2',
+              backgroundColor: hasAnyDuplicates() ? '#757575' : '#0051A2',
+            },
+            '&.Mui-disabled': {
+              backgroundColor: '#424242',
+              color: 'rgba(255, 255, 255, 0.3)',
             },
           }}
         >
