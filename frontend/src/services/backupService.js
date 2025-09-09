@@ -69,11 +69,11 @@ export class BackupService {
     }
   }
 
-  static async restoreBackup(file, decryptionKey = null) {
-    return this.restoreFromFile(file, decryptionKey);
+  static async restoreBackup(file, decryptionKey = null, restoreSnmpMetrics = false) {
+    return this.restoreFromFile(file, decryptionKey, restoreSnmpMetrics);
   }
 
-  static async restoreFromFile(file, decryptionKey = null) {
+  static async restoreFromFile(file, decryptionKey = null, restoreSnmpMetrics = false) {
     try {
       // Read file
       const fileContent = await file.text();
@@ -93,6 +93,9 @@ export class BackupService {
       if (decryptionKey) {
         backupData.decryption_key = decryptionKey;
       }
+
+      // Add SNMP metrics restore option
+      backupData.restoreSnmpMetrics = restoreSnmpMetrics;
 
       // Validate backup structure
       if (!backupData.data || !backupData.data.appliances) {

@@ -149,6 +149,9 @@ router.post('/start', verifyToken, async (req, res) => {
     status: 'processing'
   });
   
+  // Extract restore options
+  const shouldRestoreSnmpMetrics = backupData.restoreSnmpMetrics !== false; // Default to true for backward compatibility
+  
   // Count items for progress - include all monitoring tables
   const totalItems = {
     categories: backupData.data?.categories?.length || 0,
@@ -157,10 +160,10 @@ router.post('/start', verifyToken, async (req, res) => {
     hosts: backupData.data?.hosts?.length || 0,
     appliances: backupData.data?.appliances?.length || 0,
     background_images: backupData.data?.background_images?.length || 0,  // Will handle files too
-    snmp_metrics: backupData.data?.snmp_metrics?.length || 0,
+    snmp_metrics: shouldRestoreSnmpMetrics ? (backupData.data?.snmp_metrics?.length || 0) : 0,
     host_snmp_configs: backupData.data?.host_snmp_configs?.length || 0,
     host_metrics_logging: backupData.data?.host_metrics_logging?.length || 0,
-    host_monitoring_data: backupData.data?.host_monitoring_data?.length || 0,
+    host_monitoring_data: shouldRestoreSnmpMetrics ? (backupData.data?.host_monitoring_data?.length || 0) : 0,
     host_disk_config: backupData.data?.host_disk_config?.length || 0,
     host_interface_mappings: backupData.data?.host_interface_mappings?.length || 0,
     user_settings: backupData.data?.user_settings?.length || backupData.data?.settings?.length || 0,
@@ -558,7 +561,10 @@ router.post('/start', verifyToken, async (req, res) => {
       }
       
       // 7. NOW restore SNMP Metrics (after hosts exist - with mapped IDs!)
-      if (backupData.data?.snmp_metrics?.length > 0) {
+      // Check if user wants to restore SNMP metrics (can be optional due to size)
+      const shouldRestoreSnmpMetrics = backupData.restoreSnmpMetrics !== false; // Default to true for backward compatibility
+      
+      if (shouldRestoreSnmpMetrics && backupData.data?.snmp_metrics?.length > 0) {
         const snmpMetrics = backupData.data.snmp_metrics;
         const batchSize = 100; // Smaller batch size to prevent overload
         
@@ -656,6 +662,14 @@ router.post('/start', verifyToken, async (req, res) => {
         
         console.log(`✅ Restored ${restoredMetrics} SNMP metrics (skipped ${skippedMetrics} for non-existent hosts)`);
         processedItemCount += totalItems.snmp_metrics;
+      } else if (!shouldRestoreSnmpMetrics && backupData.data?.snmp_metrics?.length > 0) {
+        // User chose to skip SNMP metrics restoration
+        sendProgressUpdate(sessionId, {
+          type: 'step',
+          currentStep: 'snmp_metrics',
+          message: `Skipping ${backupData.data.snmp_metrics.length.toLocaleString()} SNMP metrics (user choice)...`
+        });
+        console.log(`⏭️ Skipped ${backupData.data.snmp_metrics.length} SNMP metrics as requested by user`);
       }
       
       // Re-enable foreign key checks
@@ -764,7 +778,8 @@ router.post('/start', verifyToken, async (req, res) => {
       }
       
       // 10. Restore host_monitoring_data (historical monitoring data)
-      if (backupData.data?.host_monitoring_data?.length > 0) {
+      // Only restore if user wants SNMP metrics (since this is also monitoring history)
+      if (shouldRestoreSnmpMetrics && backupData.data?.host_monitoring_data?.length > 0) {
         console.log(`📈 Restoring ${backupData.data.host_monitoring_data.length} monitoring data entries...`);
         sendProgressUpdate(sessionId, {
           type: 'step',
@@ -820,6 +835,14 @@ router.post('/start', verifyToken, async (req, res) => {
         
         console.log(`✅ Restored ${restoredMonitoring} monitoring data entries`);
         processedItemCount += totalItems.host_monitoring_data;
+      } else if (!shouldRestoreSnmpMetrics && backupData.data?.host_monitoring_data?.length > 0) {
+        // User chose to skip monitoring data restoration
+        sendProgressUpdate(sessionId, {
+          type: 'step',
+          currentStep: 'host_monitoring_data',
+          message: `Skipping ${backupData.data.host_monitoring_data.length.toLocaleString()} monitoring data entries (user choice)...`
+        });
+        console.log(`⏭️ Skipped ${backupData.data.host_monitoring_data.length} monitoring data entries as requested by user`);
       }
       
       // 11. Restore host_disk_config (disk configurations per host)

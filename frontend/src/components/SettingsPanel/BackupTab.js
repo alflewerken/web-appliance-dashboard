@@ -136,7 +136,7 @@ const BackupTab = () => {
     event.target.value = '';
   };
 
-  const restoreFromFile = async (file, decryptionKey = null) => {
+  const restoreFromFile = async (file, decryptionKey = null, restoreSnmpMetrics = false) => {
     try {
       setRestoreLoading(true);
       // Make sure dialog is closed at start
@@ -155,16 +155,16 @@ const BackupTab = () => {
         background_images: backupData.data?.background_images?.length || 0,
         hosts: backupData.data?.hosts?.length || 0,
         ssh_keys: backupData.data?.ssh_keys?.length || 0,
-        snmp_metrics: backupData.data?.snmp_metrics?.length || 0,
-        snmp_interfaces: backupData.data?.snmp_interfaces?.length || 0,
+        snmp_metrics: restoreSnmpMetrics ? (backupData.data?.snmp_metrics?.length || 0) : 0,
+        snmp_interfaces: restoreSnmpMetrics ? (backupData.data?.snmp_interfaces?.length || 0) : 0,
       };
       
       console.log('📦 Restore item counts:', itemCounts);
       setRestoreItemCounts(itemCounts);
       // Don't show dialog yet - wait for sessionId
       
-      // Perform the restore
-      const result = await BackupService.restoreBackup(file, decryptionKey);
+      // Perform the restore with the additional parameter
+      const result = await BackupService.restoreBackup(file, decryptionKey, restoreSnmpMetrics);
       console.log('🔄 Restore result:', result);
 
       if (result.sessionId) {
@@ -201,14 +201,14 @@ const BackupTab = () => {
     }
   };
 
-  const handleRestoreWithKey = (decryptionKey) => {
-    console.log('🔑 handleRestoreWithKey called');
+  const handleRestoreWithKey = (decryptionKey, restoreSnmpMetrics = false) => {
+    console.log('🔑 handleRestoreWithKey called, restoreSnmpMetrics:', restoreSnmpMetrics);
     // Make absolutely sure dialog is closed before starting
     setShowProgressDialogDebug(false);
     setRestoreSessionId(null);
     
     if (pendingRestoreFile) {
-      restoreFromFile(pendingRestoreFile, decryptionKey);
+      restoreFromFile(pendingRestoreFile, decryptionKey, restoreSnmpMetrics);
       setPendingRestoreFile(null);
     }
     setShowRestoreKeyDialog(false);
