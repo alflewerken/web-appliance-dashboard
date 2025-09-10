@@ -30,7 +30,6 @@ import { openTerminalInNewWindow } from './utils/terminalWindow';
 import { AuditLogPanel } from './components/AuditLog';
 
 import MobileSwipeableWrapper from './components/MobileSwipeableWrapper';
-import SNMPDashboard from './components/SNMPDashboard';
 
 // Import Contexts
 import { SSEProvider } from './contexts/SSEContext';
@@ -94,7 +93,6 @@ function Dashboard() {
   const [showHostPanel, setShowHostPanel] = useState(false);
   const [selectedHostForPanel, setSelectedHostForPanel] = useState(null);
   const [showAuditLog, setShowAuditLog] = useState(false);
-  const [showSNMPMonitor, setShowSNMPMonitor] = useState(false);
   const [activeTerminals, setActiveTerminals] = useState([]);
   const [activeSettingsTab, setActiveSettingsTab] = useState('general');
   const [showSSHFileUpload, setShowSSHFileUpload] = useState(false);
@@ -1254,12 +1252,10 @@ function Dashboard() {
           setShowUserManagement={setShowUserManagement}
           setShowHostsView={setShowHostsView}
           setShowAuditLog={setShowAuditLog}
-          setShowSNMPMonitor={setShowSNMPMonitor}
           showSettingsModal={showSettingsModal}
           showUserManagement={showUserManagement}
           showHostsView={showHostsView}
           showAuditLog={showAuditLog}
-          showSNMPMonitor={showSNMPMonitor}
           isOpen={isMobile ? sidebarOpen : sidebarState !== 'collapsed'}
           onClose={() => setSidebarOpen(false)}
           isMobile={isMobile}
@@ -1670,22 +1666,6 @@ function Dashboard() {
             onClose={() => setShowAuditLog(false)}
             onWidthChange={setAuditLogPanelWidth}
           />
-        </div>
-      )}
-
-      {showSNMPMonitor && (
-        <div className="panel-container snmp-monitor-panel-container">
-          <div style={{ 
-            width: '100%', 
-            height: '100%', 
-            background: 'var(--bg-secondary)',
-            borderRadius: '8px',
-            overflow: 'auto'
-          }}>
-            <SNMPDashboard 
-              onClose={() => setShowSNMPMonitor(false)}
-            />
-          </div>
         </div>
       )}
 

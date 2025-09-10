@@ -8,8 +8,7 @@ import {
   Users,
   Monitor,
   LogOut,
-  FileText,
-  BarChart
+  FileText
 } from 'lucide-react';
 import { getCategoryCount } from '../utils/applianceUtils';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,12 +25,10 @@ const AppSidebar = ({
   setShowUserManagement,
   setShowHostsView,
   setShowAuditLog,
-  setShowSNMPMonitor,
   showSettingsModal = false,
   showUserManagement = false,
   showHostsView = false,
   showAuditLog = false,
-  showSNMPMonitor = false,
   isOpen = true,
   onClose,
   isMobile = false,
@@ -169,15 +166,6 @@ const AppSidebar = ({
     }
   };
 
-  const handleSNMPMonitorOpen = (e) => {
-    if (e) e.stopPropagation();
-    setShowSNMPMonitor(prev => !prev);
-    // Auto-close sidebar on mobile after action
-    if (isMobile && onClose) {
-      onClose();
-    }
-  };
-
   const handleAuditLogOpen = (e) => {
     if (e) e.stopPropagation();
     setShowAuditLog(prev => !prev);
@@ -240,10 +228,6 @@ const AppSidebar = ({
                   const iconContainerColor = category.color || '#007AFF';
                   const categoryColor = iconContainerColor;
                   const categoryRgb = hexToRgb(categoryColor);
-
-                  // Debug nur für Monitoring
-                  if (category.id === 'monitoring') {
-                    }
 
                   return (
                     <div
@@ -411,10 +395,6 @@ const AppSidebar = ({
                 const categoryColor = category.color || '#007AFF';
                 const categoryRgb = hexToRgb(categoryColor);
 
-                // Debug nur für Monitoring
-                if (category.id === 'monitoring') {
-                  }
-
                 return (
                   <div
                     key={category.id}
@@ -472,20 +452,6 @@ const AppSidebar = ({
                 <Monitor size={20} />
               </div>
               <span className="nav-text">{t('hosts.title')}</span>
-            </div>
-            {/* SNMP Monitor Button */}
-            <div
-              className={`nav-item ${showSNMPMonitor ? 'active' : ''}`}
-              onClick={handleSNMPMonitorOpen}
-              title={t('monitoring.title', 'SNMP Monitor')}
-              data-tooltip={t('monitoring.title', 'SNMP Monitor')}
-              data-category="snmp"
-            >
-              {showSNMPMonitor && <div className="nav-item-indicator" />}
-              <div className="nav-icon-container" data-category="snmp" style={{ backgroundColor: '#4CAF50' }}>
-                <BarChart size={20} />
-              </div>
-              <span className="nav-text">{t('monitoring.title', 'SNMP Monitor')}</span>
             </div>
             {authEnabled && (
               <div

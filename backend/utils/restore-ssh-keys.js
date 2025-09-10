@@ -23,30 +23,49 @@ const SSH_DIR = '/root/.ssh';
 // Decrypt function (matching the encryption in the system)
 function decrypt(encryptedData, secret) {
   try {
-    const algorithm = 'aes-256-gcm';
-    const key = crypto.createHash('sha256').update(String(secret)).digest('base64').substr(0, 32);
-    
-    // Parse the encrypted data
+    // Check if data is in new format (4 parts with colons)
     const parts = encryptedData.split(':');
-    if (parts.length !== 4) {
-      throw new Error('Invalid encrypted data format');
+    
+    if (parts.length === 4) {
+      // New format: IV:TAG:ENCRYPTED:SALT
+      const algorithm = 'aes-256-gcm';
+      const key = crypto.createHash('sha256').update(String(secret)).digest('base64').substr(0, 32);
+      
+      const iv = Buffer.from(parts[0], 'hex');
+      const tag = Buffer.from(parts[1], 'hex');
+      const encrypted = Buffer.from(parts[2], 'hex');
+      // parts[3] is salt, not used in decryption
+      
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
+      decipher.setAuthTag(tag);
+      
+      let decrypted = decipher.update(encrypted, null, 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      return decrypted;
+    } else if (parts.length === 2) {
+      // Old format: IV:ENCRYPTED (CTR mode)
+      const algorithm = 'aes-256-ctr';
+      const key = crypto.createHash('sha256').update(String(secret)).digest('base64').substr(0, 32);
+      
+      const iv = Buffer.from(parts[0], 'hex');
+      const encrypted = Buffer.from(parts[1], 'hex');
+      
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
+      
+      let decrypted = decipher.update(encrypted, null, 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      return decrypted;
+    } else {
+      throw new Error(`Invalid encrypted data format: ${parts.length} parts`);
     }
-    
-    const iv = Buffer.from(parts[0], 'hex');
-    const tag = Buffer.from(parts[1], 'hex');
-    const encrypted = Buffer.from(parts[2], 'hex');
-    
-    // Create decipher
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    decipher.setAuthTag(tag);
-    
-    // Decrypt
-    let decrypted = decipher.update(encrypted, null, 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return decrypted;
   } catch (error) {
     console.error('Decryption error:', error.message);
+    // Try as plain text if decryption fails
+    if (!encryptedData.includes(':')) {
+      return encryptedData;
+    }
     return null;
   }
 }
@@ -78,9 +97,9 @@ async function restoreSSHKeys() {
                            process.env.ENCRYPTION_SECRET || 
                            'default-insecure-key-change-this-in-production!!';
     
-    // Fetch all SSH keys
+    // Fetch all SSH keys with user information
     const [keys] = await connection.execute(
-      'SELECT key_name, private_key, public_key FROM ssh_keys'
+      'SELECT key_name, private_key, public_key, created_by FROM ssh_keys'
     );
 
     for (const key of keys) {
@@ -100,13 +119,25 @@ async function restoreSSHKeys() {
 
         }
         
+        // Generate the correct filename based on whether it's a user key or system key
+        let keyFileName;
+        if (key.created_by) {
+          // User-specific key: id_rsa_user{userId}_{keyName}
+          keyFileName = `id_rsa_user${key.created_by}_${key.key_name}`;
+        } else {
+          // System key: id_rsa_{keyName}
+          keyFileName = `id_rsa_${key.key_name}`;
+        }
+        
         // Write private key
-        const privateKeyPath = path.join(SSH_DIR, `id_rsa_${key.key_name}`);
+        const privateKeyPath = path.join(SSH_DIR, keyFileName);
         await fs.writeFile(privateKeyPath, privateKey, { mode: 0o600 });
+        console.log(`✅ Restored private key: ${keyFileName}`);
 
         // Write public key
-        const publicKeyPath = path.join(SSH_DIR, `id_rsa_${key.key_name}.pub`);
+        const publicKeyPath = path.join(SSH_DIR, `${keyFileName}.pub`);
         await fs.writeFile(publicKeyPath, key.public_key, { mode: 0o644 });
+        console.log(`✅ Restored public key: ${keyFileName}.pub`);
 
       } catch (error) {
         console.error(`Error restoring key ${key.key_name}:`, error.message);

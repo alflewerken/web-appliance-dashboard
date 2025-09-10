@@ -23,9 +23,9 @@ class SSHAutoInitializer {
   async restoreSSHKeysFromDatabase() {
     try {
 
-      // Get all SSH keys from database
+      // Get all SSH keys from database with user information
       const [keys] = await pool.execute(
-        'SELECT key_name, private_key, public_key FROM ssh_keys WHERE private_key IS NOT NULL AND private_key != ""'
+        'SELECT key_name, private_key, public_key, created_by FROM ssh_keys WHERE private_key IS NOT NULL AND private_key != ""'
       );
 
       if (keys.length === 0) {
@@ -36,14 +36,18 @@ class SSHAutoInitializer {
       let restoredCount = 0;
       for (const key of keys) {
         try {
-          const privateKeyPath = path.join(
-            this.sshDir,
-            `id_rsa_${key.key_name}`
-          );
-          const publicKeyPath = path.join(
-            this.sshDir,
-            `id_rsa_${key.key_name}.pub`
-          );
+          // Generate the correct filename based on whether it's a user key or system key
+          let keyFileName;
+          if (key.created_by) {
+            // User-specific key: id_rsa_user{userId}_{keyName}
+            keyFileName = `id_rsa_user${key.created_by}_${key.key_name}`;
+          } else {
+            // System key: id_rsa_{keyName}
+            keyFileName = `id_rsa_${key.key_name}`;
+          }
+          
+          const privateKeyPath = path.join(this.sshDir, keyFileName);
+          const publicKeyPath = path.join(this.sshDir, `${keyFileName}.pub`);
 
           // Write private key from database
           await fs.writeFile(privateKeyPath, key.private_key, { mode: 0o600 });
