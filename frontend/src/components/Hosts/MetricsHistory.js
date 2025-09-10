@@ -29,6 +29,7 @@ import {
   Legend,
   ResponsiveContainer,
   ComposedChart,
+  ReferenceArea,
 } from 'recharts';
 import {
   Activity,
@@ -45,6 +46,8 @@ import {
   Play,
   Info,
   Save,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import axios from '../../utils/axiosConfig';
 import uiConfig, { useUIConfig } from '../../utils/uiConfigManager';
@@ -65,6 +68,13 @@ const MetricsHistory = ({ host }) => {
   const [isMobile, setIsMobile] = useState(false);
   const refreshIntervalRef = useRef(null);
   const pollIntervalRef = useRef(null);
+  
+  // Zoom functionality with overlay
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [selectionEnd, setSelectionEnd] = useState(null);
+  const [zoomedRange, setZoomedRange] = useState(null);
+  const chartContainerRef = useRef(null);
   
   // Get UI configuration for tooltips
   const uiConfiguration = useUIConfig();
@@ -230,6 +240,8 @@ const MetricsHistory = ({ host }) => {
   // Trigger data fetch when metrics selection changes
   useEffect(() => {
     if (selectedMetrics.length > 0) {
+      // Reset zoom when timeRange changes
+      handleZoomReset();
       fetchMetricsData();
     } else {
       setMetricsData({});
@@ -304,6 +316,75 @@ const MetricsHistory = ({ host }) => {
         return [...prev, metricKey];
       }
     });
+  };
+
+  // Zoom functionality with overlay
+  const handleOverlayMouseDown = (e) => {
+    if (!chartContainerRef.current) return;
+    
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    
+    // Check if click is within chart area (exclude axis labels)
+    const leftMargin = 50; // Approximate left margin for Y-axis
+    const rightMargin = 30;
+    const topMargin = 5;
+    const bottomMargin = 50; // Approximate bottom margin for X-axis
+    
+    if (x > leftMargin && x < rect.width - rightMargin && 
+        e.clientY - rect.top > topMargin && e.clientY - rect.top < rect.height - bottomMargin) {
+      setIsSelecting(true);
+      setSelectionStart(x);
+      setSelectionEnd(x);
+    }
+  };
+
+  const handleOverlayMouseMove = (e) => {
+    if (!isSelecting || !chartContainerRef.current) return;
+    
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const rightMargin = 30;
+    const leftMargin = 50;
+    
+    // Constrain selection within chart area
+    const constrainedX = Math.max(leftMargin, Math.min(x, rect.width - rightMargin));
+    setSelectionEnd(constrainedX);
+  };
+
+  const handleOverlayMouseUp = () => {
+    if (!isSelecting || !chartContainerRef.current || selectionStart === selectionEnd) {
+      setIsSelecting(false);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      return;
+    }
+    
+    // Calculate data range from pixel positions
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const chartWidth = rect.width - 50 - 30; // Subtract margins
+    const leftMargin = 50;
+    
+    const startPercent = ((Math.min(selectionStart, selectionEnd) - leftMargin) / chartWidth) * 100;
+    const endPercent = ((Math.max(selectionStart, selectionEnd) - leftMargin) / chartWidth) * 100;
+    
+    const dataLength = combinedData.length;
+    const startIndex = Math.max(0, Math.floor((startPercent / 100) * dataLength));
+    const endIndex = Math.min(dataLength - 1, Math.ceil((endPercent / 100) * dataLength));
+    
+    if (endIndex > startIndex) {
+      setZoomedRange({ startIndex, endIndex });
+    }
+    
+    setIsSelecting(false);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+  };
+
+  const handleZoomReset = () => {
+    setZoomedRange(null);
+    setSelectionStart(null);
+    setSelectionEnd(null);
   };
 
   // Custom tooltip component
@@ -589,52 +670,123 @@ const MetricsHistory = ({ host }) => {
           {/* Main Chart */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={combinedData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="time"
-                    tick={{ fontSize: 12 }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    domain={[0, 'auto']}
-                    tickFormatter={(value) => {
-                      // Für Network-Metriken (die bereits in MB/s sind), 
-                      // zeige die Werte korrekt formatiert
-                      const hasNetworkMetrics = selectedMetrics.some(m => m.includes('bytes'));
-                      if (hasNetworkMetrics) {
-                        return value.toFixed(2);
-                      }
-                      return value;
+              {/* Zoom Controls */}
+              {zoomedRange && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
+                    Showing data points {zoomedRange.startIndex + 1} to {zoomedRange.endIndex + 1} of {combinedData.length}
+                  </Typography>
+                  <Button
+                    size="small"
+                    startIcon={<ZoomOut size={16} />}
+                    onClick={handleZoomReset}
+                    variant="outlined"
+                    sx={{
+                      borderColor: '#ff9800',
+                      color: '#ff9800',
+                      '&:hover': {
+                        borderColor: '#f57c00',
+                        backgroundColor: 'rgba(255, 152, 0, 0.08)',
+                      },
                     }}
-                    label={
-                      selectedMetrics.some(m => m.includes('bytes')) 
-                        ? { value: 'MB/s', angle: -90, position: 'insideLeft' }
-                        : null
-                    }
+                  >
+                    Reset Zoom
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Instructions */}
+              {!zoomedRange && combinedData.length > 0 && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <ZoomIn size={14} />
+                    Click and drag on the chart to select an area to zoom in
+                  </Typography>
+                </Box>
+              )}
+              
+              {/* Chart with overlay */}
+              <Box 
+                ref={chartContainerRef}
+                sx={{ 
+                  position: 'relative',
+                  width: '100%',
+                  height: 400,
+                  cursor: isSelecting ? 'col-resize' : 'crosshair'
+                }}
+                onMouseDown={handleOverlayMouseDown}
+                onMouseMove={handleOverlayMouseMove}
+                onMouseUp={handleOverlayMouseUp}
+                onMouseLeave={handleOverlayMouseUp}
+              >
+                {/* Selection overlay */}
+                {isSelecting && selectionStart !== null && selectionEnd !== null && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 5,
+                      left: Math.min(selectionStart, selectionEnd),
+                      width: Math.abs(selectionEnd - selectionStart),
+                      height: 'calc(100% - 55px)', // Exclude bottom margin
+                      backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                      border: '1px solid rgba(25, 118, 210, 0.5)',
+                      pointerEvents: 'none',
+                      zIndex: 10,
+                    }}
                   />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  
-                  {selectedMetrics.map(metricKey => {
-                    const config = metricsConfig[metricKey] || {};
-                    return (
-                      <Line
-                        key={metricKey}
-                        type="monotone"
-                        dataKey={metricKey}
-                        name={config.displayName || metricKey}
-                        stroke={config.color || '#8884d8'}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls
-                      />
-                    );
-                  })}
-                </LineChart>
-              </ResponsiveContainer>
+                )}
+                
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart 
+                    data={zoomedRange 
+                      ? combinedData.slice(zoomedRange.startIndex, zoomedRange.endIndex + 1)
+                      : combinedData}
+                    margin={{ top: 5, right: 30, left: 50, bottom: 50 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="time"
+                      tick={{ fontSize: 12 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      domain={[0, 'auto']}
+                      tickFormatter={(value) => {
+                        const hasNetworkMetrics = selectedMetrics.some(m => m.includes('bytes'));
+                        if (hasNetworkMetrics) {
+                          return value.toFixed(2);
+                        }
+                        return value;
+                      }}
+                      label={
+                        selectedMetrics.some(m => m.includes('bytes')) 
+                          ? { value: 'MB/s', angle: -90, position: 'insideLeft' }
+                          : null
+                      }
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    
+                    {selectedMetrics.map(metricKey => {
+                      const config = metricsConfig[metricKey] || {};
+                      return (
+                        <Line
+                          key={metricKey}
+                          type="monotone"
+                          dataKey={metricKey}
+                          name={config.displayName || metricKey}
+                          stroke={config.color || '#8884d8'}
+                          strokeWidth={2}
+                          dot={false}
+                          connectNulls
+                          animationDuration={300}
+                        />
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
             </CardContent>
           </Card>
 
