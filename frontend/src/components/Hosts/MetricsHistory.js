@@ -326,10 +326,10 @@ const MetricsHistory = ({ host }) => {
     const x = e.clientX - rect.left;
     
     // Check if click is within chart area (exclude axis labels)
-    const leftMargin = 50; // Approximate left margin for Y-axis
-    const rightMargin = 30;
+    const leftMargin = 20; // Reduced from 50
+    const rightMargin = 20; // Reduced from 30
     const topMargin = 5;
-    const bottomMargin = 50; // Approximate bottom margin for X-axis
+    const bottomMargin = 30; // Reduced from 50
     
     if (x > leftMargin && x < rect.width - rightMargin && 
         e.clientY - rect.top > topMargin && e.clientY - rect.top < rect.height - bottomMargin) {
@@ -344,8 +344,8 @@ const MetricsHistory = ({ host }) => {
     
     const rect = chartContainerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const rightMargin = 30;
-    const leftMargin = 50;
+    const rightMargin = 20; // Reduced from 30
+    const leftMargin = 20; // Reduced from 50
     
     // Constrain selection within chart area
     const constrainedX = Math.max(leftMargin, Math.min(x, rect.width - rightMargin));
@@ -362,8 +362,8 @@ const MetricsHistory = ({ host }) => {
     
     // Calculate data range from pixel positions
     const rect = chartContainerRef.current.getBoundingClientRect();
-    const chartWidth = rect.width - 50 - 30; // Subtract margins
-    const leftMargin = 50;
+    const chartWidth = rect.width - 20 - 20; // Updated margins: left 20, right 20
+    const leftMargin = 20; // Reduced from 50
     
     const startPercent = ((Math.min(selectionStart, selectionEnd) - leftMargin) / chartWidth) * 100;
     const endPercent = ((Math.max(selectionStart, selectionEnd) - leftMargin) / chartWidth) * 100;
@@ -727,7 +727,7 @@ const MetricsHistory = ({ host }) => {
                       top: 5,
                       left: Math.min(selectionStart, selectionEnd),
                       width: Math.abs(selectionEnd - selectionStart),
-                      height: 'calc(100% - 55px)', // Exclude bottom margin
+                      height: 'calc(100% - 35px)', // Adjusted for smaller bottom margin
                       backgroundColor: 'rgba(25, 118, 210, 0.2)',
                       border: '1px solid rgba(25, 118, 210, 0.5)',
                       pointerEvents: 'none',
@@ -741,7 +741,7 @@ const MetricsHistory = ({ host }) => {
                     data={zoomedRange 
                       ? combinedData.slice(zoomedRange.startIndex, zoomedRange.endIndex + 1)
                       : combinedData}
-                    margin={{ top: 5, right: 30, left: 50, bottom: 50 }}
+                    margin={{ top: 5, right: 20, left: 20, bottom: 30 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
