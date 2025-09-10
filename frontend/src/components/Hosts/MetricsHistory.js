@@ -759,11 +759,6 @@ const MetricsHistory = ({ host }) => {
                         }
                         return value;
                       }}
-                      label={
-                        selectedMetrics.some(m => m.includes('bytes')) 
-                          ? { value: 'MB/s', angle: -90, position: 'insideLeft' }
-                          : null
-                      }
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
