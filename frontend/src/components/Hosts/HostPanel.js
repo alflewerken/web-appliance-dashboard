@@ -1145,7 +1145,7 @@ const HostPanel = ({
             iconPosition="start"
           />
           <Tab 
-            label="Metrics History" 
+            label={t('monitoring.metricsHistory')} 
             icon={<Activity size={16} />} 
             iconPosition="start"
           />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Dialog, 
   DialogContent,
@@ -38,9 +39,10 @@ import { useAuth } from '../../contexts/AuthContext';
 const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, restoreComplete = false, restoreError = null }) => {
   console.log('🎭 RestoreProgressDialog rendered - open:', open, 'sessionId:', sessionId);
   
+  const { t } = useTranslation();
   const { logout } = useAuth();
   const [progress, setProgress] = useState(0);
-  const [currentMessage, setCurrentMessage] = useState('Processing restore...');
+  const [currentMessage, setCurrentMessage] = useState(t('restore.processing'));
   const [currentStep, setCurrentStep] = useState('initializing');
   const [processedItems, setProcessedItems] = useState({});
   const [stepStatus, setStepStatus] = useState({});
@@ -138,7 +140,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
             break;
             
           case 'init':
-            setCurrentMessage(data.message || 'Initializing restore...');
+            setCurrentMessage(data.message || t('restore.initializing'));
             break;
             
           case 'step':
@@ -183,7 +185,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
           case 'complete':
             console.log('🎯 SSE: Restore complete event received');
             setProgress(100);
-            setCurrentMessage('Restore completed successfully! The application will restart to apply changes.');
+            setCurrentMessage(t('restore.success') + ' ' + t('restore.restartRequired'));
             setCurrentStep('complete');
             console.log('📝 Setting currentStep to "complete"');
             // Mark all steps as complete
@@ -197,7 +199,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
             break;
             
           case 'error':
-            setCurrentMessage(`Error: ${data.message}`);
+            setCurrentMessage(t('restore.errorPrefix', { message: data.message }));
             setCurrentStep('error');
             // Mark current step as error
             setStepStatus(prev => ({
@@ -243,7 +245,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
       setCurrentMessage('Restore completed successfully!');
       setCurrentStep('complete');
     } else if (restoreError) {
-      setCurrentMessage(`Error: ${restoreError}`);
+      setCurrentMessage(t('restore.errorPrefix', { message: restoreError }));
       setCurrentStep('error');
     }
   }, [open, restoreComplete, restoreError]);
@@ -369,9 +371,9 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
             }} />
           )}
           <Typography variant="h5" sx={{ fontWeight: 500 }}>
-            {currentStep === 'complete' ? 'Restore Complete' : 
-             currentStep === 'error' ? 'Restore Failed' : 
-             'Restoring Backup'}
+            {currentStep === 'complete' ? t('restore.complete') : 
+             currentStep === 'error' ? t('restore.failed') : 
+             t('restore.title')}
           </Typography>
         </Box>
       </DialogTitle>
@@ -392,10 +394,10 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
               icon={<CheckCircle />}
             >
               <Typography variant="body1">
-                <strong>All data has been successfully restored!</strong>
+                <strong>{t('restore.success')}</strong>
               </Typography>
               <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
-                Click OK below to logout and apply the changes.
+                {t('restore.restartRequired')}
               </Typography>
             </Alert>
           </Grow>
@@ -415,7 +417,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
             icon={<ErrorIcon />}
           >
             <Typography variant="body1">
-              <strong>Restore failed!</strong>
+              <strong>{t('restore.failed')}</strong>
             </Typography>
             <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
               {currentMessage}
@@ -442,7 +444,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
                     fontFamily: 'monospace',
                     fontSize: '0.7rem'
                   }}>
-                    Session: {sessionId.substring(0, 8)}...
+                    {t('restore.session')}: {sessionId.substring(0, 8)}...
                   </Typography>
                 )}
               </Stack>
@@ -469,7 +471,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
                   color: 'text.secondary',
                   fontWeight: 500
                 }}>
-                  {progress > 0 ? `${Math.round(progress)}%` : 'Initializing...'}
+                  {progress > 0 ? `${Math.round(progress)}%` : t('restore.initializing')}
                 </Typography>
               </Box>
             </Box>
@@ -490,7 +492,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
                 mb: 2, 
                 display: 'block' 
               }}>
-                Restore Items
+                {t('restore.restoreItems')}
               </Typography>
               
               <Grid container spacing={1.5}>
@@ -498,7 +500,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
                   .filter(([key, value]) => value > 0)
                   .map(([key, total]) => {
                     const processed = processedItems[key] || 0;
-                    const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    const displayKey = t(`restore.items.${key}`, key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
                     const progressPercent = total > 0 ? (processed / total) * 100 : 0;
                     const styling = getStepStyling(key);
                     
@@ -558,7 +560,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
                               }}>
                                 {processed > 0 
                                   ? `${formatNumber(processed)} / ${formatNumber(total)}`
-                                  : `${formatNumber(total)} items`
+                                  : t('restore.itemsCount', { count: formatNumber(total) })
                                 }
                               </Typography>
                             </Box>
@@ -587,8 +589,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
                   }}
                 >
                   <Typography variant="caption">
-                    Large dataset detected ({formatNumber(totalItems.snmp_metrics)} metrics). 
-                    Real-time progress tracking active.
+                    {t('restore.largeDatasetDetected', { count: formatNumber(totalItems.snmp_metrics) })}
                   </Typography>
                 </Alert>
               </Fade>
@@ -629,7 +630,7 @@ const RestoreProgressDialog = ({ open, sessionId, totalItems = {}, onClose, rest
               }
             }}
           >
-            {currentStep === 'complete' ? 'OK - Restart Application' : 'OK - Close'}
+            {currentStep === 'complete' ? t('restore.restartNow') : t('restore.close')}
           </Button>
         </DialogActions>
       )}

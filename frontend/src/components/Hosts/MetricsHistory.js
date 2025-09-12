@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -53,6 +54,7 @@ import axios from '../../utils/axiosConfig';
 import uiConfig, { useUIConfig } from '../../utils/uiConfigManager';
 
 const MetricsHistory = ({ host }) => {
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [metricsData, setMetricsData] = useState({});
@@ -83,12 +85,12 @@ const MetricsHistory = ({ host }) => {
 
   // Time range options
   const timeRanges = [
-    { value: '15m', label: '15 Min' },
-    { value: '1h', label: '1 Hour' },
-    { value: '6h', label: '6 Hours' },
-    { value: '24h', label: '24 Hours' },
-    { value: '7d', label: '7 Days' },
-    { value: '30d', label: '30 Days' },
+    { value: '15m', label: t('metricsHistory.timeRange.15m') },
+    { value: '1h', label: t('metricsHistory.timeRange.1h') },
+    { value: '6h', label: t('metricsHistory.timeRange.6h') },
+    { value: '24h', label: t('metricsHistory.timeRange.24h') },
+    { value: '7d', label: t('metricsHistory.timeRange.7d') },
+    { value: '30d', label: t('metricsHistory.timeRange.30d') },
   ];
 
   // Category icons
@@ -148,6 +150,7 @@ const MetricsHistory = ({ host }) => {
       }
     } catch (err) {
       console.error('Failed to fetch configured metrics:', err);
+      setError(t('metricsHistory.failedToFetchMetrics'));
     }
   };
 
@@ -231,7 +234,7 @@ const MetricsHistory = ({ host }) => {
       }
     } catch (err) {
       console.error('Failed to fetch metrics:', err);
-      setError('Failed to load metrics history');
+      setError(t('metricsHistory.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -287,22 +290,28 @@ const MetricsHistory = ({ host }) => {
     const now = new Date();
     const diffHours = (now - date) / (1000 * 60 * 60);
     
+    // Use the current language for locale, always with 24h format
+    const locale = i18n.language === 'de' ? 'de-DE' : 'en-GB'; // en-GB uses 24h format
+    
     if (diffHours < 1) {
-      return date.toLocaleTimeString('en-US', { 
+      return date.toLocaleTimeString(locale, { 
         hour: '2-digit', 
-        minute: '2-digit' 
+        minute: '2-digit',
+        hour12: false 
       });
     } else if (diffHours < 24) {
-      return date.toLocaleTimeString('en-US', { 
+      return date.toLocaleTimeString(locale, { 
         hour: '2-digit', 
-        minute: '2-digit' 
+        minute: '2-digit',
+        hour12: false 
       });
     } else {
-      return date.toLocaleDateString('en-US', { 
+      return date.toLocaleDateString(locale, { 
         month: 'short', 
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: false
       });
     }
   };
@@ -459,7 +468,7 @@ const MetricsHistory = ({ host }) => {
                 }}
               />
               <Typography variant="caption" sx={{ color: 'var(--text-primary)' }}>
-                {config.displayName || entry.dataKey}: {displayValue}
+                {getTranslatedMetricName(entry.dataKey, config.displayName || entry.dataKey)}: {displayValue}
               </Typography>
             </Box>
           );
@@ -476,6 +485,56 @@ const MetricsHistory = ({ host }) => {
     return acc;
   }, {});
 
+  // Helper function to translate metric names
+  const getTranslatedMetricName = (metricKey, displayName) => {
+    // Try to find a translation based on the metric key
+    const keyParts = metricKey.toLowerCase().split('.');
+    
+    // Special cases for known metric patterns
+    if (metricKey.includes('cpu.average')) {
+      return t('metricsHistory.metrics.cpuAverage');
+    }
+    if (metricKey.includes('cpu.user')) {
+      return t('metricsHistory.metrics.cpuUser');
+    }
+    if (metricKey.includes('cpu.system')) {
+      return t('metricsHistory.metrics.cpuSystem');
+    }
+    if (metricKey.includes('cpu.idle')) {
+      return t('metricsHistory.metrics.cpuIdle');
+    }
+    if (metricKey.includes('process.system')) {
+      return t('metricsHistory.metrics.processSystem');
+    }
+    if (metricKey.includes('process.user')) {
+      return t('metricsHistory.metrics.processUser');
+    }
+    if (metricKey.includes('WLAN') && metricKey.includes('In')) {
+      return t('metricsHistory.metrics.wlanIn');
+    }
+    if (metricKey.includes('WLAN') && metricKey.includes('Out')) {
+      return t('metricsHistory.metrics.wlanOut');
+    }
+    if (metricKey.includes('bytesIn')) {
+      return t('metricsHistory.metrics.bytesIn');
+    }
+    if (metricKey.includes('bytesOut')) {
+      return t('metricsHistory.metrics.bytesOut');
+    }
+    
+    // For disk metrics, keep the disk name but translate the rest
+    if (metricKey.startsWith('disk.') && displayName) {
+      // Extract disk name (e.g., "Macintosh HD")
+      const diskNameMatch = displayName.match(/^(.+?)(\s*[\(\-]|$)/);
+      if (diskNameMatch) {
+        return diskNameMatch[1]; // Return just the disk name
+      }
+    }
+    
+    // Default: return the display name as-is
+    return displayName || metricKey;
+  };
+
   return (
     <Box sx={{ px: 3 }}>
       {/* Header */}
@@ -488,7 +547,7 @@ const MetricsHistory = ({ host }) => {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           {lastUpdate && (
             <Typography variant="caption" color="text.secondary">
-              Last updated: {lastUpdate.toLocaleTimeString()}
+              Last updated: {lastUpdate.toLocaleTimeString(i18n.language === 'de' ? 'de-DE' : 'en-GB', { hour12: false })}
             </Typography>
           )}
           
@@ -498,7 +557,7 @@ const MetricsHistory = ({ host }) => {
             onClick={() => setAutoRefresh(!autoRefresh)}
             variant="outlined"
           >
-            {autoRefresh ? 'Pause' : 'Resume'}
+            {autoRefresh ? t('metricsHistory.pause') : t('metricsHistory.resume')}
           </Button>
           
           <Button
@@ -507,7 +566,7 @@ const MetricsHistory = ({ host }) => {
             onClick={fetchMetricsData}
             disabled={loading || selectedMetrics.length === 0}
           >
-            Refresh
+            {t('metricsHistory.refresh')}
           </Button>
         </Box>
       </Box>
@@ -517,7 +576,7 @@ const MetricsHistory = ({ host }) => {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="subtitle2">
-              Select Metrics to Display
+              {t('metricsHistory.selectMetricsToDisplay')}
             </Typography>
             <Button
               variant="outlined"
@@ -538,7 +597,7 @@ const MetricsHistory = ({ host }) => {
                 },
               }}
             >
-              Auswahl speichern
+              {t('metricsHistory.saveSelection')}
             </Button>
           </Box>
           
@@ -607,7 +666,7 @@ const MetricsHistory = ({ host }) => {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="subtitle2">
-              Time Range
+              {t('metricsHistory.timeRangeLabel')}
             </Typography>
             
             <ToggleButtonGroup
@@ -663,7 +722,7 @@ const MetricsHistory = ({ host }) => {
         </Alert>
       ) : combinedData.length === 0 ? (
         <Alert severity="warning">
-          No data available for the selected metrics and time range
+          {t('metricsHistory.noDataAvailable')}
         </Alert>
       ) : (
         <>
@@ -674,7 +733,11 @@ const MetricsHistory = ({ host }) => {
               {zoomedRange && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
-                    Showing data points {zoomedRange.startIndex + 1} to {zoomedRange.endIndex + 1} of {combinedData.length}
+                    {t('metricsHistory.showingDataPoints', { 
+                      start: zoomedRange.startIndex + 1, 
+                      end: zoomedRange.endIndex + 1, 
+                      total: combinedData.length 
+                    })}
                   </Typography>
                   <Button
                     size="small"
@@ -690,7 +753,7 @@ const MetricsHistory = ({ host }) => {
                       },
                     }}
                   >
-                    Reset Zoom
+                    {t('metricsHistory.resetZoom')}
                   </Button>
                 </Box>
               )}
@@ -770,7 +833,7 @@ const MetricsHistory = ({ host }) => {
                           key={metricKey}
                           type="monotone"
                           dataKey={metricKey}
-                          name={config.displayName || metricKey}
+                          name={getTranslatedMetricName(metricKey, config.displayName || metricKey)}
                           stroke={config.color || '#8884d8'}
                           strokeWidth={2}
                           dot={false}
@@ -790,9 +853,9 @@ const MetricsHistory = ({ host }) => {
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle2">
-                  Metrics Statistics
+                  {t('metricsHistory.metricsStatistics')}
                 </Typography>
-                <MuiTooltip title="Statistics for selected time range">
+                <MuiTooltip title={t('metricsHistory.statisticsTooltip')}>
                   <Info size={16} />
                 </MuiTooltip>
               </Box>
@@ -810,7 +873,7 @@ const MetricsHistory = ({ host }) => {
                           fontWeight: 600,
                           color: 'var(--text-secondary)'
                         }}>
-                          Metric
+                          {t('metricsHistory.metric')}
                         </th>
                         <th style={{ 
                           textAlign: 'right', 
@@ -819,7 +882,7 @@ const MetricsHistory = ({ host }) => {
                           fontWeight: 600,
                           color: 'var(--text-secondary)'
                         }}>
-                          Min
+                          {t('metricsHistory.min')}
                         </th>
                         <th style={{ 
                           textAlign: 'right', 
@@ -828,7 +891,7 @@ const MetricsHistory = ({ host }) => {
                           fontWeight: 600,
                           color: 'var(--text-secondary)'
                         }}>
-                          Average
+                          {t('metricsHistory.average')}
                         </th>
                         <th style={{ 
                           textAlign: 'right', 
@@ -837,7 +900,7 @@ const MetricsHistory = ({ host }) => {
                           fontWeight: 600,
                           color: 'var(--text-secondary)'
                         }}>
-                          Max
+                          {t('metricsHistory.max')}
                         </th>
                         <th style={{ 
                           textAlign: 'right', 
@@ -846,7 +909,7 @@ const MetricsHistory = ({ host }) => {
                           fontWeight: 600,
                           color: 'var(--text-secondary)'
                         }}>
-                          Data Points
+                          {t('metricsHistory.dataPoints')}
                         </th>
                       </tr>
                     </thead>
@@ -859,7 +922,7 @@ const MetricsHistory = ({ host }) => {
                         if (!stats) return null;
                         
                         // Enhanced display name for disk metrics
-                        let displayName = config.displayName || metricKey;
+                        let displayName = getTranslatedMetricName(metricKey, config.displayName || metricKey);
                         if (disk) {
                           displayName = `${disk.customName} (${disk.percentUsed.toFixed(1)}% - ${disk.usedGB.toFixed(1)}GB / ${disk.totalGB.toFixed(1)}GB)`;
                         }
@@ -946,7 +1009,7 @@ const MetricsHistory = ({ host }) => {
                     if (!stats) return null;
                     
                     // Enhanced display name for disk metrics
-                    let displayName = config.displayName || metricKey;
+                    let displayName = getTranslatedMetricName(metricKey, config.displayName || metricKey);
                     let diskDetails = null;
                     if (disk) {
                       displayName = disk.customName;
@@ -973,7 +1036,7 @@ const MetricsHistory = ({ host }) => {
                             }}
                           />
                           <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
-                            {displayName}
+                            {getTranslatedMetricName(metricKey, displayName)}
                           </Typography>
                         </Box>
                         
@@ -985,19 +1048,19 @@ const MetricsHistory = ({ host }) => {
                         
                         <Grid container spacing={1}>
                           <Grid item xs={4}>
-                            <Typography variant="caption" color="text.secondary">Min</Typography>
+                            <Typography variant="caption" color="text.secondary">{t('metricsHistory.min')}</Typography>
                             <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                               {stats.min?.displayText || '-'}
                             </Typography>
                           </Grid>
                           <Grid item xs={4}>
-                            <Typography variant="caption" color="text.secondary">Avg</Typography>
+                            <Typography variant="caption" color="text.secondary">{t('metricsHistory.avg')}</Typography>
                             <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
                               {stats.average?.displayText || '-'}
                             </Typography>
                           </Grid>
                           <Grid item xs={4}>
-                            <Typography variant="caption" color="text.secondary">Max</Typography>
+                            <Typography variant="caption" color="text.secondary">{t('metricsHistory.max')}</Typography>
                             <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                               {stats.max?.displayText || '-'}
                             </Typography>

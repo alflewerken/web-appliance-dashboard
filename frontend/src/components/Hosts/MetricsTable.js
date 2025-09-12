@@ -1,4 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   TableBody,
@@ -34,6 +35,7 @@ import {
 } from 'lucide-react';
 
 const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChange }, ref) => {
+  const { t } = useTranslation();
   const [expandedCategories, setExpandedCategories] = useState({
     system: true,  // System Information starts expanded
     cpu: false,    // All others start collapsed
@@ -289,13 +291,13 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
   const structuredMetrics = {
     system: {
       icon: <Server size={20} />,
-      label: 'System Information',
+      label: t('monitoring.systemInformation'),
       color: '#2196f3',
       hideLogging: true,  // No logging checkboxes for system info
       metrics: [
         {
           key: 'system.hostname',
-          name: 'Hostname',
+          name: t('monitoring.hostname'),
           value: metrics?.sysName || host?.hostname || 'N/A',
           description: 'System hostname from SNMP',
           unit: '',
@@ -303,7 +305,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
         },
         {
           key: 'system.os',
-          name: 'Operating System',
+          name: t('monitoring.operatingSystem'),
           value: (() => {
             if (metrics?.osType && metrics?.osVersion) {
               const os = `${metrics.osType} ${metrics.osVersion}`;
@@ -317,7 +319,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
         },
         {
           key: 'system.cores',
-          name: 'CPU Cores',
+          name: t('monitoring.cpuCores'),
           value: metrics?.cpu?.cores || 'N/A',
           description: 'Number of processor cores',
           unit: metrics?.cpu?.cores > 1 ? 'cores' : 'core',
@@ -325,7 +327,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
         },
         {
           key: 'system.uptime',
-          name: 'System Uptime',
+          name: t('monitoring.systemUptime'),
           value: metrics?.uptime?.formatted || formatUptime(metrics?.uptime?.totalSeconds) || 'N/A',
           description: 'Time since system boot',
           unit: '',
@@ -333,7 +335,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
         },
         {
           key: 'system.agentUptime',
-          name: 'SNMP Agent Uptime',
+          name: t('monitoring.snmpAgentUptime'),
           value: metrics?.agentUptime ? formatUptime(metrics.agentUptime) : 'N/A',
           description: 'Time since SNMP daemon start',
           unit: '',
@@ -341,7 +343,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
         },
         {
           key: 'system.contact',
-          name: 'System Contact',
+          name: t('monitoring.systemContact'),
           value: metrics?.sysContact || 'N/A',
           description: 'System administrator contact',
           unit: '',
@@ -349,7 +351,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
         },
         {
           key: 'system.location',
-          name: 'System Location',
+          name: t('monitoring.systemLocation'),
           value: metrics?.sysLocation || 'N/A',
           description: 'Physical location',
           unit: '',
@@ -359,7 +361,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
     },
     cpu: {
       icon: <Cpu size={20} />,
-      label: 'CPU Metrics',
+      label: t('monitoring.cpuMetrics'),
       color: '#4caf50',
       metrics: (() => {
         // Debug logging
@@ -442,7 +444,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
     },
     memory: {
       icon: <Activity size={20} />,
-      label: 'Memory',
+      label: t('monitoring.memoryMetrics'),
       color: '#ff9800',
       metrics: [
         {
@@ -523,7 +525,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
     },
     disk: {
       icon: <HardDrive size={20} />,
-      label: 'Disk Storage',
+      label: t('monitoring.diskMetrics'),
       color: '#9c27b0',
       isDisk: true,  // Special flag for disk rendering
       metrics: metrics?.disk?.map((disk, index) => ({
@@ -539,13 +541,13 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
     },
     network: {
       icon: <Wifi size={20} />,
-      label: 'Network Interfaces',
+      label: t('monitoring.networkMetrics'),
       color: '#00bcd4',
       isTable: true,  // Special flag for table rendering
       interfaces: metrics?.network || metrics?.interfaces || []
     },    processes: {
       icon: <Activity size={20} />,
-      label: 'Process Information',
+      label: t('monitoring.processMetrics'),
       color: '#673ab7',
       metrics: [
         {
@@ -871,7 +873,7 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
     <Box>
       {hasUnsavedChanges && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          You have unsaved changes in metrics configuration. Click "Save" in the host panel to apply them.
+          {t('monitoring.unsavedChangesAlert')}
         </Alert>
       )}
 
@@ -880,9 +882,9 @@ const MetricsTable = forwardRef(({ metrics, host, onLoggingChange, onConfigChang
           <TableHead>
             <TableRow>
               <TableCell width="50px"></TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Active Metrics</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>{t('monitoring.category')}</TableCell>
+              <TableCell>{t('monitoring.activeMetrics')}</TableCell>
+              <TableCell align="right">{t('monitoring.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

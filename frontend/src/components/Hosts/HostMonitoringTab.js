@@ -105,7 +105,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
       if (metricsTableRef.current) {
         return await metricsTableRef.current.saveConfiguration();
       }
-      return { success: true, message: 'No metrics configuration to save' };
+      return { success: true, message: t('monitoring.noMetricsToSave') };
     },
     hasUnsavedChanges: () => {
       if (metricsTableRef.current) {
@@ -307,27 +307,27 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
       if (response.data?.success) {
         // Zeige detaillierte Metriken in der Success-Meldung
         const metrics = response.data?.details?.metrics;
-        let successMsg = 'SNMP connection test successful!\n\n';
+        let successMsg = t('monitoring.snmpTestSuccess') + '\n\n';
         
         if (metrics) {
-          successMsg += '📊 Retrieved Metrics:\n';
+          successMsg += `📊 ${t('monitoring.retrievedMetrics')}:\n`;
           
           // System Info
           if (metrics.system) {
-            successMsg += `• System: ${metrics.system.name || 'Unknown'}\n`;
+            successMsg += `• ${t('monitoring.system')}: ${metrics.system.name || t('monitoring.unknown')}\n`;
             if (metrics.system.uptime) {
               const uptimeStr = formatUptime(metrics.system.uptime);
-              successMsg += `• Uptime: ${uptimeStr}\n`;
+              successMsg += `• ${t('monitoring.uptime')}: ${uptimeStr}\n`;
             }
           }
           
           // CPU Info
           if (metrics.cpu) {
             if (metrics.cpu.usage?.total !== undefined) {
-              successMsg += `• CPU Usage: ${metrics.cpu.usage.total}%\n`;
+              successMsg += `• ${t('monitoring.cpuUsage')}: ${metrics.cpu.usage.total}%\n`;
             }
             if (metrics.cpu.load1) {
-              successMsg += `• Load: ${metrics.cpu.load1.toFixed(2)} / ${metrics.cpu.load5?.toFixed(2)} / ${metrics.cpu.load15?.toFixed(2)}\n`;
+              successMsg += `• ${t('monitoring.load')}: ${metrics.cpu.load1.toFixed(2)} / ${metrics.cpu.load5?.toFixed(2)} / ${metrics.cpu.load15?.toFixed(2)}\n`;
             }
           }
           
@@ -336,12 +336,12 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
             const memUsed = formatBytes(metrics.memory.usedRam);
             const memTotal = formatBytes(metrics.memory.totalRam);
             const memPercent = metrics.memory.percentRam || 0;
-            successMsg += `• Memory: ${memUsed} / ${memTotal} (${memPercent}%)\n`;
+            successMsg += `• ${t('monitoring.memory')}: ${memUsed} / ${memTotal} (${memPercent}%)\n`;
           }
           
           // Disk Info
           if (metrics.disk && metrics.disk.length > 0) {
-            successMsg += `• Disks: ${metrics.disk.length} mounted\n`;
+            successMsg += `• ${t('monitoring.disks')}: ${t('monitoring.disksMounted', { count: metrics.disk.length })}\n`;
             metrics.disk.forEach(disk => {
               const diskUsed = formatBytes(disk.used);
               const diskTotal = formatBytes(disk.total);
@@ -352,7 +352,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
           // Network Info
           if (metrics.network && metrics.network.length > 0) {
             const upInterfaces = metrics.network.filter(n => n.status === 'up').length;
-            successMsg += `• Network: ${upInterfaces}/${metrics.network.length} interfaces up\n`;
+            successMsg += `• ${t('monitoring.network')}: ${t('monitoring.interfacesUp', { up: upInterfaces, total: metrics.network.length })}\n`;
           }
         }
         
@@ -439,15 +439,15 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
         setTimeout(() => setTestResult(null), 5000);
       } else {
         // Handle error response - extract message if error is an object
-        let errorMessage = 'Test failed';
+        let errorMessage = t('monitoring.testFailed');
         if (response.data?.error) {
           if (typeof response.data.error === 'object') {
             // If error is an object (e.g., with type, message, recommendations)
-            errorMessage = response.data.error.message || response.data.error.type || 'Connection failed';
+            errorMessage = response.data.error.message || response.data.error.type || t('monitoring.connectionFailed');
             
             // Add recommendations if available
             if (response.data.error.recommendations && Array.isArray(response.data.error.recommendations)) {
-              errorMessage += '\n\nRecommendations:\n• ' + response.data.error.recommendations.join('\n• ');
+              errorMessage += `\n\n${t('monitoring.recommendations')}:\n• ` + response.data.error.recommendations.join('\n• ');
             }
           } else {
             errorMessage = response.data.error;
@@ -462,12 +462,12 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
       }
     } catch (err) {
       console.error('SNMP test error:', err);
-      let errorMessage = 'Connection test failed';
+      let errorMessage = t('monitoring.snmpTestFailed');
       
       // Extract error message properly
       if (err.response?.data?.error) {
         if (typeof err.response.data.error === 'object') {
-          errorMessage = `${errorMessage}: ${err.response.data.error.message || err.response.data.error.type || 'Unknown error'}`;
+          errorMessage = `${errorMessage}: ${err.response.data.error.message || err.response.data.error.type || t('monitoring.unknown')}`;
         } else {
           errorMessage = `${errorMessage}: ${err.response.data.error}`;
         }
@@ -513,7 +513,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
     <Box sx={{ padding: asCard ? 0 : '24px 24px 16px 24px' }}>
       {!asCard && (
         <Typography variant="h6" sx={{ mb: 2 }}>
-          SNMP Monitoring Configuration
+          {t('monitoring.snmpConfiguration')}
         </Typography>
       )}
 
@@ -524,7 +524,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
             onChange={(e) => updateParentConfig({ ...snmpConfig, enabled: e.target.checked })}
           />
         }
-        label="Enable SNMP Monitoring"
+        label={t('monitoring.enableMonitoring')}
         sx={{ mb: 2 }}
       />
 
@@ -534,11 +534,11 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
           
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             <FormControl fullWidth sx={getInputStyles()}>
-              <InputLabel>SNMP Version</InputLabel>
+              <InputLabel>{t('monitoring.snmpVersion')}</InputLabel>
               <Select
                 value={snmpConfig.version}
                 onChange={(e) => updateParentConfig({ ...snmpConfig, version: e.target.value })}
-                label="SNMP Version"
+                label={t('monitoring.snmpVersion')}
               >
                 <MenuItem value="1">SNMP v1</MenuItem>
                 <MenuItem value="2c">SNMP v2c</MenuItem>
@@ -548,7 +548,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
 
             <TextField
               fullWidth
-              label="Port"
+              label={t('monitoring.port')}
               type="number"
               value={snmpConfig.port}
               onChange={(e) => updateParentConfig({ ...snmpConfig, port: parseInt(e.target.value) })}
@@ -559,7 +559,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
           {(snmpConfig.version === '1' || snmpConfig.version === '2c') && (
             <TextField
               fullWidth
-              label="Community String"
+              label={t('monitoring.community')}
               value={snmpConfig.community}
               onChange={(e) => updateParentConfig({ ...snmpConfig, community: e.target.value })}
               sx={{ mt: 2, ...getInputStyles() }}
@@ -570,7 +570,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
             <>
               <TextField
                 fullWidth
-                label="Username"
+                label={t('monitoring.username')}
                 value={snmpConfig.username}
                 onChange={(e) => updateParentConfig({ ...snmpConfig, username: e.target.value })}
                 sx={{ mt: 2, ...getInputStyles() }}
@@ -578,11 +578,11 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
 
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 2 }}>
                 <FormControl fullWidth sx={getInputStyles()}>
-                  <InputLabel>Auth Protocol</InputLabel>
+                  <InputLabel>{t('monitoring.authProtocol')}</InputLabel>
                   <Select
                     value={snmpConfig.authProtocol}
                     onChange={(e) => updateParentConfig({ ...snmpConfig, authProtocol: e.target.value })}
-                    label="Auth Protocol"
+                    label={t('monitoring.authProtocol')}
                   >
                     <MenuItem value="MD5">MD5</MenuItem>
                     <MenuItem value="SHA">SHA</MenuItem>
@@ -591,7 +591,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
 
                 <TextField
                   fullWidth
-                  label="Auth Password"
+                  label={t('monitoring.authPassword')}
                   type="password"
                   value={snmpConfig.authPassword}
                   onChange={(e) => updateParentConfig({ ...snmpConfig, authPassword: e.target.value })}
@@ -601,11 +601,11 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
 
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 2 }}>
                 <FormControl fullWidth sx={getInputStyles()}>
-                  <InputLabel>Privacy Protocol</InputLabel>
+                  <InputLabel>{t('monitoring.privProtocol')}</InputLabel>
                   <Select
                     value={snmpConfig.privProtocol}
                     onChange={(e) => updateParentConfig({ ...snmpConfig, privProtocol: e.target.value })}
-                    label="Privacy Protocol"
+                    label={t('monitoring.privProtocol')}
                   >
                     <MenuItem value="DES">DES</MenuItem>
                     <MenuItem value="AES">AES</MenuItem>
@@ -614,7 +614,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
 
                 <TextField
                   fullWidth
-                  label="Privacy Password"
+                  label={t('monitoring.privPassword')}
                   type="password"
                   value={snmpConfig.privPassword}
                   onChange={(e) => updateParentConfig({ ...snmpConfig, privPassword: e.target.value })}
@@ -626,11 +626,11 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
 
           <TextField
             fullWidth
-            label="Poll Interval (seconds)"
+            label={t('monitoring.pollingInterval') + ' (' + t('monitoring.seconds') + ')'}
             type="number"
             value={snmpConfig.pollInterval}
             onChange={(e) => updateParentConfig({ ...snmpConfig, pollInterval: parseInt(e.target.value) })}
-            helperText="How often to collect metrics"
+            helperText={t('monitoring.howOftenToCollect')}
             sx={{ mt: 2, ...getInputStyles() }}
           />
 
@@ -650,14 +650,14 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
                 {pollStatus === 'polling' && (
                   <>
                     <CircularProgress size={20} />
-                    <Typography variant="body2">Updating metrics...</Typography>
+                    <Typography variant="body2">{t('monitoring.updatingMetrics')}</Typography>
                   </>
                 )}
                 {pollStatus === 'success' && (
                   <>
                     <CheckCircle size={20} style={{ color: '#4caf50' }} />
                     <Typography variant="body2" sx={{ color: 'success.main' }}>
-                      Connected - Auto-refresh every {snmpConfig.pollInterval}s
+                      {t('monitoring.connectedAutoRefresh', { interval: snmpConfig.pollInterval })}
                     </Typography>
                   </>
                 )}
@@ -665,21 +665,21 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
                   <>
                     <AlertCircle size={20} style={{ color: '#f44336' }} />
                     <Typography variant="body2" sx={{ color: 'error.main' }}>
-                      Connection failed - Retrying...
+                      {t('monitoring.connectionFailedRetrying')}
                     </Typography>
                   </>
                 )}
                 {pollStatus === 'idle' && (
                   <>
                     <Activity size={20} />
-                    <Typography variant="body2">Initializing...</Typography>
+                    <Typography variant="body2">{t('monitoring.initializing')}</Typography>
                   </>
                 )}
               </Box>
               
               {lastPollTime && (
                 <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
-                  Last update: {lastPollTime.toLocaleTimeString()}
+                  {t('monitoring.lastUpdateTime', { time: lastPollTime.toLocaleTimeString() })}
                 </Typography>
               )}
             </Box>
@@ -689,7 +689,7 @@ const HostMonitoringTab = forwardRef(({ host, getInputStyles, asCard = false, sn
           {monitoringData.status === 'online' && monitoringData.metrics && (
             <Box sx={{ mt: 3 }}>
               <Typography variant="h6" sx={{ mb: 2, color: 'var(--text-primary)' }}>
-                📊 System Metrics Overview
+                📊 {t('monitoring.systemMetricsOverview')}
               </Typography>
               <MetricsTable 
                 ref={metricsTableRef}
