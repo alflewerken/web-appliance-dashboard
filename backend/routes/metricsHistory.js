@@ -848,74 +848,82 @@ router.get('/:id/disk-info', authenticateToken, async (req, res) => {
   try {
     const { id: hostId } = req.params;
     
-    // Get the latest disk metrics
-    const [diskInfo] = await pool.execute(
-      `SELECT 
-        metric_key,
-        metric_value as percent_used,
-        metric_name as custom_name
-       FROM snmp_metrics
+    // Get the latest monitoring data with full disk information
+    const [monitoringData] = await pool.execute(
+      `SELECT metrics FROM host_monitoring_data 
        WHERE host_id = ? 
-       AND metric_key LIKE 'disk.%'
-       AND timestamp = (
-         SELECT MAX(timestamp) 
-         FROM snmp_metrics 
-         WHERE host_id = ? 
-         AND metric_key LIKE 'disk.%'
-       )`,
-      [hostId, hostId]
-    );
-    
-    // Get disk configurations from database
-    const [diskConfigs] = await pool.execute(
-      `SELECT disk_index, disk_name, total_size_gb 
-       FROM host_disk_config 
-       WHERE host_id = ?`,
+       ORDER BY updated_at DESC 
+       LIMIT 1`,
       [hostId]
     );
     
-    // Create a map of disk configurations
-    const diskConfigMap = {};
-    diskConfigs.forEach(config => {
-      diskConfigMap[config.disk_index] = {
-        name: config.disk_name,
-        totalGB: parseFloat(config.total_size_gb)
-      };
-    });
+    if (!monitoringData.length || !monitoringData[0].metrics) {
+      return res.json({
+        success: true,
+        disks: {}
+      });
+    }
     
-    // Process disk data
+    // Parse the metrics JSON
+    let metrics;
+    try {
+      metrics = JSON.parse(monitoringData[0].metrics);
+    } catch (parseError) {
+      console.error('Failed to parse metrics JSON:', parseError);
+      return res.json({
+        success: true,
+        disks: {}
+      });
+    }
+    
+    // Check if we have the full disk data in the metrics
     const diskData = {};
     
-    for (const disk of diskInfo) {
-      const diskIndex = disk.metric_key.split('.')[1];
-      const percentUsed = parseFloat(disk.percent_used) || 0;
+    // First, check if there's a 'disk' array with full data
+    if (metrics.disk && Array.isArray(metrics.disk)) {
+      // We have full disk data from SNMP!
+      metrics.disk.forEach((disk, index) => {
+        const diskKey = `disk.${index}`;
+        const totalBytes = disk.total || 0;
+        const usedBytes = disk.used || 0;
+        const percentUsed = disk.percent || 0;
+        
+        // Convert bytes to GB
+        const totalGB = totalBytes / (1024 * 1024 * 1024);
+        const usedGB = usedBytes / (1024 * 1024 * 1024);
+        const freeGB = totalGB - usedGB;
+        
+        diskData[diskKey] = {
+          customName: disk.path || disk.device || `Disk ${index}`,
+          percentUsed: percentUsed,
+          usedGB: usedGB,
+          freeGB: freeGB,
+          totalGB: totalGB,
+          displayText: `${percentUsed.toFixed(1)}% (${usedGB.toFixed(1)} GB / ${totalGB.toFixed(1)} GB)`
+        };
+      });
+    } else {
+      // Fallback: Only percentage data available (old format)
+      // This should NOT use hardcoded values!
+      console.warn(`No full disk data available for host ${hostId}, only percentages`);
       
-      // Get disk size from configuration or use default
-      let totalGB = 500; // Default fallback
-      let diskName = disk.custom_name || `Disk ${diskIndex}`;
-      
-      if (diskConfigMap[diskIndex]) {
-        totalGB = diskConfigMap[diskIndex].totalGB;
-        // Use configured name if custom name not set
-        if (!disk.custom_name && diskConfigMap[diskIndex].name) {
-          diskName = diskConfigMap[diskIndex].name;
+      // Look for disk.X keys in metrics
+      Object.keys(metrics).forEach(key => {
+        if (key.startsWith('disk.')) {
+          const percentUsed = parseFloat(metrics[key]) || 0;
+          
+          // Without total size, we can't calculate actual usage
+          // Return only what we know for sure
+          diskData[key] = {
+            customName: `Disk ${key.split('.')[1]}`,
+            percentUsed: percentUsed,
+            usedGB: null,  // Unknown without total size
+            freeGB: null,  // Unknown without total size
+            totalGB: null, // Unknown from percentage alone
+            displayText: `${percentUsed.toFixed(1)}% (size unknown)`
+          };
         }
-      } else {
-        // Try to detect from host type
-        console.warn(`No disk configuration found for host ${hostId}, disk ${diskIndex}`);
-      }
-      
-      const usedGB = (totalGB * percentUsed) / 100;
-      const freeGB = totalGB - usedGB;
-      
-      diskData[disk.metric_key] = {
-        customName: diskName,
-        percentUsed: percentUsed,
-        usedGB: usedGB,
-        freeGB: freeGB,
-        totalGB: totalGB,
-        displayText: `${percentUsed.toFixed(1)}% (${usedGB.toFixed(1)} GB / ${totalGB.toFixed(1)} GB)`
-      };
+      });
     }
     
     res.json({
