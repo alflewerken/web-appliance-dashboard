@@ -74,7 +74,12 @@ export class BackupService {
     return this.restoreFromFile(file, decryptionKey, restoreSnmpMetrics);
   }
 
-  static async restoreFromFile(file, decryptionKey = null, restoreSnmpMetrics) {
+  static async restoreBackupWithConfirmation(file, decryptionKey = null, restoreSnmpMetrics, confirmInvalidKey = false) {
+    console.log('🚀 BackupService.restoreBackupWithConfirmation called with confirmInvalidKey:', confirmInvalidKey);
+    return this.restoreFromFile(file, decryptionKey, restoreSnmpMetrics, confirmInvalidKey);
+  }
+
+  static async restoreFromFile(file, decryptionKey = null, restoreSnmpMetrics, confirmInvalidKey = false) {
     console.log('🔍 BackupService.restoreFromFile called with restoreSnmpMetrics:', restoreSnmpMetrics);
     try {
       // Read file
@@ -94,6 +99,11 @@ export class BackupService {
       // Add decryption key if provided
       if (decryptionKey) {
         backupData.decryption_key = decryptionKey;
+      }
+
+      // Add confirmation flag if provided
+      if (confirmInvalidKey) {
+        backupData.confirmInvalidKey = true;
       }
 
       // Add SNMP metrics restore option
@@ -176,6 +186,17 @@ export class BackupService {
         
         console.log('📡 SSE Response:', sseResponse.data);
         
+        // Check if this is a key validation error response
+        if (sseResponse.data.keyValidation && !sseResponse.data.keyValidation.isValid) {
+          console.log('❌ Key validation failed from backend');
+          return {
+            success: false,
+            requiresConfirmation: sseResponse.data.requiresConfirmation,
+            keyValidation: sseResponse.data.keyValidation,
+            message: sseResponse.data.keyValidation.message || 'Falscher Backup-Schlüssel'
+          };
+        }
+        
         if (sseResponse.data.sessionId) {
           console.log('✅ Using SSE-enabled restore, sessionId:', sseResponse.data.sessionId);
           return {
@@ -189,9 +210,41 @@ export class BackupService {
         }
       } catch (error) {
         console.error('❌ Restore error:', error);
+        console.error('Full error response:', error.response?.data);
+        
+        // Check if it's a key validation error
+        if (error.response?.data?.keyValidation && !error.response.data.keyValidation.isValid) {
+          console.log('❌ Key validation error in catch block');
+          return {
+            success: false,
+            requiresConfirmation: error.response.data.requiresConfirmation,
+            keyValidation: error.response.data.keyValidation,
+            message: error.response.data.keyValidation.message || 'Falscher Backup-Schlüssel: Der eingegebene Schlüssel ist ungültig.'
+          };
+        }
+        
+        // Extract specific error message
+        let errorMessage = 'Wiederherstellung fehlgeschlagen';
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        // Make error message more specific if it's about decryption
+        if (errorMessage.toLowerCase().includes('ungültig') || 
+            errorMessage.toLowerCase().includes('schlüssel') ||
+            errorMessage.toLowerCase().includes('invalid') ||
+            errorMessage.toLowerCase().includes('decrypt') ||
+            errorMessage.toLowerCase().includes('key')) {
+          errorMessage = 'Falscher Backup-Schlüssel: Der eingegebene Schlüssel ist ungültig und die Daten können nicht entschlüsselt werden.';
+        }
+        
         return {
           success: false,
-          message: error.response?.data?.error || 'Wiederherstellung fehlgeschlagen'
+          message: errorMessage
         };
       }
     } catch (error) {
@@ -206,6 +259,35 @@ export class BackupService {
       return {
         success: false,
         message: 'Fehler beim Verarbeiten des Backups:\n\n' + error.message,
+      };
+    }
+  }
+
+  static async selectiveImport(filteredData, decryptionKey) {
+    try {
+      const authToken = localStorage.getItem('token');
+      
+      // Add decryption key if provided
+      if (decryptionKey) {
+        filteredData.decryption_key = decryptionKey;
+      }
+      
+      const response = await axios.post('/api/selective-import', filteredData, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Selective import error:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        success: false,
+        message: 'Selective import failed: ' + error.message
       };
     }
   }

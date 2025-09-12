@@ -843,10 +843,15 @@ router.get('/backup', verifyToken, async (req, res) => {
     }
 
     // Create comprehensive backup object
+    // Create a validation token to verify the correct key during restore
+    // This is a known string encrypted with the backup key
+    const validationToken = encryptionManager.encrypt('VALID_BACKUP_KEY_2025', backupKey);
+    
     const backupData = {
       version: '2.9.1',
       created_at: new Date().toISOString(),
       created_by: 'Web Appliance Dashboard API (Full Backup with All Tables + SNMP)',
+      validation_token: validationToken,  // Used to verify correct key during restore
       data: {
         appliances,
         categories,
@@ -1092,7 +1097,14 @@ router.post('/restore', verifyToken, async (req, res) => {
     const backupData = req.body;
     
     // Extract the decryption key from the request
-    const backupDecryptionKey = backupData.encryption_key || backupData.decryption_key || null;
+    let backupDecryptionKey = backupData.encryption_key || backupData.decryption_key || null;
+    
+    // WICHTIG: Der Backup-Key wird NICHT gehasht - er wird direkt verwendet wie beim Backup!
+    // BUG FIXED: Removed SHA256 hashing that was causing decryption failures
+    if (backupDecryptionKey) {
+      console.log('🔑 Backup key provided for decryption');
+      console.log(`   Key length: ${backupDecryptionKey.length} characters`);
+    }
 
     delete backupData.encryption_key; // Remove from backup data
     delete backupData.decryption_key; // Remove from backup data
@@ -1124,55 +1136,83 @@ router.post('/restore', verifyToken, async (req, res) => {
     // WICHTIG: Unterstützt beide GCM-Formate für Backward Compatibility!
     // - Neues Format (ab 18.08.2025): iv:authTag:encrypted (3 Teile, 32-char authTag)
     // Function to re-encrypt password from backup to system key
-    const reEncryptFromBackup = (encryptedData) => {
+    // FIXED: Returns null on failure instead of original data
+    const reEncryptFromBackup = (encryptedData, entityType = 'unknown', entityName = 'unknown') => {
+      console.log(`[DEBUG] reEncryptFromBackup called for ${entityType}: ${entityName}`);
+      
       if (!encryptedData) {
+        console.log(`[DEBUG] No encrypted data provided for ${entityType}: ${entityName}`);
         return null;
       }
       
-      // Debug: Check if we have the decryption key
+      console.log(`[DEBUG] Encrypted data present: ${encryptedData.substring(0, 32)}...`);
+      console.log(`[DEBUG] backupDecryptionKey: ${backupDecryptionKey ? 'SET (' + backupDecryptionKey.substring(0,10) + '...)' : 'NULL/EMPTY'}`);
+      
+      // Check if we have the decryption key
       if (!backupDecryptionKey) {
-        console.error('❌ No backup decryption key available!');
-        // Return original data if we can't decrypt it
-        return encryptedData;
+        console.warn(`⚠️  No backup decryption key provided for ${entityType}: ${entityName} - password cannot be restored`);
+        failedPasswordRestorations.push({
+          type: entityType,
+          name: entityName,
+          reason: 'No backup key provided'
+        });
+        // Return null so the field will be empty and user knows to re-enter it
+        console.log(`[DEBUG] Returning NULL for ${entityType}: ${entityName} (no backup key)`);
+        return null;
       }
 
       try {
-        // Use encryptionManager's reEncrypt function to handle the conversion
-        // From backup key to system key
+        // First try to decrypt with backup key
+        const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
+        
+        if (!decrypted) {
+          console.warn(`⚠️  Cannot decrypt password for ${entityType}: ${entityName} - manual reset required`);
+          failedPasswordRestorations.push({
+            type: entityType,
+            name: entityName,
+            reason: 'Cannot decrypt with backup key'
+          });
+          // Password was encrypted with a different key - cannot restore
+          return null;
+        }
+        
+        // Successfully decrypted - now re-encrypt with system key
         const systemKey = encryptionManager.getSystemKey();
-
-        const result = encryptionManager.reEncrypt(encryptedData, backupDecryptionKey, systemKey);
+        const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
         
-        if (!result) {
-          console.error('❌ encryptionManager.reEncrypt returned null');
-          // WICHTIG: Return original data instead of null to avoid corruption
-          return encryptedData;
+        if (!reEncrypted) {
+          console.error(`❌ Failed to re-encrypt with system key for ${entityType}: ${entityName}`);
+          failedPasswordRestorations.push({
+            type: entityType,
+            name: entityName,
+            reason: 'Re-encryption failed'
+          });
+          return null;
         }
         
-        // Check if the result is the same as input (re-encryption failed silently)
-        if (result === encryptedData) {
-
-          // Try to decrypt manually and re-encrypt
-          const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
-          if (decrypted) {
-
-            const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
-            return reEncrypted || encryptedData;
-          } else {
-            console.error('❌ Manual decrypt also failed - key might be wrong or data corrupted');
-            // WICHTIG: KEIN Fallback-Passwort! Das wäre ein Sicherheitsrisiko
-            // Stattdessen null zurückgeben, damit der Restore-Prozess weiß, dass es fehlgeschlagen ist
-            return null;
-          }
-        } else {
-
+        // Verify the re-encryption worked
+        const verifyDecrypt = encryptionManager.decrypt(reEncrypted, systemKey);
+        if (verifyDecrypt !== decrypted) {
+          console.error(`❌ Re-encryption verification failed for ${entityType}: ${entityName}`);
+          failedPasswordRestorations.push({
+            type: entityType,
+            name: entityName,
+            reason: 'Re-encryption verification failed'
+          });
+          return null;
         }
         
-        return result;
+        return reEncrypted;
+        
       } catch (error) {
-        console.error('Failed to re-encrypt from backup:', error.message);
-        // WICHTIG: Return original data instead of null to avoid corruption
-        return encryptedData;
+        console.error(`Failed to re-encrypt from backup for ${entityType}: ${entityName}:`, error.message);
+        failedPasswordRestorations.push({
+          type: entityType,
+          name: entityName,
+          reason: error.message
+        });
+        // Return null on any error - safer than returning corrupted data
+        return null;
       }
     };
 
@@ -1423,6 +1463,9 @@ router.post('/restore', verifyToken, async (req, res) => {
       let restoredMetricDefinitions = 0;
       let restoredHostDiskConfig = 0;
       let restoredSnmpLatestMetrics = 0;
+      
+      // Track failed password restorations for user feedback
+      const failedPasswordRestorations = [];
 
       // Create ID mapping for appliances (old ID -> new ID)
       const applianceIdMapping = {};
@@ -1576,17 +1619,25 @@ router.post('/restore', verifyToken, async (req, res) => {
           
           // Re-encrypt remote password using the same function as hosts
           const remotePasswordEnc = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
+          console.log(`[DEBUG] Processing password for appliance: ${appliance.name}`);
+          console.log(`[DEBUG] Original encrypted password: ${remotePasswordEnc ? remotePasswordEnc.substring(0,32) + '...' : 'NULL'}`);
+          
           if (remotePasswordEnc) {
-
-            dbAppliance.remote_password_encrypted = reEncryptFromBackup(remotePasswordEnc);
+            const reEncrypted = reEncryptFromBackup(remotePasswordEnc, 'Appliance', appliance.name);
+            console.log(`[DEBUG] reEncryptFromBackup returned: ${reEncrypted ? reEncrypted.substring(0,32) + '...' : 'NULL'}`);
+            dbAppliance.remote_password_encrypted = reEncrypted;
+            
             if (!dbAppliance.remote_password_encrypted) {
-              console.error(`❌ Failed to re-encrypt password for ${appliance.name} - will be NULL in database`);
-              // WICHTIG: Kein Fallback-Passwort! Benutzer muss es neu eingeben
+              console.warn(`⚠️  Password for appliance "${appliance.name}" could not be restored - user must re-enter it`);
+              // Password will be NULL in database - user must re-enter it
               dbAppliance.remote_password_encrypted = null;
             }
           } else {
+            console.log(`[DEBUG] No remote password for appliance: ${appliance.name}`);
             dbAppliance.remote_password_encrypted = null;
           }
+          
+          console.log(`[DEBUG] Final password value to be written to DB: ${dbAppliance.remote_password_encrypted ? dbAppliance.remote_password_encrypted.substring(0,32) + '...' : 'NULL'}`);
 
           dbAppliance.remote_desktop_type = appliance.remoteDesktopType || appliance.remote_desktop_type || 'guacamole';
           
@@ -1936,8 +1987,8 @@ router.post('/restore', verifyToken, async (req, res) => {
               port: host.port || 22,
               username: host.username,
               icon: host.icon || 'Server',
-              password: reEncryptFromBackup(host.password),
-              privateKey: reEncryptFromBackup(host.private_key || host.privateKey), // Re-encrypt private key
+              password: reEncryptFromBackup(host.password, 'Host SSH', host.name),
+              privateKey: reEncryptFromBackup(host.private_key || host.privateKey, 'Host SSH Key', host.name), // Re-encrypt private key
               color: host.color || '#007AFF',
               transparency: host.transparency !== undefined ? host.transparency : 0.10,
               blur: host.blur !== undefined ? host.blur : 0,
@@ -1952,10 +2003,10 @@ router.post('/restore', verifyToken, async (req, res) => {
               remotePort: host.remote_port || host.remotePort || null,
               remoteUsername: host.remote_username || host.remoteUsername || null,
               // WICHTIG: In der hosts-Tabelle heißt das Feld "remote_password", nicht "remote_password_encrypted"!
-              remote_password: reEncryptFromBackup(host.remote_password || host.remotePassword),
+              remote_password: reEncryptFromBackup(host.remote_password || host.remotePassword, 'Host VNC/RDP', host.name),
               guacamolePerformanceMode: host.guacamole_performance_mode || host.guacamolePerformanceMode || 'balanced',
               rustdeskId: host.rustdesk_id || host.rustdeskId || null,
-              rustdeskPassword: reEncryptFromBackup(host.rustdesk_password || host.rustdeskPassword),
+              rustdeskPassword: reEncryptFromBackup(host.rustdesk_password || host.rustdeskPassword, 'Host RustDesk', host.name),
               isActive: host.is_active !== undefined ? host.is_active : (host.isActive !== false)
             };
             
@@ -2053,13 +2104,13 @@ router.post('/restore', verifyToken, async (req, res) => {
               sshHost: service.ssh_host || service.sshHost || null,
               sshPort: service.ssh_port || service.sshPort || 22,
               sshUsername: service.ssh_username || service.sshUsername || null,
-              sshPassword: reEncryptFromBackup(service.ssh_password || service.sshPassword),
+              sshPassword: reEncryptFromBackup(service.ssh_password || service.sshPassword, 'Service SSH', service.name),
               sshPrivateKey: service.ssh_private_key || service.sshPrivateKey || null,
               vncPort: service.vnc_port || service.vncPort || 5900,
-              vncPassword: reEncryptFromBackup(service.vnc_password || service.vncPassword),
+              vncPassword: reEncryptFromBackup(service.vnc_password || service.vncPassword, 'Service VNC', service.name),
               rdpPort: service.rdp_port || service.rdpPort || 3389,
               rdpUsername: service.rdp_username || service.rdpUsername || null,
-              rdpPassword: reEncryptFromBackup(service.rdp_password || service.rdpPassword),
+              rdpPassword: reEncryptFromBackup(service.rdp_password || service.rdpPassword, 'Service RDP', service.name),
               createdAt: service.created_at || service.createdAt || new Date(),
               updatedAt: service.updated_at || service.updatedAt || new Date()
             };
@@ -3687,9 +3738,30 @@ ${ssh_keys.map(key => `# ${key.key_name} key configuration`).join('\n')}
 
       console.log('✅ Restore completed successfully, sending response with sessionId:', sessionId);
       
+      // Check if there were any failed password restorations
+      let warningMessage = null;
+      if (failedPasswordRestorations.length > 0) {
+        console.warn(`⚠️  ${failedPasswordRestorations.length} passwords could not be restored`);
+        warningMessage = `Warning: ${failedPasswordRestorations.length} password(s) could not be restored and must be re-entered manually.`;
+        
+        // Group failed passwords by type for better reporting
+        const failedByType = failedPasswordRestorations.reduce((acc, item) => {
+          if (!acc[item.type]) acc[item.type] = [];
+          acc[item.type].push(item.name);
+          return acc;
+        }, {});
+        
+        console.log('Failed password restorations by type:');
+        Object.entries(failedByType).forEach(([type, names]) => {
+          console.log(`  ${type}: ${names.join(', ')}`);
+        });
+      }
+      
       res.json({
         sessionId, // Include session ID for SSE progress tracking
         message: responseMessage,
+        warning: warningMessage,
+        failed_password_restorations: failedPasswordRestorations.length > 0 ? failedPasswordRestorations : undefined,
         restored_appliances: restoredAppliances,
         restored_categories: restoredCategories,
         restored_settings: restoredSettings,
@@ -3764,8 +3836,61 @@ router.post('/selective-import', verifyToken, async (req, res) => {
     const currentUserId = req.body.importUserId || req.user?.id;
     
     // Extract the decryption key
-    const backupDecryptionKey = backupData.decryption_key || null;
+    let backupDecryptionKey = backupData.decryption_key || null;
     delete backupData.decryption_key;
+    
+    // Validate the backup key if provided (same as in restoreProgress.js)
+    if (backupDecryptionKey && backupData.validation_token) {
+      console.log('🔐 Validating backup key for selective import...');
+      try {
+        const decryptedToken = encryptionManager.decrypt(backupData.validation_token, backupDecryptionKey);
+        if (decryptedToken !== 'VALID_BACKUP_KEY_2025') {
+          console.log('❌ Invalid backup key in selective import');
+          
+          // Check if user confirmed to continue
+          if (!backupData.confirmInvalidKey) {
+            return res.json({
+              success: false,
+              keyValidation: {
+                isValid: false,
+                message: 'Der eingegebene Schlüssel ist ungültig. Die Passwörter können nicht wiederhergestellt werden.'
+              },
+              requiresConfirmation: true,
+              message: 'Ungültiger Backup-Schlüssel'
+            });
+          } else {
+            console.log('⚠️ User confirmed to continue with invalid key in selective import');
+            backupDecryptionKey = null; // Clear key so passwords won't be restored
+          }
+        } else {
+          console.log('✅ Backup key is valid for selective import');
+        }
+      } catch (error) {
+        console.log('❌ Invalid backup key - decryption failed:', error.message);
+        
+        if (!backupData.confirmInvalidKey) {
+          return res.json({
+            success: false,
+            keyValidation: {
+              isValid: false,
+              message: 'Der eingegebene Schlüssel ist ungültig. Die Passwörter können nicht wiederhergestellt werden.'
+            },
+            requiresConfirmation: true,
+            message: 'Ungültiger Backup-Schlüssel'
+          });
+        } else {
+          console.log('⚠️ User confirmed to continue with invalid key');
+          backupDecryptionKey = null;
+        }
+      }
+    }
+    
+    // WICHTIG: Der Backup-Key wird NICHT gehasht - er wird direkt verwendet wie beim Backup!
+    // BUG FIXED: Removed SHA256 hashing that was causing decryption failures
+    if (backupDecryptionKey) {
+      console.log('🔑 Import: Backup key provided for decryption');
+      console.log(`   Key length: ${backupDecryptionKey.length} characters`);
+    }
     
     // Extract host mappings for SNMP metrics
     const hostMappings = backupData.hostMappings || {};
@@ -3776,16 +3901,37 @@ router.post('/selective-import', verifyToken, async (req, res) => {
     }
     
     // Function to re-encrypt from backup key to system key
-    const reEncryptFromBackup = (encryptedData) => {
+    // FIXED: Returns null on failure instead of original data
+    const reEncryptFromBackup = (encryptedData, entityType = 'unknown', entityName = 'unknown') => {
       if (!encryptedData) return null;
-      if (!backupDecryptionKey) return encryptedData; // Keep as-is if no key
+      
+      if (!backupDecryptionKey) {
+        console.warn(`⚠️  No backup key provided for ${entityType}: ${entityName} - password needs manual reset`);
+        return null; // Return null instead of original data
+      }
       
       try {
+        // First decrypt with backup key
+        const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
+        
+        if (!decrypted) {
+          console.warn(`⚠️  Cannot decrypt ${entityType}: ${entityName} with backup key - password needs manual reset`);
+          return null; // Cannot decrypt = cannot restore
+        }
+        
+        // Re-encrypt with system key
         const systemKey = encryptionManager.getSystemKey();
-        return encryptionManager.reEncrypt(encryptedData, backupDecryptionKey, systemKey);
+        const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
+        
+        if (!reEncrypted) {
+          console.error(`❌ Failed to re-encrypt ${entityType}: ${entityName} with system key`);
+          return null;
+        }
+        
+        return reEncrypted;
       } catch (error) {
-        console.error('Failed to re-encrypt:', error.message);
-        return encryptedData;
+        console.error(`Failed to re-encrypt ${entityType}: ${entityName}:`, error.message);
+        return null; // Return null on error instead of corrupted data
       }
     };
     
@@ -3867,15 +4013,15 @@ router.post('/selective-import', verifyToken, async (req, res) => {
                 host.hostname,
                 host.port || 22,
                 host.username,
-                reEncryptFromBackup(host.password),
-                reEncryptFromBackup(host.privateKey || host.private_key),
+                reEncryptFromBackup(host.password, 'Import Host SSH', host.name),
+                reEncryptFromBackup(host.privateKey || host.private_key, 'Import Host SSH Key', host.name),
                 host.sshKeyName || host.ssh_key_name || null,
                 currentUserId, // Current user becomes owner (created_by)
                 currentUserId, // Also set updated_by
                 host.remoteDesktopEnabled || host.remote_desktop_enabled || false,
-                reEncryptFromBackup(host.remotePassword || host.remote_password),
+                reEncryptFromBackup(host.remotePassword || host.remote_password, 'Import Host VNC/RDP', host.name),
                 host.rustdeskId || host.rustdesk_id || null,
-                reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password),
+                reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password, 'Import Host RustDesk', host.name),
                 host.description || null,
                 host.icon || 'Server',
                 host.color || '#007AFF'
@@ -4181,7 +4327,7 @@ router.post('/selective-import', verifyToken, async (req, res) => {
             // Handle encrypted passwords with re-encryption
             if (appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || appliance.password) {
               const encryptedPassword = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || appliance.password;
-              dbAppliance.remote_password_encrypted = reEncryptFromBackup(encryptedPassword);
+              dbAppliance.remote_password_encrypted = reEncryptFromBackup(encryptedPassword, 'Import Appliance', appliance.name);
             }
             
             dbAppliance.remote_desktop_type = appliance.remoteDesktopType || appliance.remote_desktop_type || 'guacamole';

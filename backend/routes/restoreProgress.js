@@ -107,36 +107,160 @@ router.post('/start', verifyToken, async (req, res) => {
   console.log('🚀 Starting restore with immediate response, sessionId:', sessionId);
   
   // Extract encryption key from backup if present
-  const backupDecryptionKey = backupData.encryption_key || null;
+  let backupDecryptionKey = backupData.encryption_key || backupData.decryption_key || null;
+  
+  // Validate the backup key if provided
+  let keyValidationResult = {
+    isValid: true,
+    message: null
+  };
+  
+  if (backupDecryptionKey && backupData.validation_token) {
+    console.log('🔐 Validating backup key...');
+    try {
+      const decryptedToken = encryptionManager.decrypt(backupData.validation_token, backupDecryptionKey);
+      if (decryptedToken === 'VALID_BACKUP_KEY_2025') {
+        console.log('✅ Backup key is valid');
+        keyValidationResult.isValid = true;
+      } else {
+        console.log('❌ Invalid backup key - decryption succeeded but token mismatch');
+        keyValidationResult.isValid = false;
+        keyValidationResult.message = 'Der eingegebene Schlüssel ist ungültig. Die Passwörter können nicht wiederhergestellt werden.';
+      }
+    } catch (error) {
+      console.log('❌ Invalid backup key - decryption failed:', error.message);
+      keyValidationResult.isValid = false;
+      keyValidationResult.message = 'Der eingegebene Schlüssel ist ungültig. Die Passwörter können nicht wiederhergestellt werden.';
+    }
+    
+    // If key is invalid and user hasn't confirmed to continue
+    if (!keyValidationResult.isValid && !backupData.confirmInvalidKey) {
+      // Return validation error to frontend
+      return res.json({
+        success: false,
+        keyValidation: keyValidationResult,
+        requiresConfirmation: true,
+        message: keyValidationResult.message
+      });
+    }
+    
+    // If key is invalid but user confirmed to continue
+    if (!keyValidationResult.isValid && backupData.confirmInvalidKey) {
+      console.log('⚠️ User confirmed to continue with invalid key');
+      // Clear the key so passwords won't be restored
+      backupDecryptionKey = null;
+    }
+  }
+  
+  // WICHTIG: Der Backup-Key wird NICHT gehasht - er wird direkt verwendet wie beim Backup!
+  // BUG FIXED: Removed SHA256 hashing that was causing decryption failures
+  if (backupDecryptionKey) {
+    console.log('🔑 Backup key provided for decryption');
+    console.log(`   Key length: ${backupDecryptionKey.length} characters`);
+  }
   
   // Function to re-encrypt password from backup to system key
-  const reEncryptFromBackup = (encryptedData) => {
+  // FIXED: Returns null on failure instead of original data
+  const reEncryptFromBackup = (encryptedData, entityType = 'unknown', entityName = 'unknown', isSSHKey = false) => {
     if (!encryptedData) return null;
     
+    // DEBUG: Log the key status
+    console.log(`🔍 DEBUG reEncryptFromBackup for ${entityType}: ${entityName}`);
+    console.log(`   - backupDecryptionKey exists: ${!!backupDecryptionKey}`);
+    console.log(`   - backupDecryptionKey length: ${backupDecryptionKey ? backupDecryptionKey.length : 'null'}`);
+    console.log(`   - backupDecryptionKey first 10 chars: ${backupDecryptionKey ? backupDecryptionKey.substring(0, 10) + '...' : 'null'}`);
+    
     if (!backupDecryptionKey) {
-      // No backup key, return as-is
-      return encryptedData;
+      console.warn(`⚠️  No backup key provided for ${entityType}: ${entityName} - password needs manual reset`);
+      // Track failed restoration
+      if (isSSHKey) {
+        failedRestorations.sshKeys.push({
+          type: entityType,
+          name: entityName,
+          reason: 'No backup key provided'
+        });
+      } else {
+        failedRestorations.passwords.push({
+          type: entityType,
+          name: entityName,
+          reason: 'No backup key provided'
+        });
+      }
+      // Return null instead of original data - safer than storing corrupted passwords
+      return null;
     }
 
     try {
-      const systemKey = encryptionManager.getSystemKey();
-      const result = encryptionManager.reEncrypt(encryptedData, backupDecryptionKey, systemKey);
+      // First try to decrypt with backup key
+      const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
       
-      if (!result) {
-        // Try to decrypt manually and re-encrypt
-        const decrypted = encryptionManager.decrypt(encryptedData, backupDecryptionKey);
-        if (decrypted) {
-          const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
-          return reEncrypted || encryptedData;
+      if (!decrypted) {
+        console.warn(`⚠️  Cannot decrypt ${entityType}: ${entityName} with backup key - password needs manual reset`);
+        // Track failed restoration
+        if (isSSHKey) {
+          failedRestorations.sshKeys.push({
+            type: entityType,
+            name: entityName,
+            reason: 'Cannot decrypt with backup key'
+          });
+        } else {
+          failedRestorations.passwords.push({
+            type: entityType,
+            name: entityName,
+            reason: 'Cannot decrypt with backup key'
+          });
         }
-        return encryptedData;
+        return null; // Cannot decrypt = cannot restore
       }
       
-      return result;
+      // Re-encrypt with system key
+      const systemKey = encryptionManager.getSystemKey();
+      const reEncrypted = encryptionManager.encrypt(decrypted, systemKey);
+      
+      if (!reEncrypted) {
+        console.error(`❌ Failed to re-encrypt ${entityType}: ${entityName} with system key`);
+        // Track failed restoration
+        if (isSSHKey) {
+          failedRestorations.sshKeys.push({
+            type: entityType,
+            name: entityName,
+            reason: 'Re-encryption failed'
+          });
+        } else {
+          failedRestorations.passwords.push({
+            type: entityType,
+            name: entityName,
+            reason: 'Re-encryption failed'
+          });
+        }
+        return null;
+      }
+      
+      return reEncrypted;
     } catch (error) {
-      console.error('❌ Re-encryption error:', error.message);
-      return encryptedData;
+      console.error(`Failed to re-encrypt ${entityType}: ${entityName}:`, error.message);
+      // Track failed restoration
+      if (isSSHKey) {
+        failedRestorations.sshKeys.push({
+          type: entityType,
+          name: entityName,
+          reason: error.message
+        });
+      } else {
+        failedRestorations.passwords.push({
+          type: entityType,
+          name: entityName,
+          reason: error.message
+        });
+      }
+      return null; // Return null on error instead of corrupted data
     }
+  };
+  
+  // Track failed password/key restorations for user feedback
+  const failedRestorations = {
+    passwords: [],
+    sshKeys: []
   };
   
   // Initialize session
@@ -183,6 +307,13 @@ router.post('/start', verifyToken, async (req, res) => {
   // Process restore in background
   setImmediate(async () => {
     console.log(`🚀 Background restore process started for session ${sessionId}`);
+    
+    // DEBUG: Check if backupDecryptionKey is still available
+    console.log(`🔍 DEBUG: backupDecryptionKey in setImmediate:`);
+    console.log(`   - exists: ${!!backupDecryptionKey}`);
+    console.log(`   - length: ${backupDecryptionKey ? backupDecryptionKey.length : 'null'}`);
+    console.log(`   - first 10 chars: ${backupDecryptionKey ? backupDecryptionKey.substring(0, 10) + '...' : 'null'}`);
+    
     let connection = null;
     const startTime = Date.now();
     const MAX_RUNTIME = 5 * 60 * 1000; // 5 minutes max
@@ -304,9 +435,16 @@ router.post('/start', verifyToken, async (req, res) => {
             
             try {
               // Build SSH key data with proper field names - handle both snake_case and camelCase
+              const keyName = sshKey.key_name || sshKey.keyName || 'unnamed';
+              const encryptedPrivateKey = sshKey.private_key || sshKey.privateKey || '';
+              
+              // Re-encrypt private key if needed
+              const reEncryptedPrivateKey = encryptedPrivateKey ? 
+                reEncryptFromBackup(encryptedPrivateKey, 'SSH Key', keyName, true) : '';
+              
               const sshKeyData = {
-                keyName: sshKey.key_name || sshKey.keyName,  // Ensure camelCase for prepareInsert
-                privateKey: sshKey.private_key || sshKey.privateKey || '',
+                keyName: keyName,
+                privateKey: reEncryptedPrivateKey || '',  // Use re-encrypted or empty if failed
                 publicKey: sshKey.public_key || sshKey.publicKey || '',
                 keyType: sshKey.key_type || sshKey.keyType || 'rsa',
                 keySize: sshKey.key_size || sshKey.keySize || 2048,
@@ -318,6 +456,10 @@ router.post('/start', verifyToken, async (req, res) => {
                 createdAt: sshKey.created_at || sshKey.createdAt || new Date(),
                 updatedAt: sshKey.updated_at || sshKey.updatedAt || new Date()
               };
+              
+              if (!reEncryptedPrivateKey && encryptedPrivateKey) {
+                console.warn(`  ⚠️  SSH key "${keyName}" could not be restored - manual re-creation required`);
+              }
               
               const { sql, values } = prepareInsert('ssh_keys', sshKeyData);
               console.log(`  SQL: ${sql.substring(0, 100)}...`);
@@ -368,13 +510,25 @@ router.post('/start', verifyToken, async (req, res) => {
           const host = backupData.data.hosts[i];
           
           // Re-encrypt passwords if backup has encryption key
+          // WICHTIG: Erst kopieren, dann die verschlüsselten Felder explizit löschen
           const hostData = {
-            ...host,
-            password: reEncryptFromBackup(host.password),
-            privateKey: reEncryptFromBackup(host.privateKey || host.private_key),
-            remotePassword: reEncryptFromBackup(host.remotePassword || host.remote_password),
-            rustdeskPassword: reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password)
+            ...host
           };
+          
+          // Entferne die Original-verschlüsselten Felder (beide Schreibweisen)
+          delete hostData.password;
+          delete hostData.privateKey;
+          delete hostData.private_key;
+          delete hostData.remotePassword;
+          delete hostData.remote_password;
+          delete hostData.rustdeskPassword;
+          delete hostData.rustdesk_password;
+          
+          // Setze die re-verschlüsselten Werte (oder NULL wenn nicht entschlüsselbar)
+          hostData.password = reEncryptFromBackup(host.password, 'Host SSH', host.name);
+          hostData.private_key = reEncryptFromBackup(host.privateKey || host.private_key, 'Host SSH Key', host.name, true);
+          hostData.remote_password = reEncryptFromBackup(host.remotePassword || host.remote_password, 'Host VNC/RDP', host.name);
+          hostData.rustdesk_password = reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password, 'Host RustDesk', host.name);
           
           const oldHostId = host.id;
           delete hostData.id; // Remove ID to let DB auto-increment
@@ -449,11 +603,30 @@ router.post('/start', verifyToken, async (req, res) => {
           const appliance = backupData.data.appliances[i];
           
           // Re-encrypt passwords if backup has encryption key
+          // WICHTIG: Erst kopieren, dann die verschlüsselten Felder explizit löschen
           const applianceData = {
-            ...appliance,
-            remotePasswordEncrypted: reEncryptFromBackup(appliance.remotePasswordEncrypted || appliance.remote_password_encrypted),
-            rustdeskPasswordEncrypted: reEncryptFromBackup(appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted)
+            ...appliance
           };
+          
+          // Entferne die Original-verschlüsselten Felder
+          delete applianceData.remotePasswordEncrypted;
+          delete applianceData.remote_password_encrypted;
+          delete applianceData.rustdeskPasswordEncrypted;
+          delete applianceData.rustdesk_password_encrypted;
+          
+          // Setze die re-verschlüsselten Werte (oder NULL wenn nicht entschlüsselbar)
+          const remotePasswordEnc = appliance.remotePasswordEncrypted || appliance.remote_password_encrypted || null;
+          const rustdeskPasswordEnc = appliance.rustdeskPasswordEncrypted || appliance.rustdesk_password_encrypted || null;
+          
+          applianceData.remote_password_encrypted = reEncryptFromBackup(remotePasswordEnc, 'Appliance VNC/RDP', appliance.name);
+          applianceData.rustdesk_password_encrypted = reEncryptFromBackup(rustdeskPasswordEnc, 'Appliance RustDesk', appliance.name);
+          
+          if (!applianceData.remote_password_encrypted && remotePasswordEnc) {
+            console.warn(`⚠️  VNC/RDP password for appliance "${appliance.name}" could not be restored`);
+          }
+          if (!applianceData.rustdesk_password_encrypted && rustdeskPasswordEnc) {
+            console.warn(`⚠️  RustDesk password for appliance "${appliance.name}" could not be restored`);
+          }
           
           const { sql, values } = prepareInsert('appliances', applianceData);
           await connection.execute(sql, values);
@@ -468,6 +641,42 @@ router.post('/start', verifyToken, async (req, res) => {
           }
         }
         processedItemCount += totalItems.appliances;
+        
+        // Synchronize Guacamole connections for remote desktop enabled appliances
+        console.log('🔄 Synchronizing Guacamole connections for appliances...');
+        try {
+          const { syncGuacamoleConnection } = require('../utils/guacamoleHelper');
+          
+          const [importedAppliances] = await connection.execute(
+            'SELECT * FROM appliances WHERE remote_desktop_enabled = 1'
+          );
+          
+          console.log(`Found ${importedAppliances.length} appliances with remote desktop enabled`);
+          
+          for (const appliance of importedAppliances) {
+            try {
+              // Appliances use a different data structure for Guacamole sync
+              const guacamoleData = {
+                id: appliance.id,
+                name: appliance.name,
+                remote_desktop_enabled: appliance.remote_desktop_enabled,
+                remote_host: appliance.remote_host,
+                remote_protocol: appliance.remote_protocol || 'vnc',
+                remote_port: appliance.remote_port,
+                remote_username: appliance.remote_username,
+                remote_password_encrypted: appliance.remote_password_encrypted,
+                guacamole_performance_mode: appliance.guacamole_performance_mode || 'balanced'
+              };
+              
+              await syncGuacamoleConnection(guacamoleData);
+              console.log(`✅ Synced Guacamole for appliance: ${appliance.name}`);
+            } catch (syncError) {
+              console.error(`❌ Failed to sync Guacamole for appliance ${appliance.name}:`, syncError.message);
+            }
+          }
+        } catch (guacError) {
+          console.error('❌ Guacamole sync error for appliances:', guacError.message);
+        }
       }
       
       // 6. Restore background images WITH file restoration
@@ -1017,12 +1226,51 @@ router.post('/start', verifyToken, async (req, res) => {
       
       // Send completion with restart flag
       console.log(`📤 Sending complete event for session ${sessionId}`);
+      
+      // Prepare warning message if there were failed restorations
+      let warningMessage = null;
+      const totalFailedPasswords = failedRestorations.passwords.length;
+      const totalFailedKeys = failedRestorations.sshKeys.length;
+      
+      if (totalFailedPasswords > 0 || totalFailedKeys > 0) {
+        const warnings = [];
+        if (totalFailedPasswords > 0) {
+          warnings.push(`${totalFailedPasswords} password(s)`);
+        }
+        if (totalFailedKeys > 0) {
+          warnings.push(`${totalFailedKeys} SSH key(s)`);
+        }
+        warningMessage = `Warning: ${warnings.join(' and ')} could not be restored and must be re-entered manually.`;
+        
+        console.warn('⚠️  Failed restorations:');
+        if (totalFailedPasswords > 0) {
+          console.warn(`  Passwords: ${totalFailedPasswords}`);
+          // Group by type for better logging
+          const passwordsByType = failedRestorations.passwords.reduce((acc, item) => {
+            if (!acc[item.type]) acc[item.type] = [];
+            acc[item.type].push(item.name);
+            return acc;
+          }, {});
+          Object.entries(passwordsByType).forEach(([type, names]) => {
+            console.warn(`    ${type}: ${names.join(', ')}`);
+          });
+        }
+        if (totalFailedKeys > 0) {
+          console.warn(`  SSH Keys: ${totalFailedKeys}`);
+          failedRestorations.sshKeys.forEach(key => {
+            console.warn(`    ${key.name}: ${key.reason}`);
+          });
+        }
+      }
+      
       sendProgressUpdate(sessionId, {
         type: 'complete',
         progress: 100,
         message: 'Restore completed successfully! Backend restart required for SNMP polling.',
         success: true,
-        restartRequired: true  // Flag for frontend
+        restartRequired: true,  // Flag for frontend
+        warning: warningMessage,
+        failedRestorations: (totalFailedPasswords > 0 || totalFailedKeys > 0) ? failedRestorations : undefined
       });
       
       // Update session status
@@ -1047,7 +1295,9 @@ router.post('/start', verifyToken, async (req, res) => {
       sendProgressUpdate(sessionId, {
         type: 'error',
         message: `Error: ${error.message}`,
-        success: false
+        success: false,
+        // Include any failed restorations even in error case
+        failedRestorations: (failedRestorations.passwords.length > 0 || failedRestorations.sshKeys.length > 0) ? failedRestorations : undefined
       });
       
       const session = restoreSessions.get(sessionId);
