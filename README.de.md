@@ -136,40 +136,6 @@ Ich habe das Web Appliance Dashboard gebaut, um **MEINE** Probleme zu lösen - u
 
 </details>
 
-## 🛡️ Warum diesem Dashboard vertrauen?
-
-<details>
-<summary><b>Entwickelt von jemandem, der CNC-Maschinen-Interfaces programmiert hat - wo Software-Zuverlässigkeit nicht nur Betriebszeit bedeutet, sondern menschliche Sicherheit.</b></summary>
-
-In der CNC-Welt bedeutet ein Software-Bug nicht nur eine abgestürzte Anwendung - er bedeutet:
-
-### 🚨 **Sicherheit zuerst**
-- **Not-Aus-Ketten** - Wenn ein Bediener den roten Knopf drückt, MUSS die Software in Millisekunden reagieren. Keine Ausnahmen. Keine "Bitte warten"-Dialoge.
-- **Werkzeugbruch-Erkennung** - Ein gebrochenes Werkzeug bei 20.000 U/min wird zu Schrapnell. Die Schnittstelle muss sofort erkennen und reagieren.
-- **Echtzeit-Parameter-Überwachung** - Spindelleistung, Servo-Antriebslasten, Vibrationspegel - alles kontinuierlich überwacht mit null Toleranz für Verzögerungen oder Datenverlust.
-
-### 💥 **Die Kosten des Versagens**
-Wenn CNC-Software während des Eilgangs (G00) versagt:
-- **Bestenfalls**: Ein Werkstück im Wert von Tausenden wird zerstört
-- **Normalfall**: Spindelkollision, 50.000€+ Schaden
-- **Schlimmstenfalls**: Kompletter Maschinentotalschaden (500.000€+) oder Verletzung des Bedieners
-
-### 🛡️ **Diese Erfahrung prägte jede Design-Entscheidung**
-
-In der industriellen Automatisierung lernt man:
-- **Redundanz ist nicht optional** - Jeder kritische Pfad braucht einen Fallback
-- **Benutzerfehler müssen antizipiert werden** - Wenn es falsch geklickt werden kann, wird es das
-- **"Es funktioniert auf meiner Maschine" ist nicht akzeptabel** - Es muss auf JEDER Maschine funktionieren, JEDES Mal
-- **Graceful Degradation** - Wenn etwas fehlschlägt, sicher fehlschlagen, nicht katastrophal
-
-**Diese selbe Zuverlässigkeits-zuerst, Sicherheits-besessene Denkweise floss in jede Zeile Code dieses Dashboards.**
-
-Wenn ich Ihre SSH-Schlüssel handhabe, Ihre Service-Passwörter verwalte oder Ihre Infrastruktur steuere - wende ich die gleichen Prinzipien an, die Maschinenbediener sicher und Millionen-Euro-Maschinen am Laufen hielten.
-
-*Denn in beiden Welten gibt es keinen Platz für "ups".*
-
-</details>
-
 ## 🏆 Vergleich mit Anderen
 
 | Funktion | Web Appliance Dashboard | Portainer | Heimdall | Homer |

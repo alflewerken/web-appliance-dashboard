@@ -136,40 +136,6 @@ I built Web Appliance Dashboard to solve **MY** problems, and maybe they're your
 
 </details>
 
-## 🛡️ Why Trust This Dashboard?
-
-<details>
-<summary><b>Built by someone who programmed CNC machine interfaces - where software reliability isn't just about uptime, it's about human safety.</b></summary>
-
-In the CNC world, a software bug doesn't just mean a crashed application - it means:
-
-### 🚨 **Safety First**
-- **Emergency Stop Chains** - When an operator hits that red button, the software MUST respond in milliseconds. No exceptions. No "please wait" dialogs.
-- **Tool Breakage Detection** - A broken tool at 20,000 RPM becomes shrapnel. The interface must detect and react instantly.
-- **Real-time Parameter Monitoring** - Spindle power, servo drive loads, vibration levels - all monitored continuously with zero tolerance for lag or data loss.
-
-### 💥 **The Cost of Failure**
-When CNC software fails during rapid traverse (G00):
-- **Best case**: A workpiece worth thousands is destroyed
-- **Typical case**: Spindle collision, €50,000+ in damages
-- **Worst case**: Complete machine write-off (€500,000+) or operator injury
-
-### 🛡️ **This Experience Shaped Every Design Decision**
-
-In industrial automation, you learn:
-- **Redundancy is not optional** - Every critical path needs a fallback
-- **User mistakes must be anticipated** - If it can be clicked wrong, it will be
-- **"It works on my machine" is not acceptable** - It must work on EVERY machine, EVERY time
-- **Graceful degradation** - When something fails, fail safely, not catastrophically
-
-**This same reliability-first, safety-obsessed mindset went into every line of this dashboard's code.**
-
-When I handle your SSH keys, manage your service passwords, or control your infrastructure - I'm applying the same principles that kept machine operators safe and million-euro machines running.
-
-*Because in both worlds, there's no room for "oops".*
-
-</details>
-
 ## 🏆 Compare With Others
 
 | Feature | Web Appliance Dashboard | Portainer | Heimdall | Homer |
