@@ -1,6 +1,7 @@
 -- ====================================================================
 -- Web Appliance Dashboard Database Initialization
--- Version: 1.5.0 - Removed deprecated ssh_hosts table
+-- Version: 2.0.0 - Includes all monitoring migrations
+-- Generated: 2025-09-12
 -- ====================================================================
 
 -- Ensure UTF8MB4 character set for full Unicode support
@@ -173,6 +174,7 @@ CREATE TABLE IF NOT EXISTS appliances (
 -- ====================================================================
 
 -- Create hosts table (unified SSH and remote host management)
+-- NOTE: Migration 024 removes SNMP config fields from here
 CREATE TABLE IF NOT EXISTS hosts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -199,6 +201,17 @@ CREATE TABLE IF NOT EXISTS hosts (
     is_active BOOLEAN DEFAULT TRUE COMMENT 'Whether this host is active',
     last_tested TIMESTAMP NULL COMMENT 'Last time connection was tested',
     test_status ENUM('success', 'failed', 'unknown') DEFAULT 'unknown' COMMENT 'Last test result',
+    -- SNMP status fields (kept after migration 024)
+    snmp_status VARCHAR(20) DEFAULT 'unknown',
+    last_snmp_check DATETIME DEFAULT NULL,
+    last_snmp_error TEXT DEFAULT NULL,
+    last_metrics JSON DEFAULT NULL,
+    os_type VARCHAR(50) DEFAULT 'linux',
+    device_type VARCHAR(50) DEFAULT 'server',
+    -- Ping monitoring fields (from migration 021)
+    ping_status VARCHAR(20) DEFAULT 'unknown',
+    ping_response_time FLOAT DEFAULT NULL,
+    last_ping_check DATETIME DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     created_by INT DEFAULT NULL,
@@ -211,6 +224,7 @@ CREATE TABLE IF NOT EXISTS hosts (
     INDEX idx_hosts_remote_desktop_enabled (remote_desktop_enabled),
     INDEX idx_hosts_remote_desktop_type (remote_desktop_type),
     INDEX idx_hosts_active (is_active),
+    INDEX idx_hosts_ping_status (ping_status),
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 ) COMMENT='Unified hosts table for SSH, terminal and remote desktop connections';
@@ -274,6 +288,211 @@ CREATE TABLE IF NOT EXISTS appliance_commands (
 );
 
 -- ====================================================================
+-- SNMP MONITORING TABLES (from migrations 004-024)
+-- ====================================================================
+
+-- Host SNMP Configurations (from migration 005, consolidated in 024)
+CREATE TABLE IF NOT EXISTS host_snmp_configs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    enabled BOOLEAN DEFAULT FALSE,
+    version VARCHAR(10) DEFAULT '2c',
+    community VARCHAR(255),
+    port INT DEFAULT 161,
+    username VARCHAR(255),
+    auth_protocol VARCHAR(10),
+    auth_password VARCHAR(255),
+    priv_protocol VARCHAR(10),
+    priv_password VARCHAR(255),
+    poll_interval INT DEFAULT 60,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_host_config (host_id),
+    INDEX idx_enabled (enabled),
+    INDEX idx_host_enabled (host_id, enabled),
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SNMP metrics table (from migration 004, modified in 017-018)
+CREATE TABLE IF NOT EXISTS snmp_metrics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    metric_name VARCHAR(255),
+    metric_key VARCHAR(255),
+    metric_value VARCHAR(500),
+    unit VARCHAR(50),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_timestamp (host_id, timestamp),
+    INDEX idx_metric_key (host_id, metric_key, timestamp),
+    INDEX idx_metric_timestamp (timestamp)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SNMP interface statistics table (from migration 004)
+CREATE TABLE IF NOT EXISTS snmp_interfaces (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    interface_name VARCHAR(100) NOT NULL,
+    status VARCHAR(20) DEFAULT 'unknown',
+    speed BIGINT DEFAULT 0,
+    bytes_in BIGINT DEFAULT 0,
+    bytes_out BIGINT DEFAULT 0,
+    errors_in INT DEFAULT 0,
+    errors_out INT DEFAULT 0,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_interface (host_id, interface_name),
+    INDEX idx_collected (collected_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SNMP errors table (from migration 004)
+CREATE TABLE IF NOT EXISTS snmp_errors (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    error_type VARCHAR(50) NOT NULL,
+    error_message TEXT,
+    occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_error (host_id, occurred_at),
+    INDEX idx_error_type (error_type),
+    INDEX idx_host_time_type (host_id, occurred_at, error_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SNMP thresholds table (from migration 004)
+CREATE TABLE IF NOT EXISTS snmp_thresholds (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT DEFAULT NULL,
+    metric_name VARCHAR(50) NOT NULL,
+    warning_value DECIMAL(10,2) DEFAULT NULL,
+    critical_value DECIMAL(10,2) DEFAULT NULL,
+    enabled TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_host_metric (host_id, metric_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SNMP disk metrics table (from migration 006)
+CREATE TABLE IF NOT EXISTS snmp_disk_metrics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    device VARCHAR(100) NOT NULL,
+    total_bytes BIGINT DEFAULT 0,
+    used_bytes BIGINT DEFAULT 0,
+    free_bytes BIGINT DEFAULT 0,
+    percent_used DECIMAL(5,2) DEFAULT 0,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_device (host_id, device),
+    INDEX idx_collected (collected_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Host Monitoring Data (from migration 005, modified in 007)
+CREATE TABLE IF NOT EXISTS host_monitoring_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    status VARCHAR(50) DEFAULT 'offline',
+    last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    cpu_usage FLOAT,
+    memory_used BIGINT,
+    memory_total BIGINT,
+    memory_percent FLOAT,
+    temperature FLOAT,
+    uptime_seconds BIGINT,
+    metrics JSON COMMENT 'Complex monitoring data as JSON',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_created (host_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Host Disk Metrics (from migration 005)
+CREATE TABLE IF NOT EXISTS host_disk_metrics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    monitoring_data_id INT NOT NULL,
+    name VARCHAR(255),
+    used BIGINT,
+    total BIGINT,
+    percent FLOAT,
+    FOREIGN KEY (monitoring_data_id) REFERENCES host_monitoring_data(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Host Network Metrics (from migration 005)
+CREATE TABLE IF NOT EXISTS host_network_metrics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    monitoring_data_id INT NOT NULL,
+    name VARCHAR(255),
+    rx_bytes_per_sec BIGINT,
+    tx_bytes_per_sec BIGINT,
+    FOREIGN KEY (monitoring_data_id) REFERENCES host_monitoring_data(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Host metrics logging configuration (from migration 015, modified in 016, 019)
+CREATE TABLE IF NOT EXISTS host_metrics_logging (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    config JSON,
+    custom_names JSON DEFAULT NULL COMMENT 'Custom names for metrics',
+    selected_metrics JSON DEFAULT NULL COMMENT 'User-selected metrics for the history view',
+    default_time_range VARCHAR(10) DEFAULT '15m' COMMENT 'Default time range for the metrics history view',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_id (host_id),
+    INDEX idx_host_settings (host_id, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Host disk configuration (from migration 020)
+CREATE TABLE IF NOT EXISTS host_disk_config (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    disk_index VARCHAR(10) NOT NULL,
+    disk_name VARCHAR(255) DEFAULT NULL,
+    total_size_gb DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_host_disk (host_id, disk_index),
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_disk (host_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Host interface mappings (from migration 022)
+CREATE TABLE IF NOT EXISTS host_interface_mappings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NOT NULL,
+    interface_index INT NOT NULL,
+    interface_name VARCHAR(255),
+    interface_descr VARCHAR(255),
+    interface_type VARCHAR(100),
+    interface_speed BIGINT,
+    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    UNIQUE KEY unique_host_interface (host_id, interface_index),
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_host_lastseen (host_id, last_seen)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SNMP reload signals (from migration 023)
+CREATE TABLE IF NOT EXISTS snmp_reload_signals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    host_id INT NULL COMMENT 'NULL for global signals, specific ID for host signals',
+    signal_type ENUM('reload', 'stop', 'add', 'reload-all') DEFAULT 'reload',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP NULL DEFAULT NULL,
+    UNIQUE KEY unique_host (host_id),
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+    INDEX idx_processed (processed_at),
+    INDEX idx_signal_type (signal_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Signals for SNMP background polling service. NULL host_id = global signal';
+
+-- ====================================================================
 -- USER SETTINGS AND CONFIGURATION
 -- ====================================================================
 
@@ -306,6 +525,14 @@ INSERT IGNORE INTO user_settings (user_id, setting_key, setting_value) VALUES
 (NULL, 'audit_log_retention_days', '30'),
 (NULL, 'backup_retention_days', '7'),
 (NULL, 'max_backup_size_mb', '100');
+
+-- Insert default SNMP thresholds (from migration 004)
+INSERT INTO snmp_thresholds (host_id, metric_name, warning_value, critical_value) VALUES
+(NULL, 'cpu_percent', 80, 95),
+(NULL, 'memory_percent', 85, 95),
+(NULL, 'disk_percent', 80, 90),
+(NULL, 'process_count', 500, 1000)
+ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
 -- ====================================================================
 -- LOGGING AND AUDIT TABLES
@@ -437,6 +664,23 @@ CREATE TABLE IF NOT EXISTS migrations (
 );
 
 -- ====================================================================
+-- VIEWS
+-- ====================================================================
+
+-- Create view for latest metrics per host (from migration 004)
+CREATE OR REPLACE VIEW snmp_latest_metrics AS
+SELECT 
+    h.id as host_id,
+    h.hostname,
+    c.enabled as snmp_enabled,
+    h.snmp_status,
+    h.last_snmp_check,
+    h.last_metrics
+FROM hosts h
+LEFT JOIN host_snmp_configs c ON h.id = c.host_id
+WHERE c.enabled = 1;
+
+-- ====================================================================
 -- STORED PROCEDURES AND FUNCTIONS
 -- ====================================================================
 
@@ -525,14 +769,18 @@ UPDATE appliances SET service_status = 'unknown' WHERE service_status IS NULL;
 -- Set database character set
 ALTER DATABASE appliance_dashboard CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
--- Record initial migrations
+-- Record initial migrations plus all monitoring migrations
 INSERT IGNORE INTO migrations (filename) VALUES 
     ('001_initial_schema.sql'),
     ('002_add_role_permissions.sql'),
     ('003_add_ssh_tables.sql'),
+    ('004_add_snmp_monitoring.sql'),
     ('004_add_audit_tables.sql'),
+    ('005_add_host_monitoring.sql'),
     ('005_add_backup_tables.sql'),
+    ('006_enhanced_snmp_monitoring.sql'),
     ('006_add_remote_desktop.sql'),
+    ('007_fix_monitoring_data_structure.sql'),
     ('007_add_hosts_table.sql'),
     ('008_add_ssh_upload_log.sql'),
     ('009_add_rustdesk_columns.sql'),
@@ -541,8 +789,18 @@ INSERT IGNORE INTO migrations (filename) VALUES
     ('012_add_description_to_hosts.sql'),
     ('013_add_resource_name_to_audit_logs.sql'),
     ('014_add_icon_to_hosts.sql'),
+    ('015_host_metrics_logging.sql'),
     ('015_migrate_ssh_hosts_to_hosts.sql'),
-    ('016_update_audit_log_resource_names.sql');
+    ('016_add_custom_names_to_metrics_logging.sql'),
+    ('016_update_audit_log_resource_names.sql'),
+    ('017_fix_snmp_metrics_structure.sql'),
+    ('018_cleanup_snmp_metrics_table.sql'),
+    ('019_add_metrics_settings.sql'),
+    ('020_add_disk_configurations.sql'),
+    ('021_add_host_ping_status.sql'),
+    ('022_create_interface_mappings_table.sql'),
+    ('023_fix_snmp_reload_signals.sql'),
+    ('024_consolidate_snmp_config.sql');
 
 -- ====================================================================
 -- END OF INITIALIZATION

@@ -293,14 +293,7 @@ class UIConfigManager {
     root.style.setProperty('--input-tint', inputTint);
     
     // Log zur Überprüfung
-    console.log('UI Config Applied:', {
-      inputBg,
-      inputBlur: `${this.config.inputBlur || 0}px`,
-      inputTransparency: this.config.inputTransparency,
-      inputTint: inputTint,
-      theme: isLight ? 'light' : 'dark'
-    });
-    
+
     // Button styles
     const buttonRGB = calculateColor(this.config.buttonTint);
     root.style.setProperty('--button-bg', `rgba(${buttonRGB}, ${buttonRGB}, ${buttonRGB}, ${this.config.buttonTransparency / 100})`);
@@ -335,20 +328,7 @@ class UIConfigManager {
     root.style.setProperty('--modal-tint', modalTint);
     
     // DEBUG: Log modal config to see if it's being applied
-    console.warn('🔧 Modal Config Applied:', {
-      modalBg,
-      modalBlur: `${this.config.modalBlur || 30}px`,
-      modalTransparency: this.config.modalTransparency,
-      modalAlpha: modalAlpha,
-      modalTint: modalTint,
-      configValues: {
-        modalTransparency: this.config.modalTransparency,
-        modalBlur: this.config.modalBlur,
-        modalTint: this.config.modalTint
-      },
-      interpretation: `${modalOpacityValue}% opacity = ${modalAlpha} alpha`
-    });
-    
+
     // Text opacity
     root.style.setProperty('--text-primary-opacity', this.config.textPrimaryOpacity / 100);
     root.style.setProperty('--text-secondary-opacity', this.config.textSecondaryOpacity / 100);
@@ -380,7 +360,7 @@ class UIConfigManager {
 
   // Initialize styles on load
   initializeStyles() {
-    console.warn('🚀 Initializing UI Styles with config:', this.config);
+
     // Apply saved styles immediately
     this.applyStyles();
     

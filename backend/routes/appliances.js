@@ -52,31 +52,35 @@ router.get('/', verifyToken, async (req, res) => {
     // QueryBuilder already applies mapping via mapDbToJsForTable
     const mappedAppliances = await db.select('appliances', {}, { orderBy: 'name' });
     
-    // Debug: Verify mapping from QueryBuilder
-    if (mappedAppliances.length > 0) {
-      const first = mappedAppliances[0];
-
-    }
+    // Get all hosts for SSH connection conversion
+    const hosts = await db.select('hosts');
+    const hostMap = {};
+    hosts.forEach(host => {
+      hostMap[host.id] = `${host.username || 'root'}@${host.hostname || host.name}:${host.port || 22}`;
+    });
     
     // The data is already mapped by QueryBuilder, just ensure defaults
-    const appliances = mappedAppliances.map(app => ({
-      ...app,
-      // Add defaults for potentially null/undefined fields
-      description: app.description || '',
-      icon: app.icon || 'Server',
-      color: app.color || '#007AFF',
-      category: app.category || 'productivity',
-      transparency: app.transparency ?? 0.85,
-      blurAmount: app.blurAmount ?? 8,
-      blur: app.blurAmount ?? 8, // Alias for compatibility
-      serviceStatus: app.serviceStatus || 'unknown',
-    }));
-
-    // Debug: Check specific appliance
-    const debugApp = appliances.find(a => a.name === 'Nextcloud-Mac');
-    if (debugApp) {
-
-    }
+    const appliances = mappedAppliances.map(app => {
+      // Convert SSH connection ID to string if needed
+      let sshConnectionString = app.sshConnection;
+      if (app.sshConnection && !isNaN(app.sshConnection) && hostMap[app.sshConnection]) {
+        sshConnectionString = hostMap[app.sshConnection];
+      }
+      
+      return {
+        ...app,
+        // Add defaults for potentially null/undefined fields
+        description: app.description || '',
+        icon: app.icon || 'Server',
+        color: app.color || '#007AFF',
+        category: app.category || 'productivity',
+        transparency: app.transparency ?? 0.85,
+        blurAmount: app.blurAmount ?? 8,
+        blur: app.blurAmount ?? 8, // Alias for compatibility
+        serviceStatus: app.serviceStatus || 'unknown',
+        sshConnection: sshConnectionString, // Use converted string
+      };
+    });
 
     res.json(appliances);
   } catch (error) {
@@ -138,6 +142,21 @@ router.get('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Appliance not found' });
     }
 
+    // If sshConnection is a numeric ID, convert it to the connection string format
+    let sshConnectionString = appliance.sshConnection;
+    if (appliance.sshConnection && !isNaN(appliance.sshConnection)) {
+      try {
+        const host = await db.findOne('hosts', { id: appliance.sshConnection });
+        if (host) {
+          // Convert to the expected format: username@hostname:port
+          sshConnectionString = `${host.username || 'root'}@${host.hostname || host.name}:${host.port || 22}`;
+          console.log(`Converted SSH connection ID ${appliance.sshConnection} to string: ${sshConnectionString}`);
+        }
+      } catch (err) {
+        console.error(`Error converting SSH connection ID ${appliance.sshConnection}:`, err.message);
+      }
+    }
+
     // Data is already mapped by QueryBuilder, just ensure defaults
     const enhancedAppliance = {
       ...appliance,
@@ -147,6 +166,7 @@ router.get('/:id', verifyToken, async (req, res) => {
       transparency: appliance.transparency ?? 0.85,
       blurAmount: appliance.blurAmount ?? 8,
       blur: appliance.blurAmount ?? 8, // Alias for frontend compatibility
+      sshConnection: sshConnectionString, // Use the converted string
     };
 
     res.json(enhancedAppliance);
@@ -369,6 +389,47 @@ router.post('/', verifyToken, async (req, res) => {
       user: req.user?.username || 'System',
     });
 
+    // Trigger immediate status check if status command is configured
+    if (newAppliance.statusCommand) {
+      const statusChecker = require('../utils/statusChecker');
+      
+      // Prepare service object for status check
+      const serviceToCheck = {
+        id: newAppliance.id,
+        name: newAppliance.name,
+        status_command: newAppliance.statusCommand,
+        service_status: 'unknown',
+        ssh_connection: newAppliance.sshConnection
+      };
+      
+      // Check if we have host info
+      if (newAppliance.sshConnection) {
+        const [hostInfo] = await pool.execute(
+          `SELECT h.id as host_id, h.hostname, h.username, h.port 
+           FROM hosts h 
+           WHERE CONCAT(h.username, '@', h.hostname, ':', h.port) = ? 
+              OR CONCAT(h.username, '@', h.hostname) = ?`,
+          [newAppliance.sshConnection, newAppliance.sshConnection]
+        );
+        
+        if (hostInfo.length > 0) {
+          serviceToCheck.hostInfo = {
+            hostId: hostInfo[0].host_id,
+            hostname: hostInfo[0].hostname,
+            host: hostInfo[0].hostname,
+            username: hostInfo[0].username,
+            port: hostInfo[0].port || 22
+          };
+        }
+      }
+      
+      // Trigger async status check (don't wait for result)
+      statusChecker.checkServiceStatus(serviceToCheck).catch(err => 
+        console.error(`Failed to check status for new service ${newAppliance.name}:`, err)
+      );
+
+    }
+
     res.status(201).json(newAppliance);
   } catch (error) {
     console.error('Error creating appliance:', error);
@@ -580,7 +641,54 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     // Add blur alias for frontend compatibility  
     updatedAppliance.blur = updatedAppliance.blurAmount !== undefined ? updatedAppliance.blurAmount : 8;
-    console.log('[SSE] Broadcasting updatedAppliance with blur:', updatedAppliance.blur, 'blurAmount:', updatedAppliance.blurAmount);
+
+    // Check if status-related fields were changed and trigger immediate status check
+    const statusFieldsChanged = 
+      'statusCommand' in changedFields || 
+      'sshConnection' in changedFields ||
+      'startCommand' in changedFields ||
+      'stopCommand' in changedFields;
+    
+    if (statusFieldsChanged && updatedAppliance.statusCommand) {
+      // Trigger immediate status check for this specific service
+      const statusChecker = require('../utils/statusChecker');
+      
+      // Prepare service object for status check
+      const serviceToCheck = {
+        id: updatedAppliance.id,
+        name: updatedAppliance.name,
+        status_command: updatedAppliance.statusCommand,
+        service_status: updatedAppliance.serviceStatus,
+        ssh_connection: updatedAppliance.sshConnection
+      };
+      
+      // Check if we have host info
+      if (updatedAppliance.sshConnection) {
+        const [hostInfo] = await pool.execute(
+          `SELECT h.id as host_id, h.hostname, h.username, h.port 
+           FROM hosts h 
+           WHERE CONCAT(h.username, '@', h.hostname, ':', h.port) = ? 
+              OR CONCAT(h.username, '@', h.hostname) = ?`,
+          [updatedAppliance.sshConnection, updatedAppliance.sshConnection]
+        );
+        
+        if (hostInfo.length > 0) {
+          serviceToCheck.hostInfo = {
+            hostId: hostInfo[0].host_id,
+            hostname: hostInfo[0].hostname,
+            host: hostInfo[0].hostname,
+            username: hostInfo[0].username,
+            port: hostInfo[0].port || 22
+          };
+        }
+      }
+      
+      // Trigger async status check (don't wait for result)
+      statusChecker.checkServiceStatus(serviceToCheck).catch(err => 
+        console.error(`Failed to check status for ${updatedAppliance.name}:`, err)
+      );
+
+    }
 
     // Broadcast the update to all connected clients
     broadcast('appliance_updated', updatedAppliance);
@@ -652,8 +760,6 @@ router.patch('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
-  console.log('[PATCH] Received updates for appliance', id, ':', updates);
-
   try {
     // First, get the current data for audit log
     // QueryBuilder returns data in camelCase format
@@ -695,7 +801,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
     // Accept both blur and blurAmount for compatibility
     if (updates.blur !== undefined) {
       updateData.blurAmount = updates.blur;
-      console.log('[PATCH] Setting blurAmount from blur:', updates.blur);
+
     }
 
     // Handle isFavorite separately - it needs field mapping
@@ -716,8 +822,6 @@ router.patch('/:id', verifyToken, async (req, res) => {
 
     // Add updatedAt timestamp
     updateData.updatedAt = new Date();
-
-    console.log('[PATCH] Final updateData to save:', updateData);
 
     // Execute the update
     await db.update('appliances', updateData, { id });
@@ -834,7 +938,6 @@ router.patch('/:id', verifyToken, async (req, res) => {
 
     // Add blur alias for frontend compatibility  
     updatedAppliance.blur = updatedAppliance.blurAmount !== undefined ? updatedAppliance.blurAmount : 8;
-    console.log('[SSE] Broadcasting updatedAppliance with blur:', updatedAppliance.blur, 'blurAmount:', updatedAppliance.blurAmount);
 
     // Broadcast the update to all connected clients
     broadcast('appliance_updated', updatedAppliance);
@@ -902,7 +1005,6 @@ router.patch('/:id/favorite', verifyToken, async (req, res) => {
 
     // Add blur alias for frontend compatibility  
     updatedAppliance.blur = updatedAppliance.blurAmount !== undefined ? updatedAppliance.blurAmount : 8;
-    console.log('[SSE] Broadcasting updatedAppliance with blur:', updatedAppliance.blur, 'blurAmount:', updatedAppliance.blurAmount);
 
     // Broadcast the update to all connected clients
     broadcast('appliance_updated', updatedAppliance);

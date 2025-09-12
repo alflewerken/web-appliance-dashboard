@@ -108,9 +108,66 @@ router.post('/session', verifyToken, async (req, res) => {
       if (appliances.length > 0) {
         const appliance = appliances[0];
         
-        // Füge SSH-Schlüssel-Pfad hinzu für Appliances
-        const keyName = appliance.sshKeyName || appliance.ssh_key_name || 'dashboard';
-        sessionData.keyPath = `/root/.ssh/id_rsa_user${req.user.id}_${keyName}`;
+        // WICHTIG: SSH Key kommt vom Host, nicht vom Appliance!
+        // Parse SSH connection to find matching host
+        let keyName = 'dashboard'; // Default
+        
+        // SSH Connection Format: user@host:port
+        const connMatch = sshConnection.match(/^(.+)@(.+):(\d+)$/);
+        if (connMatch) {
+          const [, username, hostname, port] = connMatch;
+          
+          // Find a host with matching credentials
+          const hosts = await db.select('hosts', {
+            hostname: hostname,
+            username: username,
+            port: parseInt(port, 10),
+            createdBy: req.user.id
+          });
+          
+          if (hosts.length > 0) {
+            keyName = hosts[0].sshKeyName || 'dashboard';
+            logger.info(`Found matching host "${hosts[0].name}" with SSH key "${keyName}" for connection ${sshConnection}`);
+          } else {
+            // Try without port match (some hosts might have default port)
+            const hostsNoPort = await db.select('hosts', {
+              hostname: hostname,
+              username: username,
+              createdBy: req.user.id
+            });
+            
+            if (hostsNoPort.length > 0) {
+              keyName = hostsNoPort[0].sshKeyName || 'dashboard';
+              logger.info(`Found matching host "${hostsNoPort[0].name}" with SSH key "${keyName}" for connection ${sshConnection} (port mismatch ignored)`);
+            } else {
+              // No matching host found, use user's default key if it exists
+              logger.info(`No matching host found for SSH connection ${sshConnection}, using user's default key "dashboard"`);
+            }
+          }
+        }
+        
+        // Determine the correct key path
+        // First check if user-specific key exists
+        const userKeyPath = `/root/.ssh/id_rsa_user${req.user.id}_${keyName}`;
+        const fallbackKeyPath = `/root/.ssh/id_rsa_${keyName}`;
+        
+        // Check which key file actually exists
+        try {
+          await fs.access(userKeyPath, fs.constants.F_OK);
+          sessionData.keyPath = userKeyPath;
+          logger.info(`Using user-specific SSH key: ${userKeyPath}`);
+        } catch (error) {
+          // User-specific key doesn't exist, try fallback
+          try {
+            await fs.access(fallbackKeyPath, fs.constants.F_OK);
+            sessionData.keyPath = fallbackKeyPath;
+            logger.info(`Using fallback SSH key: ${fallbackKeyPath}`);
+          } catch (error2) {
+            // Neither key exists, use user key path anyway (will fail with clear error)
+            sessionData.keyPath = userKeyPath;
+            logger.warn(`SSH key not found, terminal will likely fail: ${userKeyPath}`);
+          }
+        }
         
         auditDetails = {
           applianceName: appliance.name,

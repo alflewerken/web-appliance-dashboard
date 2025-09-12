@@ -68,6 +68,7 @@ import CategoryModal from './CategoryModal';
 import BackgroundSettingsMUI from './BackgroundSettingsMUI';
 import UIConfigPanel from './UIConfigPanel';
 import BackupTab from './BackupTab';
+import SelectiveImportDialog from './SelectiveImportDialog';
 import './SettingsModal.css';
 import './SettingsPanel.css';
 
@@ -169,6 +170,10 @@ const SettingsPanel = ({
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [reorderMode, setReorderMode] = useState(false);
+
+  // Selective Import State
+  const [showSelectiveImportDialog, setShowSelectiveImportDialog] = useState(false);
+  const [selectiveImportData, setSelectiveImportData] = useState(null);
 
   // Drag state for categories
   const [draggedIndex, setDraggedIndex] = useState(null);
@@ -437,6 +442,28 @@ const SettingsPanel = ({
       setError(t('settings.errors.saveFailed'));
       setTimeout(() => setError(''), 3000);
     }
+  };
+
+  const handleSelectiveImportFile = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      // Read and parse the backup file
+      const fileContent = await file.text();
+      const backupData = JSON.parse(fileContent);
+      
+      // Store the backup data for selective import dialog
+      setSelectiveImportData(backupData);
+      setShowSelectiveImportDialog(true);
+    } catch (error) {
+      console.error('Error reading backup file:', error);
+      setError(t('settings.errors.invalidBackupFile'));
+      setTimeout(() => setError(''), 3000);
+    }
+    
+    // Reset the input
+    event.target.value = '';
   };
 
   // Category Functions
@@ -1208,44 +1235,102 @@ const SettingsPanel = ({
               </Box>
             ) : (
               <Box>
-                <FormControl fullWidth margin="normal">
-                  <TextField
-                    label={t('settings.serviceCheckInterval')}
-                    type="number"
-                    value={systemSettings.service_poll_interval}
-                    onChange={e =>
-                      handleSystemSettingChange(
-                        'service_poll_interval',
-                        e.target.value
-                      )
-                    }
-                    InputProps={{
-                      inputProps: { min: 10, max: 3600 },
-                    }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        color: 'var(--text-secondary)',
-                      },
-                      '& .MuiInputBase-root': { color: 'var(--text-primary)' },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: 'rgba(255, 255, 255, 0.2)',
-                        },
-                      },
-                    }}
-                  />
-                </FormControl>
-
-                <Typography 
-                  variant="body2" 
+                {/* Device Check Interval Card */}
+                <Card 
                   sx={{ 
-                    mt: 1, 
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.875rem'
+                    mb: 3,
+                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                   }}
                 >
-                  {t('settings.serviceCheckIntervalDescription')}
-                </Typography>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+                      {t('settings.deviceCheck')}
+                    </Typography>
+                    <FormControl fullWidth>
+                      <TextField
+                        label={t('settings.serviceCheckInterval')}
+                        type="number"
+                        value={systemSettings.service_poll_interval}
+                        onChange={e =>
+                          handleSystemSettingChange(
+                            'service_poll_interval',
+                            e.target.value
+                          )
+                        }
+                        InputProps={{
+                          inputProps: { min: 10, max: 3600 },
+                        }}
+                        sx={{
+                          '& .MuiInputLabel-root': {
+                            color: 'var(--text-secondary)',
+                          },
+                          '& .MuiInputBase-root': { color: 'var(--text-primary)' },
+                          '& .MuiOutlinedInput-root': {
+                            '& fieldset': {
+                              borderColor: 'rgba(255, 255, 255, 0.2)',
+                            },
+                          },
+                        }}
+                      />
+                    </FormControl>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        mt: 2, 
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {t('settings.serviceCheckIntervalDescription')}
+                    </Typography>
+                  </CardContent>
+                </Card>
+
+                {/* Selective Import Card */}
+                <Card 
+                  sx={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                  }}
+                >
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+                      {t('settings.selectiveImport')}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      component="label"
+                      startIcon={<Upload />}
+                      sx={{
+                        backgroundColor: 'var(--primary-color)',
+                        '&:hover': {
+                          backgroundColor: 'var(--primary-dark)',
+                        },
+                      }}
+                    >
+                      {t('settings.selectBackupFile')}
+                      <input
+                        type="file"
+                        hidden
+                        accept=".json"
+                        onChange={handleSelectiveImportFile}
+                      />
+                    </Button>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        mt: 2, 
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {t('settings.selectiveImportDescription')}
+                    </Typography>
+                  </CardContent>
+                </Card>
               </Box>
             )}
           </Box>
@@ -1369,6 +1454,18 @@ const SettingsPanel = ({
           onSave={handleCategorySave}
           category={editingCategory}
           loading={loading}
+        />
+      )}
+
+      {/* Selective Import Dialog */}
+      {showSelectiveImportDialog && (
+        <SelectiveImportDialog
+          open={showSelectiveImportDialog}
+          onClose={() => {
+            setShowSelectiveImportDialog(false);
+            setSelectiveImportData(null);
+          }}
+          backupData={selectiveImportData}
         />
       )}
 

@@ -8,6 +8,7 @@ const db = new QueryBuilder(pool);
 const { NodeSSH } = require('node-ssh');
 const { verifyToken } = require('../utils/auth');
 const { logger } = require('../utils/logger');
+const { decrypt, isEncrypted } = require('../utils/encryption');
 
 // Configure multer for file uploads
 const multerStorage = multer.diskStorage({
@@ -144,5 +145,199 @@ router.post('/setup', verifyToken, async (req, res) => {
 // Upload file via SSH
 const handleSSHUpload = require('../utils/sshUploadHandler');
 router.post('/upload', verifyToken, upload.single('file'), handleSSHUpload);
+
+/**
+ * POST /api/ssh/execute
+ * Execute command on remote host via SSH
+ */
+router.post('/execute', verifyToken, async (req, res) => {
+  const { hostId, command, useSudo = false, timeout = 30000 } = req.body;
+  let ssh = null;
+
+  // Debug logging
+  logger.info('SSH Execute Request:', { hostId, command: command?.substring(0, 50), useSudo });
+
+  // Validate required parameters
+  if (!hostId) {
+    logger.error('SSH Execute: Missing hostId');
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Host ID is required' 
+    });
+  }
+
+  if (!command) {
+    logger.error('SSH Execute: Missing command');
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Command is required' 
+    });
+  }
+
+  try {
+    // Get host details from database
+    logger.info('Fetching host from database with ID:', hostId);
+    const [hostResult] = await pool.execute(
+      'SELECT * FROM hosts WHERE id = ?',
+      [hostId]
+    );
+
+    if (hostResult.length === 0) {
+      logger.error('Host not found with ID:', hostId);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Host not found' 
+      });
+    }
+
+    const host = hostResult[0];
+    logger.info('Host found:', { 
+      id: host.id, 
+      name: host.name, 
+      username: host.username,
+      ssh_key_name: host.ssh_key_name,
+      has_ssh_password: !!host.ssh_password 
+    });
+
+    // Get SSH credentials
+    let sshCredentials = {};
+    
+    // Check if host has stored SSH key by name
+    if (host.ssh_key_name) {
+      logger.info('Looking for SSH key with name:', host.ssh_key_name);
+      const [keyResult] = await pool.execute(
+        'SELECT * FROM ssh_keys WHERE key_name = ?',
+        [host.ssh_key_name]
+      );
+      
+      if (keyResult.length > 0) {
+        const sshKey = keyResult[0];
+        logger.info('SSH key found:', sshKey.key_name);
+        
+        // Check if the key is encrypted or plain text
+        const { isEncrypted } = require('../utils/encryption');
+        let decryptedKey;
+        
+        if (isEncrypted(sshKey.private_key)) {
+          logger.info('SSH key is encrypted, decrypting...');
+          decryptedKey = decrypt(sshKey.private_key);
+        } else {
+          logger.info('SSH key is already in plain text');
+          decryptedKey = sshKey.private_key;
+        }
+        
+        sshCredentials = {
+          privateKey: decryptedKey,
+          username: host.username || sshKey.username || 'root'
+        };
+      } else {
+        logger.warn('SSH key not found:', host.ssh_key_name);
+      }
+    }
+    
+    // Fall back to password if no key
+    if (!sshCredentials.privateKey && host.ssh_password) {
+      logger.info('Using password authentication');
+      sshCredentials = {
+        username: host.username || 'root',
+        password: decrypt(host.ssh_password)
+      };
+    }
+
+    // If still no credentials, check for default SSH user/pass
+    if (!sshCredentials.privateKey && !sshCredentials.password) {
+      if (process.env.DEFAULT_SSH_USER && process.env.DEFAULT_SSH_PASS) {
+        sshCredentials = {
+          username: process.env.DEFAULT_SSH_USER,
+          password: process.env.DEFAULT_SSH_PASS
+        };
+      } else {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'No SSH credentials available for this host' 
+        });
+      }
+    }
+
+    // Connect via SSH
+    logger.info('Connecting to host:', { 
+      host: host.hostname || host.ip,
+      port: host.port || 22,
+      username: sshCredentials.username,
+      hasKey: !!sshCredentials.privateKey,
+      hasPassword: !!sshCredentials.password
+    });
+    
+    ssh = new NodeSSH();
+    await ssh.connect({
+      host: host.hostname || host.ip,
+      port: host.port || 22,
+      username: sshCredentials.username,
+      password: sshCredentials.password,
+      privateKey: sshCredentials.privateKey,
+      tryKeyboard: true,
+      timeout: 10000
+    });
+
+    // Execute command
+    const result = await ssh.execCommand(command, {
+      execOptions: {
+        pty: useSudo,
+        timeout: timeout
+      }
+    });
+
+    ssh.dispose();
+
+    // Log command execution
+    logger.info(`SSH command executed on ${host.hostname}: ${command.substring(0, 50)}...`);
+
+    // Create audit log
+    const { createAuditLog } = require('../utils/auditLogger');
+    const { getClientIp } = require('../utils/getClientIp');
+    
+    await createAuditLog(
+      req.user.id,
+      'ssh_command_executed',
+      'host',
+      hostId,
+      {
+        command: command.substring(0, 100),
+        host: host.hostname,
+        ip: host.ip,
+        success: result.code === 0
+      },
+      getClientIp(req),
+      host.hostname
+    );
+
+    res.json({
+      success: result.code === 0,
+      output: result.stdout,
+      error: result.stderr,
+      code: result.code
+    });
+
+  } catch (error) {
+    if (ssh) {
+      ssh.dispose();
+    }
+    
+    logger.error('SSH execute error:', {
+      error: error.message,
+      stack: error.stack,
+      hostId,
+      command: command?.substring(0, 50)
+    });
+    
+    // Return 400 for missing credentials, 500 for other errors
+    const statusCode = error.message?.includes('credentials') ? 400 : 500;
+    
+    res.status(statusCode).json({
+      success: false,
+      error: error.message || 'Failed to execute SSH command'
+    });
+  }
+});
 
 module.exports = router;

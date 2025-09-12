@@ -8,6 +8,7 @@ const { logger } = require('../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
 const { exec } = require('child_process');
+const { encrypt } = require('../utils/encryption');
 const {
   mapSSHKeyDbToJs,
   mapSSHKeyJsToDb,
@@ -82,6 +83,9 @@ async function ensureUserDashboardKey(userId, username) {
       5000
     );
 
+    // Encrypt private key before storing
+    const encryptedPrivateKey = encrypt(privateKey);
+
     // Store in database
     await db.insert('ssh_keys', {
       keyName: 'dashboard',
@@ -89,7 +93,7 @@ async function ensureUserDashboardKey(userId, username) {
       keySize: 2048,
       comment: `dashboard@${username}`,
       publicKey: publicKey.trim(),
-      privateKey: privateKey,
+      privateKey: encryptedPrivateKey,  // Now encrypted!
       fingerprint: fingerprint.trim(),
       createdBy: userId
     });
@@ -255,6 +259,9 @@ router.post('/generate', verifyToken, async (req, res) => {
       5000
     );
 
+    // Encrypt private key before storing
+    const encryptedPrivateKey = encrypt(privateKey);
+
     // Store in database
     await db.insert('ssh_keys', {
       keyName: keyName,
@@ -262,7 +269,7 @@ router.post('/generate', verifyToken, async (req, res) => {
       keySize: keySize,
       comment: comment || null,
       publicKey: publicKey.trim(),
-      privateKey: privateKey,
+      privateKey: encryptedPrivateKey,  // Now encrypted!
       fingerprint: fingerprint.trim(),
       createdBy: req.user.id
     });

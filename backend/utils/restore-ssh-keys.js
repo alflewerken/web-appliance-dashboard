@@ -2,117 +2,128 @@
 
 /**
  * Restore SSH keys from database to filesystem
+ * Uses the correct encryption/decryption from encryption.js
  */
 
 const mysql = require('mysql2/promise');
 const fs = require('fs').promises;
 const path = require('path');
-const crypto = require('crypto');
-
-// Database configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'database',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'dashboard_user',
-  password: process.env.DB_PASSWORD || 'dashboard_pass123',
-  database: process.env.DB_NAME || 'appliance_dashboard',
-};
+const { decrypt } = require('../utils/encryption');
 
 const SSH_DIR = '/root/.ssh';
 
-// Decrypt function (matching the encryption in the system)
-function decrypt(encryptedData, secret) {
-  try {
-    const algorithm = 'aes-256-gcm';
-    const key = crypto.createHash('sha256').update(String(secret)).digest('base64').substr(0, 32);
-    
-    // Parse the encrypted data
-    const parts = encryptedData.split(':');
-    if (parts.length !== 4) {
-      throw new Error('Invalid encrypted data format');
+// Database configuration - with retry logic
+const dbConfig = {
+  host: process.env.DB_HOST || 'database',
+  user: process.env.DB_USER || 'dashboard_user',
+  password: process.env.DB_PASSWORD || 'P3ndg3nE4JtD18fvW/1m2c2b9GdD6z7g',
+  database: process.env.DB_NAME || 'appliance_dashboard',
+  connectTimeout: 60000,
+  waitForConnections: true
+};
+
+// Retry logic for database connection
+async function connectWithRetry(maxRetries = 5) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const connection = await mysql.createConnection(dbConfig);
+      console.log('Connected to database');
+      return connection;
+    } catch (error) {
+      console.log(`Database connection attempt ${i + 1} failed:`, error.message);
+      if (i < maxRetries - 1) {
+        console.log(`Waiting 2 seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
-    
-    const iv = Buffer.from(parts[0], 'hex');
-    const tag = Buffer.from(parts[1], 'hex');
-    const encrypted = Buffer.from(parts[2], 'hex');
-    
-    // Create decipher
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    decipher.setAuthTag(tag);
-    
-    // Decrypt
-    let decrypted = decipher.update(encrypted, null, 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return decrypted;
-  } catch (error) {
-    console.error('Decryption error:', error.message);
-    return null;
   }
+  throw new Error('Failed to connect to database after ' + maxRetries + ' attempts');
 }
 
 async function restoreSSHKeys() {
   let connection;
   
   try {
-
+    console.log('Starting SSH key restoration...');
+    
     // Ensure SSH directory exists with correct permissions
     await fs.mkdir(SSH_DIR, { recursive: true, mode: 0o700 });
     
-    // Fix ownership of SSH directory
-    try {
-      const { exec } = require('child_process');
-      const util = require('util');
-      const execAsync = util.promisify(exec);
-      await execAsync(`chown -R root:root ${SSH_DIR}`);
-
-    } catch (error) {
-
-    }
+    // Connect to database with retry logic
+    connection = await connectWithRetry();
     
-    // Connect to database
-    connection = await mysql.createConnection(dbConfig);
-    
-    // Get encryption secret
-    const encryptionSecret = process.env.SSH_KEY_ENCRYPTION_SECRET || 
-                           process.env.ENCRYPTION_SECRET || 
-                           'default-insecure-key-change-this-in-production!!';
-    
-    // Fetch all SSH keys
+    // Fetch all SSH keys with user information
     const [keys] = await connection.execute(
-      'SELECT key_name, private_key, public_key FROM ssh_keys'
+      'SELECT key_name, private_key, public_key, created_by FROM ssh_keys WHERE private_key IS NOT NULL AND public_key IS NOT NULL'
     );
-
+    
+    console.log(`Found ${keys.length} SSH keys in database`);
+    
     for (const key of keys) {
       try {
-        // Check if key is encrypted (contains colons) or plain text
-        let privateKey = key.private_key;
+        // Use the decrypt function from encryption.js which uses CBC
+        const privateKey = decrypt(key.private_key);
         
-        if (privateKey.includes(':') && privateKey.split(':').length === 4) {
-          // Key is encrypted, decrypt it
-          privateKey = decrypt(key.private_key, encryptionSecret);
-          if (!privateKey) {
-            console.error(`Failed to decrypt private key for ${key.key_name}`);
-            continue;
-          }
+        if (!privateKey) {
+          console.error(`❌ Failed to decrypt private key for ${key.key_name} (user ${key.created_by})`);
+          console.log(`   Key format: ${key.private_key.substring(0, 50)}...`);
+          continue;
+        }
+        
+        // Verify it's a valid SSH key
+        if (!privateKey.includes('-----BEGIN') && !privateKey.includes('PRIVATE KEY')) {
+          console.error(`❌ Decrypted content for ${key.key_name} doesn't look like an SSH key`);
+          console.log(`   Content start: ${privateKey.substring(0, 50)}...`);
+          continue;
+        }
+        
+        // Generate the correct filename
+        let keyFileName;
+        if (key.created_by) {
+          keyFileName = `id_rsa_user${key.created_by}_${key.key_name}`;
         } else {
-          // Key is already in plain text
-
+          keyFileName = `id_rsa_${key.key_name}`;
         }
         
         // Write private key
-        const privateKeyPath = path.join(SSH_DIR, `id_rsa_${key.key_name}`);
+        const privateKeyPath = path.join(SSH_DIR, keyFileName);
         await fs.writeFile(privateKeyPath, privateKey, { mode: 0o600 });
-
+        console.log(`✅ Restored private key: ${keyFileName} (${privateKey.length} bytes)`);
+        
         // Write public key
-        const publicKeyPath = path.join(SSH_DIR, `id_rsa_${key.key_name}.pub`);
+        const publicKeyPath = path.join(SSH_DIR, `${keyFileName}.pub`);
         await fs.writeFile(publicKeyPath, key.public_key, { mode: 0o644 });
-
+        console.log(`✅ Restored public key: ${keyFileName}.pub`);
+        
       } catch (error) {
         console.error(`Error restoring key ${key.key_name}:`, error.message);
       }
     }
-
+    
+    // Create symlinks for backwards compatibility
+    try {
+      // Link the generic dashboard key to user1's dashboard key
+      const symlinkSource = path.join(SSH_DIR, 'id_rsa_user1_dashboard');
+      const symlinkTarget = path.join(SSH_DIR, 'id_rsa_dashboard');
+      
+      // Remove old files/links if they exist
+      try {
+        await fs.unlink(symlinkTarget);
+      } catch (e) { }
+      try {
+        await fs.unlink(symlinkTarget + '.pub');
+      } catch (e) { }
+      
+      // Create new symlinks
+      await fs.symlink('id_rsa_user1_dashboard', symlinkTarget);
+      await fs.symlink('id_rsa_user1_dashboard.pub', symlinkTarget + '.pub');
+      console.log('✅ Created compatibility symlinks for id_rsa_dashboard');
+    } catch (error) {
+      console.error('Warning: Could not create symlinks:', error.message);
+    }
+    
+    console.log('SSH key restoration completed');
+    
   } catch (error) {
     console.error('❌ Error restoring SSH keys:', error);
     process.exit(1);

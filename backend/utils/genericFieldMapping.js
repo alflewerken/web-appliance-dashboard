@@ -81,6 +81,7 @@ function genericMapDbToJs(dbRow) {
       key.startsWith('is_') || 
       key.endsWith('_enabled') || 
       key.endsWith('_installed') ||
+      key === 'enabled' ||  // Add generic 'enabled' field
       key === 'auto_start' || 
       jsKey === 'isFavorite' ||
       jsKey === 'autoStart' ||

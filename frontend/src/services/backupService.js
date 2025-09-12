@@ -69,11 +69,18 @@ export class BackupService {
     }
   }
 
-  static async restoreBackup(file, decryptionKey = null) {
-    return this.restoreFromFile(file, decryptionKey);
+  static async restoreBackup(file, decryptionKey = null, restoreSnmpMetrics) {
+    console.log('🚀 BackupService.restoreBackup called with restoreSnmpMetrics:', restoreSnmpMetrics);
+    return this.restoreFromFile(file, decryptionKey, restoreSnmpMetrics);
   }
 
-  static async restoreFromFile(file, decryptionKey = null) {
+  static async restoreBackupWithConfirmation(file, decryptionKey = null, restoreSnmpMetrics, confirmInvalidKey = false) {
+    console.log('🚀 BackupService.restoreBackupWithConfirmation called with confirmInvalidKey:', confirmInvalidKey);
+    return this.restoreFromFile(file, decryptionKey, restoreSnmpMetrics, confirmInvalidKey);
+  }
+
+  static async restoreFromFile(file, decryptionKey = null, restoreSnmpMetrics, confirmInvalidKey = false) {
+    console.log('🔍 BackupService.restoreFromFile called with restoreSnmpMetrics:', restoreSnmpMetrics);
     try {
       // Read file
       const fileContent = await file.text();
@@ -94,6 +101,16 @@ export class BackupService {
         backupData.decryption_key = decryptionKey;
       }
 
+      // Add confirmation flag if provided
+      if (confirmInvalidKey) {
+        backupData.confirmInvalidKey = true;
+      }
+
+      // Add SNMP metrics restore option
+      backupData.restoreSnmpMetrics = restoreSnmpMetrics;
+      console.log('📊 Setting backupData.restoreSnmpMetrics to:', restoreSnmpMetrics);
+      console.log('📦 Full backupData object keys:', Object.keys(backupData));
+
       // Validate backup structure
       if (!backupData.data || !backupData.data.appliances) {
         throw new Error(
@@ -102,18 +119,20 @@ export class BackupService {
       }
 
       // Show confirmation dialog with version info
-      const appliancesCount = backupData.data.appliances.length;
+      const appliancesCount = backupData.data.appliances?.length || 0;
       const categoriesCount = backupData.data.categories?.length || 0;
-      const settingsCount = backupData.data.settings?.length || 0;
+      const userSettingsCount = backupData.data.user_settings?.length || backupData.data.settings?.length || 0;
       const backgroundsCount = backupData.data.background_images?.length || 0;
       const hostsCount = backupData.data.hosts?.length || 0;
       const servicesCount = backupData.data.services?.length || 0;
       const sshHostsCount = backupData.data.ssh_hosts?.length || 0;
       const sshKeysCount = backupData.data.ssh_keys?.length || 0;
-      const sshUploadLogsCount = backupData.data.ssh_upload_logs?.length || 0;
-      const customCommandsCount = backupData.data.custom_commands?.length || 0;
+      const sshFileTransfersCount = backupData.data.ssh_upload_log?.length || backupData.data.ssh_upload_logs?.length || 0;
+      const customCommandsCount = backupData.data.appliance_commands?.length || backupData.data.custom_commands?.length || 0;
       const usersCount = backupData.data.users?.length || 0;
       const auditLogsCount = backupData.data.audit_logs?.length || 0;
+      const snmpMetricsCount = backupData.data.snmp_metrics?.length || 0;
+      const snmpInterfacesCount = backupData.data.snmp_interfaces?.length || 0;
       const backupVersion = backupData.version || 'Unbekannt';
       const isOldVersion = backupVersion.startsWith('1.');
 
@@ -126,18 +145,20 @@ export class BackupService {
         `📊 Das Backup enthält:\n` +
         `• ${appliancesCount} Services\n` +
         `• ${categoriesCount} Kategorien\n` +
-        `• ${settingsCount} Einstellungen\n` +
-        `• ${backgroundsCount} Hintergrundbilder\n` +
+        (userSettingsCount > 0 ? `• ${userSettingsCount} Benutzereinstellungen\n` : '') +
+        (backgroundsCount > 0 ? `• ${backgroundsCount} Hintergrundbilder\n` : '') +
         (hostsCount > 0 ? `• ${hostsCount} Terminal-Hosts\n` : '') +
         (servicesCount > 0 ? `• ${servicesCount} Proxy-Services\n` : '') +
         (sshHostsCount > 0 ? `• ${sshHostsCount} SSH-Hosts\n` : '') +
         (sshKeysCount > 0 ? `• ${sshKeysCount} SSH-Schlüssel\n` : '') +
-        (sshUploadLogsCount > 0 ? `• ${sshUploadLogsCount} SSH-Upload-Logs\n` : '') +
+        (sshFileTransfersCount > 0 ? `• ${sshFileTransfersCount} Dateiübertragungen (SSH)\n` : '') +
         (customCommandsCount > 0
           ? `• ${customCommandsCount} Eigene Kommandos\n`
           : '') +
         (usersCount > 0 ? `• ${usersCount} Benutzer\n` : '') +
         (auditLogsCount > 0 ? `• ${auditLogsCount} Audit-Log-Einträge\n` : '') +
+        (snmpMetricsCount > 0 ? `• ${snmpMetricsCount.toLocaleString()} Monitoring-Metriken\n` : '') +
+        (snmpInterfacesCount > 0 ? `• ${snmpInterfacesCount} Netzwerk-Interfaces\n` : '') +
         `• Version: ${backupVersion}\n` +
         `• Erstellt am: ${new Date(backupData.created_at).toLocaleString()}\n` +
         versionNote +
@@ -156,79 +177,76 @@ export class BackupService {
         return { success: false, message: 'Wiederherstellung abgebrochen' };
       }
 
-      // Perform restore with extended timeout for large files
-      const restoreResponse = await axios.post('/api/restore', backupData, {
-        timeout: 300000, // 5 Minuten Timeout für große Backups
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-
+      // Use SSE-enabled restore endpoint - it now has ALL features
+      try {
+        console.log('🚀 Using SSE-enabled restore endpoint...');
+        const sseResponse = await axios.post('/api/restore/progress/start', backupData, {
+          timeout: 10000, // Short timeout for immediate response
+        });
+        
+        console.log('📡 SSE Response:', sseResponse.data);
+        
+        // Check if this is a key validation error response
+        if (sseResponse.data.keyValidation && !sseResponse.data.keyValidation.isValid) {
+          console.log('❌ Key validation failed from backend');
+          return {
+            success: false,
+            requiresConfirmation: sseResponse.data.requiresConfirmation,
+            keyValidation: sseResponse.data.keyValidation,
+            message: sseResponse.data.keyValidation.message || 'Falscher Backup-Schlüssel'
+          };
         }
-      });
-      const result = restoreResponse.data;
-
-      let successMessage;
-
-      if (result.compatibility_mode && result.ssh_auto_initialized) {
-        successMessage =
-          `✅ Legacy-Backup erfolgreich wiederhergestellt!\n` +
-          `🔑 SSH-System wurde automatisch initialisiert!\n\n`;
-      } else if (result.compatibility_mode) {
-        successMessage = `✅ Legacy-Backup wiederhergestellt! (SSH-System nicht verfügbar)\n\n`;
-      } else {
-        successMessage = `✅ Backup erfolgreich wiederhergestellt!\n\n`;
+        
+        if (sseResponse.data.sessionId) {
+          console.log('✅ Using SSE-enabled restore, sessionId:', sseResponse.data.sessionId);
+          return {
+            success: true,
+            sessionId: sseResponse.data.sessionId,
+            totalItems: sseResponse.data.totalItems,
+            message: 'Restore started with real-time progress tracking'
+          };
+        } else {
+          throw new Error('No sessionId received from restore endpoint');
+        }
+      } catch (error) {
+        console.error('❌ Restore error:', error);
+        console.error('Full error response:', error.response?.data);
+        
+        // Check if it's a key validation error
+        if (error.response?.data?.keyValidation && !error.response.data.keyValidation.isValid) {
+          console.log('❌ Key validation error in catch block');
+          return {
+            success: false,
+            requiresConfirmation: error.response.data.requiresConfirmation,
+            keyValidation: error.response.data.keyValidation,
+            message: error.response.data.keyValidation.message || 'Falscher Backup-Schlüssel: Der eingegebene Schlüssel ist ungültig.'
+          };
+        }
+        
+        // Extract specific error message
+        let errorMessage = 'Wiederherstellung fehlgeschlagen';
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        // Make error message more specific if it's about decryption
+        if (errorMessage.toLowerCase().includes('ungültig') || 
+            errorMessage.toLowerCase().includes('schlüssel') ||
+            errorMessage.toLowerCase().includes('invalid') ||
+            errorMessage.toLowerCase().includes('decrypt') ||
+            errorMessage.toLowerCase().includes('key')) {
+          errorMessage = 'Falscher Backup-Schlüssel: Der eingegebene Schlüssel ist ungültig und die Daten können nicht entschlüsselt werden.';
+        }
+        
+        return {
+          success: false,
+          message: errorMessage
+        };
       }
-
-      let nextStepsMessage = '';
-      if (result.next_steps && result.next_steps.length > 0) {
-        nextStepsMessage =
-          `\n🚀 Nächste Schritte:\n` +
-          result.next_steps.map(step => `• ${step}`).join('\n') +
-          '\n';
-      }
-
-      return {
-        success: true,
-        message:
-          successMessage +
-          `📊 Wiederhergestellte Daten:\n` +
-          `• ${result.restored_appliances} Services\n` +
-          `• ${result.restored_categories} Kategorien\n` +
-          `• ${result.restored_settings} Einstellungen\n` +
-          `• ${result.restored_background_images} Hintergrundbilder\n` +
-          (result.restored_hosts > 0
-            ? `• ${result.restored_hosts} Terminal-Hosts\n`
-            : '') +
-          (result.restored_services > 0
-            ? `• ${result.restored_services} Proxy-Services\n`
-            : '') +
-          (result.restored_ssh_hosts > 0
-            ? `• ${result.restored_ssh_hosts} SSH-Hosts\n`
-            : '') +
-          (result.restored_ssh_keys > 0
-            ? `• ${result.restored_ssh_keys} SSH-Schlüssel\n`
-            : '') +
-          (result.restored_ssh_upload_logs > 0
-            ? `• ${result.restored_ssh_upload_logs} SSH-Upload-Logs\n`
-            : '') +
-          (result.restored_custom_commands > 0
-            ? `• ${result.restored_custom_commands} Eigene Kommandos\n`
-            : '') +
-          (result.restored_users > 0
-            ? `• ${result.restored_users} Benutzer verarbeitet` +
-              (result.restored_users_new > 0
-                ? ` (${result.restored_users_new} neu)`
-                : '') +
-              '\n'
-            : '') +
-          (result.restored_audit_logs > 0
-            ? `• ${result.restored_audit_logs} Audit-Log-Einträge\n`
-            : '') +
-          nextStepsMessage +
-          `\n🔄 Die Seite wird neu geladen...`,
-        reloadRequired: true,
-        sshReady: result.ssh_ready || false,
-        sshAutoInitialized: result.ssh_auto_initialized || false,
-      };
     } catch (error) {
       if (error.response && error.response.data && error.response.data.error) {
         return {
@@ -241,6 +259,35 @@ export class BackupService {
       return {
         success: false,
         message: 'Fehler beim Verarbeiten des Backups:\n\n' + error.message,
+      };
+    }
+  }
+
+  static async selectiveImport(filteredData, decryptionKey) {
+    try {
+      const authToken = localStorage.getItem('token');
+      
+      // Add decryption key if provided
+      if (decryptionKey) {
+        filteredData.decryption_key = decryptionKey;
+      }
+      
+      const response = await axios.post('/api/selective-import', filteredData, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Selective import error:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        success: false,
+        message: 'Selective import failed: ' + error.message
       };
     }
   }

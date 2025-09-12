@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import UnifiedPanelHeader from '../UnifiedPanelHeader';
 import SSHKeyManagement from '../SettingsPanel/SSHKeyManagement';
+import HostMonitoringTab from './HostMonitoringTab';
+import MetricsHistory from './MetricsHistory';
 import sseService from '../../services/sseService';
 import { usePanelResize, getPanelStyles, getResizeHandleStyles } from '../../hooks/usePanelResize';
 import {
@@ -46,6 +48,15 @@ import {
   Plus,
   Edit2,
   Server,
+  Activity,
+  Cpu,
+  MemoryStick,
+  HardDrive,
+  Network,
+  Thermometer,
+  Clock,
+  RefreshCw,
+  CheckCircle,
 } from 'lucide-react';
 import SimpleIcon from '../SimpleIcon';
 import IconSelector from '../IconSelector';
@@ -73,6 +84,11 @@ const HostPanel = ({
   const [registeringKey, setRegisteringKey] = useState(false);
   const [checkingRustDeskStatus, setCheckingRustDeskStatus] = useState(false);
   const [showRustDeskInstaller, setShowRustDeskInstaller] = useState(false);
+  const [metricsHasChanges, setMetricsHasChanges] = useState(false);
+  const [pendingMetricsConfig, setPendingMetricsConfig] = useState(null);
+  
+  // Ref for HostMonitoringTab to access save method
+  const monitoringTabRef = useRef();
   
   // Use the unified resize hook
   const { panelWidth, isResizing, startResize, panelRef } = usePanelResize(
@@ -83,6 +99,7 @@ const HostPanel = ({
 
   // Store original data for comparison
   const [originalFormData, setOriginalFormData] = useState(null);
+  const [originalSnmpConfig, setOriginalSnmpConfig] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -113,6 +130,33 @@ const HostPanel = ({
   const [sshKeys, setSshKeys] = useState([]);
   const [selectedKey, setSelectedKey] = useState(null);
 
+  // SNMP Monitoring state
+  const [snmpConfig, setSnmpConfig] = useState({
+    enabled: false,
+    version: '2c',
+    community: 'public',
+    port: 161,
+    username: '',
+    authProtocol: 'SHA',
+    authPassword: '',
+    privProtocol: 'AES',
+    privPassword: '',
+    pollInterval: 60,
+  });
+  const [monitoringData, setMonitoringData] = useState({
+    status: 'offline',
+    lastUpdate: null,
+    metrics: {
+      cpu: null,
+      memory: null,
+      disk: [],
+      network: [],
+      temperature: null,
+      uptime: null,
+    }
+  });
+  const [testingConnection, setTestingConnection] = useState(false);
+
   // Theme and UI Settings state
   const [currentTheme, setCurrentTheme] = useState('dark');
   const [uiSettings, setUiSettings] = useState({
@@ -122,6 +166,123 @@ const HostPanel = ({
     inputTransparency: 95,
     inputTint: 0
   });
+
+  // Load SNMP configuration for host
+  const loadSNMPConfig = async () => {
+    if (!host?.id) return;
+
+    try {
+      const response = await axios.get(`/api/hosts/${host.id}/snmp-config`);
+
+      if (response.data?.config) {
+        setSnmpConfig(response.data.config);
+        setOriginalSnmpConfig(response.data.config);  // Save original for comparison
+
+        if (response.data.config.enabled) {
+          loadMonitoringData();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load SNMP config:', err);
+    }
+  };
+
+  // Load monitoring data
+  const loadMonitoringData = async () => {
+    if (!host?.id) return;
+    
+    try {
+      const response = await axios.get(`/api/hosts/${host.id}/monitoring-data`);
+      setMonitoringData(response.data);
+    } catch (err) {
+      console.error('Failed to load monitoring data:', err);
+    }
+  };
+
+  // Test SNMP connection
+  const handleTestSNMPConnection = async () => {
+    setTestingConnection(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const response = await axios.post(`/api/hosts/${host.id}/snmp-test`, snmpConfig);
+      
+      if (response.data?.success) {
+        setSuccess(t('monitoring.testSuccess'));
+        loadMonitoringData();
+      } else {
+        setError(response.data?.error || t('monitoring.testFailed'));
+      }
+    } catch (err) {
+      setError(t('monitoring.testFailed'));
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  // Handle SNMP config changes without updating original
+  const handleSnmpConfigChange = (newConfig) => {
+    // Check if this is a metrics change
+    if (newConfig.type === 'metrics') {
+
+      setMetricsHasChanges(newConfig.hasChanges);
+      // Store the pending config
+      setPendingMetricsConfig({
+        config: newConfig.config,
+        customNames: newConfig.customNames
+      });
+    } else {
+      // Regular SNMP config change
+
+      setSnmpConfig(newConfig);
+    }
+    // Don't update originalSnmpConfig here - only after save!
+  };
+
+  // Save SNMP configuration
+  const handleSaveSNMPConfig = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      await axios.put(`/api/hosts/${host.id}/snmp-config`, snmpConfig);
+      setSuccess(t('monitoring.configSaved'));
+      if (snmpConfig.enabled) {
+        loadMonitoringData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || t('monitoring.saveFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format helper functions for monitoring display
+  const formatUptime = (seconds) => {
+    if (!seconds) return 'N/A';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    return parts.join(' ') || '< 1m';
+  };
+
+  const formatBytes = (bytes) => {
+    if (!bytes) return 'N/A';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = bytes;
+    let unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex++;
+    }
+    return `${value.toFixed(1)} ${units[unitIndex]}`;
+  };
 
   // Monitor theme changes
   useEffect(() => {
@@ -337,11 +498,12 @@ const HostPanel = ({
       // Set selected key if host has one - wird in fetchSSHKeys nochmal validiert
       if (host.sshKeyName) {
         setSelectedKey(host.sshKeyName);
-
       } else {
         setSelectedKey(null);
-
       }
+      
+      // Load SNMP configuration for existing hosts
+      loadSNMPConfig();
     } else if (host?.isNew) {
       // Bei neuen Hosts: Default-Werte setzen
       // Dashboard-Schlüssel wird in fetchSSHKeys gesetzt
@@ -712,6 +874,45 @@ const HostPanel = ({
         return;
       }
 
+      // Save metrics configuration if there are changes
+      if (metricsHasChanges && pendingMetricsConfig && host?.id) {
+
+        try {
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          
+          if (!token) {
+            console.error('❌ No token found for metrics save');
+            setError('Authentication required for metrics configuration');
+          } else {
+            const headers = {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            };
+
+            const response = await fetch(`/api/hosts/${host.id}/metrics-logging`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(pendingMetricsConfig)
+            });
+
+            if (response.ok) {
+
+              setMetricsHasChanges(false);
+              setPendingMetricsConfig(null);
+            } else {
+              const error = await response.text();
+              console.error('❌ Failed to save metrics:', error);
+              setError('Failed to save metrics configuration');
+            }
+          }
+        } catch (err) {
+          console.error('❌ Error saving metrics configuration:', err);
+          setError('Failed to save metrics configuration');
+        }
+      } else {
+
+      }
+
       let dataToSave;
       
       if (host?.isNew) {
@@ -749,15 +950,41 @@ const HostPanel = ({
         // For existing hosts, get only changed fields
         const changedFields = getChangedFields(originalFormData, formData);
         
-        // Debug: Log what getChangedFields returns
+        // Check if SNMP config has changed (separate from host fields)
 
-        // Check if there are any changes
-        if (Object.keys(changedFields).length === 0) {
+        const snmpConfigChanged = snmpConfig && (
+          snmpConfig.enabled !== originalSnmpConfig?.enabled ||
+          snmpConfig.version !== originalSnmpConfig?.version ||
+          snmpConfig.community !== originalSnmpConfig?.community ||
+          snmpConfig.port !== originalSnmpConfig?.port ||
+          snmpConfig.pollInterval !== originalSnmpConfig?.pollInterval
+        );
+
+        // Check if there are any changes (host fields OR SNMP config OR metrics)
+        if (Object.keys(changedFields).length === 0 && !snmpConfigChanged && !metricsHasChanges) {
           setSuccess(true);
           setError('Keine Änderungen vorhanden');
           setTimeout(() => setError(null), 2000);
           setLoading(false);
           return;
+        }
+        
+        // If only SNMP config changed, we still need to save it
+        if (Object.keys(changedFields).length === 0 && snmpConfigChanged) {
+          // Just save SNMP config
+          try {
+
+            await axios.put(`/api/hosts/${host.id}/snmp-config`, snmpConfig);
+            setSuccess(true);
+            setOriginalSnmpConfig({ ...snmpConfig });
+            setLoading(false);
+            return;
+          } catch (snmpErr) {
+            console.error('Failed to save SNMP config:', snmpErr);
+            setError('Failed to save SNMP configuration');
+            setLoading(false);
+            return;
+          }
         }
         
         // Transform changed fields to backend format
@@ -787,7 +1014,19 @@ const HostPanel = ({
       if (host?.isNew) {
         const response = await axios.post('/api/hosts', dataToSave);
         if (response.data.success) {
+          // Save SNMP config for new host if enabled
+          if (snmpConfig.enabled) {
+            try {
+              await axios.put(`/api/hosts/${response.data.host.id}/snmp-config`, snmpConfig);
+            } catch (snmpErr) {
+              console.error('Failed to save SNMP config:', snmpErr);
+              // Don't fail the whole save, just log the error
+            }
+          }
           setSuccess(true);
+          setOriginalSnmpConfig({ ...snmpConfig });  // Save SNMP config as original
+          setMetricsHasChanges(false);  // Reset metrics change flag
+          setPendingMetricsConfig(null);  // Clear pending config
           onSave(response.data.host.id, response.data.host);
           // Panel bleibt offen - kein onClose()
         }
@@ -795,9 +1034,19 @@ const HostPanel = ({
         // Use PATCH for partial updates
         const response = await axios.patch(`/api/hosts/${host.id}`, dataToSave);
         if (response.data.success) {
+          // Save SNMP config for existing host
+          try {
+            await axios.put(`/api/hosts/${host.id}/snmp-config`, snmpConfig);
+          } catch (snmpErr) {
+            console.error('Failed to save SNMP config:', snmpErr);
+            // Don't fail the whole save, just log the error
+          }
           setSuccess(true);
           // Update original data after successful save
           setOriginalFormData({ ...formData, sshKeyName: selectedKey });
+          setOriginalSnmpConfig({ ...snmpConfig });  // Update original SNMP config too
+          setMetricsHasChanges(false);  // Reset metrics change flag
+          setPendingMetricsConfig(null);  // Clear pending config
           const updatedHost = response.data.host || { ...host, ...dataToSave };
           onSave(host.id, updatedHost);
           // Panel bleibt offen - kein onClose()
@@ -870,8 +1119,14 @@ const HostPanel = ({
               textTransform: 'none',
               minHeight: 48,
               color: 'var(--text-secondary)',
+              flexDirection: 'row',
+              gap: 1,
               '&.Mui-selected': {
                 color: 'var(--primary-color)',
+              },
+              '& .MuiTab-iconWrapper': {
+                marginBottom: 0,
+                marginRight: 0.5,
               },
             },
             '& .MuiTabs-indicator': {
@@ -879,8 +1134,21 @@ const HostPanel = ({
             },
           }}
         >
-          <Tab label={t('hosts.tabs.general')} />
-          <Tab label={t('hosts.tabs.sshKeys')} />
+          <Tab 
+            label={t('hosts.tabs.general')} 
+            icon={<Server size={16} />} 
+            iconPosition="start"
+          />
+          <Tab 
+            label={t('hosts.tabs.sshKeys')} 
+            icon={<Key size={16} />} 
+            iconPosition="start"
+          />
+          <Tab 
+            label={t('monitoring.metricsHistory')} 
+            icon={<Activity size={16} />} 
+            iconPosition="start"
+          />
         </Tabs>
       </Box>
 
@@ -975,7 +1243,7 @@ const HostPanel = ({
                   <InputLabel 
                     id="ssh-key-select-label"
                   >
-                  >
+                  
                     {t('hosts.sshKey')}
                   </InputLabel>
                   <Select
@@ -1161,6 +1429,23 @@ const HostPanel = ({
                     }}
                   />
                 </Box>
+              </CardContent>
+            </Card>
+
+            {/* SNMP Monitoring Card */}
+            <Card className="settings-card" sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
+                  {t('hosts.sections.monitoring')}
+                </Typography>
+                <HostMonitoringTab 
+                  ref={monitoringTabRef}
+                  host={host} 
+                  getInputStyles={getInputStyles}
+                  asCard={true}
+                  snmpConfig={snmpConfig}
+                  onConfigChange={handleSnmpConfigChange}
+                />
               </CardContent>
             </Card>
 
@@ -1375,6 +1660,13 @@ const HostPanel = ({
               }}
               adminMode={adminMode}
             />
+          </Box>
+        )}
+        
+        {/* Tab 2: Metrics History */}
+        {activeTab === 2 && (
+          <Box sx={{ height: '100%', overflow: 'auto' }}>
+            <MetricsHistory host={host} />
           </Box>
         )}
       </Box>

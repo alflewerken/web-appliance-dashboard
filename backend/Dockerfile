@@ -56,7 +56,7 @@ RUN npm install --only=production --omit=dev && \
 COPY . .
 
 # Stelle sicher, dass Scripts ausführbar sind
-RUN chmod +x post-restore-hook.sh regenerate-ssh-config.js 2>/dev/null || true
+RUN chmod +x post-restore-hook.sh regenerate-ssh-config.js docker-startup.sh polling-worker.js 2>/dev/null || true
 
 # Erstelle Upload-Verzeichnisse
 RUN mkdir -p uploads/backgrounds && \
@@ -69,8 +69,8 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Starte die Anwendung
-CMD ["node", "server.js"]
+# Starte die Anwendung mit dem Startup-Script (enthält Main App + Polling Service)
+CMD ["bash", "docker-startup.sh"]
 
 # Docker Labels für bessere Organisation
 LABEL maintainer="Web Appliance Dashboard"

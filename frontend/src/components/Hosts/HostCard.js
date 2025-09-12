@@ -67,8 +67,7 @@ const HostCard = ({
       
       // Debug logging für iOS
       if (isIOS) {
-        console.log('[HostCard] iOS detected - Touch mode enabled');
-        console.log('[HostCard] hasTouch:', hasTouch, 'hasHover:', hasHover);
+
       }
     };
 
@@ -88,7 +87,7 @@ const HostCard = ({
     } else if (isTouchDevice) {
       // Auf Touch-Geräten: Wenn aktiv, dann automatisch touched setzen
       setWasTouched(true);
-      console.log(`[HostCard ${host.name}] Active on touch device - buttons should be visible`);
+
     }
   }, [isActive, isTouchDevice, host.name]);
   
@@ -142,13 +141,7 @@ const HostCard = ({
   // Debug: Log button visibility state
   useEffect(() => {
     if (isTouchDevice) {
-      console.log(`[HostCard ${host.name}] Button visibility:`, {
-        isTouchDevice,
-        isActive,
-        wasTouched,
-        shouldShowButtons: !isTouchDevice || isActive || wasTouched,
-        className: (isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : 'visible-buttons'
-      });
+
     }
   }, [isTouchDevice, isActive, wasTouched, host.name]);
 
@@ -187,6 +180,7 @@ const HostCard = ({
           }}
         >
           {/* Card Cover with Icon */}
+          {/* Card Cover with Icon */}
           <div className="card-cover">
             {/* Main Icon */}
             <div className="card-icon">
@@ -195,15 +189,16 @@ const HostCard = ({
                 size="100%" 
               />
             </div>
+          </div>
             
-            {/* Left Button Column - Edit Button */}
-            {/* Show buttons based on touch state and active state - Desktop relies on CSS hover */}
-            <div 
-              className={`card-buttons-left ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : ''}`}
-              style={{
-                pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
-              }}
-            >
+          {/* Left Button Column - Edit Button */}
+          {/* Show buttons based on touch state and active state - Desktop relies on CSS hover */}
+          <div 
+            className={`card-buttons-left ${(isTouchDevice && !isActive && !wasTouched) ? 'hidden-buttons' : ''}`}
+            style={{
+              pointerEvents: (isTouchDevice && !isActive && !wasTouched) ? 'none' : 'auto'
+            }}
+          >
                 <Tooltip title="Host bearbeiten">
                   <IconButton
                     onClick={handleEdit}
@@ -316,7 +311,6 @@ const HostCard = ({
                     <Upload size={16} />
                   </IconButton>
                 </Tooltip>
-              </div>
           </div>
           
           {/* Title with dark background */}

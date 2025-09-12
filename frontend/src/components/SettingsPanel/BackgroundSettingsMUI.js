@@ -148,7 +148,7 @@ const BackgroundSettingsMUI = ({
           window.dispatchEvent(new Event('uiSettingsChanged'));
         }
       } catch (error) {
-        console.log('Using default UI settings');
+
       }
     };
     

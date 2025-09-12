@@ -16,11 +16,26 @@ fi
 
 # 2. Quick database check (5 second timeout)
 echo "⏳ Checking database..."
-if timeout 5s mysqladmin ping -h database -u dashboard_user -pdashboard_pass123 --silent 2>/dev/null; then
-  echo "✅ Database is ready"
+# Use environment variables for credentials
+DB_HOST="${DB_HOST:-database}"
+DB_USER="${DB_USER:-dashboard_user}"
+DB_PASSWORD="${DB_PASSWORD}"
+
+if [ -z "$DB_PASSWORD" ]; then
+  echo "⚠️ DB_PASSWORD not set, skipping database check"
 else
-  echo "⚠️ Database not immediately available"
-  exit 0  # Exit gracefully, don't block
+  if timeout 5s mysqladmin ping -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" --silent 2>/dev/null; then
+    echo "✅ Database is ready"
+  else
+    echo "⚠️ Database not immediately available"
+    # Wait a bit and try again
+    sleep 3
+    if timeout 5s mysqladmin ping -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" --silent 2>/dev/null; then
+      echo "✅ Database is ready after retry"
+    else
+      echo "⚠️ Database still not available, continuing anyway"
+    fi
+  fi
 fi
 
 # 3. Restore SSH keys from database to filesystem

@@ -252,9 +252,7 @@
 .card-buttons-left,
 .card-buttons-right {
   position: absolute;
-  --content-height: calc(var(--card-size) * 0.65);
-  top: calc(var(--content-height) / 2);
-  transform: translateY(-50%);
+  top: 12px;  /* Feste Position von oben statt center */
   display: flex;
   flex-direction: column;
   gap: clamp(3px, calc(var(--card-size) * 0.03), 8px);

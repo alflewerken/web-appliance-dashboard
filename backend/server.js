@@ -23,6 +23,7 @@ const categoriesRouter = require('./routes/categories');
 const settingsRouter = require('./routes/settings');
 const backgroundRouter = require('./routes/background');
 const backupRouter = require('./routes/backup');
+const restoreProgressRouter = require('./routes/restoreProgress');
 // const servicesRouter = require('./routes/services'); // Removed - using applianceProxy instead
 const terminalTokenRouter = require('./routes/terminalToken');
 const { router: terminalRouter } = require('./routes/terminal');
@@ -146,8 +147,15 @@ app.use('/api/services', verifyToken, servicesRouter);
 // SSE route MUST be before general API routes to avoid conflicts
 app.use('/api/sse', sseRouter); // SSE doesn't need verifyToken middleware because it uses query param
 
+// SSE route for restore progress MUST also be before general API routes (no verifyToken needed as it uses sessionId)
+app.use('/api/restore/progress', restoreProgressRouter);
+
 // Configuration Routes
 const configRouter = require('./routes/config');
+
+// Polling Service Routes
+const pollingServiceRouter = require('./routes/pollingService');
+app.use('/api/polling', verifyToken, pollingServiceRouter);
 app.use('/api/config', verifyToken, configRouter);
 
 app.use('/api/terminal', verifyToken, terminalRouter);
@@ -158,9 +166,28 @@ app.use('/api/commands', verifyToken, commandsRouter);
 app.use('/api/audit-logs', verifyToken, auditLogsRouter);
 app.use('/api/auditRestore', verifyToken, auditRestoreRouter);
 
+// Import QueryBuilder
+const QueryBuilder = require('./utils/QueryBuilder');
+const SSEManager = require('./services/SSEManager');
+
+// Initialize QueryBuilder with pool
+const queryBuilder = new QueryBuilder(pool);
+
+// Start SSE heartbeat
+SSEManager.startHeartbeat();
+
 // Hosts routes
 const hostsRouter = require('./routes/hosts');
 app.use('/api/hosts', verifyToken, hostsRouter);
+
+// Metrics History routes
+const metricsHistoryRouter = require('./routes/metricsHistory');
+app.use('/api/metrics-history', verifyToken, metricsHistoryRouter);
+
+// Host Monitoring Routes
+const initHostMonitoring = require('./routes/hostMonitoring');
+const hostMonitoringRouter = initHostMonitoring(queryBuilder);
+app.use('/api', verifyToken, hostMonitoringRouter);
 
 // SSH Keys routes
 const sshKeysRouter = require('./routes/sshKeys');
@@ -170,7 +197,16 @@ app.use('/api/sshKeys', verifyToken, sshKeysRouter);
 const sshRouter = require('./routes/ssh');
 app.use('/api/ssh', verifyToken, sshRouter);
 
-app.use('/api/restore', verifyToken, restoreRouter);
+// SNMP Monitoring routes
+const initSNMPMonitor = require('./routes/snmp');
+const snmpRouter = initSNMPMonitor(queryBuilder);
+app.use('/api/snmp', snmpRouter);
+
+// Mount backup routes - includes /api/restore for full backup restore
+app.use('/api', verifyToken, backupRouter);
+
+// Mount audit restore routes AFTER backup - for individual audit log restore
+app.use('/api/audit', verifyToken, restoreRouter);
 app.use('/api/guacamole', verifyToken, guacamoleRouter); // Guacamole Integration
 
 // RustDesk Integration
@@ -184,9 +220,6 @@ app.use('/api/rustdeskInstall', rustdeskInstallRouter);
 // Network Proxy Routes (transparent proxy) - MUST be after specific routes
 const networkProxyRouter = require('./routes/networkProxy');
 app.use('/api', verifyToken, networkProxyRouter);
-
-// Mount backup routes - also require auth
-app.use('/api', verifyToken, backupRouter);
 
 // ====================================================================
 // ERROR HANDLING MIDDLEWARE
@@ -227,9 +260,26 @@ server.listen(PORT, async () => {
 
   // Use robust initialization sequence
   initializeServices()
-    .then(success => {
+    .then(async success => {
       if (success) {
         logger.info('All services initialized successfully');
+        
+        // Start delayed SSH key restoration service
+        const { startDelayedRestore } = require('./utils/delayed-ssh-restore');
+        startDelayedRestore().catch(err => {
+          logger.error('Failed to start delayed SSH restore:', err);
+        });
+        
+        // Start the status checker for service and host monitoring
+        try {
+          await statusChecker.start();
+          logger.info('Status checker started successfully');
+        } catch (error) {
+          logger.error('Failed to start status checker:', error);
+        }
+        
+        // SNMP Polling Service is started by docker-startup.sh
+        // Don't start it here to avoid duplicate processes
       } else {
         logger.warn('Some services failed to initialize');
       }

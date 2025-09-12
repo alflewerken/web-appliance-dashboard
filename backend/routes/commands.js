@@ -23,21 +23,70 @@ const db = new QueryBuilder(pool);
 async function getSSHKeyFromDatabase(keyName, userId = null) {
   try {
     // Get SSH key from ssh_keys table
+    // WICHTIG: Suche den Key des aktuellen Benutzers!
     const [sshKeys] = await pool.execute(
-      `SELECT id, key_name, private_key 
+      `SELECT id, key_name, private_key, created_by 
        FROM ssh_keys 
-       WHERE key_name = ? 
-       ORDER BY (created_by = ?) DESC, id DESC
+       WHERE key_name = ? AND created_by = ?
        LIMIT 1`,
       [keyName || 'dashboard', userId || 1]
     );
     
     if (!sshKeys || sshKeys.length === 0) {
-      console.error(`SSH key '${keyName}' not found in database`);
+      console.error(`SSH key '${keyName}' not found for user ${userId} in database`);
+      
+      // Fallback: Try to find any key with this name (for backward compatibility)
+      const [fallbackKeys] = await pool.execute(
+        `SELECT id, key_name, private_key, created_by 
+         FROM ssh_keys 
+         WHERE key_name = ?
+         ORDER BY created_by DESC
+         LIMIT 1`,
+        [keyName || 'dashboard']
+      );
+      
+      if (fallbackKeys && fallbackKeys.length > 0) {
+        console.warn(`Using fallback SSH key '${keyName}' from user ${fallbackKeys[0].created_by}`);
+        const sshKey = fallbackKeys[0];
+        
+        // Check if key is encrypted or plain text
+        let privateKey;
+        if (sshKey.private_key.startsWith('-----BEGIN')) {
+          // Key is already in plain text
+          privateKey = sshKey.private_key;
+        } else {
+          // Try to decrypt the key
+          privateKey = decrypt(sshKey.private_key);
+          if (!privateKey) {
+            console.error(`Failed to decrypt SSH key '${sshKey.key_name}'`);
+            return null;
+          }
+        }
+        
+        // Create temporary file for SSH key
+        const tempDir = '/tmp/ssh-keys';
+        await fs.mkdir(tempDir, { recursive: true, mode: 0o700 });
+        
+        const tempKeyPath = path.join(tempDir, `cmd_key_${keyName}_user${fallbackKeys[0].created_by}_${Date.now()}`);
+        await fs.writeFile(tempKeyPath, privateKey, { mode: 0o600 });
+        
+        return {
+          keyPath: tempKeyPath,
+          cleanup: async () => {
+            try {
+              await fs.unlink(tempKeyPath);
+            } catch (error) {
+              // Ignore cleanup errors
+            }
+          }
+        };
+      }
+      
       return null;
     }
     
     const sshKey = sshKeys[0];
+    console.log(`Found SSH key '${keyName}' for user ${userId} (key ID: ${sshKey.id})`);
 
     // Check if key is encrypted or plain text
     let privateKey;
@@ -57,7 +106,7 @@ async function getSSHKeyFromDatabase(keyName, userId = null) {
     const tempDir = '/tmp/ssh-keys';
     await fs.mkdir(tempDir, { recursive: true, mode: 0o700 });
     
-    const tempKeyPath = path.join(tempDir, `cmd_key_${keyName}_${Date.now()}`);
+    const tempKeyPath = path.join(tempDir, `cmd_key_${keyName}_user${userId}_${Date.now()}`);
     await fs.writeFile(tempKeyPath, privateKey, { mode: 0o600 });
     
     return {
@@ -66,7 +115,7 @@ async function getSSHKeyFromDatabase(keyName, userId = null) {
         try {
           await fs.unlink(tempKeyPath);
         } catch (error) {
-
+          // Ignore cleanup errors
         }
       }
     };
@@ -326,7 +375,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
           port: command_ssh_port || 22,
           keyName: command_ssh_key_name || 'dashboard',
         };
-        console.log(`Using command-specific SSH host: ${command_ssh_username}@${command_ssh_host}:${command_ssh_port || 22}`);
+
       } 
       // PRIORITY 2: Use appliance SSH connection string
       else if (appliance_ssh_connection) {
@@ -338,7 +387,7 @@ router.post('/:applianceId/:commandId/execute', async (req, res) => {
           port,
           keyName: 'dashboard',
         };
-        console.log(`Using appliance SSH connection: ${appliance_ssh_connection}`);
+
       }
 
       if (sshConnection) {

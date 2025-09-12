@@ -8,7 +8,7 @@ import {
   Users,
   Monitor,
   LogOut,
-  FileText,
+  FileText
 } from 'lucide-react';
 import { getCategoryCount } from '../utils/applianceUtils';
 import { useAuth } from '../contexts/AuthContext';
@@ -229,10 +229,6 @@ const AppSidebar = ({
                   const categoryColor = iconContainerColor;
                   const categoryRgb = hexToRgb(categoryColor);
 
-                  // Debug nur für Monitoring
-                  if (category.id === 'monitoring') {
-                    }
-
                   return (
                     <div
                       key={category.id}
@@ -398,10 +394,6 @@ const AppSidebar = ({
                 const count = getCategoryCount(category.id, appliances);
                 const categoryColor = category.color || '#007AFF';
                 const categoryRgb = hexToRgb(categoryColor);
-
-                // Debug nur für Monitoring
-                if (category.id === 'monitoring') {
-                  }
 
                 return (
                   <div

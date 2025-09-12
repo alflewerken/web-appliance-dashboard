@@ -981,7 +981,7 @@ const ApplianceCard = ({
                         return '#FF9500'; // Gelb/Orange - Service hat Probleme
                       case 'unknown':
                       default:
-                        return '#FF3B30'; // Rot als Default (sicherer)
+                        return '#8E8E93'; // Grau - Status unbekannt
                     }
                   })(),
                   borderRadius: '0 0 16px 16px',

@@ -1,0 +1,34 @@
+/* Host Monitoring Tab Styles */
+
+/* Pulse animations for test button */
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.6), 0 0 30px rgba(76, 175, 80, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+  }
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 10px rgba(244, 67, 54, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(244, 67, 54, 0.6), 0 0 30px rgba(244, 67, 54, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(244, 67, 54, 0.3);
+  }
+}
+
+.test-button-success {
+  animation: pulse-green 2s ease-out !important;
+}
+
+.test-button-error {
+  animation: pulse-red 2s ease-out !important;
+}

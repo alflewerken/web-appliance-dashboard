@@ -700,11 +700,9 @@ const ServicePanel = ({
         dataToSave = { ...dataWithVisualSettings };
       } else {
         // For existing appliances, send only changed fields
-        console.log('[ServicePanel] Original form data:', originalFormData);
-        console.log('[ServicePanel] Current data with visual:', dataWithVisualSettings);
+
         dataToSave = getChangedFields(originalFormData, dataWithVisualSettings);
-        console.log('[ServicePanel] Changed fields detected:', dataToSave);
-        
+
         // Check if there are any changes
         if (Object.keys(dataToSave).length === 0) {
           setSuccess('Keine Änderungen vorhanden');
@@ -719,9 +717,6 @@ const ServicePanel = ({
       }
       
       // Debug logging to see what fields are being sent
-      console.log('[ServicePanel] Sending data to save:', dataToSave);
-      console.log('[ServicePanel] Visual settings:', visualSettings);
-      console.log('[ServicePanel] Merged data:', dataWithVisualSettings);
 
       await onSave(appliance?.id, dataToSave);
       

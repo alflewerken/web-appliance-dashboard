@@ -24,6 +24,7 @@ import {
 const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
   const [encryptionKey, setEncryptionKey] = useState('');
   const [skipDecryption, setSkipDecryption] = useState(false);
+  const [restoreSnmpMetrics, setRestoreSnmpMetrics] = useState(true);  // Default: true für vollständigen Restore
   const [error, setError] = useState('');
 
   const handleRestore = () => {
@@ -32,13 +33,14 @@ const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
       return;
     }
     
-    onRestore(skipDecryption ? null : encryptionKey.trim());
+    onRestore(skipDecryption ? null : encryptionKey.trim(), restoreSnmpMetrics);
     handleClose();
   };
 
   const handleClose = () => {
     setEncryptionKey('');
     setSkipDecryption(false);
+    setRestoreSnmpMetrics(true);  // Reset auf true für nächsten Restore
     setError('');
     onClose();
   };
@@ -234,6 +236,42 @@ const RestoreKeyDialog = ({ open, onClose, onRestore, fileName }) => {
             </Typography>
           </Alert>
         )}
+
+        <Paper
+          elevation={3}
+          sx={{
+            p: 2,
+            mt: 2,
+            backgroundColor: 'rgba(33, 150, 243, 0.05)',
+            border: '1px solid rgba(33, 150, 243, 0.2)',
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={restoreSnmpMetrics}
+                onChange={(e) => setRestoreSnmpMetrics(e.target.checked)}
+                sx={{
+                  color: 'rgba(33, 150, 243, 0.8)',
+                  '&.Mui-checked': {
+                    color: '#29B6F6',
+                  },
+                }}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  SNMP-Metriken wiederherstellen
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Historische Monitoring-Daten und Metriken können sehr umfangreich sein.
+                  Deaktivieren Sie diese Option für einen schnelleren Restore.
+                </Typography>
+              </Box>
+            }
+          />
+        </Paper>
       </DialogContent>
 
       <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>

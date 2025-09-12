@@ -54,6 +54,13 @@ const fieldMappings = {
     encryptedFields: ['passphrase_hash']
   },
   
+  // Host metrics logging table
+  host_metrics_logging: {
+    dateFields: ['created_at', 'updated_at'],
+    intFields: ['host_id'],
+    jsonFields: ['config', 'custom_names']
+  },
+  
   // Appliances table - COMPLETE MAPPING
   appliances: {
     booleanFields: [

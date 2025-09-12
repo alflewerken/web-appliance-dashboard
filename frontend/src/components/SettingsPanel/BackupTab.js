@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box,
@@ -22,8 +22,11 @@ import {
 } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 import { BackupService } from '../../services/backupService';
+import { useRestoreWithValidation } from '../../hooks/useRestoreWithValidation';
 import EncryptionKeyDialog from './EncryptionKeyDialog';
 import RestoreKeyDialog from './RestoreKeyDialog';
+import InvalidKeyDialog from './InvalidKeyDialog';
+import RestoreProgressDialog from './RestoreProgressDialog';
 import './BackupTab.css';
 
 // Animation definitions
@@ -54,103 +57,184 @@ const floatAnimation = keyframes`
   }
 `;
 
-const BackupTab = () => {
+export default function BackupTab() {
   const { t } = useTranslation();
-  const [createLoading, setCreateLoading] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [encryptionKey, setEncryptionKey] = useState('');
   const [showEncryptionDialog, setShowEncryptionDialog] = useState(false);
   const [showRestoreKeyDialog, setShowRestoreKeyDialog] = useState(false);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [restoreItemCounts, setRestoreItemCounts] = useState({});
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
+  const [restoreSessionId, setRestoreSessionId] = useState(null);
+  
+  // Use the centralized restore hook
+  const {
+    validateAndRestore,
+    isProcessing,
+    showInvalidKeyDialog,
+    invalidKeyHandlers
+  } = useRestoreWithValidation();
+  
+  const fileInputRef = useRef();
 
-  const handleCreateBackup = async () => {
-    try {
-      setCreateLoading(true);
-      const result = await BackupService.createBackup();
-      if (result.success) {
-        setSuccess(result.message);
-        // Show encryption key dialog if key is provided
-        if (result.encryptionKey) {
-          setEncryptionKey(result.encryptionKey);
-          setShowEncryptionDialog(true);
-        }
-        setTimeout(() => setSuccess(''), 5000);
-      } else {
-        setError(result.message);
+  // Load backup statistics
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await BackupService.getBackupStats();
+        setStats(data);
+      } catch (err) {
+        console.error('Error loading backup stats:', err);
+      } finally {
+        setStatsLoading(false);
       }
-    } catch (error) {
-      setError(t('backup.createError') + ': ' + error.message);
+    };
+
+    loadStats();
+  }, []);
+
+  // Create backup
+  const handleCreateBackup = async () => {
+    setCreatingBackup(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const result = await BackupService.createBackup();
+      if (result.encryptionKey) {
+        setEncryptionKey(result.encryptionKey);
+        setShowEncryptionDialog(true);
+      }
+      setSuccess(t('backup.createSuccess'));
+    } catch (err) {
+      setError(err.message || t('backup.createError'));
     } finally {
-      setCreateLoading(false);
+      setCreatingBackup(false);
     }
   };
 
+  // Handle restore with key using centralized validation
+  const handleRestoreWithKey = async (decryptionKey, restoreSnmpMetrics) => {
+    console.log('🔑 handleRestoreWithKey called');
+    setShowRestoreKeyDialog(false);
+    
+    if (!pendingRestoreFile) return;
+    
+    const result = await validateAndRestore(
+      pendingRestoreFile,
+      decryptionKey,
+      {
+        restoreSnmpMetrics,
+        onSuccess: (result) => {
+          if (result.sessionId) {
+            setRestoreSessionId(result.sessionId);
+            setShowProgressDialog(true);
+          } else {
+            setSuccess(result.message || 'Restore successful');
+            if (result.reloadRequired) {
+              setTimeout(() => window.location.reload(), 3000);
+            }
+          }
+        },
+        onError: (errorMsg) => {
+          // Don't add prefix if message already describes the error clearly
+          if (errorMsg.includes('Schlüssel') || errorMsg.includes('decrypt') || 
+              errorMsg.includes('autorisiert') || errorMsg.includes('Backup')) {
+            setError(errorMsg);
+          } else {
+            setError('Fehler beim Wiederherstellen: ' + errorMsg);
+          }
+        },
+        onRetryKey: (file) => {
+          setPendingRestoreFile(file);
+          setShowRestoreKeyDialog(true);
+        },
+        onCancel: () => {
+          setPendingRestoreFile(null);
+        }
+      }
+    );
+    
+    setPendingRestoreFile(null);
+  };
+
+  // Trigger file selection
+  const handleRestoreClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file selection
+  const handleFileSelect = async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input
+    event.target.value = '';
+    
+    try {
+      // Parse file to get item counts for progress dialog
+      const fileContent = await file.text();
+      const backupData = JSON.parse(fileContent);
+      
+      const itemCounts = {
+        categories: backupData.data?.categories?.length || 0,
+        appliances: backupData.data?.appliances?.length || 0,
+        users: backupData.data?.users?.length || 0,
+        background_images: backupData.data?.background_images?.length || 0,
+        hosts: backupData.data?.hosts?.length || 0,
+        ssh_keys: backupData.data?.ssh_keys?.length || 0,
+        snmp_metrics: backupData.data?.snmp_metrics?.length || 0,
+      };
+      
+      setRestoreItemCounts(itemCounts);
+      
+      // Check if backup has encrypted data
+      const hasEncryptedData =
+        backupData.data?.ssh_keys?.some(key => key.private_key) ||
+        backupData.data?.hosts?.some(host => host.password || host.ssh_key_id) ||
+        backupData.data?.appliances?.some(app => 
+          app.remote_password_encrypted || app.rustdesk_password_encrypted
+        );
+
+      if (hasEncryptedData) {
+        setPendingRestoreFile(file);
+        setShowRestoreKeyDialog(true);
+      } else {
+        // No encryption key needed
+        handleRestoreWithKey(null, true);
+      }
+    } catch (err) {
+      setError(t('backup.invalidFile'));
+    }
+  };
+
+  // Handle drag and drop
   const handleDrop = async event => {
     event.preventDefault();
     event.stopPropagation();
-    setDragOver(false);
 
-    const { files } = event.dataTransfer;
-    if (files.length === 0) return;
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
 
-    const file = files[0];
     if (!file.name.endsWith('.json')) {
-      setError(t('backup.selectJsonFile'));
+      setError(t('backup.invalidFile'));
       return;
     }
 
-    // Show key dialog for restore
-
-    setPendingRestoreFile(file);
-    setShowRestoreKeyDialog(true);
-
+    // Process as if selected via file input
+    handleFileSelect({ target: { files: [file] } });
   };
 
-  const handleFileInputChange = async event => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Show key dialog for restore
-    setPendingRestoreFile(file);
-    setShowRestoreKeyDialog(true);
-    event.target.value = '';
+  const handleDragOver = event => {
+    event.preventDefault();
+    event.stopPropagation();
   };
-
-  const restoreFromFile = async (file, decryptionKey = null) => {
-    try {
-      setRestoreLoading(true);
-      const result = await BackupService.restoreBackup(file, decryptionKey);
-
-      if (result.success) {
-        setSuccess(result.message);
-        if (result.reloadRequired) {
-          setTimeout(() => window.location.reload(), 3000);
-        }
-      } else {
-        setError(result.message);
-      }
-    } catch (error) {
-      setError('Fehler beim Wiederherstellen: ' + error.message);
-    } finally {
-      setRestoreLoading(false);
-    }
-  };
-
-  const handleRestoreWithKey = (decryptionKey) => {
-    if (pendingRestoreFile) {
-      restoreFromFile(pendingRestoreFile, decryptionKey);
-      setPendingRestoreFile(null);
-    }
-    setShowRestoreKeyDialog(false);
-  };
-
-  // Debug output
-  useEffect(() => {
-
-  }, [showRestoreKeyDialog, pendingRestoreFile]);
 
   return (
     <Box sx={{ height: '100%', overflow: 'auto' }}>
@@ -173,306 +257,191 @@ const BackupTab = () => {
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
           gap: 3,
+          mb: 4,
         }}
       >
         {/* Create Backup Card */}
-        <Fade in timeout={800}>
-          <Card
-            sx={{
-              background: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: 3,
-              overflow: 'hidden',
-              position: 'relative',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 12px 40px rgba(0, 122, 255, 0.2)',
-                border: '1px solid rgba(0, 122, 255, 0.3)',
-              },
-            }}
-          >
+        <Card
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+            transition: 'transform 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+            },
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
             <Box
               sx={{
-                position: 'absolute',
-                top: -50,
-                right: -50,
-                width: 150,
-                height: 150,
-                background:
-                  'radial-gradient(circle, rgba(0, 122, 255, 0.2) 0%, transparent 70%)',
-                animation: `${pulseAnimation} 3s ease-in-out infinite`,
+                display: 'flex',
+                alignItems: 'center',
+                mb: 2,
+                animation: `${floatAnimation} 3s ease-in-out infinite`,
               }}
-            />
-            <CardContent sx={{ p: 4, position: 'relative' }}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box
-                  sx={{
-                    display: 'inline-flex',
-                    p: 2,
-                    borderRadius: '50%',
-                    background:
-                      'linear-gradient(135deg, rgba(0, 122, 255, 0.2) 0%, rgba(0, 122, 255, 0.1) 100%)',
-                    mb: 3,
-                    animation: `${floatAnimation} 3s ease-in-out infinite`,
-                    position: 'relative',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      width: '120%',
-                      height: '120%',
-                      background: 'radial-gradient(circle, rgba(0, 122, 255, 0.8) 0%, rgba(0, 122, 255, 0.4) 40%, transparent 70%)',
-                      filter: 'blur(25px)',
-                      zIndex: -1,
-                    },
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      width: '200%',
-                      height: '200%',
-                      background: 'radial-gradient(circle, rgba(0, 122, 255, 0.6) 0%, transparent 60%)',
-                      filter: 'blur(50px)',
-                      zIndex: -2,
-                      animation: `${pulseAnimation} 2s ease-in-out infinite`,
-                    },
-                  }}
-                >
-                  <CloudDownload sx={{ 
-                    fontSize: 48, 
-                    color: '#007aff',
-                    filter: 'drop-shadow(0 0 30px rgba(0, 122, 255, 1)) drop-shadow(0 0 60px rgba(0, 122, 255, 0.8)) drop-shadow(0 0 90px rgba(0, 122, 255, 0.6))',
-                    zIndex: 1,
-                  }} />
-                </Box>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            >
+              <CloudDownload sx={{ fontSize: 40, mr: 2, color: 'white' }} />
+              <Box>
+                <Typography variant="h6" sx={{ color: 'white' }}>
                   {t('backup.createBackup')}
                 </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 3 }}
-                >
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                   {t('backup.createDescription')}
                 </Typography>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  onClick={handleCreateBackup}
-                  disabled={createLoading}
-                  startIcon={
-                    createLoading ? (
-                      <CircularProgress size={20} color="inherit" />
-                    ) : (
-                      <Save />
-                    )
-                  }
-                  sx={{
-                    py: 1.5,
-                    background:
-                      'linear-gradient(135deg, #007aff 0%, #0051a8 100%)',
-                    '&:hover': {
-                      background:
-                        'linear-gradient(135deg, #0051a8 0%, #003d7a 100%)',
-                    },
-                  }}
-                >
-                  {createLoading
-                    ? t('backup.creatingBackup')
-                    : t('backup.createBackupNow')}
-                </Button>
               </Box>
-            </CardContent>
-          </Card>
-        </Fade>
+            </Box>
+
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              startIcon={creatingBackup ? <CircularProgress size={20} /> : <Save />}
+              onClick={handleCreateBackup}
+              disabled={creatingBackup}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.3)',
+                },
+                animation: creatingBackup ? `${pulseAnimation} 2s infinite` : 'none',
+              }}
+            >
+              {creatingBackup ? t('backup.creating') : t('backup.createNow')}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Restore Backup Card */}
-        <Fade in timeout={1000}>
-          <Card
-            sx={{
-              background: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: 3,
-              overflow: 'hidden',
-              position: 'relative',
-              transition: 'all 0.3s ease',
-              borderStyle: dragOver ? 'dashed' : 'solid',
-              borderColor: dragOver
-                ? 'primary.main'
-                : 'rgba(255, 255, 255, 0.1)',
-              transform: dragOver ? 'scale(1.02)' : 'scale(1)',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 12px 40px rgba(76, 175, 80, 0.2)',
-                border: '1px solid rgba(76, 175, 80, 0.3)',
-              },
-            }}
-            onDrop={handleDrop}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-          >
+        <Card
+          sx={{
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+            transition: 'transform 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+            },
+          }}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        >
+          <CardContent sx={{ p: 3 }}>
             <Box
               sx={{
-                position: 'absolute',
-                top: -50,
-                right: -50,
-                width: 150,
-                height: 150,
-                background:
-                  'radial-gradient(circle, rgba(76, 175, 80, 0.2) 0%, transparent 70%)',
-                animation: `${pulseAnimation} 3s ease-in-out infinite`,
+                display: 'flex',
+                alignItems: 'center',
+                mb: 2,
+                animation: `${floatAnimation} 3s ease-in-out infinite`,
               }}
-            />
-            <CardContent sx={{ p: 4, position: 'relative' }}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box
-                  sx={{
-                    display: 'inline-flex',
-                    p: 2,
-                    borderRadius: '50%',
-                    background:
-                      'linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.1) 100%)',
-                    mb: 3,
-                    animation: `${floatAnimation} 3s ease-in-out infinite`,
-                    position: 'relative',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      width: '120%',
-                      height: '120%',
-                      background: 'radial-gradient(circle, rgba(76, 175, 80, 0.8) 0%, rgba(76, 175, 80, 0.4) 40%, transparent 70%)',
-                      filter: 'blur(25px)',
-                      zIndex: -1,
-                    },
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      width: '200%',
-                      height: '200%',
-                      background: 'radial-gradient(circle, rgba(76, 175, 80, 0.6) 0%, transparent 60%)',
-                      filter: 'blur(50px)',
-                      zIndex: -2,
-                      animation: `${pulseAnimation} 2s ease-in-out infinite`,
-                    },
-                  }}
-                >
-                  <CloudUpload sx={{ 
-                    fontSize: 48, 
-                    color: '#4caf50',
-                    filter: 'drop-shadow(0 0 30px rgba(76, 175, 80, 1)) drop-shadow(0 0 60px rgba(76, 175, 80, 0.8)) drop-shadow(0 0 90px rgba(76, 175, 80, 0.6))',
-                    zIndex: 1,
-                  }} />
-                </Box>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            >
+              <CloudUpload sx={{ fontSize: 40, mr: 2, color: 'white' }} />
+              <Box>
+                <Typography variant="h6" sx={{ color: 'white' }}>
                   {t('backup.restoreBackup')}
                 </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 3 }}
-                >
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                   {t('backup.restoreDescription')}
                 </Typography>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileInputChange}
-                  style={{ display: 'none' }}
-                  id="backup-file-input"
-                />
-                <label htmlFor="backup-file-input">
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    size="large"
-                    component="span"
-                    disabled={restoreLoading}
-                    startIcon={
-                      restoreLoading ? (
-                        <CircularProgress size={20} />
-                      ) : (
-                        <Restore />
-                      )
-                    }
-                    sx={{
-                      py: 1.5,
-                      borderColor: 'success.main',
-                      color: 'success.main',
-                      '&:hover': {
-                        borderColor: 'success.light',
-                        backgroundColor: 'rgba(76, 175, 80, 0.08)',
-                      },
-                    }}
-                  >
-                    {restoreLoading
-                      ? t('backup.restoring')
-                      : t('backup.selectFile')}
-                  </Button>
-                </label>
+              </Box>
+            </Box>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleFileSelect}
+            />
+
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              startIcon={restoreLoading || isProcessing ? <CircularProgress size={20} /> : <Restore />}
+              onClick={handleRestoreClick}
+              disabled={restoreLoading || isProcessing}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.3)',
+                },
+              }}
+            >
+              {restoreLoading || isProcessing ? t('backup.restoring') : t('backup.selectFile')}
+            </Button>
+
+            <Typography
+              variant="caption"
+              sx={{ 
+                display: 'block', 
+                mt: 2, 
+                textAlign: 'center',
+                color: 'rgba(255, 255, 255, 0.8)'
+              }}
+            >
+              {t('backup.dragDropHint')}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* Statistics */}
+      {!statsLoading && stats && (
+        <Fade in timeout={500}>
+          <Card
+            sx={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, color: 'white' }}>
+                {t('backup.statistics')}
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('backup.lastBackup')}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'white' }}>
+                    {stats.lastBackup || t('backup.never')}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('backup.totalBackups')}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'white' }}>
+                    {stats.totalBackups || 0}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('backup.lastRestore')}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'white' }}>
+                    {stats.lastRestore || t('backup.never')}
+                  </Typography>
+                </Box>
               </Box>
             </CardContent>
           </Card>
         </Fade>
-      </Box>
+      )}
 
-      {/* Snackbars */}
-      <Snackbar
-        open={!!success}
-        autoHideDuration={5000}
-        onClose={() => setSuccess('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setSuccess('')}
-          severity="success"
-          icon={<CheckCircle />}
-          sx={{ width: '100%' }}
-        >
-          {success}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar
-        open={!!error}
-        autoHideDuration={5000}
-        onClose={() => setError('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setError('')}
-          severity="error"
-          icon={<Error />}
-          sx={{ width: '100%' }}
-        >
-          {error}
-        </Alert>
-      </Snackbar>
-
-      {/* Encryption Key Dialog */}
+      {/* Dialogs */}
       <EncryptionKeyDialog
         open={showEncryptionDialog}
-        onClose={() => setShowEncryptionDialog(false)}
         encryptionKey={encryptionKey}
+        onClose={() => setShowEncryptionDialog(false)}
       />
 
-      {/* Restore Key Dialog */}
       <RestoreKeyDialog
         open={showRestoreKeyDialog}
         onClose={() => {
@@ -482,8 +451,49 @@ const BackupTab = () => {
         onRestore={handleRestoreWithKey}
         fileName={pendingRestoreFile?.name || 'backup.json'}
       />
+
+      {/* Invalid Key Dialog from centralized hook */}
+      <InvalidKeyDialog
+        open={showInvalidKeyDialog}
+        onConfirm={invalidKeyHandlers.onConfirm}
+        onRetry={invalidKeyHandlers.onRetry}
+        onCancel={invalidKeyHandlers.onCancel}
+      />
+
+      {/* Restore Progress Dialog */}
+      <RestoreProgressDialog
+        open={showProgressDialog}
+        sessionId={restoreSessionId}
+        totalItems={restoreItemCounts}
+        onClose={() => {
+          setShowProgressDialog(false);
+          setRestoreSessionId(null);
+          setRestoreItemCounts({});
+        }}
+      />
+
+      {/* Success/Error Snackbars */}
+      <Snackbar
+        open={!!success}
+        autoHideDuration={6000}
+        onClose={() => setSuccess('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="success" icon={<CheckCircle />} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="error" icon={<Error />} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   );
-};
-
-export default BackupTab;
+}
