@@ -243,6 +243,38 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 
 ## 🆕 Neueste Updates
 
+### 🎯 Version 1.1.7 (12. September 2025) - SNMP-Monitoring & Performance-Revolution
+
+#### Komplettes SNMP-Monitoring-System
+- ✅ **Professionelles Netzwerk-Monitoring** - Volle SNMP v1/v2c/v3 Unterstützung
+  - Hintergrund-Polling-Service mit 10-Sekunden-Intervallen
+  - Echtzeit CPU-, Memory-, Disk-, Netzwerk- und Prozess-Metriken
+  - Auto-Erkennung für Docker-Hosts mit host.docker.internal
+  - Apple Silicon Unterstützung mit Load Average als CPU-Proxy
+  - SNMP-Setup-Wizard für automatische macOS-Konfiguration
+  - Live-Updates via Server-Sent Events (SSE)
+
+#### Erweiterte Metriken-Visualisierung
+- ✅ **Interaktive History-Charts** - Professionelles Analytics-Dashboard
+  - Multi-Metriken-Vergleich mit synchronisierten Zeitachsen
+  - Zoom-Funktionalität und Zeitbereichsauswahl (15m bis 30d)
+  - Persistente Einstellungen pro Host mit benutzerdefinierten Metrik-Namen
+  - Statistik-Tabelle mit Min/Max/Durchschnitt-Berechnungen
+  - Responsive Design für alle Geräte
+
+#### Massive Performance-Steigerung
+- ✅ **90-95% schnelleres Laden** - Revolutionäre Optimierung
+  - Bulk-Loading-API: Alle Metriken in 2 Abfragen statt N*2
+  - In-Memory Datengruppierung reduziert Datenbanklast
+  - Ultra-schnelle Wiederherstellung für 276.000+ Metriken
+  - Connection-Pooling für SNMP-Sessions
+
+#### UI/UX-Verbesserungen
+- ✅ **Dreistufige Sidebar** - Voll → Icon-Only → Collapsed Zyklus mit localStorage
+- ✅ **Light Mode Perfektion** - Kompletter Light Mode mit optimalen Kontrasten
+- ✅ **Vollständige Internationalisierung** - Komplette Deutsch/Englisch-Unterstützung
+- ✅ **Smartes Service Panel** - Kontextabhängige Tab-Auswahl
+
 ### 🚀 Version 1.1.6 (27. August 2025) - Host-Monitoring & Audit-Log-Verbesserungen
 
 #### Echtzeit Host-Monitoring
@@ -347,20 +379,6 @@ Das war's! Das Dashboard wird automatisch auf die neueste Version aktualisiert.
 - ✅ **Docker-Erkennung erweitert** - Findet Docker in /usr/local/bin (Docker Desktop)
 - ✅ **Hostname-Erkennung** - Automatische .local Hostname-Unterstützung für macOS (Bonjour/mDNS)
 - ✅ **Container-Namen Konsistenz** - Alle Container verwenden appliance_ Prefix
-
-### 🚀 Version 1.1.3 (August 2025)
-- ✅ **React 19 Kompatibilität** - Volle Unterstützung für React 19.1.1
-- ✅ **Express 4 Stabilität** - Routing-Probleme gelöst, stabiles Backend
-- ✅ **Verbessertes Backup/Restore** - Drag-and-Drop Funktionalität repariert
-- ✅ **Remote Desktop repariert** - Guacamole Authentifizierung funktioniert
-- ✅ **Erweiterte Dokumentation** - Prominente Backup-Warnungen vor Updates hinzugefügt
-
-### 📖 Neues Benutzerhandbuch
-- ✅ Umfassende Dokumentation mit 600+ Zeilen
-- ✅ Persönliche Entstehungsgeschichte des Projekts
-- ✅ Mobile-First Dokumentation mit iPhone Screenshots
-- ✅ Praktische Workflows statt Feature-Listen
-- ✅ Clean UI Philosophy dokumentiert
 
 ### UI/UX Verbesserungen
 - ✅ Interaktive Tooltips für kollabierte Sidebar

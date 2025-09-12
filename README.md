@@ -243,6 +243,38 @@ That's it! The dashboard will automatically update to the latest version.
 
 ## 🆕 Latest Updates
 
+### 🎯 Version 1.1.7 (September 12, 2025) - SNMP Monitoring & Performance Revolution
+
+#### Complete SNMP Monitoring System
+- ✅ **Professional Network Monitoring** - Full SNMP v1/v2c/v3 support
+  - Background polling service with 10-second intervals
+  - Real-time CPU, Memory, Disk, Network, and Process metrics
+  - Auto-detection for Docker hosts with host.docker.internal
+  - Apple Silicon support using Load Average as CPU proxy
+  - SNMP Setup Wizard for automatic macOS configuration
+  - Live updates via Server-Sent Events (SSE)
+
+#### Advanced Metrics Visualization
+- ✅ **Interactive History Charts** - Professional analytics dashboard
+  - Multi-metric comparison with synchronized time axes
+  - Zoom functionality and time range selection (15m to 30d)
+  - Persistent settings per host with custom metric names
+  - Statistics table with min/max/average calculations
+  - Responsive design for all devices
+
+#### Massive Performance Boost
+- ✅ **90-95% Faster Loading** - Revolutionary optimization
+  - Bulk-loading API: All metrics in 2 queries instead of N*2
+  - In-memory data grouping reduces database load
+  - Ultra-fast restore for 276,000+ metrics
+  - Connection pooling for SNMP sessions
+
+#### UI/UX Enhancements
+- ✅ **Three-Stage Sidebar** - Full → Icon-Only → Collapsed cycle with localStorage
+- ✅ **Light Mode Perfection** - Complete light mode with proper contrast
+- ✅ **Full Internationalization** - Complete German/English support
+- ✅ **Smart Service Panel** - Context-aware tab selection
+
 ### 🚀 Version 1.1.6 (August 27, 2025) - Host Monitoring & Audit Log Enhancements
 
 #### Real-time Host Monitoring
@@ -347,20 +379,6 @@ That's it! The dashboard will automatically update to the latest version.
 - ✅ **Docker Detection Enhanced** - Finds Docker in /usr/local/bin (Docker Desktop)
 - ✅ **Hostname Detection** - Automatic .local hostname support for macOS (Bonjour/mDNS)
 - ✅ **Container Naming Consistency** - All containers use appliance_ prefix
-
-### 🚀 Version 1.1.3 (August 2025)
-- ✅ **React 19 Compatibility** - Full support for React 19.1.1
-- ✅ **Express 4 Stability** - Resolved routing issues, stable backend
-- ✅ **Improved Backup/Restore** - Fixed drag-and-drop functionality
-- ✅ **Remote Desktop Fixed** - Guacamole authentication working
-- ✅ **Enhanced Documentation** - Added prominent backup warnings before updates
-
-### 📖 New User Guide
-- ✅ Comprehensive documentation with 600+ lines
-- ✅ Personal story behind the project
-- ✅ Mobile-first documentation with iPhone screenshots
-- ✅ Practical workflows instead of feature lists
-- ✅ Clean UI Philosophy documented
 
 ### UI/UX Improvements
 - ✅ Interactive tooltips for collapsed sidebar
