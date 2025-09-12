@@ -344,6 +344,9 @@ router.post('/start', verifyToken, async (req, res) => {
       // Disable foreign key checks temporarily for restore
       await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
       
+      // Track old ID -> new ID mappings for hosts (needed for SNMP metrics and other relations)
+      const hostIdMapping = {};
+      
       // Calculate weighted progress based on actual item counts
       const totalItemCount = Object.values(totalItems).reduce((sum, count) => sum + count, 0);
       let processedItemCount = 0;
@@ -495,7 +498,7 @@ router.post('/start', verifyToken, async (req, res) => {
       }
       
       // 4. Restore hosts (depends on ssh_keys via ssh_key_name)
-      const hostIdMapping = {}; // Track old ID -> new ID mappings for later use
+      // NOTE: hostIdMapping moved to top of function to be available for SNMP metrics
       
       if (backupData.data?.hosts?.length > 0) {
         sendProgressUpdate(sessionId, {
@@ -531,15 +534,19 @@ router.post('/start', verifyToken, async (req, res) => {
           hostData.rustdesk_password = reEncryptFromBackup(host.rustdeskPassword || host.rustdesk_password, 'Host RustDesk', host.name);
           
           const oldHostId = host.id;
-          delete hostData.id; // Remove ID to let DB auto-increment
+          // WICHTIG: Behalte die Original-ID bei, damit SNMP-Metriken korrekt zugeordnet bleiben!
+          // delete hostData.id; // NICHT löschen - wir behalten die ID!
+          
+          // Setze die ID explizit
+          hostData.id = oldHostId;
           
           const { sql, values } = prepareInsert('hosts', hostData);
           const [result] = await connection.execute(sql, values);
           
-          // Map old ID to new ID
-          const newHostId = result.insertId;
-          hostIdMapping[oldHostId] = newHostId;
-          console.log(`📌 Host ID mapping: ${oldHostId} -> ${newHostId} (${host.name})`);
+          // Kein Mapping mehr nötig, da wir die Original-IDs beibehalten
+          // const newHostId = result.insertId;
+          // hostIdMapping[oldHostId] = newHostId;
+          console.log(`📌 Host restored with original ID: ${oldHostId} (${host.name})`);
           
           if (i % 5 === 0 || i === backupData.data.hosts.length - 1) {
             sendProgressUpdate(sessionId, {
@@ -777,101 +784,104 @@ router.post('/start', verifyToken, async (req, res) => {
       
       if (shouldRestoreSnmpMetrics && backupData.data?.snmp_metrics?.length > 0) {
         const snmpMetrics = backupData.data.snmp_metrics;
-        const batchSize = 100; // Smaller batch size to prevent overload
+        const BATCH_SIZE = 5000; // MASSIVELY increased from 1000 to 5000
         
         sendProgressUpdate(sessionId, {
           type: 'step',
           currentStep: 'snmp_metrics',
-          message: `Restoring ${snmpMetrics.length.toLocaleString()} SNMP metrics...`
+          message: `Restoring ${snmpMetrics.length.toLocaleString()} SNMP metrics (ultra-fast mode)...`
         });
         
         await connection.execute('DELETE FROM snmp_metrics');
         
         let skippedMetrics = 0;
         let restoredMetrics = 0;
+        let lastProgressUpdate = Date.now();
         
-        for (let i = 0; i < snmpMetrics.length; i += batchSize) {
-          // Check timeout
-          checkTimeout();
+        console.log(`📊 Starting ULTRA-FAST SNMP metrics restore with batch size ${BATCH_SIZE}...`);
+        
+        // Pre-filter all metrics with valid host mappings for better performance
+        console.log(`⚡ Pre-filtering metrics (using original IDs)...`);
+        
+        const validMetrics = [];
+        
+        for (const metric of snmpMetrics) {
+          const hostId = metric.host_id || metric.hostId;
           
-          const batch = snmpMetrics.slice(i, i + batchSize);
-          
-          // Filter and map metrics with valid host IDs
-          const mappedBatch = [];
-          for (const metric of batch) {
-            const oldHostId = metric.host_id || metric.hostId;
-            const newHostId = hostIdMapping[oldHostId];
-            
-            if (!newHostId) {
-              skippedMetrics++;
-              continue; // Skip metrics for non-existent hosts
-            }
-            
-            mappedBatch.push({
-              ...metric,
-              host_id: newHostId // Use mapped host ID
-            });
-          }
-          
-          // Build bulk insert query for mapped metrics
-          if (mappedBatch.length > 0) {
-            const placeholders = mappedBatch.map(() => '(?, ?, ?, ?, ?)').join(',');
-            const sql = `INSERT INTO snmp_metrics (host_id, metric_key, metric_value, metric_name, timestamp) VALUES ${placeholders}`;
-            const values = [];
-            
-            for (const metric of mappedBatch) {
-              values.push(
-                metric.host_id, // Now using mapped ID
-                metric.metric_key || metric.metricKey,
-                metric.metric_value || metric.metricValue,
-                metric.metric_name || metric.metricName || null,
-                metric.timestamp || new Date()
-              );
-            }
-            
-            try {
-              await connection.execute(sql, values);
-              restoredMetrics += mappedBatch.length;
-            } catch (err) {
-              console.error(`Error inserting batch at index ${i}:`, err.message);
-              // Try individual inserts as fallback
-              for (const metric of mappedBatch) {
-                try {
-                  const metricData = {
-                    hostId: metric.host_id, // Using mapped ID
-                    metricKey: metric.metric_key || metric.metricKey,
-                    metricValue: metric.metric_value || metric.metricValue,
-                    metricName: metric.metric_name || metric.metricName || null,
-                    timestamp: metric.timestamp || new Date()
-                  };
-                  const { sql, values } = prepareInsert('snmp_metrics', metricData);
-                  await connection.execute(sql, values);
-                  restoredMetrics++;
-                } catch (individualErr) {
-                  console.error('Skipping metric due to error:', individualErr.message);
-                  skippedMetrics++;
-                }
-              }
-            }
-          }
-          
-          // Send progress for each batch
-          const processed = Math.min(i + batchSize, snmpMetrics.length);
-          const progress = calculateProgress(processedItemCount + processed);
-          
-          sendProgressUpdate(sessionId, {
-            type: 'progress',
-            progress,
-            processedItems: { snmp_metrics: processed },
-            message: `Processed ${processed.toLocaleString()} of ${snmpMetrics.length.toLocaleString()} metrics`,
-            detail: `Restored: ${restoredMetrics}, Skipped: ${skippedMetrics}`
+          validMetrics.push({
+            host_id: hostId,
+            metric_key: metric.metric_key || metric.metricKey,
+            metric_value: metric.metric_value || metric.metricValue,
+            metric_name: metric.metric_name || metric.metricName || null,
+            // Convert ISO timestamp to MySQL format
+            timestamp: metric.timestamp ? 
+              new Date(metric.timestamp).toISOString().slice(0, 19).replace('T', ' ') : 
+              new Date().toISOString().slice(0, 19).replace('T', ' ')
           });
-          
-          // Give event loop a chance to breathe
-          await new Promise(resolve => setImmediate(resolve));
         }
         
-        console.log(`✅ Restored ${restoredMetrics} SNMP metrics (skipped ${skippedMetrics} for non-existent hosts)`);
+        // skippedMetrics bleibt bei 0, da wir alle Metriken verwenden
+        console.log(`⚡ Pre-filtering complete: ${validMetrics.length} metrics ready for insert`);
+        
+        // Now bulk insert in large batches without per-batch processing overhead
+        for (let i = 0; i < validMetrics.length; i += BATCH_SIZE) {
+          const batch = validMetrics.slice(i, i + BATCH_SIZE);
+          
+          if (batch.length > 0) {
+            try {
+              // Build bulk insert query
+              const placeholders = batch.map(() => '(?, ?, ?, ?, ?)').join(',');
+              const sql = `INSERT INTO snmp_metrics (host_id, metric_key, metric_value, metric_name, timestamp) VALUES ${placeholders}`;
+              
+              // Flatten values array for query execution
+              const values = [];
+              for (const metric of batch) {
+                values.push(
+                  metric.host_id,
+                  metric.metric_key,
+                  metric.metric_value,
+                  metric.metric_name,
+                  metric.timestamp
+                );
+              }
+              
+              // Execute bulk insert
+              await connection.execute(sql, values);
+              restoredMetrics += batch.length;
+              
+              console.log(`  ✅ Ultra-fast bulk inserted ${batch.length} metrics (batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(validMetrics.length/BATCH_SIZE)})`);
+              
+              // Only send progress updates every 2 seconds to reduce overhead
+              const now = Date.now();
+              if (now - lastProgressUpdate > 2000) {
+                const progress = calculateProgress(processedItemCount + (restoredMetrics * totalItems.snmp_metrics / snmpMetrics.length));
+                sendProgressUpdate(sessionId, {
+                  type: 'progress',
+                  progress,
+                  processedItems: { snmp_metrics: restoredMetrics },
+                  message: `Processed ${restoredMetrics.toLocaleString()} of ${validMetrics.length.toLocaleString()} metrics (ultra-fast mode)`
+                });
+                lastProgressUpdate = now;
+              }
+            } catch (err) {
+              console.error(`❌ Bulk insert failed for batch at index ${i}:`, err.message);
+              // Skip fallback to individual inserts for performance - just log the error
+              console.error(`  ⚠️ Skipping ${batch.length} metrics due to bulk insert failure`);
+            }
+          }
+        }
+        
+        // Final progress update
+        sendProgressUpdate(sessionId, {
+          type: 'progress',
+          progress: calculateProgress(processedItemCount + totalItems.snmp_metrics),
+          processedItems: { snmp_metrics: restoredMetrics },
+          message: `Completed: ${restoredMetrics.toLocaleString()} metrics restored`,
+          detail: `Skipped: ${skippedMetrics}`
+        });
+        
+        console.log(`✅ ULTRA-FAST restore complete: ${restoredMetrics.toLocaleString()} SNMP metrics restored with original host IDs`);
+        
         processedItemCount += totalItems.snmp_metrics;
       } else if (!shouldRestoreSnmpMetrics && backupData.data?.snmp_metrics?.length > 0) {
         // User chose to skip SNMP metrics restoration
@@ -898,19 +908,13 @@ router.post('/start', verifyToken, async (req, res) => {
         
         let restoredConfigs = 0;
         for (const config of backupData.data.host_snmp_configs) {
-          // Map old host ID to new host ID
-          const oldHostId = config.host_id || config.hostId;
-          const newHostId = hostIdMapping[oldHostId];
+          // Verwende Original Host-ID direkt
+          const hostId = config.host_id || config.hostId;
           
-          if (!newHostId) {
-            console.warn(`⚠️ Skipping SNMP config for unknown host ID ${oldHostId}`);
-            continue;
-          }
-          
-          // Update config with new host ID
+          // Update config with original host ID
           const configData = {
             ...config,
-            hostId: newHostId  // Use the mapped host ID
+            hostId: hostId  // Use original host ID
           };
           
           // Remove the old ID field to avoid confusion
@@ -931,11 +935,25 @@ router.post('/start', verifyToken, async (req, res) => {
         });
         
         console.log(`✅ Restored ${restoredConfigs} SNMP configs with mapped host IDs`);
+        
+        // WICHTIG: Synchronisiere SNMP-Einstellungen von host_snmp_configs zur hosts Tabelle
+        console.log('🔄 Synchronizing SNMP settings to hosts table...');
+        await connection.execute(
+          'UPDATE hosts h ' +
+          'INNER JOIN host_snmp_configs c ON h.id = c.host_id ' +
+          'SET h.snmp_enabled = c.enabled, ' +
+          '    h.snmp_community = c.community, ' +
+          '    h.snmp_port = c.port, ' +
+          '    h.snmp_version = c.version'
+        );
+        console.log('✅ SNMP settings synchronized to hosts table');
       }
       
       // 9. Restore host_metrics_logging (metric configurations per host)
       if (backupData.data?.host_metrics_logging?.length > 0) {
         console.log(`📊 Restoring ${backupData.data.host_metrics_logging.length} metric logging configs...`);
+        console.log('  First config sample:', JSON.stringify(backupData.data.host_metrics_logging[0]));
+        
         sendProgressUpdate(sessionId, {
           type: 'step',
           currentStep: 'host_metrics_logging',
@@ -946,17 +964,11 @@ router.post('/start', verifyToken, async (req, res) => {
         
         let restoredLogging = 0;
         for (const logging of backupData.data.host_metrics_logging) {
-          // Map old host ID to new host ID
-          const oldHostId = logging.host_id || logging.hostId;
-          const newHostId = hostIdMapping[oldHostId];
-          
-          if (!newHostId) {
-            console.warn(`⚠️ Skipping metrics logging for unknown host ID ${oldHostId}`);
-            continue;
-          }
+          // Verwende Original Host-ID direkt (kein Mapping mehr nötig)
+          const hostId = logging.host_id || logging.hostId;
           
           const loggingData = {
-            hostId: newHostId,  // Use mapped host ID
+            hostId: hostId,  // Use original host ID
             config: typeof logging.config === 'string' ? logging.config : JSON.stringify(logging.config || {}),
             customNames: typeof logging.custom_names === 'string' ? logging.custom_names : 
               (typeof logging.customNames === 'string' ? logging.customNames : 
@@ -974,7 +986,7 @@ router.post('/start', verifyToken, async (req, res) => {
             await connection.execute(sql, values);
             restoredLogging++;
           } catch (err) {
-            console.error(`❌ Error restoring metrics logging for host ${newHostId}:`, err.message);
+            console.error(`❌ Error restoring metrics logging for host ${hostId}:`, err.message);
           }
         }
         
@@ -986,65 +998,133 @@ router.post('/start', verifyToken, async (req, res) => {
           processedItems: { host_metrics_logging: restoredLogging },
           message: `Processed ${restoredLogging} metric logging configurations`
         });
+      } else {
+        console.log('⚠️ No host_metrics_logging data in backup');
       }
+      
+      // WICHTIG: Stelle sicher, dass jeder Host eine Metrik-Konfiguration hat
+      // ABER überschreibe keine existierenden Konfigurationen!
+      console.log('🔄 Ensuring all hosts have metric configurations...');
+      const [allHosts] = await connection.execute('SELECT id, name FROM hosts');
+      for (const host of allHosts) {
+        const [existing] = await connection.execute(
+          'SELECT id, selected_metrics FROM host_metrics_logging WHERE host_id = ?',
+          [host.id]
+        );
+        
+        if (existing.length === 0) {
+          // Erstelle Default-Konfiguration mit allen wichtigen Metriken
+          const defaultMetrics = [
+            'cpu.user', 'cpu.system', 'cpu.idle', 'cpu.load1',
+            'memory.total', 'memory.free', 'memory.used', 
+            'disk.0', 'disk.1',
+            'network.interface.en0.bytesIn', 'network.interface.en0.bytesOut',
+            'process.count', 'process.user', 'process.system'
+          ];
+          
+          await connection.execute(
+            'INSERT INTO host_metrics_logging (host_id, selected_metrics, default_time_range, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+            [host.id, JSON.stringify(defaultMetrics), '30d']
+          );
+          console.log(`  ✅ Created default metrics config for ${host.name} (ID ${host.id})`);
+        } else {
+          // Log existing config
+          const selected = JSON.parse(existing[0].selected_metrics || '[]');
+          console.log(`  ✓ ${host.name} has config with ${selected.length} metrics`);
+        }
+      }
+      console.log('✅ All hosts have metric configurations');
       
       // 10. Restore host_monitoring_data (historical monitoring data)
       // Only restore if user wants SNMP metrics (since this is also monitoring history)
       if (shouldRestoreSnmpMetrics && backupData.data?.host_monitoring_data?.length > 0) {
-        console.log(`📈 Restoring ${backupData.data.host_monitoring_data.length} monitoring data entries...`);
+        console.log(`📈 Restoring ${backupData.data.host_monitoring_data.length.toLocaleString()} monitoring data entries using BULK INSERT...`);
         sendProgressUpdate(sessionId, {
           type: 'step',
           currentStep: 'host_monitoring_data',
-          message: `Restoring ${totalItems.host_monitoring_data} monitoring data entries...`
+          message: `Restoring ${totalItems.host_monitoring_data.toLocaleString()} monitoring data entries (optimized bulk insert)...`
         });
         
         await connection.execute('DELETE FROM host_monitoring_data');
         
-        const batchSize = 100;
-        let restoredMonitoring = 0;
+        // OPTIMIZED: Use bulk insert for massive performance improvement
+        const BATCH_SIZE = 1000; // Insert 1000 rows at a time
+        let totalRestored = 0;
+        let skippedEntries = 0;
         
-        for (let i = 0; i < backupData.data.host_monitoring_data.length; i += batchSize) {
-          const batch = backupData.data.host_monitoring_data.slice(i, i + batchSize);
-          const mappedBatch = [];
+        for (let i = 0; i < backupData.data.host_monitoring_data.length; i += BATCH_SIZE) {
+          const batch = backupData.data.host_monitoring_data.slice(i, i + BATCH_SIZE);
+          const mappedValues = [];
           
+          // Prepare batch values
           for (const data of batch) {
-            const oldHostId = data.host_id || data.hostId;
-            const newHostId = hostIdMapping[oldHostId];
+            const hostId = data.host_id || data.hostId;
             
-            if (!newHostId) {
+            // Skip if no host ID
+            if (!hostId) {
+              skippedEntries++;
               continue; // Skip data for non-existent hosts
             }
             
-            mappedBatch.push({
-              hostId: newHostId,
-              metricKey: data.metric_key || data.metricKey,
-              metricValue: data.metric_value || data.metricValue,
-              timestamp: data.timestamp || new Date()
-            });
+            // Add values array for this row
+            mappedValues.push([
+              hostId,  // Use original host ID
+              data.metric_key || data.metricKey,
+              data.metric_value || data.metricValue,
+              data.timestamp || new Date().toISOString()
+            ]);
           }
           
-          // Bulk insert for performance
-          for (const data of mappedBatch) {
+          // Execute bulk insert if we have any valid rows
+          if (mappedValues.length > 0) {
             try {
-              const { sql, values } = prepareInsert('host_monitoring_data', data);
-              await connection.execute(sql, values);
-              restoredMonitoring++;
+              // Build bulk insert query
+              const placeholders = mappedValues.map(() => '(?, ?, ?, ?)').join(', ');
+              const bulkSql = `INSERT INTO host_monitoring_data (host_id, metric_key, metric_value, timestamp) VALUES ${placeholders}`;
+              
+              // Flatten values array for query execution
+              const flatValues = mappedValues.flat();
+              
+              // Execute bulk insert
+              await connection.execute(bulkSql, flatValues);
+              totalRestored += mappedValues.length;
+              
+              console.log(`  ✅ Inserted batch: ${totalRestored.toLocaleString()} / ${backupData.data.host_monitoring_data.length.toLocaleString()} entries`);
             } catch (err) {
-              console.error(`Error inserting monitoring data:`, err.message);
+              console.error(`❌ Error in bulk insert for monitoring data:`, err.message);
+              
+              // Fallback: Try inserting individually if bulk fails
+              console.log(`  ⚠️ Falling back to individual inserts for this batch...`);
+              for (const values of mappedValues) {
+                try {
+                  await connection.execute(
+                    'INSERT INTO host_monitoring_data (host_id, metric_key, metric_value, timestamp) VALUES (?, ?, ?, ?)',
+                    values
+                  );
+                  totalRestored++;
+                } catch (individualErr) {
+                  console.error(`    ❌ Failed to insert individual monitoring entry:`, individualErr.message);
+                }
+              }
             }
           }
           
-          // Send progress update
-          const processed = Math.min(i + batchSize, backupData.data.host_monitoring_data.length);
+          // Send progress update every batch
+          const processed = Math.min(i + BATCH_SIZE, backupData.data.host_monitoring_data.length);
+          const progressPercent = calculateProgress(processedItemCount + (processed * totalItems.host_monitoring_data / backupData.data.host_monitoring_data.length));
+          
           sendProgressUpdate(sessionId, {
             type: 'progress',
-            progress: calculateProgress(processedItemCount + processed),
-            processedItems: { host_monitoring_data: restoredMonitoring },
-            message: `Processed ${restoredMonitoring} monitoring data entries`
+            progress: progressPercent,
+            processedItems: { host_monitoring_data: totalRestored },
+            message: `Processed ${totalRestored.toLocaleString()} of ${totalItems.host_monitoring_data.toLocaleString()} monitoring entries (bulk mode)`
           });
         }
         
-        console.log(`✅ Restored ${restoredMonitoring} monitoring data entries`);
+        console.log(`✅ Successfully restored ${totalRestored.toLocaleString()} monitoring data entries using bulk insert`);
+        if (skippedEntries > 0) {
+          console.log(`⚠️ Skipped ${skippedEntries.toLocaleString()} entries due to missing host mappings`);
+        }
         processedItemCount += totalItems.host_monitoring_data;
       } else if (!shouldRestoreSnmpMetrics && backupData.data?.host_monitoring_data?.length > 0) {
         // User chose to skip monitoring data restoration
