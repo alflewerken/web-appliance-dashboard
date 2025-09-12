@@ -279,25 +279,7 @@ fix_env_file() {
     if [ -f .env ]; then
         if grep -q "YOUR_.*_HERE" .env 2>/dev/null; then
             print_status "warning" "Environment file contains placeholder values"
-            
-            # If setup-env.sh exists, use it for proper setup
-            if [ -f "$SETUP_ENV_SCRIPT" ] && [ -x "$SETUP_ENV_SCRIPT" ]; then
-                print_status "info" "Running setup-env.sh for proper environment configuration..."
-                # Run in non-interactive mode for build script
-                echo -e "\n\n\nproduction\n" | "$SETUP_ENV_SCRIPT" >/dev/null 2>&1 || {
-                    print_status "warning" "setup-env.sh had issues, falling back to simple fix"
-                }
-                
-                # Verify it worked
-                if ! grep -q "YOUR_.*_HERE" .env 2>/dev/null; then
-                    print_status "success" "Environment properly configured with setup-env.sh"
-                else
-                    # Fallback for placeholders
-                    apply_simple_fixes
-                fi
-            else
-                apply_simple_fixes
-            fi
+            apply_simple_fixes
         fi
         
         # Fix EXTERNAL_URL and CORS settings regardless of placeholders
@@ -305,25 +287,16 @@ fix_env_file() {
         
     elif [ ! -f .env ]; then
         # .env doesn't exist at all
-        if [ -f "$SETUP_ENV_SCRIPT" ] && [ -x "$SETUP_ENV_SCRIPT" ]; then
-            print_status "warning" ".env file not found, running setup-env.sh..."
-            echo -e "\n\n\nproduction\n" | "$SETUP_ENV_SCRIPT" >/dev/null 2>&1 || {
-                print_status "warning" "setup-env.sh had issues"
-            }
-        elif [ -f .env.example ]; then
+        if [ -f .env.example ]; then
             print_status "warning" ".env file not found, creating from .env.example..."
             cp .env.example .env
             apply_simple_fixes
+            # WICHTIG: Bei neuer .env IMMER nach Domain fragen!
+            ASK_DOMAIN=true fix_external_url_and_cors
         else
             print_status "error" "Neither .env nor .env.example found!"
             exit 1
         fi
-        
-        # Fix EXTERNAL_URL and CORS after creating .env
-        fix_external_url_and_cors
-    else
-        # .env exists and has no placeholders - still check EXTERNAL_URL
-        fix_external_url_and_cors
     fi
     
     # Ensure other critical variables exist
@@ -528,9 +501,9 @@ ensure_critical_variables() {
     if ! grep -q "^JWT_SECRET=" .env || grep -q "^JWT_SECRET=YOUR_" .env; then
         JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo 'default-jwt-secret-change-in-production')
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i'' -e "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> .env
+            sed -i'' -e "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" .env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> .env
         else
-            sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/g" .env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> .env
+            sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|g" .env 2>/dev/null || echo "JWT_SECRET=$JWT_SECRET" >> .env
         fi
         env_fixed=true
     fi
@@ -538,9 +511,9 @@ ensure_critical_variables() {
     if ! grep -q "^SSH_KEY_ENCRYPTION_SECRET=" .env || grep -q "^SSH_KEY_ENCRYPTION_SECRET=YOUR_" .env; then
         SSH_SECRET=$(openssl rand -hex 32 2>/dev/null || echo 'default-ssh-secret-change-in-production')
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i'' -e "s/^SSH_KEY_ENCRYPTION_SECRET=.*/SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET/" .env 2>/dev/null || echo "SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET" >> .env
+            sed -i'' -e "s|^SSH_KEY_ENCRYPTION_SECRET=.*|SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET|" .env 2>/dev/null || echo "SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET" >> .env
         else
-            sed -i "s/^SSH_KEY_ENCRYPTION_SECRET=.*/SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET/g" .env 2>/dev/null || echo "SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET" >> .env
+            sed -i "s|^SSH_KEY_ENCRYPTION_SECRET=.*|SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET|g" .env 2>/dev/null || echo "SSH_KEY_ENCRYPTION_SECRET=$SSH_SECRET" >> .env
         fi
         env_fixed=true
     fi
@@ -574,9 +547,9 @@ ensure_critical_variables() {
             ENCRYPTION_KEY="$(openssl rand -base64 32 2>/dev/null | tr -d '/+=' | cut -c1-32 || echo 'default-encryption-key-change-this')"
         fi
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i'' -e "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$ENCRYPTION_KEY/" .env
+            sed -i'' -e "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$ENCRYPTION_KEY|" .env
         else
-            sed -i "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$ENCRYPTION_KEY/g" .env
+            sed -i "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$ENCRYPTION_KEY|g" .env
         fi
         print_status "success" "Set ENCRYPTION_KEY: $ENCRYPTION_KEY"
         env_fixed=true
@@ -587,9 +560,9 @@ ensure_critical_variables() {
         if [ -n "$SSH_SECRET" ] && [ "$CURRENT_ENCRYPTION_KEY" != "$SSH_SECRET" ]; then
             print_status "warning" "ENCRYPTION_KEY differs from SSH_KEY_ENCRYPTION_SECRET, fixing..."
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i'' -e "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$SSH_SECRET/" .env
+                sed -i'' -e "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$SSH_SECRET|" .env
             else
-                sed -i "s/^ENCRYPTION_KEY=.*/ENCRYPTION_KEY=$SSH_SECRET/g" .env
+                sed -i "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$SSH_SECRET|g" .env
             fi
             print_status "success" "Synchronized ENCRYPTION_KEY with SSH_KEY_ENCRYPTION_SECRET"
             env_fixed=true
@@ -689,21 +662,29 @@ init_guacamole_db() {
     # ALWAYS ensure password is correctly set (fix for SCRAM-SHA-256 authentication)
     # This must be done every time because PostgreSQL resets it on container recreation
     print_status "info" "Setting Guacamole database password..."
+    
+    # First, try to set password as guacamole_user
     if docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
         "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" 2>&1; then
         print_status "success" "Guacamole database password set successfully"
-        
-        # Restart Guacamole to ensure it uses the new password
+    else
+        # If that fails, try with postgres superuser (for fresh installs)
+        print_status "info" "Trying with postgres superuser..."
+        docker exec appliance_guacamole_db psql -U postgres -c \
+            "ALTER USER guacamole_user PASSWORD 'guacamole_pass123';" 2>&1 || {
+            # Final fallback - use environment variable password
+            print_status "warning" "Using environment password authentication"
+            docker exec appliance_guacamole_db sh -c "PGPASSWORD='${POSTGRES_PASSWORD:-guacamole_pass123}' psql -U guacamole_user -d guacamole_db -c \"ALTER USER guacamole_user PASSWORD 'guacamole_pass123';\"" 2>&1 || \
+                print_status "error" "All password set methods failed"
+        }
+    fi
+    
+    # Restart Guacamole to ensure it uses the new password
+    if docker ps | grep -q appliance_guacamole; then
         print_status "info" "Restarting Guacamole to apply password change..."
         docker restart appliance_guacamole >/dev/null 2>&1
         sleep 5
         print_status "success" "Guacamole restarted"
-    else
-        print_status "error" "Failed to set Guacamole database password"
-        print_status "info" "Trying alternative method..."
-        docker exec appliance_guacamole_db psql -U guacamole_user -d guacamole_db -c \
-            "ALTER USER guacamole_user WITH PASSWORD 'guacamole_pass123';" 2>&1 || \
-            print_status "error" "Alternative method also failed"
     fi
     
     # Check if Guacamole database data already exists
