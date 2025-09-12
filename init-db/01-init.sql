@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Permission definitions for each role';
 
 -- User sessions tracking
-CREATE TABLE IF NOT EXISTS user_sessions (
+CREATE TABLE IF NOT EXISTS active_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    session_id VARCHAR(255) NOT NULL UNIQUE,
+    session_token VARCHAR(255) NOT NULL UNIQUE,
     ip_address VARCHAR(45),
     user_agent TEXT,
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     INDEX idx_user_sessions (user_id),
-    INDEX idx_session_id (session_id),
+    INDEX idx_session_token (session_token),
     INDEX idx_expires (expires_at),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Active user sessions';
@@ -186,9 +186,21 @@ CREATE TABLE IF NOT EXISTS appliances (
     custom_headers JSON DEFAULT NULL COMMENT 'Custom HTTP headers as JSON',
     auth_type ENUM('none', 'basic', 'bearer', 'custom') DEFAULT 'none',
     bearer_token VARCHAR(1024) DEFAULT NULL COMMENT 'Encrypted bearer token',
+    
+    -- Service control fields
+    ssh_connection VARCHAR(255) DEFAULT NULL COMMENT 'SSH connection string (user@host:port)',
+    status_command VARCHAR(500) DEFAULT NULL COMMENT 'Command to check service status',
+    start_command VARCHAR(500) DEFAULT NULL COMMENT 'Command to start service',
+    stop_command VARCHAR(500) DEFAULT NULL COMMENT 'Command to stop service',
+    restart_command VARCHAR(500) DEFAULT NULL COMMENT 'Command to restart service',
+    service_status VARCHAR(50) DEFAULT NULL COMMENT 'Current service status',
+    
+    -- Monitoring fields
     last_checked TIMESTAMP NULL,
     last_status ENUM('online', 'offline', 'error', 'unknown') DEFAULT 'unknown',
     response_time INT DEFAULT NULL COMMENT 'Response time in milliseconds',
+    
+    -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     created_by INT DEFAULT NULL,
@@ -417,6 +429,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     user_id INT DEFAULT NULL,
     username VARCHAR(50) DEFAULT NULL,
     action VARCHAR(100) NOT NULL,
+    resource_type VARCHAR(50) DEFAULT NULL COMMENT 'Type of resource (compatibility alias for entity_type)',
+    resource_id INT DEFAULT NULL COMMENT 'ID of the resource (compatibility alias for entity_id)',
+    resource_name VARCHAR(255) DEFAULT NULL COMMENT 'Name of the resource',
     entity_type VARCHAR(50) DEFAULT NULL COMMENT 'Type of entity (user, host, appliance, etc.)',
     entity_id INT DEFAULT NULL COMMENT 'ID of the affected entity',
     details JSON DEFAULT NULL COMMENT 'Additional details as JSON',
@@ -428,6 +443,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     
     INDEX idx_audit_user (user_id),
     INDEX idx_audit_action (action),
+    INDEX idx_audit_resource (resource_type, resource_id),
     INDEX idx_audit_entity (entity_type, entity_id),
     INDEX idx_audit_created (created_at),
     INDEX idx_audit_success (success),
