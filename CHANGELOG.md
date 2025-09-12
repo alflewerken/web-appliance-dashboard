@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.7] - 2025-09-12
+
 ### Added
 - **Complete SNMP Monitoring System** - Professional network monitoring capabilities
   - Full SNMP v1/v2c/v3 support with authentication and encryption
