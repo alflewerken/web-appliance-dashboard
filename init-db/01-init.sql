@@ -73,11 +73,13 @@ CREATE TABLE IF NOT EXISTS categories (
     description TEXT,
     is_system BOOLEAN DEFAULT FALSE,
     display_order INT DEFAULT 0,
+    order_index INT DEFAULT 0 COMMENT 'Compatibility alias for display_order',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     INDEX idx_categories_name (name),
-    INDEX idx_categories_order (display_order)
+    INDEX idx_categories_order (display_order),
+    INDEX idx_categories_order_index (order_index)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Categories for organizing appliances';
 
 -- SSH Keys storage
@@ -411,6 +413,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     user_id INT DEFAULT NULL,
     setting_key VARCHAR(100) NOT NULL,
     setting_value JSON DEFAULT NULL,
+    description TEXT DEFAULT NULL COMMENT 'Description of the setting',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
@@ -418,6 +421,26 @@ CREATE TABLE IF NOT EXISTS user_settings (
     INDEX idx_user_settings (user_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='User settings in JSON format';
+
+-- Background images for dashboard customization
+CREATE TABLE IF NOT EXISTS background_images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_size INT DEFAULT NULL COMMENT 'File size in bytes',
+    mime_type VARCHAR(100) DEFAULT NULL,
+    width INT DEFAULT NULL COMMENT 'Image width in pixels',
+    height INT DEFAULT NULL COMMENT 'Image height in pixels',
+    is_active BOOLEAN DEFAULT FALSE,
+    uploaded_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_active (is_active),
+    INDEX idx_uploaded_by (uploaded_by),
+    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Background images for dashboard customization';
 
 -- ====================================================================
 -- AUDIT AND LOGGING TABLES
