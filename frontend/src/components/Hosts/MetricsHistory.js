@@ -178,12 +178,18 @@ const MetricsHistory = ({ host }) => {
     setLoading(true);
     setError(null);
     
+    const startTime = Date.now();
+    console.log(`[METRICS] Starting to load ${selectedMetrics.length} metrics...`);
+    
     try {
-      // Fetch data for all selected metrics in one request
-      const response = await axios.post(`/api/metrics-history/${host.id}/compare`, {
+      // Use optimized endpoint for better performance
+      const response = await axios.post(`/api/metrics-history/${host.id}/compare-optimized`, {
         metrics: selectedMetrics,
         period: timeRange,
       });
+      
+      const loadTime = Date.now() - startTime;
+      console.log(`[METRICS] Loaded in ${loadTime}ms, performance:`, response.data.performance);
 
       if (response.data.success) {
         const newMetricsData = {};
@@ -203,23 +209,28 @@ const MetricsHistory = ({ host }) => {
           }
         }
         
-        // Process each metric's data and configuration
+        // Process each metric's data, configuration, and statistics
         for (const [metricKey, metricResult] of Object.entries(response.data.results)) {
           newMetricsData[metricKey] = metricResult.data || [];
           newMetricsConfig[metricKey] = metricResult.graphConfig || {};
           
-          // Fetch statistics for each metric
-          try {
-            const statsResponse = await axios.get(
-              `/api/metrics-history/${host.id}/${metricKey}/stats`,
-              { params: { period: timeRange } }
-            );
-            
-            if (statsResponse.data.success && statsResponse.data.stats) {
-              newStatistics[metricKey] = statsResponse.data.stats;
+          // Use stats from the response if available, otherwise fetch separately (fallback)
+          if (metricResult.stats) {
+            newStatistics[metricKey] = metricResult.stats;
+          } else {
+            // Fallback: fetch statistics separately (for backward compatibility)
+            try {
+              const statsResponse = await axios.get(
+                `/api/metrics-history/${host.id}/${metricKey}/stats`,
+                { params: { period: timeRange } }
+              );
+              
+              if (statsResponse.data.success && statsResponse.data.stats) {
+                newStatistics[metricKey] = statsResponse.data.stats;
+              }
+            } catch (err) {
+              console.error(`Failed to fetch stats for ${metricKey}:`, err);
             }
-          } catch (err) {
-            console.error(`Failed to fetch stats for ${metricKey}:`, err);
           }
         }
         
