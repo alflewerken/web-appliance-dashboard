@@ -1550,6 +1550,14 @@ class SNMPMonitor {
       const diskMetrics = enabledMetrics.filter(m => m.startsWith('disk.'));
       if (diskMetrics.length > 0) {
         const disks = await this.getDiskMetrics(session);
+        
+        // IMPORTANT: Store the complete disk data array, not just percentages!
+        // The full data (total, used, available) is needed for proper display
+        if (disks && disks.length > 0) {
+          collectedMetrics.disk = disks;  // Store complete disk array
+        }
+        
+        // Also store individual percentages for backwards compatibility
         for (const metric of diskMetrics) {
           const diskIndex = parseInt(metric.split('.')[1]);
           if (disks[diskIndex]) {

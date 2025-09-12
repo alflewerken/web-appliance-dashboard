@@ -310,6 +310,11 @@ class BackgroundPollingService {
       console.log(`Collected metrics for ${host.name}:`, Object.keys(metrics));
       console.log(`Enabled metrics:`, enabledMetrics);
       
+      // DEBUG: Check what's in metrics.disk
+      if (metrics.disk) {
+        console.log(`DISK DATA for ${host.name}:`, JSON.stringify(metrics.disk, null, 2));
+      }
+      
       // Store metrics in database
       await this.storeMetrics(host.id, metrics, host.customNames);
       
@@ -360,8 +365,26 @@ class BackgroundPollingService {
       this.previousTimestamps = {};
     }
     
+    // Flatten disk array for storage
+    const flattenedMetrics = { ...metrics };
+    if (metrics.disk && Array.isArray(metrics.disk)) {
+      console.log(`DEBUG storeMetrics: Found disk array with ${metrics.disk.length} disks`);
+      console.log(`DEBUG storeMetrics: First disk data:`, metrics.disk[0]);
+      
+      // Remove the array, we'll add individual disk metrics
+      delete flattenedMetrics.disk;
+      
+      // Add each disk as a separate metric with ONLY the percentage
+      // (Full data stays in the JSON for host_monitoring_data)
+      metrics.disk.forEach((disk, index) => {
+        flattenedMetrics[`disk.${index}`] = disk.percent;
+      });
+    } else {
+      console.log(`DEBUG storeMetrics: No disk array found! metrics.disk =`, metrics.disk);
+    }
+    
     // Store in snmp_metrics table
-    for (const [metricKey, value] of Object.entries(metrics)) {
+    for (const [metricKey, value] of Object.entries(flattenedMetrics)) {
       if (value === null || value === undefined) {
         continue; // Skip null/undefined values
       }
@@ -451,6 +474,12 @@ class BackgroundPollingService {
     
     // Also update host_monitoring_data for real-time display
     try {
+      // DEBUG: Check what we're about to save
+      console.log(`DEBUG: About to save metrics to host_monitoring_data for host ${hostId}`);
+      console.log(`DEBUG: metrics.disk =`, metrics.disk ? 
+        `Array with ${metrics.disk.length} disks, first disk has ${Object.keys(metrics.disk[0] || {}).join(', ')}` : 
+        'undefined or not array');
+      
       const monitoringData = {
         hostId: hostId,
         timestamp: timestamp,
