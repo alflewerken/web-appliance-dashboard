@@ -12,13 +12,33 @@ const { decrypt } = require('../utils/encryption');
 
 const SSH_DIR = '/root/.ssh';
 
-// Database configuration
+// Database configuration - with retry logic
 const dbConfig = {
-  host: process.env.DB_HOST || 'appliance_db',
+  host: process.env.DB_HOST || 'database',
   user: process.env.DB_USER || 'dashboard_user',
-  password: process.env.DB_PASSWORD || 'ZhFu+SWeAa5sqMdgMfsHn4o+BqTrtAeq',
-  database: process.env.DB_NAME || 'appliance_dashboard'
+  password: process.env.DB_PASSWORD || 'P3ndg3nE4JtD18fvW/1m2c2b9GdD6z7g',
+  database: process.env.DB_NAME || 'appliance_dashboard',
+  connectTimeout: 60000,
+  waitForConnections: true
 };
+
+// Retry logic for database connection
+async function connectWithRetry(maxRetries = 5) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const connection = await mysql.createConnection(dbConfig);
+      console.log('Connected to database');
+      return connection;
+    } catch (error) {
+      console.log(`Database connection attempt ${i + 1} failed:`, error.message);
+      if (i < maxRetries - 1) {
+        console.log(`Waiting 2 seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  throw new Error('Failed to connect to database after ' + maxRetries + ' attempts');
+}
 
 async function restoreSSHKeys() {
   let connection;
@@ -29,13 +49,12 @@ async function restoreSSHKeys() {
     // Ensure SSH directory exists with correct permissions
     await fs.mkdir(SSH_DIR, { recursive: true, mode: 0o700 });
     
-    // Connect to database
-    connection = await mysql.createConnection(dbConfig);
-    console.log('Connected to database');
+    // Connect to database with retry logic
+    connection = await connectWithRetry();
     
     // Fetch all SSH keys with user information
     const [keys] = await connection.execute(
-      'SELECT key_name, private_key, public_key, created_by FROM ssh_keys'
+      'SELECT key_name, private_key, public_key, created_by FROM ssh_keys WHERE private_key IS NOT NULL AND public_key IS NOT NULL'
     );
     
     console.log(`Found ${keys.length} SSH keys in database`);
