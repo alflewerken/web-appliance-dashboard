@@ -1227,11 +1227,6 @@ router.put('/:id/snmp-config', async (req, res) => {
       host.name
     );
     
-    // WICHTIG: Synchronisiere hosts.snmp_enabled mit host_snmp_configs.enabled
-    // Dies stellt sicher, dass beide Tabellen konsistent sind
-    await db.update('hosts', { snmpEnabled: configData.enabled }, { id: hostId });
-    logger.info(`Updated hosts.snmp_enabled to ${configData.enabled} for host ${hostId} (${host.name})`);
-    
     // Signal the polling worker to reload this host's configuration
     // The worker checks this table periodically and reloads configurations
     try {

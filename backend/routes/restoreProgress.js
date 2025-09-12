@@ -527,6 +527,17 @@ router.post('/start', verifyToken, async (req, res) => {
           delete hostData.rustdeskPassword;
           delete hostData.rustdesk_password;
           
+          // WICHTIG: Entferne alte SNMP-Config-Felder, die nicht mehr in hosts Tabelle sind
+          // Diese sind jetzt in host_snmp_configs Tabelle
+          delete hostData.snmp_enabled;
+          delete hostData.snmpEnabled;
+          delete hostData.snmp_community;
+          delete hostData.snmpCommunity;
+          delete hostData.snmp_port;
+          delete hostData.snmpPort;
+          delete hostData.snmp_version;
+          delete hostData.snmpVersion;
+          
           // Setze die re-verschlüsselten Werte (oder NULL wenn nicht entschlüsselbar)
           hostData.password = reEncryptFromBackup(host.password, 'Host SSH', host.name);
           hostData.private_key = reEncryptFromBackup(host.privateKey || host.private_key, 'Host SSH Key', host.name, true);
@@ -936,17 +947,46 @@ router.post('/start', verifyToken, async (req, res) => {
         
         console.log(`✅ Restored ${restoredConfigs} SNMP configs with mapped host IDs`);
         
-        // WICHTIG: Synchronisiere SNMP-Einstellungen von host_snmp_configs zur hosts Tabelle
-        console.log('🔄 Synchronizing SNMP settings to hosts table...');
-        await connection.execute(
-          'UPDATE hosts h ' +
-          'INNER JOIN host_snmp_configs c ON h.id = c.host_id ' +
-          'SET h.snmp_enabled = c.enabled, ' +
-          '    h.snmp_community = c.community, ' +
-          '    h.snmp_port = c.port, ' +
-          '    h.snmp_version = c.version'
-        );
-        console.log('✅ SNMP settings synchronized to hosts table');
+        // Nach dem Refactoring ist keine Synchronisation mehr nötig!
+        // host_snmp_configs ist jetzt die einzige Source of Truth für SNMP-Konfiguration
+      } else if (backupData.data?.hosts?.length > 0) {
+        // KOMPATIBILITÄT: Alte Backups haben SNMP-Config in hosts Tabelle
+        // Erstelle host_snmp_configs aus hosts-Daten wenn vorhanden
+        console.log('🔄 Migrating SNMP configs from old backup format...');
+        
+        let migratedConfigs = 0;
+        for (const host of backupData.data.hosts) {
+          // Prüfe ob Host SNMP-Daten hatte
+          if (host.snmp_enabled || host.snmpEnabled) {
+            const configData = {
+              hostId: host.id,
+              enabled: host.snmp_enabled || host.snmpEnabled || false,
+              version: host.snmp_version || host.snmpVersion || '2c',
+              community: host.snmp_community || host.snmpCommunity || 'public',
+              port: host.snmp_port || host.snmpPort || 161,
+              pollInterval: 60,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+            
+            const { sql, values } = prepareInsert('host_snmp_configs', configData);
+            try {
+              await connection.execute(sql, values);
+              migratedConfigs++;
+              console.log(`  ✅ Migrated SNMP config for host ${host.name} (ID: ${host.id})`);
+            } catch (err) {
+              console.warn(`  ⚠️ Could not migrate SNMP config for host ${host.name}: ${err.message}`);
+            }
+          }
+        }
+        
+        if (migratedConfigs > 0) {
+          console.log(`✅ Migrated ${migratedConfigs} SNMP configs from old backup format`);
+          sendProgressUpdate(sessionId, {
+            type: 'info',
+            message: `Migrated ${migratedConfigs} SNMP configurations from old backup format`
+          });
+        }
       }
       
       // 9. Restore host_metrics_logging (metric configurations per host)

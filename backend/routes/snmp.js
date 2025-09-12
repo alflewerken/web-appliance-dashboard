@@ -390,7 +390,7 @@ router.get('/status', async (req, res) => {
         h.id,
         h.hostname as name,
         h.ip,
-        h.snmp_enabled as snmpEnabled,
+        c.enabled as snmpEnabled,
         h.snmp_status as status,
         h.last_snmp_check as lastCheck,
         h.last_snmp_error as lastError,
@@ -398,7 +398,8 @@ router.get('/status', async (req, res) => {
         JSON_EXTRACT(h.last_metrics, '$.memory.usedPercent') as memoryPercent,
         JSON_EXTRACT(h.last_metrics, '$.uptime.formatted') as uptime
       FROM hosts h
-      WHERE h.snmp_enabled = 1
+      INNER JOIN host_snmp_configs c ON h.id = c.host_id
+      WHERE c.enabled = 1
       ORDER BY h.hostname
     `);
     
