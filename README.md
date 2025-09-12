@@ -63,6 +63,8 @@ No more tab chaos! A single dashboard for all your servers, services, and contai
 - **📱 Mobile First** - PWA-capable, optimized for iPhone and tablets
 
 ### Enterprise Features
+- **📊 SNMP Monitoring** - Professional network monitoring with v1/v2c/v3 support
+- **📈 Metrics History** - Interactive charts with zoom, statistics, and time-range selection
 - **💾 Backup & Restore** - Complete system backup with encryption
 - **📝 Audit Logging** - Compliance-ready with undo function
 - **⚡ Real-time Updates** - Server-Sent Events (SSE) for live status
