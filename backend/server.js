@@ -264,6 +264,12 @@ server.listen(PORT, async () => {
       if (success) {
         logger.info('All services initialized successfully');
         
+        // Start delayed SSH key restoration service
+        const { startDelayedRestore } = require('./utils/delayed-ssh-restore');
+        startDelayedRestore().catch(err => {
+          logger.error('Failed to start delayed SSH restore:', err);
+        });
+        
         // Start the status checker for service and host monitoring
         try {
           await statusChecker.start();
