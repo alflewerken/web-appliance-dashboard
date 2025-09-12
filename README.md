@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/React-19.1-61dafb.svg)](https://reactjs.org/)
 [![Express](https://img.shields.io/badge/Express-4.21-lightgrey.svg)](https://expressjs.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.6-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-1.1.7-brightgreen.svg)](package.json)
 [![i18n](https://img.shields.io/badge/i18n-DE%20%7C%20EN-orange.svg)](frontend/public/locales)
 [![Security](https://img.shields.io/badge/Security-Enhanced-green.svg)](SECURITY.md)
 
