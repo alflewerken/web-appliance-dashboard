@@ -148,6 +148,7 @@ Ich habe das Web Appliance Dashboard gebaut, um **MEINE** Probleme zu lösen - u
 | Mobile Optimiert | ✅ Mobile-First | ⚠️ | ❌ | ❌ |
 | Dark Mode | ✅ | ✅ | ✅ | ✅ |
 | SSH Verwaltung | ✅ Vollständig | ❌ | ❌ | ❌ |
+| SNMP-Monitoring | ✅ v1/v2c/v3 | ❌ | ❌ | ❌ |
 | Service-Steuerung | ✅ | ⚠️ | ❌ | ❌ |
 | Cloud-Frei | ✅ | ✅ | ✅ | ✅ |
 | Moderne UI | ✅ React 19 | ⚠️ | ❌ | ⚠️ |
